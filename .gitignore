@@ -1,0 +1,103 @@
+# Reference/planning docs (personal, not part of the project)
+contexto/
+plan/
+
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+
+# Environment variables (NEVER commit secrets)
+.env
+.env.local
+.env.staging
+.env.production
+*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Build outputs
+build/
+dist/
+*.tsbuildinfo
+
+# Expo / React Native
+.expo/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+web-build/
+
+# iOS
+ios/Pods/
+ios/build/
+*.xcworkspace
+*.xcuserdata
+
+# Android
+android/.gradle/
+android/app/build/
+android/build/
+*.apk
+*.aab
+
+# Docker
+docker-compose.override.yml
+
+# Testing
+coverage/
+.nyc_output/
+*.lcov
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# MinIO data (local)
+minio-data/
+
+# PostgreSQL data (local)
+pgdata/
+
+# Redis data (local)
+redis-data/
+
+# Stripe
+.stripe/
+.projects/state.local.json
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Secrets (never commit)
+*.pem
+*.key
+secrets/

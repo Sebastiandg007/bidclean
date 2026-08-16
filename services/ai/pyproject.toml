@@ -1,0 +1,33 @@
+[tool.poetry]
+name = "bidclean-ai"
+version = "0.1.0"
+description = "BidClean AI/ML microservice — verification, translation, speech, pricing"
+authors = ["BidClean Team"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+fastapi = "^0.115.0"
+uvicorn = {extras = ["standard"], version = "^0.30.0"}
+pydantic = "^2.9.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.0.0"
+hypothesis = "^6.100.0"
+ruff = "^0.6.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP", "B", "A", "SIM"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]

@@ -1,0 +1,13 @@
+{
+  "name": "@bidclean/shared",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Shared types, constants, and utilities for BidClean",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix"
+  }
+}

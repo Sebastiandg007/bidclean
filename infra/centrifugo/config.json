@@ -1,0 +1,8 @@
+{
+  "token_hmac_secret_key": "CHANGE_ME_IN_PRODUCTION",
+  "admin_password": "admin_local",
+  "admin_secret": "CHANGE_ME_IN_PRODUCTION",
+  "api_key": "CHANGE_ME_IN_PRODUCTION",
+  "allowed_origins": ["http://localhost:*"],
+  "health": true
+}

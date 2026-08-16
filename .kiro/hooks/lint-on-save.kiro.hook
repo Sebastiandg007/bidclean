@@ -1,0 +1,17 @@
+{
+  "enabled": true,
+  "name": "Lint TypeScript on Save",
+  "description": "Runs ESLint check on TypeScript and TSX files when saved to ensure code quality standards are maintained",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "**/*.ts",
+      "**/*.tsx"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "A TypeScript file was saved. Check if it follows the project's TypeScript standards and Clean Code principles. If there are issues with naming, function length, missing types, or any violations of the steering rules, fix them."
+  }
+}

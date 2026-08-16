@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "revenuecat": {
+      "command": "npx",
+      "args": [
+        "mcp-remote",
+        "https://mcp.revenuecat.ai/mcp",
+        "--header",
+        "Authorization: Bearer YOUR_REVENUECAT_API_V2_KEY"
+      ],
+      "env": {},
+      "disabled": true,
+      "autoApprove": []
+    }
+  }
+}

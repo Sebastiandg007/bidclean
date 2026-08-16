@@ -1,0 +1,44 @@
+{
+  "name": "bidclean",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Global platform connecting properties with verified cleaning professionals through real-time offers",
+  "workspaces": [
+    "apps/*",
+    "services/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:mobile": "npm run dev --workspace=apps/mobile",
+    "dev:api": "npm run dev --workspace=services/api",
+    "dev:web": "npm run dev --workspace=apps/web",
+    "build:api": "npm run build --workspace=services/api",
+    "build:mobile": "npm run build --workspace=apps/mobile",
+    "test": "npm run test --workspaces --if-present",
+    "test:api": "npm run test --workspace=services/api",
+    "test:mobile": "npm run test --workspace=apps/mobile",
+    "lint": "npm run lint --workspaces --if-present",
+    "lint:fix": "npm run lint:fix --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,json,md}\""
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bidclean/bidclean.git"
+  },
+  "keywords": [
+    "marketplace",
+    "cleaning",
+    "react-native",
+    "nestjs",
+    "stripe",
+    "revenuecat"
+  ],
+  "author": "BidClean Team",
+  "license": "PROPRIETARY"
+}

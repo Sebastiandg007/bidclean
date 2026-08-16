@@ -1,0 +1,12 @@
+{
+  "name": "@bidclean/web",
+  "version": "0.1.0",
+  "private": true,
+  "description": "BidClean landing page and web funnels — bidclean.tech",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  }
+}

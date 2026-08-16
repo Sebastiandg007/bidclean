@@ -1,0 +1,93 @@
+version: '3.9'
+
+# BidClean — Local Development Environment
+# Run: docker compose up -d
+# All services needed for local development.
+
+services:
+  # === DATA LAYER ===
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: bidclean-postgres
+    environment:
+      POSTGRES_DB: bidclean
+      POSTGRES_USER: bidclean
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-bidclean_local}
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U bidclean']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: bidclean-redis
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # === OBJECT STORAGE ===
+  minio:
+    image: minio/minio:latest
+    container_name: bidclean-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-bidclean}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-bidclean_local}
+    ports:
+      - '9000:9000'
+      - '9001:9001'
+    volumes:
+      - minio-data:/data
+
+  # === AUTHENTICATION ===
+  keycloak:
+    image: quay.io/keycloak/keycloak:25.0
+    container_name: bidclean-keycloak
+    command: start-dev
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin_local}
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/bidclean
+      KC_DB_USERNAME: bidclean
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD:-bidclean_local}
+    ports:
+      - '8080:8080'
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # === REALTIME ===
+  centrifugo:
+    image: centrifugo/centrifugo:v5
+    container_name: bidclean-centrifugo
+    command: centrifugo -c config.json
+    ports:
+      - '8001:8000'
+    volumes:
+      - ./centrifugo/config.json:/centrifugo/config.json
+
+  # === TRANSLATION ===
+  libretranslate:
+    image: libretranslate/libretranslate:latest
+    container_name: bidclean-libretranslate
+    environment:
+      LT_LOAD_ONLY: en,es,fr,de,it,pt,nl
+    ports:
+      - '5000:5000'
+
+volumes:
+  pgdata:
+  redis-data:
+  minio-data:

@@ -1,0 +1,18 @@
+{
+  "enabled": true,
+  "name": "Update Docs on File Delete",
+  "description": "When a file is deleted, prompts to clean up documentation references and update architecture diagrams",
+  "version": "1",
+  "when": {
+    "type": "fileDeleted",
+    "patterns": [
+      "**/*.ts",
+      "**/*.tsx",
+      "**/*.py"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "A file was deleted from the project. Check: 1) Remove references from parent folder README. 2) Update ARCHITECTURE.md if structural. 3) Remove any dead imports or references in other files."
+  }
+}

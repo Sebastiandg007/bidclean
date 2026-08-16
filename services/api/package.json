@@ -1,0 +1,21 @@
+{
+  "name": "@bidclean/api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "BidClean backend API — NestJS",
+  "scripts": {
+    "dev": "nest start --watch",
+    "build": "nest build",
+    "start": "node dist/main",
+    "start:prod": "node dist/main",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:cov": "jest --coverage",
+    "lint": "eslint \"{src,test}/**/*.ts\"",
+    "lint:fix": "eslint \"{src,test}/**/*.ts\" --fix",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@bidclean/shared": "*"
+  }
+}

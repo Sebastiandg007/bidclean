@@ -1,0 +1,13 @@
+{
+  "enabled": true,
+  "name": "Run Tests After Task",
+  "description": "After completing a spec task, runs related tests to verify the implementation does not break existing functionality",
+  "version": "1",
+  "when": {
+    "type": "postTaskExecution"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "A spec task was just completed. Identify and run the related tests to verify the implementation works correctly and does not break existing functionality. Report any failures."
+  }
+}
