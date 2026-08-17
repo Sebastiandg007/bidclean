@@ -9,8 +9,8 @@
 ### Sprint 1 — Auth & Users
 | # | Spec | Status | Dependencies |
 |---|------|--------|-------------|
-| 1 | `user-authentication` | 🔄 In Progress | None |
-| 2 | `user-roles` | ⬜ Pending | Spec 1 |
+| 1 | `user-authentication` | ✅ Completed | None |
+| 2 | `user-roles` | 🔄 In Progress | Spec 1 |
 | 3 | `kyc-verification` | ⬜ Pending | Spec 1 |
 | 4 | `user-profile` | ⬜ Pending | Spec 1, 2 |
 
