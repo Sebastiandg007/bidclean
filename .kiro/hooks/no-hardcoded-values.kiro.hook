@@ -1,0 +1,16 @@
+{
+  "enabled": true,
+  "name": "No Hardcoded Values Check",
+  "description": "Before writing any file, verifies that no hardcoded values exist — no API keys, URLs, secrets, business rule literals, or UI text should be inline in code",
+  "version": "1",
+  "when": {
+    "type": "preToolUse",
+    "toolTypes": [
+      "write"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Before writing this file, verify it contains NO hardcoded values: no API keys, URLs, secrets, business rule numbers (percentages, timeouts, limits), or UI text strings. All such values must come from environment variables, configuration files, constants modules, or i18n keys. If any hardcoded values are found, replace them with the appropriate configurable reference before writing."
+  }
+}
