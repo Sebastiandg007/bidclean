@@ -1,8 +1,19 @@
-# User Authentication & Registration
+# Requirements Document
 
-## Overview
+## Introduction
 
 The authentication system for BidClean allows users to register, log in, and manage their session securely. Keycloak is the single source of truth for identity, credentials, and OAuth flows. The BidClean API stores only business-level user data and session metadata.
+
+## Glossary
+
+| Term | Definition |
+|------|-----------|
+| Keycloak | Open-source identity provider managing credentials, OAuth, and token issuance |
+| PKCE | Proof Key for Code Exchange — security extension for OAuth2 Authorization Code flow |
+| JWKS | JSON Web Key Set — endpoint for public keys used to verify JWT signatures |
+| Biometric | Device-local authentication using fingerprint or Face ID |
+| Secure Enclave | Hardware-isolated area on device that stores cryptographic keys |
+| Auth Session | Metadata record tracking a user's login on a specific device |
 
 ## Requirements
 
@@ -78,7 +89,15 @@ The authentication system for BidClean allows users to register, log in, and man
 - BidClean does not perform email-based account merging itself
 - Apple Hide My Email: handled per Keycloak's configured linking policy
 
-## Explicitly Out of Scope
+## Non-Functional Requirements
+
+- Authentication endpoints must respond within 500ms under normal load
+- System must support 1000 concurrent authenticated sessions
+- All auth data encrypted in transit (TLS 1.3) and at rest
+- Session metadata stored with minimal PII (no passwords, no biometric data)
+
+## Out of Scope
+
 - Role selection (Host/Cleaner) → `user-roles` spec
 - KYC verification → `kyc-verification` spec
 - Profile details (photo, bio, etc.) → `user-profile` spec

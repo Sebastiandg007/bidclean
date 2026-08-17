@@ -15,3 +15,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Architecture Decision Records (ADR-001 through ADR-005)
 - Contributing guide
 - EditorConfig and gitignore
+- **Auth module** — complete Keycloak-based authentication system (2026-08-17)
+  - Registration with email + password via Keycloak
+  - Login via Keycloak Authorization Code + PKCE (system browser)
+  - JWT validation via JWKS endpoint
+  - Biometric authentication (challenge/response with device keypair)
+  - Session metadata tracking (per device)
+  - Logout (single device + all devices via Keycloak Admin API)
+  - Rate limiting (Redis-backed, configurable per endpoint type)
+  - Email verification status sync from Keycloak
+  - Database migration for users, auth_sessions, biometric_credentials, biometric_challenges
+  - Unit tests for auth, biometric, session, and email verification services
+- Task execution rules steering file
+- ROADMAP.md for spec tracking
+- Hooks: commit-after-task, no-hardcoded-values, verify-tests-executed

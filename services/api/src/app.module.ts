@@ -1,5 +1,8 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { HealthModule } from './health/health.module';
+import { AuthModule } from './auth/auth.module';
 
 /**
  * Root application module.
@@ -7,13 +10,24 @@ import { HealthModule } from './health/health.module';
  */
 @Module({
   imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: '../../.env',
+    }),
+    TypeOrmModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        type: 'postgres',
+        url: configService.get<string>('DATABASE_URL'),
+        entities: [__dirname + '/**/*.entity{.ts,.js}'],
+        migrations: [__dirname + '/migrations/*{.ts,.js}'],
+        synchronize: false,
+        logging: configService.get<string>('NODE_ENV') === 'development',
+      }),
+    }),
     HealthModule,
-    // Feature modules will be added here:
-    // UsersModule,
-    // OffersModule,
-    // PaymentsModule,
-    // ChatModule,
-    // NotificationsModule,
+    AuthModule,
   ],
 })
 export class AppModule {}
