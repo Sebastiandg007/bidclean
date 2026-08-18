@@ -26,6 +26,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Email verification status sync from Keycloak
   - Database migration for users, auth_sessions, biometric_credentials, biometric_challenges
   - Unit tests for auth, biometric, session, and email verification services
+- **Roles module** — scaffolded role management system
+  - Module structure: controller, service, types, DTOs, entities, tests
+  - TypeORM entities for `host_profiles` and `cleaner_profiles`
+  - DTOs with class-validator for assign-roles, host-profile, cleaner-profile
+  - Enums: UserRole (host/cleaner), OnboardingStatus (NOT_STARTED/IN_PROGRESS/COMPLETED)
+  - Controller with all six endpoints (stubs, guarded by JwtAuthGuard)
+  - Registered in AppModule
 - Task execution rules steering file
 - ROADMAP.md for spec tracking
 - Hooks: commit-after-task, no-hardcoded-values, verify-tests-executed

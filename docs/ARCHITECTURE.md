@@ -151,6 +151,8 @@ graph TB
 graph TB
     subgraph API["NestJS API"]
         subgraph Modules["Feature Modules"]
+            Auth["Auth Module"]
+            Roles["Roles Module"]
             Users["Users Module"]
             Properties["Properties Module"]
             Offers["Offers Module"]
@@ -178,6 +180,7 @@ graph TB
     end
 
     Users --> DB
+    Roles --> DB
     Properties --> DB
     Properties --> Storage
     Offers --> DB
