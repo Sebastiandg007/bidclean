@@ -1,0 +1,13 @@
+{
+  "enabled": true,
+  "name": "Final Quality Gate",
+  "description": "Final safety net that runs when the agent finishes any execution. Verifies that all quality gates were met: documentation updated, architecture diagrams current, tests executed, no hardcoded values, code follows standards, and changes committed to repository.",
+  "version": "1",
+  "when": {
+    "type": "agentStop"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "The agent just finished working. Perform this COMPLETE quality checklist ONLY IF code files were created or modified during this session. If no code changes were made (only conversation), skip all checks.\n\nCHECKLIST (execute ALL that apply):\n\n1. DOCUMENTATION:\n   - If new files/modules were created: verify the parent folder has an updated README.md listing all current files and their responsibilities.\n   - If the project structure changed (new module, new service, new integration): update docs/ARCHITECTURE.md Mermaid diagrams to reflect current state.\n   - If a feature was implemented: add entry to docs/CHANGELOG.md under [Unreleased].\n   - If a spec task was completed: verify .kiro/specs/ROADMAP.md reflects current progress.\n\n2. TESTS:\n   - If business logic, API endpoints, or interactive components were implemented: verify corresponding tests exist and pass. Run them with the appropriate test command.\n   - If tests don't exist for implemented logic: CREATE them now.\n   - If tests cannot run due to infrastructure dependencies (Docker, Keycloak): document why and mark as pending.\n\n3. NO HARDCODED VALUES:\n   - Scan all new/modified files for hardcoded API keys, URLs, secrets, business rule numbers, or UI text strings.\n   - If found: replace with environment variables, config constants, or i18n keys.\n\n4. CODE QUALITY:\n   - Verify functions are small (max 20-30 lines), names are meaningful, error handling is explicit.\n   - Verify no `any` types in TypeScript, type hints present in Python.\n   - Verify no commented-out code or dead code.\n\n5. GIT:\n   - Stage all changes: git add -A\n   - Commit with descriptive conventional commit message.\n   - Push to the current branch.\n\n6. AUDIT SUMMARY:\n   - Report what was verified and what actions were taken.\n   - If anything could not be completed, explain why.\n\nIMPORTANT: Do NOT skip steps. Do NOT assume previous hooks handled this. This is the FINAL verification."
+  }
+}

@@ -7,7 +7,7 @@ Implementation tasks for the User Roles feature. Covers role selection, Host/Cle
 ## Tasks
 
 - [x] 1. Create roles module structure (module, controller, service, types, DTOs, entities, tests folder, README)
-- [-] 2. Create database migration for host_profiles and cleaner_profiles tables + user table role columns
+- [x] 2. Create database migration for host_profiles and cleaner_profiles tables + user table role columns
 - [ ] 3. Implement assign-roles endpoint (POST /users/roles — validate, assign, set active_role)
 - [ ] 4. Implement get-roles endpoint (GET /users/me/roles — return roles array and active role)
 - [ ] 5. Implement switch active role endpoint (PATCH /users/me/active-role — validate role is assigned, update)
