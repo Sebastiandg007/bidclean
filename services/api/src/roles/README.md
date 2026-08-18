@@ -41,7 +41,7 @@ Run migrations with: `npm run migration:run`
 | Method | Path | Description | Status |
 |--------|------|-------------|--------|
 | POST | `/users/roles` | Assign one or both roles to the authenticated user | ✅ Implemented |
-| GET | `/users/me/roles` | Get user's assigned roles and active role | 🔲 Stub |
+| GET | `/users/me/roles` | Get user's assigned roles and active role | ✅ Implemented |
 | PATCH | `/users/me/active-role` | Switch the currently active role | 🔲 Stub |
 | POST | `/users/me/host-profile` | Save Host onboarding profile data | 🔲 Stub |
 | POST | `/users/me/cleaner-profile` | Save Cleaner onboarding profile data | 🔲 Stub |
