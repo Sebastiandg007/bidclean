@@ -57,9 +57,13 @@ export class RolesService {
   /**
    * Get the user's assigned roles and current active role.
    */
-  async getUserRoles(_userId: string): Promise<UserRolesResponse> {
-    // TODO: Implement in task 4
-    throw new Error('Not implemented');
+  async getUserRoles(keycloakId: string): Promise<UserRolesResponse> {
+    const user = await this.findUserOrFail(keycloakId);
+
+    return {
+      roles: user.roles as UserRole[],
+      activeRole: user.activeRole as UserRole | null,
+    };
   }
 
   /**

@@ -40,6 +40,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Initializes onboarding status to IN_PROGRESS for newly assigned roles
   - Returns 404 if user not found, 200 with current state for re-assignments
   - Unit tests for assignRoles (6 test cases covering all scenarios)
+- **Roles module** — `GET /users/me/roles` endpoint fully implemented
+  - Returns user's assigned roles array and current active role
+  - Reuses `findUserOrFail` helper for consistent 404 handling
+  - Unit tests for getUserRoles (4 test cases)
 - Task execution rules steering file
 - ROADMAP.md for spec tracking
 - Hooks: commit-after-task, no-hardcoded-values, verify-tests-executed

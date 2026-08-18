@@ -167,7 +167,69 @@ describe('RolesService', () => {
   });
 
   describe('getUserRoles', () => {
-    it.todo('should return the user roles and active role');
+    const keycloakId = 'kc-user-456';
+
+    const createMockUser = (overrides: Partial<User> = {}): User =>
+      ({
+        id: 'uuid-2',
+        keycloakId,
+        email: 'roles@example.com',
+        fullName: 'Roles User',
+        country: 'US',
+        language: 'en',
+        isEmailVerified: true,
+        roles: [],
+        activeRole: null,
+        onboardingStatusHost: OnboardingStatus.NOT_STARTED,
+        onboardingStatusCleaner: OnboardingStatus.NOT_STARTED,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        ...overrides,
+      }) as User;
+
+    it('should return roles and active role for a user with one role', async () => {
+      const user = createMockUser({
+        roles: [UserRole.HOST],
+        activeRole: UserRole.HOST,
+      });
+      mockUserRepository.findOne.mockResolvedValue(user);
+
+      const result = await service.getUserRoles(keycloakId);
+
+      expect(result.roles).toEqual([UserRole.HOST]);
+      expect(result.activeRole).toBe(UserRole.HOST);
+    });
+
+    it('should return roles and active role for a user with both roles', async () => {
+      const user = createMockUser({
+        roles: [UserRole.HOST, UserRole.CLEANER],
+        activeRole: UserRole.CLEANER,
+      });
+      mockUserRepository.findOne.mockResolvedValue(user);
+
+      const result = await service.getUserRoles(keycloakId);
+
+      expect(result.roles).toEqual([UserRole.HOST, UserRole.CLEANER]);
+      expect(result.activeRole).toBe(UserRole.CLEANER);
+    });
+
+    it('should return empty roles and null activeRole for a new user', async () => {
+      const user = createMockUser({ roles: [], activeRole: null });
+      mockUserRepository.findOne.mockResolvedValue(user);
+
+      const result = await service.getUserRoles(keycloakId);
+
+      expect(result.roles).toEqual([]);
+      expect(result.activeRole).toBeNull();
+    });
+
+    it('should throw NotFoundException when user not found', async () => {
+      mockUserRepository.findOne.mockResolvedValue(null);
+
+      await expect(service.getUserRoles(keycloakId)).rejects.toThrow(
+        NotFoundException,
+      );
+    });
   });
 
   describe('switchActiveRole', () => {
