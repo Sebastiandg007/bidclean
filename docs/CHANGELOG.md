@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Enums: UserRole (host/cleaner), OnboardingStatus (NOT_STARTED/IN_PROGRESS/COMPLETED)
   - Controller with all six endpoints (stubs, guarded by JwtAuthGuard)
   - Registered in AppModule
+  - Database migration for role columns on `users` table and `host_profiles`/`cleaner_profiles` tables (with PostGIS GiST index)
 - Task execution rules steering file
 - ROADMAP.md for spec tracking
 - Hooks: commit-after-task, no-hardcoded-values, verify-tests-executed

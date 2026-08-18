@@ -20,6 +20,16 @@ Manages user role assignment (Host/Cleaner), role-specific onboarding profiles, 
 | `__tests__/roles.service.spec.ts` | Unit tests for the roles service |
 | `__tests__/roles.controller.spec.ts` | Unit tests for the roles controller |
 
+## Migration
+
+The database schema for this module is managed by:
+
+| Migration | Description |
+|-----------|-------------|
+| `1700000001000-CreateRoleTables.ts` | Adds role columns (`roles`, `active_role`, `onboarding_status_host`, `onboarding_status_cleaner`) to the `users` table, and creates the `host_profiles` and `cleaner_profiles` tables with indexes (including a PostGIS GiST index on the cleaner work zone for geospatial queries) |
+
+Run migrations with: `npm run migration:run`
+
 ## Dependencies
 
 - **Auth module** — JwtAuthGuard for endpoint protection, User entity for FK relations
