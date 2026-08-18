@@ -34,6 +34,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Controller with all six endpoints (stubs, guarded by JwtAuthGuard)
   - Registered in AppModule
   - Database migration for role columns on `users` table and `host_profiles`/`cleaner_profiles` tables (with PostGIS GiST index)
+- **Roles module** — `POST /users/roles` endpoint fully implemented
+  - Assigns one or both roles to authenticated user (idempotent)
+  - Sets `active_role` to first selected role when not previously set
+  - Initializes onboarding status to IN_PROGRESS for newly assigned roles
+  - Returns 404 if user not found, 200 with current state for re-assignments
+  - Unit tests for assignRoles (6 test cases covering all scenarios)
 - Task execution rules steering file
 - ROADMAP.md for spec tracking
 - Hooks: commit-after-task, no-hardcoded-values, verify-tests-executed
