@@ -15,7 +15,7 @@ Implementation tasks for the User Roles feature. Covers role selection, Host/Cle
 - [x] 7. Implement Cleaner profile creation endpoint (POST /users/me/cleaner-profile — save work zone, availability, specialties)
 - [x] 8. Implement onboarding status endpoint (GET /users/me/onboarding-status — return completion per role)
 - [x] 9. Implement onboarding gate guard (middleware that blocks access to role features if onboarding is incomplete)
-- [ ] 10. Write unit tests for roles service (assign, get, switch, add second role, idempotent assignment)
+- [-] 10. Write unit tests for roles service (assign, get, switch, add second role, idempotent assignment)
 - [ ] 11. Write unit tests for onboarding status logic (completion checks, gate validation)
 - [ ] 12. Create role selection screen (RoleSelectionScreen.tsx — two options, single/dual selection, submit)
 - [ ] 13. Create Host onboarding screen (HostOnboardingScreen.tsx — name confirmation, payment method step)
