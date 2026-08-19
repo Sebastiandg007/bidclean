@@ -10,7 +10,7 @@
 | # | Spec | Status | Dependencies |
 |---|------|--------|-------------|
 | 1 | `user-authentication` | ✅ Completed | None |
-| 2 | `user-roles` | 🔄 In Progress | Spec 1 |
+| 2 | `user-roles` | ✅ Completed | Spec 1 |
 | 3 | `kyc-verification` | ⬜ Pending | Spec 1 |
 | 4 | `user-profile` | ⬜ Pending | Spec 1, 2 |
 

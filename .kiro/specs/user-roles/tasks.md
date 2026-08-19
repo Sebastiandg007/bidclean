@@ -30,7 +30,7 @@ Implementation tasks for the User Roles feature. Covers role selection, Host/Cle
 - [x] 22. Write component tests for RoleSelectionScreen (render, selection, submission)
 - [x] 23. Write component tests for HostOnboardingScreen (steps, validation)
 - [x] 24. Write component tests for CleanerOnboardingScreen (steps, map, availability)
-- [ ] 25. Write component tests for RoleBasedNavigator (correct tabs per role)
+- [x] 25. Write component tests for RoleBasedNavigator (correct tabs per role)
 
 ## Task Dependency Graph
 
