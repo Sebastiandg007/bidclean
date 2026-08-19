@@ -139,3 +139,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Active state indicator (accent color dot, opacity changes)
   - Full accessibility (tablist/tab roles, labels, selected state)
   - Placeholder screen content for each tab (ready for real screens)
+- **Roles module (mobile)** — Cleaner tab navigator fully implemented
+  - `CleanerNavigator.tsx` — custom bottom tab bar with 3 tabs (Radar, Active, Profile)
+  - Same data-driven pattern as HostNavigator for consistency
+  - Animated tab buttons with react-native-reanimated spring physics
+  - Active state indicator (accent color dot, opacity changes)
+  - Full accessibility (tablist/tab roles, labels, selected state)
+  - Placeholder screen content for each tab (ready for real screens)
