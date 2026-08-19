@@ -14,8 +14,11 @@ import { HostProfileDto } from './dto/host-profile.dto';
 import { CleanerProfileDto } from './dto/cleaner-profile.dto';
 import {
   AssignRolesResponse,
+  CleanerOnboardingSteps,
+  HostOnboardingSteps,
   OnboardingStatus,
   OnboardingStatusResponse,
+  RoleOnboardingDetail,
   SwitchRoleResponse,
   UserRole,
   UserRolesResponse,
@@ -122,10 +125,20 @@ export class RolesService {
   /**
    * Get onboarding completion status for each role.
    * Status is inferred from profile data completeness.
+   * Returns null for roles not assigned to the user.
    */
-  async getOnboardingStatus(_userId: string): Promise<OnboardingStatusResponse> {
-    // TODO: Implement in task 8
-    throw new Error('Not implemented');
+  async getOnboardingStatus(keycloakId: string): Promise<OnboardingStatusResponse> {
+    const user = await this.findUserOrFail(keycloakId);
+
+    const host = user.roles.includes(UserRole.HOST)
+      ? await this.buildHostOnboardingDetail(user)
+      : null;
+
+    const cleaner = user.roles.includes(UserRole.CLEANER)
+      ? await this.buildCleanerOnboardingDetail(user)
+      : null;
+
+    return { host, cleaner };
   }
 
   // ──────────────────────────────────────────────────────────────────
@@ -244,5 +257,107 @@ export class RolesService {
     profile.specialties = dto.specialties ?? profile.specialties ?? [];
 
     return this.cleanerProfileRepository.save(profile);
+  }
+
+  // ──────────────────────────────────────────────────────────────────
+  // Onboarding status helpers
+  // ──────────────────────────────────────────────────────────────────
+
+  /** Build onboarding detail for the Host role, updating status if all steps are complete. */
+  private async buildHostOnboardingDetail(
+    user: User,
+  ): Promise<RoleOnboardingDetail<HostOnboardingSteps>> {
+    const profile = await this.hostProfileRepository.findOne({
+      where: { userId: user.id },
+    });
+
+    const steps = this.inferHostSteps(profile);
+    const status = this.resolveOnboardingStatus(
+      user.onboardingStatusHost,
+      this.areAllHostStepsComplete(steps),
+    );
+
+    if (status === OnboardingStatus.COMPLETED && user.onboardingStatusHost !== OnboardingStatus.COMPLETED) {
+      user.onboardingStatusHost = OnboardingStatus.COMPLETED;
+      await this.userRepository.save(user);
+    }
+
+    return { status, steps };
+  }
+
+  /** Build onboarding detail for the Cleaner role, updating status if all steps are complete. */
+  private async buildCleanerOnboardingDetail(
+    user: User,
+  ): Promise<RoleOnboardingDetail<CleanerOnboardingSteps>> {
+    const profile = await this.cleanerProfileRepository.findOne({
+      where: { userId: user.id },
+    });
+
+    const steps = this.inferCleanerSteps(profile);
+    const status = this.resolveOnboardingStatus(
+      user.onboardingStatusCleaner,
+      this.areAllCleanerStepsComplete(steps),
+    );
+
+    if (status === OnboardingStatus.COMPLETED && user.onboardingStatusCleaner !== OnboardingStatus.COMPLETED) {
+      user.onboardingStatusCleaner = OnboardingStatus.COMPLETED;
+      await this.userRepository.save(user);
+    }
+
+    return { status, steps };
+  }
+
+  /** Infer Host onboarding step completion from profile data. */
+  private inferHostSteps(profile: HostProfile | null): HostOnboardingSteps {
+    return {
+      displayNameConfirmed: profile !== null && profile.displayName.length > 0,
+      paymentMethodAdded: profile?.paymentMethodAdded ?? false,
+    };
+  }
+
+  /** Infer Cleaner onboarding step completion from profile data. */
+  private inferCleanerSteps(profile: CleanerProfile | null): CleanerOnboardingSteps {
+    return {
+      kycStarted: profile !== null,
+      workZoneSet: this.isWorkZoneComplete(profile),
+      availabilitySet: this.isAvailabilitySet(profile),
+    };
+  }
+
+  /** Check if all Host onboarding steps are complete. */
+  private areAllHostStepsComplete(steps: HostOnboardingSteps): boolean {
+    return steps.displayNameConfirmed && steps.paymentMethodAdded;
+  }
+
+  /** Check if all Cleaner onboarding steps are complete. */
+  private areAllCleanerStepsComplete(steps: CleanerOnboardingSteps): boolean {
+    return steps.kycStarted && steps.workZoneSet && steps.availabilitySet;
+  }
+
+  /** Resolve the effective onboarding status based on current stored status and step completion. */
+  private resolveOnboardingStatus(
+    storedStatus: string,
+    allStepsComplete: boolean,
+  ): OnboardingStatus {
+    if (allStepsComplete) {
+      return OnboardingStatus.COMPLETED;
+    }
+    return storedStatus as OnboardingStatus;
+  }
+
+  /** Check if the cleaner's work zone fields are all set. */
+  private isWorkZoneComplete(profile: CleanerProfile | null): boolean {
+    if (!profile) return false;
+    return (
+      profile.workZoneLat !== null &&
+      profile.workZoneLng !== null &&
+      profile.workZoneRadiusKm !== null
+    );
+  }
+
+  /** Check if the cleaner's availability has at least one entry. */
+  private isAvailabilitySet(profile: CleanerProfile | null): boolean {
+    if (!profile) return false;
+    return Object.keys(profile.availability).length > 0;
   }
 }

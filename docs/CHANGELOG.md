@@ -64,3 +64,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Saves displayName, workZoneLat, workZoneLng, workZoneRadiusKm, availability, specialties
   - Preserves existing values for optional fields not provided in the request
   - Returns full CleanerProfile entity
+- **Roles module** — `GET /users/me/onboarding-status` endpoint fully implemented
+  - Returns onboarding completion status per role with step-level detail
+  - Infers step completion from profile data (no separate tracking columns needed)
+  - Host steps: displayNameConfirmed, paymentMethodAdded
+  - Cleaner steps: kycStarted, workZoneSet, availabilitySet
+  - Returns null for roles not assigned to the user
+  - Auto-updates user onboarding status to COMPLETED when all steps are done
+  - Enhanced OnboardingStatusResponse type with generic RoleOnboardingDetail interface

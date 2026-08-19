@@ -46,7 +46,7 @@ Run migrations with: `npm run migration:run`
 | PATCH | `/users/me/active-role` | Switch the currently active role | ✅ Implemented |
 | POST | `/users/me/host-profile` | Save Host onboarding profile data | ✅ Implemented |
 | POST | `/users/me/cleaner-profile` | Save Cleaner onboarding profile data | ✅ Implemented |
-| GET | `/users/me/onboarding-status` | Get onboarding completion status per role | 🔲 Stub |
+| GET | `/users/me/onboarding-status` | Get onboarding completion status per role | ✅ Implemented |
 
 ## Data Models
 
@@ -65,3 +65,25 @@ Run migrations with: `npm run migration:run`
 - Active role must be one of the user's assigned roles
 - Authorization checks use `roles[]` array, not `active_role`
 - Onboarding status is inferred from profile data completeness
+- Onboarding auto-completes: if all steps for a role are done, status is updated to COMPLETED
+
+## Onboarding Status Response Shape
+
+The `GET /users/me/onboarding-status` endpoint returns step-level detail:
+
+```json
+{
+  "host": {
+    "status": "IN_PROGRESS",
+    "steps": {
+      "displayNameConfirmed": true,
+      "paymentMethodAdded": false
+    }
+  },
+  "cleaner": null
+}
+```
+
+- Returns `null` for roles not assigned to the user
+- **Host steps:** `displayNameConfirmed` (profile exists with displayName), `paymentMethodAdded`
+- **Cleaner steps:** `kycStarted` (profile exists), `workZoneSet` (all zone fields non-null), `availabilitySet` (availability has entries)
