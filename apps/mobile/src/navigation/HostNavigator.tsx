@@ -16,6 +16,7 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
+import RoleSwitchButton from '../screens/roles/RoleSwitchButton';
 
 // ─── Design Tokens ───────────────────────────────────────────────────────────
 
@@ -109,6 +110,7 @@ const DEFAULT_TAB_INDEX = 0;
 /**
  * Placeholder screen for each Host tab.
  * Will be replaced with real screen implementations in future tasks.
+ * Profile tab includes the RoleSwitchButton (REQ-5).
  */
 function TabScreen({ tabKey, label }: { tabKey: string; label: string }) {
   const { t } = useTranslation();
@@ -121,6 +123,7 @@ function TabScreen({ tabKey, label }: { tabKey: string; label: string }) {
           defaultValue: 'Coming soon',
         })}
       </Text>
+      {tabKey === 'profile' && <RoleSwitchButton />}
     </View>
   );
 }

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Roles module (mobile)** — RoleSwitchButton in Profile tab (REQ-5)
+  - `RoleSwitchButton.tsx` — only renders when user has both roles, shows "Switch to Host/Cleaner"
+  - Calls `switchRole` from auth store (instant local update + async PATCH)
+  - Integrated in both HostNavigator and CleanerNavigator Profile tabs
+  - Spring animation on press, full i18n support, accessibility compliant
+
 ### Changed
 - Migrated ESLint from legacy `.eslintrc.js` to flat config `eslint.config.mjs` (ESLint 10 compatibility)
 - Replaced `@typescript-eslint/parser` + `@typescript-eslint/eslint-plugin` with unified `typescript-eslint` v8.67.0

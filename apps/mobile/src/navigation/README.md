@@ -29,7 +29,7 @@ HostNavigator
 │   ├── HomeScreen (placeholder)
 │   ├── PropertiesScreen (placeholder)
 │   ├── ActivityScreen (placeholder)
-│   └── ProfileScreen (placeholder — will contain role switch)
+│   └── ProfileScreen (placeholder + RoleSwitchButton)
 └── HostTabBar (custom bottom tab bar)
     ├── Home tab
     ├── Properties tab
@@ -44,7 +44,7 @@ CleanerNavigator
 ├── Screen Area (renders active tab's screen content)
 │   ├── RadarScreen (placeholder)
 │   ├── ActiveScreen (placeholder)
-│   └── ProfileScreen (placeholder — will contain role switch)
+│   └── ProfileScreen (placeholder + RoleSwitchButton)
 └── CleanerTabBar (custom bottom tab bar)
     ├── Radar tab
     ├── Active tab
@@ -84,3 +84,6 @@ CleanerNavigator
 - `cleaner-tab-bar` — Bottom tab bar
 - `cleaner-tab-{key}` — Individual tab buttons (radar, active, profile)
 - `cleaner-screen-{key}` — Tab screen containers
+
+### RoleSwitchButton
+- `role-switch-button` — Switch role button (rendered in Profile tab of both navigators)

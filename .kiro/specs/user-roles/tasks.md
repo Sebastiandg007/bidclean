@@ -24,7 +24,7 @@ Implementation tasks for the User Roles feature. Covers role selection, Host/Cle
 - [x] 16. Create Host navigator (HostNavigator.tsx — 4 tabs: Home, Properties, Activity, Profile)
 - [x] 17. Create Cleaner navigator (CleanerNavigator.tsx — 3 tabs: Radar, Active, Profile)
 - [x] 18. Extend auth.store.ts with role state (activeRole, roles array, switchRole action, addRole action)
-- [ ] 19. Implement role switch in Profile screen (button that calls switchRole and swaps navigator instantly)
+- [-] 19. Implement role switch in Profile screen (button that calls switchRole and swaps navigator instantly)
 - [ ] 20. Implement "Add second role" option in Profile > Settings (triggers onboarding for new role)
 - [ ] 21. Implement role state persistence (save activeRole to SecureStore, restore on app launch)
 - [ ] 22. Write component tests for RoleSelectionScreen (render, selection, submission)

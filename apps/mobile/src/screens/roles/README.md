@@ -11,6 +11,7 @@ Role selection and onboarding screens for BidClean. After email verification, us
 | `RoleSelectionScreen.tsx` | Two-card role picker with single/dual selection and animated feedback |
 | `HostOnboardingScreen.tsx` | Host onboarding flow: name confirmation (step 1) + payment method (step 2) |
 | `CleanerOnboardingScreen.tsx` | Cleaner onboarding flow: KYC trigger (step 1) + work zone (step 2) + availability (step 3) + specialties (step 4, optional) |
+| `RoleSwitchButton.tsx` | Role switch button shown in Profile tab — allows users with both roles to switch instantly |
 | `roles.types.ts` | Shared types and prop interfaces for all roles screens |
 | `__tests__/` | Component and unit tests |
 
