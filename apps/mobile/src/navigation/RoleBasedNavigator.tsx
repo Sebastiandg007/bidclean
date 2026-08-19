@@ -77,7 +77,11 @@ export default function RoleBasedNavigator() {
  */
 function LoadingView() {
   return (
-    <View style={styles.loadingContainer} accessibilityRole="progressbar">
+    <View
+      style={styles.loadingContainer}
+      accessibilityRole="progressbar"
+      testID="role-navigator-loading"
+    >
       <ActivityIndicator size="large" color={COLORS.accent} />
     </View>
   );

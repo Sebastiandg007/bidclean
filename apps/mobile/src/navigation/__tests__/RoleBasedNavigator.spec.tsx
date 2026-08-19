@@ -46,7 +46,7 @@ describe('RoleBasedNavigator', () => {
 
     render(<RoleBasedNavigator />);
 
-    expect(screen.getByRole('progressbar')).toBeTruthy();
+    expect(screen.getByTestId('role-navigator-loading')).toBeTruthy();
   });
 
   it('renders HostNavigator when activeRole is host', () => {
@@ -77,7 +77,7 @@ describe('RoleBasedNavigator', () => {
 
     render(<RoleBasedNavigator />);
 
-    expect(screen.getByRole('progressbar')).toBeTruthy();
+    expect(screen.getByTestId('role-navigator-loading')).toBeTruthy();
 
     jest.runAllTimers();
 
