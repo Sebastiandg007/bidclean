@@ -14,6 +14,7 @@ Role selection and onboarding screens for BidClean. After email verification, us
 | `RoleSwitchButton.tsx` | Role switch button shown in Profile tab — allows users with both roles to switch instantly |
 | `AddSecondRoleButton.tsx` | Add second role button shown in Profile > Settings — allows single-role users to add the missing role and triggers onboarding |
 | `roles.types.ts` | Shared types and prop interfaces for all roles screens |
+| `__tests__/RoleSelectionScreen.spec.tsx` | Component tests: rendering, selection toggling, submission |
 | `__tests__/` | Component and unit tests |
 
 ## Flow
