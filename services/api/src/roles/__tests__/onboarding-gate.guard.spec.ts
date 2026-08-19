@@ -269,4 +269,57 @@ describe('OnboardingGateGuard', () => {
       await expect(guard.canActivate(context)).rejects.toThrow(ForbiddenException);
     });
   });
+
+  describe('dual-role user gate scenarios', () => {
+    it('should block access to Cleaner endpoint when Host onboarding is complete but Cleaner is incomplete', async () => {
+      jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(UserRole.CLEANER);
+      mockUserRepository.findOne.mockResolvedValue(
+        createMockUser({
+          roles: [UserRole.HOST, UserRole.CLEANER],
+          activeRole: UserRole.HOST,
+          onboardingStatusHost: OnboardingStatus.COMPLETED,
+          onboardingStatusCleaner: OnboardingStatus.IN_PROGRESS,
+        }),
+      );
+
+      const context = createMockExecutionContext();
+
+      await expect(guard.canActivate(context)).rejects.toThrow(ForbiddenException);
+      await expect(guard.canActivate(context)).rejects.toThrow(
+        'Complete onboarding to access this feature',
+      );
+    });
+
+    it('should allow access for dual-role user when both onboardings are complete', async () => {
+      jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(UserRole.HOST);
+      mockUserRepository.findOne.mockResolvedValue(
+        createMockUser({
+          roles: [UserRole.HOST, UserRole.CLEANER],
+          activeRole: UserRole.HOST,
+          onboardingStatusHost: OnboardingStatus.COMPLETED,
+          onboardingStatusCleaner: OnboardingStatus.COMPLETED,
+        }),
+      );
+
+      const context = createMockExecutionContext();
+      const resultHost = await guard.canActivate(context);
+      expect(resultHost).toBe(true);
+    });
+
+    it('should allow access to Cleaner endpoint for dual-role user when both are complete', async () => {
+      jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(UserRole.CLEANER);
+      mockUserRepository.findOne.mockResolvedValue(
+        createMockUser({
+          roles: [UserRole.HOST, UserRole.CLEANER],
+          activeRole: UserRole.HOST,
+          onboardingStatusHost: OnboardingStatus.COMPLETED,
+          onboardingStatusCleaner: OnboardingStatus.COMPLETED,
+        }),
+      );
+
+      const context = createMockExecutionContext();
+      const resultCleaner = await guard.canActivate(context);
+      expect(resultCleaner).toBe(true);
+    });
+  });
 });

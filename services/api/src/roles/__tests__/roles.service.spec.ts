@@ -771,6 +771,152 @@ describe('RolesService', () => {
         service.getOnboardingStatus(keycloakId),
       ).rejects.toThrow(NotFoundException);
     });
+
+    it('should return displayNameConfirmed as false when host profile has empty display name', async () => {
+      const user = createMockUser({
+        roles: [UserRole.HOST],
+        onboardingStatusHost: OnboardingStatus.IN_PROGRESS,
+      });
+      const hostProfile = {
+        id: 'hp-empty',
+        userId: user.id,
+        displayName: '',
+        isBusiness: false,
+        businessName: null,
+        paymentMethodAdded: true,
+      };
+
+      mockUserRepository.findOne.mockResolvedValue(user);
+      mockHostProfileRepository.findOne.mockResolvedValue(hostProfile);
+      mockUserRepository.save.mockResolvedValue(user);
+
+      const result = await service.getOnboardingStatus(keycloakId);
+
+      expect(result.host!.steps.displayNameConfirmed).toBe(false);
+      expect(result.host!.steps.paymentMethodAdded).toBe(true);
+      expect(result.host!.status).toBe(OnboardingStatus.IN_PROGRESS);
+    });
+
+    it('should return workZoneSet as false when cleaner profile has partial work zone (only lat set)', async () => {
+      const user = createMockUser({
+        roles: [UserRole.CLEANER],
+        activeRole: UserRole.CLEANER,
+        onboardingStatusHost: OnboardingStatus.NOT_STARTED,
+        onboardingStatusCleaner: OnboardingStatus.IN_PROGRESS,
+      });
+      const cleanerProfile = {
+        id: 'cp-partial',
+        userId: user.id,
+        displayName: 'Partial Cleaner',
+        workZoneLat: 4.711,
+        workZoneLng: null,
+        workZoneRadiusKm: null,
+        availability: { monday: ['08:00-12:00'] },
+        specialties: [],
+      };
+
+      mockUserRepository.findOne.mockResolvedValue(user);
+      mockCleanerProfileRepository.findOne.mockResolvedValue(cleanerProfile);
+      mockUserRepository.save.mockResolvedValue(user);
+
+      const result = await service.getOnboardingStatus(keycloakId);
+
+      expect(result.cleaner!.steps.kycStarted).toBe(true);
+      expect(result.cleaner!.steps.workZoneSet).toBe(false);
+      expect(result.cleaner!.steps.availabilitySet).toBe(true);
+      expect(result.cleaner!.status).toBe(OnboardingStatus.IN_PROGRESS);
+    });
+
+    it('should return availabilitySet as false when cleaner profile has empty availability object', async () => {
+      const user = createMockUser({
+        roles: [UserRole.CLEANER],
+        activeRole: UserRole.CLEANER,
+        onboardingStatusHost: OnboardingStatus.NOT_STARTED,
+        onboardingStatusCleaner: OnboardingStatus.IN_PROGRESS,
+      });
+      const cleanerProfile = {
+        id: 'cp-empty-avail',
+        userId: user.id,
+        displayName: 'No Availability',
+        workZoneLat: 4.711,
+        workZoneLng: -74.072,
+        workZoneRadiusKm: 10,
+        availability: {},
+        specialties: ['airbnb'],
+      };
+
+      mockUserRepository.findOne.mockResolvedValue(user);
+      mockCleanerProfileRepository.findOne.mockResolvedValue(cleanerProfile);
+      mockUserRepository.save.mockResolvedValue(user);
+
+      const result = await service.getOnboardingStatus(keycloakId);
+
+      expect(result.cleaner!.steps.kycStarted).toBe(true);
+      expect(result.cleaner!.steps.workZoneSet).toBe(true);
+      expect(result.cleaner!.steps.availabilitySet).toBe(false);
+      expect(result.cleaner!.status).toBe(OnboardingStatus.IN_PROGRESS);
+    });
+
+    it('should not re-save when onboarding is already COMPLETED', async () => {
+      const user = createMockUser({
+        roles: [UserRole.HOST],
+        onboardingStatusHost: OnboardingStatus.COMPLETED,
+      });
+      const hostProfile = {
+        id: 'hp-done',
+        userId: user.id,
+        displayName: 'Already Done',
+        isBusiness: false,
+        businessName: null,
+        paymentMethodAdded: true,
+      };
+
+      mockUserRepository.findOne.mockResolvedValue(user);
+      mockHostProfileRepository.findOne.mockResolvedValue(hostProfile);
+      mockUserRepository.save.mockResolvedValue(user);
+
+      const result = await service.getOnboardingStatus(keycloakId);
+
+      expect(result.host!.status).toBe(OnboardingStatus.COMPLETED);
+      expect(mockUserRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('should return all host steps as false when host profile is null (not yet created)', async () => {
+      const user = createMockUser({
+        roles: [UserRole.HOST],
+        onboardingStatusHost: OnboardingStatus.IN_PROGRESS,
+      });
+
+      mockUserRepository.findOne.mockResolvedValue(user);
+      mockHostProfileRepository.findOne.mockResolvedValue(null);
+      mockUserRepository.save.mockResolvedValue(user);
+
+      const result = await service.getOnboardingStatus(keycloakId);
+
+      expect(result.host!.steps.displayNameConfirmed).toBe(false);
+      expect(result.host!.steps.paymentMethodAdded).toBe(false);
+      expect(result.host!.status).toBe(OnboardingStatus.IN_PROGRESS);
+    });
+
+    it('should return all cleaner steps (except kycStarted) as false when cleaner profile is null', async () => {
+      const user = createMockUser({
+        roles: [UserRole.CLEANER],
+        activeRole: UserRole.CLEANER,
+        onboardingStatusHost: OnboardingStatus.NOT_STARTED,
+        onboardingStatusCleaner: OnboardingStatus.IN_PROGRESS,
+      });
+
+      mockUserRepository.findOne.mockResolvedValue(user);
+      mockCleanerProfileRepository.findOne.mockResolvedValue(null);
+      mockUserRepository.save.mockResolvedValue(user);
+
+      const result = await service.getOnboardingStatus(keycloakId);
+
+      expect(result.cleaner!.steps.kycStarted).toBe(false);
+      expect(result.cleaner!.steps.workZoneSet).toBe(false);
+      expect(result.cleaner!.steps.availabilitySet).toBe(false);
+      expect(result.cleaner!.status).toBe(OnboardingStatus.IN_PROGRESS);
+    });
   });
 
   describe('addSecondRole', () => {
