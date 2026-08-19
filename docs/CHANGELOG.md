@@ -58,3 +58,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Saves displayName, isBusiness, businessName, paymentMethodAdded
   - Returns full HostProfile entity
 - Hooks: commit-after-task, no-hardcoded-values, verify-tests-executed
+- **Roles module** — `POST /users/me/cleaner-profile` endpoint fully implemented
+  - Creates or updates Cleaner onboarding profile (upsert/idempotent)
+  - Validates user has the 'cleaner' role assigned (ForbiddenException if not)
+  - Saves displayName, workZoneLat, workZoneLng, workZoneRadiusKm, availability, specialties
+  - Preserves existing values for optional fields not provided in the request
+  - Returns full CleanerProfile entity

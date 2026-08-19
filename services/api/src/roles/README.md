@@ -45,7 +45,7 @@ Run migrations with: `npm run migration:run`
 | GET | `/users/me/roles` | Get user's assigned roles and active role | ✅ Implemented |
 | PATCH | `/users/me/active-role` | Switch the currently active role | ✅ Implemented |
 | POST | `/users/me/host-profile` | Save Host onboarding profile data | ✅ Implemented |
-| POST | `/users/me/cleaner-profile` | Save Cleaner onboarding profile data | 🔲 Stub |
+| POST | `/users/me/cleaner-profile` | Save Cleaner onboarding profile data | ✅ Implemented |
 | GET | `/users/me/onboarding-status` | Get onboarding completion status per role | 🔲 Stub |
 
 ## Data Models

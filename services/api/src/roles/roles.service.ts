@@ -108,11 +108,15 @@ export class RolesService {
   /**
    * Create or update the Cleaner onboarding profile.
    * Requires the user to have the Cleaner role assigned.
+   * Uses upsert behavior: creates if not exists, updates if exists.
    */
-  async saveCleanerProfile(_userId: string, _dto: CleanerProfileDto): Promise<CleanerProfile> {
-    // TODO: Implement in task 7
-    void this.cleanerProfileRepository;
-    throw new Error('Not implemented');
+  async saveCleanerProfile(keycloakId: string, dto: CleanerProfileDto): Promise<CleanerProfile> {
+    const user = await this.findUserOrFail(keycloakId);
+
+    this.validateCleanerRoleAssigned(user);
+
+    const profile = await this.upsertCleanerProfile(user.id, dto);
+    return profile;
   }
 
   /**
@@ -210,5 +214,35 @@ export class RolesService {
     profile.paymentMethodAdded = dto.paymentMethodAdded ?? false;
 
     return this.hostProfileRepository.save(profile);
+  }
+
+  /** Validate user has the Cleaner role assigned (403 if not). */
+  private validateCleanerRoleAssigned(user: User): void {
+    if (!user.roles.includes(UserRole.CLEANER)) {
+      throw new ForbiddenException(
+        `Role '${UserRole.CLEANER}' is required to access this resource`,
+      );
+    }
+  }
+
+  /** Create or update the cleaner profile for a given user. */
+  private async upsertCleanerProfile(
+    userId: string,
+    dto: CleanerProfileDto,
+  ): Promise<CleanerProfile> {
+    const existing = await this.cleanerProfileRepository.findOne({
+      where: { userId },
+    });
+
+    const profile = existing ?? this.cleanerProfileRepository.create({ userId });
+
+    profile.displayName = dto.displayName;
+    profile.workZoneLat = dto.workZoneLat ?? profile.workZoneLat ?? null;
+    profile.workZoneLng = dto.workZoneLng ?? profile.workZoneLng ?? null;
+    profile.workZoneRadiusKm = dto.workZoneRadiusKm ?? profile.workZoneRadiusKm ?? null;
+    profile.availability = dto.availability ?? profile.availability ?? {};
+    profile.specialties = dto.specialties ?? profile.specialties ?? [];
+
+    return this.cleanerProfileRepository.save(profile);
   }
 }
