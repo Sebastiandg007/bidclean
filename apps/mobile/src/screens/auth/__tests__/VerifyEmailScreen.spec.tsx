@@ -4,7 +4,6 @@
  * Validates email display, resend cooldown, and verified navigation.
  */
 
-import React from 'react';
 import { render, fireEvent, screen, act } from '@testing-library/react-native';
 
 import VerifyEmailScreen from '../VerifyEmailScreen';

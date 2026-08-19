@@ -5,7 +5,7 @@
  * plus "Get Started" (primary) and "Log In" (secondary) CTAs.
  */
 
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import {
   StyleSheet,
   Text,

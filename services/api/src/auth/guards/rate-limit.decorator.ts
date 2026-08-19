@@ -1,4 +1,4 @@
-import { SetMetadata } from '@nestjs/common';
+import { CustomDecorator, SetMetadata } from '@nestjs/common';
 import { RateLimitCategory } from './rate-limit.types';
 import { RATE_LIMIT_CATEGORY_KEY } from './rate-limit.guard';
 
@@ -10,5 +10,5 @@ import { RATE_LIMIT_CATEGORY_KEY } from './rate-limit.guard';
  *   @Post('sensitive-endpoint')
  *   async sensitiveAction() { ... }
  */
-export const RateLimit = (category: RateLimitCategory) =>
+export const RateLimit = (category: RateLimitCategory): CustomDecorator<string> =>
   SetMetadata(RATE_LIMIT_CATEGORY_KEY, category);

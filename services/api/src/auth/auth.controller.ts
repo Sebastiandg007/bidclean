@@ -9,7 +9,15 @@ import { BiometricChallengeDto } from './dto/biometric-challenge.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RateLimitGuard } from './guards/rate-limit.guard';
 import { JwtUserPayload } from './guards/jwt.types';
-import { LoginUrlResponse, LogoutResponse } from './auth.types';
+import {
+  AuthTokens,
+  BiometricChallenge,
+  CallbackResult,
+  LoginUrlResponse,
+  LogoutResponse,
+  RegistrationResult,
+  UserProfileResponse,
+} from './auth.types';
 
 /** Extended request with typed user payload from JWT guard */
 interface AuthenticatedRequest extends Request {
@@ -28,7 +36,7 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('register')
-  async register(@Body() registerDto: RegisterDto) {
+  async register(@Body() registerDto: RegisterDto): Promise<RegistrationResult> {
     return this.authService.register(registerDto);
   }
 
@@ -43,7 +51,7 @@ export class AuthController {
     @Req() req: Request,
     @Headers('x-forwarded-for') forwardedFor?: string,
     @Headers('user-agent') userAgent?: string,
-  ) {
+  ): Promise<CallbackResult> {
     const ipAddress = forwardedFor?.split(',')[0]?.trim() || req.ip || '0.0.0.0';
 
     return this.authService.handleKeycloakCallback({
@@ -57,7 +65,7 @@ export class AuthController {
   }
 
   @Post('refresh')
-  async refresh(@Body() body: { refreshToken: string }) {
+  async refresh(@Body() body: { refreshToken: string }): Promise<AuthTokens> {
     return this.authService.refreshToken(body.refreshToken);
   }
 
@@ -79,7 +87,7 @@ export class AuthController {
     @Req() req: AuthenticatedRequest,
     @Body(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }))
     body: RegisterBiometricDto,
-  ) {
+  ): Promise<void> {
     return this.authService.registerBiometric({
       userId: req.user.keycloakId,
       deviceId: body.deviceId,
@@ -92,18 +100,18 @@ export class AuthController {
   async getBiometricChallenge(
     @Body(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }))
     body: BiometricChallengeDto,
-  ) {
+  ): Promise<BiometricChallenge> {
     return this.authService.generateBiometricChallenge(body.deviceId);
   }
 
   @Post('biometric/verify')
-  async verifyBiometric(@Body() biometricVerifyDto: BiometricVerifyDto) {
+  async verifyBiometric(@Body() biometricVerifyDto: BiometricVerifyDto): Promise<AuthTokens> {
     return this.authService.verifyBiometric(biometricVerifyDto);
   }
 
   @Get('me')
   @UseGuards(JwtAuthGuard)
-  async getMe(@Req() req: AuthenticatedRequest) {
+  async getMe(@Req() req: AuthenticatedRequest): Promise<UserProfileResponse> {
     return this.authService.getCurrentUser(req.user.keycloakId);
   }
 }

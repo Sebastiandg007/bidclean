@@ -145,7 +145,9 @@ export default function BiometricSetupScreen({
   const router = useRouter();
   const params = useLocalSearchParams<{ userId: string }>();
 
-  const _userId = userIdProp ?? params.userId ?? '';
+  // userId is available via props or route params for future API integration
+  // (will be used when wiring up the actual biometric credential registration)
+  void (userIdProp ?? params.userId);
 
   // ─── State ─────────────────────────────────────────────────────────────────
 

@@ -12,7 +12,7 @@
  * to the Cleaner main view (Radar tab).
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
   Pressable,

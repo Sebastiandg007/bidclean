@@ -1,4 +1,4 @@
-import { SetMetadata } from '@nestjs/common';
+import { CustomDecorator, SetMetadata } from '@nestjs/common';
 import { UserRole } from '../roles.types';
 
 /**
@@ -24,5 +24,5 @@ export const ONBOARDING_ROLE_KEY = 'onboarding_role';
  * @Get('dashboard')
  * getDashboard() { ... }
  */
-export const RequireOnboarding = (role?: UserRole) =>
+export const RequireOnboarding = (role?: UserRole): CustomDecorator<string> =>
   SetMetadata(ONBOARDING_ROLE_KEY, role ?? null);

@@ -6,7 +6,7 @@
  * before proceeding to the corresponding onboarding flow.
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Pressable,
   StyleSheet,

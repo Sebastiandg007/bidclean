@@ -4,8 +4,7 @@
  * Validates form inputs, picker modals, validation, and submission behavior.
  */
 
-import React from 'react';
-import { render, fireEvent, screen, waitFor } from '@testing-library/react-native';
+import { render, fireEvent, screen } from '@testing-library/react-native';
 
 import RegisterScreen from '../RegisterScreen';
 

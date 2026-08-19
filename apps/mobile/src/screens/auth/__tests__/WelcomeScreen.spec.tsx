@@ -4,7 +4,6 @@
  * Validates brand rendering, button presence, and navigation callbacks.
  */
 
-import React from 'react';
 import { render, fireEvent, screen } from '@testing-library/react-native';
 
 import WelcomeScreen from '../WelcomeScreen';

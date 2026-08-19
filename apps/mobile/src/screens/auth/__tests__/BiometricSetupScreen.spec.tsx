@@ -4,7 +4,6 @@
  * Validates idle/generating/error states, skip behavior, and retry logic.
  */
 
-import React from 'react';
 import { render, fireEvent, screen, waitFor } from '@testing-library/react-native';
 
 import BiometricSetupScreen from '../BiometricSetupScreen';
