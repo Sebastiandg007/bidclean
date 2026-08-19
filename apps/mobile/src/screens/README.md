@@ -8,14 +8,15 @@ Feature-based screen components. Each subfolder represents a screen or screen gr
 
 ```
 screens/
+├── auth/            → Both: login, register, KYC flow
+├── roles/           → Both: role selection and onboarding (Host/Cleaner)
 ├── radar/           → Cleaner: map with nearby offers
 ├── offer-detail/    → Cleaner: full offer view + accept/counteroffer
 ├── service-active/  → Both: service in progress (tracking, checklist)
 ├── properties/      → Host: property list and management
 ├── publish-offer/   → Host: create and publish a new offer
 ├── chat/            → Both: real-time translated messaging
-├── profile/         → Both: user profile and settings
-└── auth/            → Both: login, register, KYC flow
+└── profile/         → Both: user profile and settings
 ```
 
 Each screen folder contains:

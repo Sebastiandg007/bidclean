@@ -87,6 +87,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - saveCleanerProfile: create, update, preserve optional fields, ForbiddenException, NotFoundException
   - getOnboardingStatus: host-only, cleaner-only, both roles, null for unassigned, auto-COMPLETED for host, auto-COMPLETED for cleaner, NotFoundException
   - addSecondRole: add CLEANER to HOST user, add HOST to CLEANER user, activeRole unchanged, onboarding status preserved
+- **Roles module (mobile)** — Role selection screen with dual selection support
+  - `RoleSelectionScreen.tsx` — two tappable cards (Host / Cleaner) with toggle selection
+  - Spring entrance animations and selected-state border/scale transitions
+  - Continue button disabled until at least one role is selected
+  - Callback props (`onSubmit`, `onRoleToggled`) for testability
+  - `roles.types.ts` — shared types (UserRole, screen props interfaces)
+  - Module README and `__tests__/` folder scaffolded
 - **Roles module** — Edge case tests for onboarding status logic (9 new tests)
   - Host profile empty display name → displayNameConfirmed false
   - Cleaner partial work zone (only lat) → workZoneSet false
