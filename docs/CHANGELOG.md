@@ -72,3 +72,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Returns null for roles not assigned to the user
   - Auto-updates user onboarding status to COMPLETED when all steps are done
   - Enhanced OnboardingStatusResponse type with generic RoleOnboardingDetail interface
+- **Roles module** — Onboarding gate guard for role-specific access control
+  - `OnboardingGateGuard` (CanActivate) blocks access when onboarding is incomplete
+  - `@RequireOnboarding(role?)` decorator to specify which role's onboarding to verify
+  - Falls back to user's `active_role` when no role is specified in decorator
+  - Validates both role assignment and onboarding completion (403 if either fails)
+  - Exported from RolesModule for use by other modules
+  - Unit tests (13 test cases covering all scenarios)

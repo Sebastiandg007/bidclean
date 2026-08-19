@@ -8,7 +8,7 @@ Manages user role assignment (Host/Cleaner), role-specific onboarding profiles, 
 
 | File | Responsibility |
 |------|---------------|
-| `roles.module.ts` | NestJS module registration (entities, controller, service) |
+| `roles.module.ts` | NestJS module registration (entities, controller, service, guards) |
 | `roles.controller.ts` | HTTP endpoints for role management and onboarding |
 | `roles.service.ts` | Business logic for role assignment, switching, and profiles |
 | `roles.types.ts` | TypeScript enums and interfaces (UserRole, OnboardingStatus) |
@@ -18,8 +18,12 @@ Manages user role assignment (Host/Cleaner), role-specific onboarding profiles, 
 | `dto/cleaner-profile.dto.ts` | Validation for Cleaner onboarding profile data |
 | `entities/host-profile.entity.ts` | TypeORM entity for `host_profiles` table |
 | `entities/cleaner-profile.entity.ts` | TypeORM entity for `cleaner_profiles` table |
+| `guards/onboarding-gate.guard.ts` | CanActivate guard that blocks access when onboarding is incomplete |
+| `guards/require-onboarding.decorator.ts` | Decorator to specify which role's onboarding to check |
+| `guards/index.ts` | Barrel export for guards |
 | `__tests__/roles.service.spec.ts` | Unit tests for the roles service |
 | `__tests__/roles.controller.spec.ts` | Unit tests for the roles controller |
+| `__tests__/onboarding-gate.guard.spec.ts` | Unit tests for the onboarding gate guard |
 
 ## Migration
 
@@ -87,3 +91,41 @@ The `GET /users/me/onboarding-status` endpoint returns step-level detail:
 - Returns `null` for roles not assigned to the user
 - **Host steps:** `displayNameConfirmed` (profile exists with displayName), `paymentMethodAdded`
 - **Cleaner steps:** `kycStarted` (profile exists), `workZoneSet` (all zone fields non-null), `availabilitySet` (availability has entries)
+
+
+## Guards
+
+### OnboardingGateGuard
+
+A `CanActivate` guard that blocks access to role-specific endpoints when the user's onboarding is not completed.
+
+**Usage:**
+
+```typescript
+import { UseGuards } from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { OnboardingGateGuard, RequireOnboarding } from './guards';
+import { UserRole } from './roles.types';
+
+// Require Host onboarding completed
+@UseGuards(JwtAuthGuard, OnboardingGateGuard)
+@RequireOnboarding(UserRole.HOST)
+@Get('properties')
+getProperties() { ... }
+
+// Fall back to user's active_role
+@UseGuards(JwtAuthGuard, OnboardingGateGuard)
+@RequireOnboarding()
+@Get('dashboard')
+getDashboard() { ... }
+```
+
+**Behavior:**
+- Must run AFTER `JwtAuthGuard` (requires `request.user` to be set)
+- Reads role metadata from `@RequireOnboarding()` decorator
+- If no role specified, falls back to user's `active_role`
+- Checks that the user has the role assigned (via `roles[]` array)
+- Checks that onboarding status for that role is `COMPLETED`
+- Throws `403 ForbiddenException` with message: "Complete onboarding to access this feature"
+
+**Exported from:** `RolesModule` (available to any module that imports `RolesModule`)
