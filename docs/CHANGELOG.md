@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Migrated ESLint from legacy `.eslintrc.js` to flat config `eslint.config.mjs` (ESLint 10 compatibility)
+- Replaced `@typescript-eslint/parser` + `@typescript-eslint/eslint-plugin` with unified `typescript-eslint` v8.67.0
+- Added `@eslint/js` and `globals` packages for modern flat config support
+- Removed `lint` script from `apps/web` (placeholder without Next.js installed)
+
 ### Added
 - Initial project structure and configuration (2026-08-16)
 - Kiro steering files (Clean Code, TypeScript, Python, React Native, Git, Documentation standards)

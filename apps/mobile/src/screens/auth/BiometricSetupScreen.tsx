@@ -145,7 +145,7 @@ export default function BiometricSetupScreen({
   const router = useRouter();
   const params = useLocalSearchParams<{ userId: string }>();
 
-  const userId = userIdProp ?? params.userId ?? '';
+  const _userId = userIdProp ?? params.userId ?? '';
 
   // ─── State ─────────────────────────────────────────────────────────────────
 
