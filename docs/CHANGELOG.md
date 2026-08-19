@@ -132,3 +132,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Submits to `POST /users/me/cleaner-profile` on completion
   - Step indicator with animated dots (1-4/4)
   - Spring entrance animations, FadeIn/FadeOut step transitions, full accessibility support
+- **Roles module (mobile)** — Host tab navigator fully implemented
+  - `HostNavigator.tsx` — custom bottom tab bar with 4 tabs (Home, Properties, Activity, Profile)
+  - Data-driven tab definitions for extensibility
+  - Animated tab buttons with react-native-reanimated spring physics
+  - Active state indicator (accent color dot, opacity changes)
+  - Full accessibility (tablist/tab roles, labels, selected state)
+  - Placeholder screen content for each tab (ready for real screens)

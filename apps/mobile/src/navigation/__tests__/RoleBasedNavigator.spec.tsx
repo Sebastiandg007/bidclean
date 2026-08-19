@@ -54,7 +54,8 @@ describe('RoleBasedNavigator', () => {
 
     render(<RoleBasedNavigator />);
 
-    expect(screen.getByText('Host Experience')).toBeTruthy();
+    expect(screen.getByTestId('host-navigator')).toBeTruthy();
+    expect(screen.getByTestId('host-tab-bar')).toBeTruthy();
   });
 
   it('renders CleanerNavigator when activeRole is cleaner', () => {
