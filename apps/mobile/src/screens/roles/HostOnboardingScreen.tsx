@@ -29,6 +29,7 @@ import Animated, {
   FadeOut,
 } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 
 import type { HostOnboardingScreenProps } from './roles.types';
 import { useAuthStore } from '../../stores/auth.store';
@@ -93,11 +94,12 @@ interface StepIndicatorProps {
 }
 
 function StepIndicator({ currentStep, totalSteps }: StepIndicatorProps) {
+  const { t } = useTranslation();
   return (
     <View
       style={styles.stepIndicatorContainer}
       accessibilityRole="text"
-      accessibilityLabel={`Step ${currentStep} of ${totalSteps}`}
+      accessibilityLabel={t('roles.hostOnboarding.stepA11y', { defaultValue: `Step ${currentStep} of ${totalSteps}`, current: currentStep, total: totalSteps })}
     >
       {Array.from({ length: totalSteps }, (_, index) => {
         const stepNumber = index + 1;
@@ -143,6 +145,7 @@ function NameConfirmationStep({
   onBusinessNameChange,
   onContinue,
 }: NameStepProps) {
+  const { t } = useTranslation();
   const isValid = displayName.trim().length > 0 &&
     (!isBusiness || businessName.trim().length > 0);
 
@@ -152,35 +155,41 @@ function NameConfirmationStep({
       exiting={FadeOut.duration(200)}
       style={styles.stepContent}
     >
-      <Text style={styles.stepTitle}>Confirm your name</Text>
+      <Text style={styles.stepTitle}>
+        {t('roles.hostOnboarding.nameStep.title', { defaultValue: 'Confirm your name' })}
+      </Text>
       <Text style={styles.stepDescription}>
-        This is how hosts and guests will see you on BidClean.
+        {t('roles.hostOnboarding.nameStep.description', { defaultValue: 'This is how hosts and guests will see you on BidClean.' })}
       </Text>
 
       {/* Display Name Input */}
       <View style={styles.inputGroup}>
-        <Text style={styles.inputLabel}>Display name</Text>
+        <Text style={styles.inputLabel}>
+          {t('roles.hostOnboarding.nameStep.displayNameLabel', { defaultValue: 'Display name' })}
+        </Text>
         <TextInput
           style={styles.textInput}
           value={displayName}
           onChangeText={onDisplayNameChange}
-          placeholder="Your full name"
+          placeholder={t('roles.hostOnboarding.nameStep.displayNamePlaceholder', { defaultValue: 'Your full name' })}
           placeholderTextColor={COLORS.textSecondary}
           autoCapitalize="words"
-          accessibilityLabel="Display name input"
+          accessibilityLabel={t('roles.hostOnboarding.nameStep.displayNameA11y', { defaultValue: 'Display name input' })}
           accessibilityRole="text"
         />
       </View>
 
       {/* Business Toggle */}
       <View style={styles.toggleRow}>
-        <Text style={styles.toggleLabel}>This is a business</Text>
+        <Text style={styles.toggleLabel}>
+          {t('roles.hostOnboarding.nameStep.businessToggle', { defaultValue: 'This is a business' })}
+        </Text>
         <Switch
           value={isBusiness}
           onValueChange={onBusinessToggle}
           trackColor={{ false: COLORS.border, true: COLORS.accent }}
           thumbColor={COLORS.textPrimary}
-          accessibilityLabel="Toggle business account"
+          accessibilityLabel={t('roles.hostOnboarding.nameStep.businessToggleA11y', { defaultValue: 'Toggle business account' })}
           accessibilityRole="switch"
           accessibilityState={{ checked: isBusiness }}
         />
@@ -193,15 +202,17 @@ function NameConfirmationStep({
           exiting={FadeOut.duration(150)}
           style={styles.inputGroup}
         >
-          <Text style={styles.inputLabel}>Business name</Text>
+          <Text style={styles.inputLabel}>
+            {t('roles.hostOnboarding.nameStep.businessNameLabel', { defaultValue: 'Business name' })}
+          </Text>
           <TextInput
             style={styles.textInput}
             value={businessName}
             onChangeText={onBusinessNameChange}
-            placeholder="Your business name"
+            placeholder={t('roles.hostOnboarding.nameStep.businessNamePlaceholder', { defaultValue: 'Your business name' })}
             placeholderTextColor={COLORS.textSecondary}
             autoCapitalize="words"
-            accessibilityLabel="Business name input"
+            accessibilityLabel={t('roles.hostOnboarding.nameStep.businessNameA11y', { defaultValue: 'Business name input' })}
             accessibilityRole="text"
           />
         </Animated.View>
@@ -217,7 +228,7 @@ function NameConfirmationStep({
           onPress={onContinue}
           disabled={!isValid}
           accessibilityRole="button"
-          accessibilityLabel="Continue to payment setup"
+          accessibilityLabel={t('roles.hostOnboarding.nameStep.continueA11y', { defaultValue: 'Continue to payment setup' })}
           accessibilityState={{ disabled: !isValid }}
         >
           <Text
@@ -226,7 +237,7 @@ function NameConfirmationStep({
               !isValid && styles.primaryButtonTextDisabled,
             ]}
           >
-            Continue
+            {t('roles.hostOnboarding.nameStep.continue', { defaultValue: 'Continue' })}
           </Text>
         </Pressable>
       </View>
@@ -247,26 +258,29 @@ function PaymentMethodStep({
   onSkip,
   isSubmitting,
 }: PaymentStepProps) {
+  const { t } = useTranslation();
   return (
     <Animated.View
       entering={FadeIn.duration(300)}
       exiting={FadeOut.duration(200)}
       style={styles.stepContent}
     >
-      <Text style={styles.stepTitle}>Payment method</Text>
+      <Text style={styles.stepTitle}>
+        {t('roles.hostOnboarding.paymentStep.title', { defaultValue: 'Payment method' })}
+      </Text>
       <Text style={styles.stepDescription}>
-        A payment method is required to publish cleaning offers. You can set it
-        up now or later from Settings.
+        {t('roles.hostOnboarding.paymentStep.description', { defaultValue: 'A payment method is required to publish cleaning offers. You can set it up now or later from Settings.' })}
       </Text>
 
       {/* Info Card */}
       <View style={styles.infoCard}>
         <Text style={styles.infoCardEmoji}>💳</Text>
         <View style={styles.infoCardContent}>
-          <Text style={styles.infoCardTitle}>Secure payments with Stripe</Text>
+          <Text style={styles.infoCardTitle}>
+            {t('roles.hostOnboarding.paymentStep.infoTitle', { defaultValue: 'Secure payments with Stripe' })}
+          </Text>
           <Text style={styles.infoCardDescription}>
-            Your card details are stored securely by Stripe. We never see or
-            store your full card number.
+            {t('roles.hostOnboarding.paymentStep.infoDescription', { defaultValue: 'Your card details are stored securely by Stripe. We never see or store your full card number.' })}
           </Text>
         </View>
       </View>
@@ -281,11 +295,13 @@ function PaymentMethodStep({
           onPress={onSetupPayment}
           disabled={isSubmitting}
           accessibilityRole="button"
-          accessibilityLabel="Set up payment method"
+          accessibilityLabel={t('roles.hostOnboarding.paymentStep.setupA11y', { defaultValue: 'Set up payment method' })}
           accessibilityState={{ disabled: isSubmitting }}
         >
           <Text style={styles.primaryButtonText}>
-            {isSubmitting ? 'Saving...' : 'Set up payment'}
+            {isSubmitting
+              ? t('roles.hostOnboarding.paymentStep.saving', { defaultValue: 'Saving...' })
+              : t('roles.hostOnboarding.paymentStep.setup', { defaultValue: 'Set up payment' })}
           </Text>
         </Pressable>
 
@@ -294,10 +310,12 @@ function PaymentMethodStep({
           onPress={onSkip}
           disabled={isSubmitting}
           accessibilityRole="button"
-          accessibilityLabel="Skip payment setup for now"
+          accessibilityLabel={t('roles.hostOnboarding.paymentStep.skipA11y', { defaultValue: 'Skip payment setup for now' })}
           accessibilityState={{ disabled: isSubmitting }}
         >
-          <Text style={styles.skipButtonText}>Skip for now</Text>
+          <Text style={styles.skipButtonText}>
+            {t('roles.hostOnboarding.paymentStep.skip', { defaultValue: 'Skip for now' })}
+          </Text>
         </Pressable>
       </View>
     </Animated.View>
@@ -310,6 +328,7 @@ export default function HostOnboardingScreen({
   onComplete,
   onSkip,
 }: HostOnboardingScreenProps) {
+  const { t } = useTranslation();
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
 
@@ -369,14 +388,17 @@ export default function HostOnboardingScreen({
         const message =
           error instanceof Error
             ? error.message
-            : 'Something went wrong. Please try again.';
+            : t('roles.hostOnboarding.error.generic', { defaultValue: 'Something went wrong. Please try again.' });
 
-        Alert.alert('Error', message);
+        Alert.alert(
+          t('roles.hostOnboarding.error.title', { defaultValue: 'Error' }),
+          message,
+        );
       } finally {
         setIsSubmitting(false);
       }
     },
-    [displayName, isBusiness, businessName, onComplete, router],
+    [displayName, isBusiness, businessName, onComplete, router, t],
   );
 
   const handleSetupPayment = useCallback(() => {
@@ -400,9 +422,11 @@ export default function HostOnboardingScreen({
       {/* Header with step indicator */}
       <Animated.View style={[styles.headerSection, headerAnimatedStyle]}>
         <StepIndicator currentStep={currentStep} totalSteps={TOTAL_STEPS} />
-        <Text style={styles.title}>Host setup</Text>
+        <Text style={styles.title}>
+          {t('roles.hostOnboarding.title', { defaultValue: 'Host setup' })}
+        </Text>
         <Text style={styles.subtitle}>
-          Complete these steps to start publishing cleaning offers.
+          {t('roles.hostOnboarding.subtitle', { defaultValue: 'Complete these steps to start publishing cleaning offers.' })}
         </Text>
       </Animated.View>
 

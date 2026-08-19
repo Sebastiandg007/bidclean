@@ -32,6 +32,7 @@ import Animated, {
   FadeOut,
 } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 
 import type { CleanerOnboardingScreenProps } from './roles.types';
 import { useAuthStore } from '../../stores/auth.store';
@@ -107,13 +108,6 @@ const DAYS_OF_WEEK = [
 
 const TIME_SLOTS = ['morning', 'afternoon', 'evening', 'full_day'] as const;
 
-const TIME_SLOT_LABELS: Record<TimeSlot, string> = {
-  morning: '🌅 Morning',
-  afternoon: '☀️ Afternoon',
-  evening: '🌙 Evening',
-  full_day: '📅 Full day',
-};
-
 const SPECIALTY_OPTIONS = [
   'airbnb',
   'offices',
@@ -122,15 +116,6 @@ const SPECIALTY_OPTIONS = [
   'deep_cleaning',
   'move_in_out',
 ] as const;
-
-const SPECIALTY_LABELS: Record<Specialty, string> = {
-  airbnb: '🏠 Airbnb',
-  offices: '🏢 Offices',
-  homes: '🏡 Homes',
-  post_event: '🎉 Post-event',
-  deep_cleaning: '🧹 Deep cleaning',
-  move_in_out: '📦 Move in/out',
-};
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -153,11 +138,12 @@ interface StepIndicatorProps {
 }
 
 function StepIndicator({ currentStep, totalSteps }: StepIndicatorProps) {
+  const { t } = useTranslation();
   return (
     <View
       style={styles.stepIndicatorContainer}
       accessibilityRole="text"
-      accessibilityLabel={`Step ${currentStep} of ${totalSteps}`}
+      accessibilityLabel={t('roles.cleanerOnboarding.stepA11y', { defaultValue: `Step ${currentStep} of ${totalSteps}`, current: currentStep, total: totalSteps })}
     >
       {Array.from({ length: totalSteps }, (_, index) => {
         const stepNumber = index + 1;
@@ -189,25 +175,28 @@ interface KycStepProps {
 }
 
 function KycStep({ onContinue }: KycStepProps) {
+  const { t } = useTranslation();
   return (
     <Animated.View
       entering={FadeIn.duration(300)}
       exiting={FadeOut.duration(200)}
       style={styles.stepContent}
     >
-      <Text style={styles.stepTitle}>Identity verification</Text>
+      <Text style={styles.stepTitle}>
+        {t('roles.cleanerOnboarding.kycStep.title', { defaultValue: 'Identity verification' })}
+      </Text>
       <Text style={styles.stepDescription}>
-        To ensure safety for everyone, we require identity verification before
-        you can accept cleaning offers.
+        {t('roles.cleanerOnboarding.kycStep.description', { defaultValue: 'To ensure safety for everyone, we require identity verification before you can accept cleaning offers.' })}
       </Text>
 
       <View style={styles.infoCard}>
         <Text style={styles.infoCardEmoji}>🪪</Text>
         <View style={styles.infoCardContent}>
-          <Text style={styles.infoCardTitle}>What you will need</Text>
+          <Text style={styles.infoCardTitle}>
+            {t('roles.cleanerOnboarding.kycStep.needsTitle', { defaultValue: 'What you will need' })}
+          </Text>
           <Text style={styles.infoCardDescription}>
-            A government-issued ID (passport, driver's license, or national ID)
-            and a selfie for face matching. The process takes about 2 minutes.
+            {t('roles.cleanerOnboarding.kycStep.needsDescription', { defaultValue: 'A government-issued ID (passport, driver\'s license, or national ID) and a selfie for face matching. The process takes about 2 minutes.' })}
           </Text>
         </View>
       </View>
@@ -215,10 +204,11 @@ function KycStep({ onContinue }: KycStepProps) {
       <View style={styles.infoCard}>
         <Text style={styles.infoCardEmoji}>✅</Text>
         <View style={styles.infoCardContent}>
-          <Text style={styles.infoCardTitle}>You can start working soon</Text>
+          <Text style={styles.infoCardTitle}>
+            {t('roles.cleanerOnboarding.kycStep.startTitle', { defaultValue: 'You can start working soon' })}
+          </Text>
           <Text style={styles.infoCardDescription}>
-            Starting verification is required now, but you do not need approval
-            to explore the app. You will be notified once verified.
+            {t('roles.cleanerOnboarding.kycStep.startDescription', { defaultValue: 'Starting verification is required now, but you do not need approval to explore the app. You will be notified once verified.' })}
           </Text>
         </View>
       </View>
@@ -228,9 +218,11 @@ function KycStep({ onContinue }: KycStepProps) {
           style={styles.primaryButton}
           onPress={onContinue}
           accessibilityRole="button"
-          accessibilityLabel="Start verification and continue"
+          accessibilityLabel={t('roles.cleanerOnboarding.kycStep.continueA11y', { defaultValue: 'Start verification and continue' })}
         >
-          <Text style={styles.primaryButtonText}>Start verification</Text>
+          <Text style={styles.primaryButtonText}>
+            {t('roles.cleanerOnboarding.kycStep.continue', { defaultValue: 'Start verification' })}
+          </Text>
         </Pressable>
       </View>
     </Animated.View>
@@ -246,6 +238,7 @@ interface WorkZoneStepProps {
 }
 
 function WorkZoneStep({ radiusKm, onRadiusChange, onContinue }: WorkZoneStepProps) {
+  const { t } = useTranslation();
   const handleRadiusInput = useCallback(
     (text: string) => {
       const parsed = parseInt(text, 10);
@@ -264,17 +257,18 @@ function WorkZoneStep({ radiusKm, onRadiusChange, onContinue }: WorkZoneStepProp
       exiting={FadeOut.duration(200)}
       style={styles.stepContent}
     >
-      <Text style={styles.stepTitle}>Set your work zone</Text>
+      <Text style={styles.stepTitle}>
+        {t('roles.cleanerOnboarding.workZoneStep.title', { defaultValue: 'Set your work zone' })}
+      </Text>
       <Text style={styles.stepDescription}>
-        Define the area where you want to receive cleaning offers. You will only
-        see offers within this radius.
+        {t('roles.cleanerOnboarding.workZoneStep.description', { defaultValue: 'Define the area where you want to receive cleaning offers. You will only see offers within this radius.' })}
       </Text>
 
       {/* Placeholder Map Visual */}
       <View
         style={styles.mapPlaceholder}
         accessibilityRole="image"
-        accessibilityLabel={`Work zone radius of ${radiusKm} kilometers`}
+        accessibilityLabel={t('roles.cleanerOnboarding.workZoneStep.mapA11y', { defaultValue: `Work zone radius of ${radiusKm} kilometers`, radius: radiusKm })}
       >
         <View style={styles.mapCircleOuter}>
           <View style={styles.mapCircleInner}>
@@ -282,14 +276,14 @@ function WorkZoneStep({ radiusKm, onRadiusChange, onContinue }: WorkZoneStepProp
           </View>
         </View>
         <Text style={styles.mapPlaceholderNote}>
-          📍 Your location will be used as the center
+          {t('roles.cleanerOnboarding.workZoneStep.locationNote', { defaultValue: '📍 Your location will be used as the center' })}
         </Text>
       </View>
 
       {/* Radius Input */}
       <View style={styles.inputGroup}>
         <Text style={styles.inputLabel}>
-          Radius ({MIN_RADIUS_KM}–{MAX_RADIUS_KM} km)
+          {t('roles.cleanerOnboarding.workZoneStep.radiusLabel', { defaultValue: `Radius (${MIN_RADIUS_KM}–${MAX_RADIUS_KM} km)`, min: MIN_RADIUS_KM, max: MAX_RADIUS_KM })}
         </Text>
         <TextInput
           style={styles.textInput}
@@ -298,7 +292,7 @@ function WorkZoneStep({ radiusKm, onRadiusChange, onContinue }: WorkZoneStepProp
           keyboardType="numeric"
           placeholder={`${DEFAULT_RADIUS_KM}`}
           placeholderTextColor={COLORS.textSecondary}
-          accessibilityLabel="Work zone radius in kilometers"
+          accessibilityLabel={t('roles.cleanerOnboarding.workZoneStep.radiusA11y', { defaultValue: 'Work zone radius in kilometers' })}
           accessibilityRole="text"
         />
       </View>
@@ -308,9 +302,11 @@ function WorkZoneStep({ radiusKm, onRadiusChange, onContinue }: WorkZoneStepProp
           style={styles.primaryButton}
           onPress={onContinue}
           accessibilityRole="button"
-          accessibilityLabel="Continue to availability setup"
+          accessibilityLabel={t('roles.cleanerOnboarding.workZoneStep.continueA11y', { defaultValue: 'Continue to availability setup' })}
         >
-          <Text style={styles.primaryButtonText}>Continue</Text>
+          <Text style={styles.primaryButtonText}>
+            {t('roles.cleanerOnboarding.workZoneStep.continue', { defaultValue: 'Continue' })}
+          </Text>
         </Pressable>
       </View>
     </Animated.View>
@@ -332,9 +328,17 @@ function AvailabilityStep({
   onToggleSlot,
   onContinue,
 }: AvailabilityStepProps) {
+  const { t } = useTranslation();
   const hasAtLeastOneDay = DAYS_OF_WEEK.some(
     (day) => availability[day].enabled && availability[day].slots.length > 0,
   );
+
+  const timeSlotLabels: Record<TimeSlot, string> = {
+    morning: t('roles.cleanerOnboarding.availabilityStep.slots.morning', { defaultValue: '🌅 Morning' }),
+    afternoon: t('roles.cleanerOnboarding.availabilityStep.slots.afternoon', { defaultValue: '☀️ Afternoon' }),
+    evening: t('roles.cleanerOnboarding.availabilityStep.slots.evening', { defaultValue: '🌙 Evening' }),
+    full_day: t('roles.cleanerOnboarding.availabilityStep.slots.fullDay', { defaultValue: '📅 Full day' }),
+  };
 
   return (
     <Animated.View
@@ -342,10 +346,11 @@ function AvailabilityStep({
       exiting={FadeOut.duration(200)}
       style={styles.stepContent}
     >
-      <Text style={styles.stepTitle}>Set your availability</Text>
+      <Text style={styles.stepTitle}>
+        {t('roles.cleanerOnboarding.availabilityStep.title', { defaultValue: 'Set your availability' })}
+      </Text>
       <Text style={styles.stepDescription}>
-        Choose which days and times you are available to work. You can change
-        this anytime.
+        {t('roles.cleanerOnboarding.availabilityStep.description', { defaultValue: 'Choose which days and times you are available to work. You can change this anytime.' })}
       </Text>
 
       <ScrollView
@@ -361,7 +366,7 @@ function AvailabilityStep({
               ]}
               onPress={() => onToggleDay(day)}
               accessibilityRole="checkbox"
-              accessibilityLabel={day}
+              accessibilityLabel={t(`roles.cleanerOnboarding.availabilityStep.days.${day.toLowerCase()}`, { defaultValue: day })}
               accessibilityState={{ checked: availability[day].enabled }}
             >
               <Text
@@ -391,7 +396,7 @@ function AvailabilityStep({
                       ]}
                       onPress={() => onToggleSlot(day, slot)}
                       accessibilityRole="checkbox"
-                      accessibilityLabel={`${TIME_SLOT_LABELS[slot]} on ${day}`}
+                      accessibilityLabel={`${timeSlotLabels[slot]} ${t('roles.cleanerOnboarding.availabilityStep.onDay', { defaultValue: `on ${day}`, day })}`}
                       accessibilityState={{ checked: isSelected }}
                     >
                       <Text
@@ -400,7 +405,7 @@ function AvailabilityStep({
                           isSelected && styles.slotChipTextActive,
                         ]}
                       >
-                        {TIME_SLOT_LABELS[slot]}
+                        {timeSlotLabels[slot]}
                       </Text>
                     </Pressable>
                   );
@@ -420,7 +425,7 @@ function AvailabilityStep({
           onPress={onContinue}
           disabled={!hasAtLeastOneDay}
           accessibilityRole="button"
-          accessibilityLabel="Continue to specialties"
+          accessibilityLabel={t('roles.cleanerOnboarding.availabilityStep.continueA11y', { defaultValue: 'Continue to specialties' })}
           accessibilityState={{ disabled: !hasAtLeastOneDay }}
         >
           <Text
@@ -429,7 +434,7 @@ function AvailabilityStep({
               !hasAtLeastOneDay && styles.primaryButtonTextDisabled,
             ]}
           >
-            Continue
+            {t('roles.cleanerOnboarding.availabilityStep.continue', { defaultValue: 'Continue' })}
           </Text>
         </Pressable>
       </View>
@@ -454,16 +459,28 @@ function SpecialtiesStep({
   onSkip,
   isSubmitting,
 }: SpecialtiesStepProps) {
+  const { t } = useTranslation();
+
+  const specialtyLabels: Record<Specialty, string> = {
+    airbnb: t('roles.cleanerOnboarding.specialtiesStep.options.airbnb', { defaultValue: '🏠 Airbnb' }),
+    offices: t('roles.cleanerOnboarding.specialtiesStep.options.offices', { defaultValue: '🏢 Offices' }),
+    homes: t('roles.cleanerOnboarding.specialtiesStep.options.homes', { defaultValue: '🏡 Homes' }),
+    post_event: t('roles.cleanerOnboarding.specialtiesStep.options.postEvent', { defaultValue: '🎉 Post-event' }),
+    deep_cleaning: t('roles.cleanerOnboarding.specialtiesStep.options.deepCleaning', { defaultValue: '🧹 Deep cleaning' }),
+    move_in_out: t('roles.cleanerOnboarding.specialtiesStep.options.moveInOut', { defaultValue: '📦 Move in/out' }),
+  };
+
   return (
     <Animated.View
       entering={FadeIn.duration(300)}
       exiting={FadeOut.duration(200)}
       style={styles.stepContent}
     >
-      <Text style={styles.stepTitle}>Add your specialties</Text>
+      <Text style={styles.stepTitle}>
+        {t('roles.cleanerOnboarding.specialtiesStep.title', { defaultValue: 'Add your specialties' })}
+      </Text>
       <Text style={styles.stepDescription}>
-        Select the types of cleaning you specialize in. This helps match you
-        with the right offers. You can update this later.
+        {t('roles.cleanerOnboarding.specialtiesStep.description', { defaultValue: 'Select the types of cleaning you specialize in. This helps match you with the right offers. You can update this later.' })}
       </Text>
 
       <View style={styles.specialtiesGrid}>
@@ -479,7 +496,7 @@ function SpecialtiesStep({
               onPress={() => onToggleSpecialty(specialty)}
               disabled={isSubmitting}
               accessibilityRole="checkbox"
-              accessibilityLabel={SPECIALTY_LABELS[specialty]}
+              accessibilityLabel={specialtyLabels[specialty]}
               accessibilityState={{ checked: isSelected, disabled: isSubmitting }}
             >
               <Text
@@ -488,7 +505,7 @@ function SpecialtiesStep({
                   isSelected && styles.specialtyChipTextActive,
                 ]}
               >
-                {SPECIALTY_LABELS[specialty]}
+                {specialtyLabels[specialty]}
               </Text>
             </Pressable>
           );
@@ -504,11 +521,13 @@ function SpecialtiesStep({
           onPress={onComplete}
           disabled={isSubmitting}
           accessibilityRole="button"
-          accessibilityLabel="Complete onboarding with specialties"
+          accessibilityLabel={t('roles.cleanerOnboarding.specialtiesStep.completeA11y', { defaultValue: 'Complete onboarding with specialties' })}
           accessibilityState={{ disabled: isSubmitting }}
         >
           <Text style={styles.primaryButtonText}>
-            {isSubmitting ? 'Saving...' : 'Complete setup'}
+            {isSubmitting
+              ? t('roles.cleanerOnboarding.specialtiesStep.saving', { defaultValue: 'Saving...' })
+              : t('roles.cleanerOnboarding.specialtiesStep.complete', { defaultValue: 'Complete setup' })}
           </Text>
         </Pressable>
 
@@ -517,10 +536,12 @@ function SpecialtiesStep({
           onPress={onSkip}
           disabled={isSubmitting}
           accessibilityRole="button"
-          accessibilityLabel="Skip specialties for now"
+          accessibilityLabel={t('roles.cleanerOnboarding.specialtiesStep.skipA11y', { defaultValue: 'Skip specialties for now' })}
           accessibilityState={{ disabled: isSubmitting }}
         >
-          <Text style={styles.skipButtonText}>Skip for now</Text>
+          <Text style={styles.skipButtonText}>
+            {t('roles.cleanerOnboarding.specialtiesStep.skip', { defaultValue: 'Skip for now' })}
+          </Text>
         </Pressable>
       </View>
     </Animated.View>
@@ -543,6 +564,7 @@ export default function CleanerOnboardingScreen({
   onComplete,
   onSkip,
 }: CleanerOnboardingScreenProps) {
+  const { t } = useTranslation();
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
 
@@ -650,14 +672,17 @@ export default function CleanerOnboardingScreen({
         const message =
           error instanceof Error
             ? error.message
-            : 'Something went wrong. Please try again.';
+            : t('roles.cleanerOnboarding.error.generic', { defaultValue: 'Something went wrong. Please try again.' });
 
-        Alert.alert('Error', message);
+        Alert.alert(
+          t('roles.cleanerOnboarding.error.title', { defaultValue: 'Error' }),
+          message,
+        );
       } finally {
         setIsSubmitting(false);
       }
     },
-    [availability, radiusKm, user, onComplete, router],
+    [availability, radiusKm, user, onComplete, router, t],
   );
 
   const handleCompleteWithSpecialties = useCallback(() => {
@@ -679,9 +704,11 @@ export default function CleanerOnboardingScreen({
       {/* Header with step indicator */}
       <Animated.View style={[styles.headerSection, headerAnimatedStyle]}>
         <StepIndicator currentStep={currentStep} totalSteps={TOTAL_STEPS} />
-        <Text style={styles.title}>Cleaner setup</Text>
+        <Text style={styles.title}>
+          {t('roles.cleanerOnboarding.title', { defaultValue: 'Cleaner setup' })}
+        </Text>
         <Text style={styles.subtitle}>
-          Complete these steps to start receiving cleaning offers nearby.
+          {t('roles.cleanerOnboarding.subtitle', { defaultValue: 'Complete these steps to start receiving cleaning offers nearby.' })}
         </Text>
       </Animated.View>
 

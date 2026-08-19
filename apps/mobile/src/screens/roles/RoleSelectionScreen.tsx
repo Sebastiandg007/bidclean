@@ -22,6 +22,7 @@ import Animated, {
   interpolateColor,
 } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 
 import type { RoleSelectionScreenProps, UserRole } from './roles.types';
 
@@ -75,22 +76,28 @@ const CARD_STAGGER_MS = 100;
 interface RoleCardData {
   role: UserRole;
   emoji: string;
-  title: string;
-  description: string;
+  titleKey: string;
+  titleDefault: string;
+  descriptionKey: string;
+  descriptionDefault: string;
 }
 
 const ROLE_CARDS: RoleCardData[] = [
   {
     role: 'host',
     emoji: '🏠',
-    title: 'I need cleaning',
-    description: 'Find verified professionals for your property',
+    titleKey: 'roles.selection.hostTitle',
+    titleDefault: 'I need cleaning',
+    descriptionKey: 'roles.selection.hostDescription',
+    descriptionDefault: 'Find verified professionals for your property',
   },
   {
     role: 'cleaner',
     emoji: '✨',
-    title: 'I want to work',
-    description: 'Get jobs near you and earn on your schedule',
+    titleKey: 'roles.selection.cleanerTitle',
+    titleDefault: 'I want to work',
+    descriptionKey: 'roles.selection.cleanerDescription',
+    descriptionDefault: 'Get jobs near you and earn on your schedule',
   },
 ];
 
@@ -109,6 +116,7 @@ function AnimatedRoleCard({
   onToggle,
   entranceDelay,
 }: AnimatedRoleCardProps) {
+  const { t } = useTranslation();
   const cardScale = useSharedValue(0.8);
   const cardOpacity = useSharedValue(0);
   const selectedProgress = useSharedValue(0);
@@ -147,20 +155,23 @@ function AnimatedRoleCard({
     ],
   }));
 
+  const title = t(data.titleKey, { defaultValue: data.titleDefault });
+  const description = t(data.descriptionKey, { defaultValue: data.descriptionDefault });
+
   return (
     <Animated.View style={[styles.roleCard, cardAnimatedStyle]}>
       <Pressable
         style={styles.roleCardPressable}
         onPress={onToggle}
         accessibilityRole="button"
-        accessibilityLabel={`${data.title} — ${data.description}`}
+        accessibilityLabel={`${title} — ${description}`}
         accessibilityState={{ selected: isSelected }}
       >
         <Animated.View style={[styles.roleCardContent, scaleAnimatedStyle]}>
           <Text style={styles.roleEmoji}>{data.emoji}</Text>
           <View style={styles.roleTextContainer}>
-            <Text style={styles.roleTitle}>{data.title}</Text>
-            <Text style={styles.roleDescription}>{data.description}</Text>
+            <Text style={styles.roleTitle}>{title}</Text>
+            <Text style={styles.roleDescription}>{description}</Text>
           </View>
           <View
             style={[
@@ -182,6 +193,7 @@ export default function RoleSelectionScreen({
   onSubmit,
   onRoleToggled,
 }: RoleSelectionScreenProps) {
+  const { t } = useTranslation();
   const router = useRouter();
   const [selectedRoles, setSelectedRoles] = useState<Set<UserRole>>(new Set());
 
@@ -243,9 +255,13 @@ export default function RoleSelectionScreen({
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <Animated.View style={[styles.headerSection, headerAnimatedStyle]}>
-        <Text style={styles.title}>Choose your role</Text>
+        <Text style={styles.title}>
+          {t('roles.selection.title', { defaultValue: 'Choose your role' })}
+        </Text>
         <Text style={styles.subtitle}>
-          Select how you want to use BidClean. You can always add another role later.
+          {t('roles.selection.subtitle', {
+            defaultValue: 'Select how you want to use BidClean. You can always add another role later.',
+          })}
         </Text>
       </Animated.View>
 
@@ -272,7 +288,7 @@ export default function RoleSelectionScreen({
           onPress={handleContinue}
           disabled={!isSubmitEnabled}
           accessibilityRole="button"
-          accessibilityLabel="Continue with selected role"
+          accessibilityLabel={t('roles.selection.continueA11y', { defaultValue: 'Continue with selected role' })}
           accessibilityState={{ disabled: !isSubmitEnabled }}
         >
           <Text
@@ -281,7 +297,7 @@ export default function RoleSelectionScreen({
               !isSubmitEnabled && styles.continueButtonTextDisabled,
             ]}
           >
-            Continue
+            {t('roles.selection.continue', { defaultValue: 'Continue' })}
           </Text>
         </Pressable>
       </View>
