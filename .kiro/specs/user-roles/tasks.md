@@ -28,7 +28,7 @@ Implementation tasks for the User Roles feature. Covers role selection, Host/Cle
 - [x] 20. Implement "Add second role" option in Profile > Settings (triggers onboarding for new role)
 - [x] 21. Implement role state persistence (save activeRole to SecureStore, restore on app launch)
 - [x] 22. Write component tests for RoleSelectionScreen (render, selection, submission)
-- [-] 23. Write component tests for HostOnboardingScreen (steps, validation)
+- [x] 23. Write component tests for HostOnboardingScreen (steps, validation)
 - [ ] 24. Write component tests for CleanerOnboardingScreen (steps, map, availability)
 - [ ] 25. Write component tests for RoleBasedNavigator (correct tabs per role)
 
