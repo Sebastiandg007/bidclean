@@ -71,6 +71,12 @@ CleanerNavigator
 - Unicode emoji placeholders for tab icons (will be replaced by custom line icons)
 - Both navigators share the same design tokens (dark theme background, card, and accent colors from the design system)
 
+## Tests
+
+| File | Coverage |
+|------|----------|
+| `__tests__/RoleBasedNavigator.spec.tsx` | Loading state, correct navigator per role, redirect behavior, role switching, separation of experiences (REQ-4) |
+
 ## Test IDs
 
 ### HostNavigator
