@@ -79,3 +79,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Validates both role assignment and onboarding completion (403 if either fails)
   - Exported from RolesModule for use by other modules
   - Unit tests (13 test cases covering all scenarios)
+- **Roles module** — Complete unit tests for roles service (37 tests)
+  - assignRoles: single role, both roles, idempotent re-assignment, activeRole preservation, NotFoundException, no onboarding reset
+  - getUserRoles: one role, both roles, empty roles, NotFoundException
+  - switchActiveRole: switch, idempotent switch, BadRequestException for unassigned role, NotFoundException
+  - saveHostProfile: create, update/upsert, partial update, ForbiddenException, BadRequestException for missing businessName, NotFoundException
+  - saveCleanerProfile: create, update, preserve optional fields, ForbiddenException, NotFoundException
+  - getOnboardingStatus: host-only, cleaner-only, both roles, null for unassigned, auto-COMPLETED for host, auto-COMPLETED for cleaner, NotFoundException
+  - addSecondRole: add CLEANER to HOST user, add HOST to CLEANER user, activeRole unchanged, onboarding status preserved
