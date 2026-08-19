@@ -10,7 +10,7 @@ Implementation tasks for the User Roles feature. Covers role selection, Host/Cle
 - [x] 2. Create database migration for host_profiles and cleaner_profiles tables + user table role columns
 - [x] 3. Implement assign-roles endpoint (POST /users/roles — validate, assign, set active_role)
 - [x] 4. Implement get-roles endpoint (GET /users/me/roles — return roles array and active role)
-- [-] 5. Implement switch active role endpoint (PATCH /users/me/active-role — validate role is assigned, update)
+- [x] 5. Implement switch active role endpoint (PATCH /users/me/active-role — validate role is assigned, update)
 - [ ] 6. Implement Host profile creation endpoint (POST /users/me/host-profile — save display name, business info)
 - [ ] 7. Implement Cleaner profile creation endpoint (POST /users/me/cleaner-profile — save work zone, availability, specialties)
 - [ ] 8. Implement onboarding status endpoint (GET /users/me/onboarding-status — return completion per role)
