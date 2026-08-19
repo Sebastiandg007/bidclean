@@ -16,7 +16,7 @@ Role selection and onboarding screens for BidClean. After email verification, us
 | `roles.types.ts` | Shared types and prop interfaces for all roles screens |
 | `__tests__/RoleSelectionScreen.spec.tsx` | Component tests: rendering, selection toggling, submission |
 | `__tests__/HostOnboardingScreen.spec.tsx` | Component tests: steps navigation, validation, submission |
-| `__tests__/` | Component and unit tests |
+| `__tests__/CleanerOnboardingScreen.spec.tsx` | Component tests: 4-step flow, availability picker, specialties, submission |
 
 ## Flow
 
