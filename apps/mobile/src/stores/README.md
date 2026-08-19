@@ -9,6 +9,7 @@ Global state management using Zustand. One store per domain. Stores are independ
 | Store | Data Managed |
 |-------|-------------|
 | `auth.store.ts` | User session, tokens, biometric status, login/logout/refresh actions |
+| `role.store.ts` | Active role, assigned roles, role switching (temporary — merges into auth.store in Task 18) |
 | `offers.store.ts` | Active offers, filters, search radius |
 | `service.store.ts` | Current service state, checklist, tracking |
 | `chat.store.ts` | Messages, translation state |

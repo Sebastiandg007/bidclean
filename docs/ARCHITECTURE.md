@@ -97,6 +97,7 @@ graph TB
 graph TB
     subgraph App["📱 React Native + Expo"]
         subgraph Navigation["Navigation (Expo Router)"]
+            RoleRouter["RoleBasedNavigator<br/>(role → navigator)"]
             AuthStack["Auth Stack<br/>(Login, Register, KYC)"]
             HostTabs["Host Tabs<br/>(Home, Properties, Activity, Profile)"]
             CleanerTabs["Cleaner Tabs<br/>(Radar, Active, Profile)"]
@@ -112,6 +113,7 @@ graph TB
 
         subgraph Stores["Zustand Stores"]
             AuthStore["useAuthStore"]
+            RoleStore["useRoleStore"]
             OffersStore["useOffersStore"]
             ServiceStore["useServiceStore"]
             ChatStore["useChatStore"]
@@ -136,6 +138,8 @@ graph TB
     end
 
     Navigation --> Screens
+    RoleRouter --> HostTabs
+    RoleRouter --> CleanerTabs
     Screens --> Stores
     Screens --> Services
     Screens --> Theme

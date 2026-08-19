@@ -110,6 +110,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Step indicator with animated dots (1/2, 2/2)
   - Submits to `POST /users/me/host-profile` on completion
   - Spring entrance animations, full accessibility support
+- **Roles module (mobile)** — Role-based navigation router
+  - `RoleBasedNavigator.tsx` — reads active role from store, renders HostNavigator or CleanerNavigator
+  - `HostNavigator.tsx` — placeholder for Host tabs (Home, Properties, Activity, Profile)
+  - `CleanerNavigator.tsx` — placeholder for Cleaner tabs (Radar, Active, Profile)
+  - `role.store.ts` — temporary Zustand store for role state (activeRole, roles, switchRole)
+  - Navigation README.md with architecture and design decisions
+  - Handles loading state during hydration and redirects to role selection when no role is set
 - **Roles module (mobile)** — Cleaner onboarding screen
   - `CleanerOnboardingScreen.tsx` — four-step onboarding flow
   - Step 1: KYC verification trigger (informational, acknowledges requirement)

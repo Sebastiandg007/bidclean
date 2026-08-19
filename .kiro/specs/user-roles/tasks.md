@@ -20,7 +20,7 @@ Implementation tasks for the User Roles feature. Covers role selection, Host/Cle
 - [x] 12. Create role selection screen (RoleSelectionScreen.tsx — two options, single/dual selection, submit)
 - [x] 13. Create Host onboarding screen (HostOnboardingScreen.tsx — name confirmation, payment method step)
 - [x] 14. Create Cleaner onboarding screen (CleanerOnboardingScreen.tsx — KYC trigger, map zone picker, availability picker, specialties)
-- [ ] 15. Create role-based navigation router (RoleBasedNavigator.tsx — renders Host or Cleaner tabs based on active role)
+- [-] 15. Create role-based navigation router (RoleBasedNavigator.tsx — renders Host or Cleaner tabs based on active role)
 - [ ] 16. Create Host navigator (HostNavigator.tsx — 4 tabs: Home, Properties, Activity, Profile)
 - [ ] 17. Create Cleaner navigator (CleanerNavigator.tsx — 3 tabs: Radar, Active, Profile)
 - [ ] 18. Extend auth.store.ts with role state (activeRole, roles array, switchRole action, addRole action)
