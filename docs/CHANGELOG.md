@@ -110,3 +110,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Step indicator with animated dots (1/2, 2/2)
   - Submits to `POST /users/me/host-profile` on completion
   - Spring entrance animations, full accessibility support
+- **Roles module (mobile)** — Cleaner onboarding screen
+  - `CleanerOnboardingScreen.tsx` — four-step onboarding flow
+  - Step 1: KYC verification trigger (informational, acknowledges requirement)
+  - Step 2: Work zone setup (placeholder map visual with radius input)
+  - Step 3: Availability picker (day-of-week chips + time slot toggles)
+  - Step 4: Specialties (optional multi-select chip list, skippable)
+  - Submits to `POST /users/me/cleaner-profile` on completion
+  - Step indicator with animated dots (1-4/4)
+  - Spring entrance animations, FadeIn/FadeOut step transitions, full accessibility support
