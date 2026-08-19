@@ -301,8 +301,136 @@ describe('RolesService', () => {
   });
 
   describe('saveCleanerProfile', () => {
-    it.todo('should create a cleaner profile');
-    it.todo('should update an existing cleaner profile');
+    const keycloakId = 'kc-cleaner-001';
+
+    const createMockUser = (overrides: Partial<User> = {}): User =>
+      ({
+        id: 'uuid-cleaner-1',
+        keycloakId,
+        email: 'cleaner@example.com',
+        fullName: 'Cleaner User',
+        country: 'CO',
+        language: 'es',
+        isEmailVerified: true,
+        roles: [UserRole.CLEANER],
+        activeRole: UserRole.CLEANER,
+        onboardingStatusHost: OnboardingStatus.NOT_STARTED,
+        onboardingStatusCleaner: OnboardingStatus.IN_PROGRESS,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        ...overrides,
+      }) as User;
+
+    it('should create a new cleaner profile when none exists', async () => {
+      const user = createMockUser();
+      const dto = {
+        displayName: 'María López',
+        workZoneLat: 4.711,
+        workZoneLng: -74.0721,
+        workZoneRadiusKm: 10,
+        availability: { monday: ['08:00-12:00', '14:00-18:00'] },
+        specialties: ['airbnb', 'offices'],
+      };
+      const expectedProfile = { id: 'profile-uuid', userId: user.id, ...dto };
+
+      mockUserRepository.findOne.mockResolvedValue(user);
+      mockCleanerProfileRepository.findOne.mockResolvedValue(null);
+      mockCleanerProfileRepository.create.mockReturnValue({ userId: user.id });
+      mockCleanerProfileRepository.save.mockResolvedValue(expectedProfile);
+
+      const result = await service.saveCleanerProfile(keycloakId, dto);
+
+      expect(result).toEqual(expectedProfile);
+      expect(mockCleanerProfileRepository.create).toHaveBeenCalledWith({
+        userId: user.id,
+      });
+      expect(mockCleanerProfileRepository.save).toHaveBeenCalled();
+    });
+
+    it('should update an existing cleaner profile', async () => {
+      const user = createMockUser();
+      const existingProfile = {
+        id: 'profile-uuid',
+        userId: user.id,
+        displayName: 'María',
+        workZoneLat: 4.5,
+        workZoneLng: -74.0,
+        workZoneRadiusKm: 5,
+        availability: {},
+        specialties: [],
+      };
+      const dto = {
+        displayName: 'María López',
+        workZoneLat: 4.711,
+        workZoneLng: -74.0721,
+        workZoneRadiusKm: 10,
+        specialties: ['homes', 'post-event'],
+      };
+
+      mockUserRepository.findOne.mockResolvedValue(user);
+      mockCleanerProfileRepository.findOne.mockResolvedValue(existingProfile);
+      mockCleanerProfileRepository.save.mockResolvedValue({
+        ...existingProfile,
+        ...dto,
+        availability: {},
+      });
+
+      const result = await service.saveCleanerProfile(keycloakId, dto);
+
+      expect(result.displayName).toBe('María López');
+      expect(result.workZoneLat).toBe(4.711);
+      expect(result.specialties).toEqual(['homes', 'post-event']);
+      expect(mockCleanerProfileRepository.create).not.toHaveBeenCalled();
+    });
+
+    it('should preserve existing optional fields when not provided in dto', async () => {
+      const user = createMockUser();
+      const existingProfile = {
+        id: 'profile-uuid',
+        userId: user.id,
+        displayName: 'María',
+        workZoneLat: 4.5,
+        workZoneLng: -74.0,
+        workZoneRadiusKm: 5,
+        availability: { monday: ['08:00-17:00'] },
+        specialties: ['airbnb'],
+      };
+      const dto = { displayName: 'María López Updated' };
+
+      mockUserRepository.findOne.mockResolvedValue(user);
+      mockCleanerProfileRepository.findOne.mockResolvedValue(existingProfile);
+      mockCleanerProfileRepository.save.mockImplementation((p) =>
+        Promise.resolve(p),
+      );
+
+      const result = await service.saveCleanerProfile(keycloakId, dto);
+
+      expect(result.displayName).toBe('María López Updated');
+      expect(result.workZoneLat).toBe(4.5);
+      expect(result.workZoneLng).toBe(-74.0);
+      expect(result.workZoneRadiusKm).toBe(5);
+      expect(result.availability).toEqual({ monday: ['08:00-17:00'] });
+      expect(result.specialties).toEqual(['airbnb']);
+    });
+
+    it('should throw ForbiddenException when user does not have cleaner role', async () => {
+      const user = createMockUser({ roles: [UserRole.HOST] });
+      mockUserRepository.findOne.mockResolvedValue(user);
+
+      await expect(
+        service.saveCleanerProfile(keycloakId, { displayName: 'Test' }),
+      ).rejects.toThrow(
+        `Role '${UserRole.CLEANER}' is required to access this resource`,
+      );
+    });
+
+    it('should throw NotFoundException when user not found', async () => {
+      mockUserRepository.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.saveCleanerProfile(keycloakId, { displayName: 'Test' }),
+      ).rejects.toThrow(NotFoundException);
+    });
   });
 
   describe('getOnboardingStatus', () => {
