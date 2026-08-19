@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Roles module (mobile)** — Role state persistence via SecureStore (REQ-7)
+  - `secureStorage.service.ts` — new functions: `storeRoles`, `getRoles`, `storeActiveRole`, `getActiveRole`, `clearRoles`
+  - `auth.store.ts` — `hydrate()` restores roles/activeRole from SecureStore on app launch
+  - `auth.store.ts` — `switchRole()`, `addRole()`, `setRoles()`, `login()` persist role state (fire-and-forget)
+  - `clearAll()` updated to also clear role data
+  - Active role persists across app restarts (REQ-7 compliance)
 - **Roles module (mobile)** — AddSecondRoleButton in Profile > Settings (REQ-6)
   - `AddSecondRoleButton.tsx` — only renders when user has exactly one role, shows "Add Host/Cleaner role"
   - Calls `POST /users/roles` with both roles (idempotent), then navigates to onboarding for new role

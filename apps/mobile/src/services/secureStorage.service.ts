@@ -33,6 +33,8 @@ const SECURE_STORE_ACCESS_TOKEN = 'bidclean_access_token';
 const SECURE_STORE_REFRESH_TOKEN = 'bidclean_refresh_token';
 const SECURE_STORE_EXPIRES_AT = 'bidclean_expires_at';
 const SECURE_STORE_USER = 'bidclean_user';
+const SECURE_STORE_ROLES = 'bidclean_roles';
+const SECURE_STORE_ACTIVE_ROLE = 'bidclean_active_role';
 
 // ─── Token Operations ────────────────────────────────────────────────────────
 
@@ -140,11 +142,82 @@ export async function clearUser(): Promise<void> {
   }
 }
 
+// ─── Role Operations ─────────────────────────────────────────────────────────
+
+/**
+ * Persists the user's assigned roles array as JSON to SecureStore.
+ */
+export async function storeRoles(roles: string[]): Promise<void> {
+  try {
+    const serialized = JSON.stringify(roles);
+    await SecureStore.setItemAsync(SECURE_STORE_ROLES, serialized);
+  } catch (error) {
+    console.error('[SecureStorage] Failed to store roles:', error);
+  }
+}
+
+/**
+ * Retrieves the user's assigned roles array from SecureStore.
+ * Returns null if not found or parse fails.
+ */
+export async function getRoles(): Promise<string[] | null> {
+  try {
+    const raw = await SecureStore.getItemAsync(SECURE_STORE_ROLES);
+
+    if (!raw) {
+      return null;
+    }
+
+    return JSON.parse(raw) as string[];
+  } catch (error) {
+    console.error('[SecureStorage] Failed to read roles:', error);
+    return null;
+  }
+}
+
+/**
+ * Persists the user's active role to SecureStore.
+ */
+export async function storeActiveRole(role: string): Promise<void> {
+  try {
+    await SecureStore.setItemAsync(SECURE_STORE_ACTIVE_ROLE, role);
+  } catch (error) {
+    console.error('[SecureStorage] Failed to store active role:', error);
+  }
+}
+
+/**
+ * Retrieves the user's active role from SecureStore.
+ * Returns null if not found or read fails.
+ */
+export async function getActiveRole(): Promise<string | null> {
+  try {
+    return await SecureStore.getItemAsync(SECURE_STORE_ACTIVE_ROLE);
+  } catch (error) {
+    console.error('[SecureStorage] Failed to read active role:', error);
+    return null;
+  }
+}
+
+/**
+ * Removes all role-related data from SecureStore.
+ */
+export async function clearRoles(): Promise<void> {
+  try {
+    await Promise.all([
+      SecureStore.deleteItemAsync(SECURE_STORE_ROLES),
+      SecureStore.deleteItemAsync(SECURE_STORE_ACTIVE_ROLE),
+    ]);
+  } catch (error) {
+    console.error('[SecureStorage] Failed to clear roles:', error);
+  }
+}
+
 // ─── Bulk Operations ─────────────────────────────────────────────────────────
 
 /**
- * Clears all auth-related data from SecureStore (tokens + user).
+ * Clears all auth-related data from SecureStore (tokens + user + roles).
  */
 export async function clearAll(): Promise<void> {
-  await Promise.all([clearTokens(), clearUser()]);
+  await Promise.all([clearTokens(), clearUser(), clearRoles()]);
 }

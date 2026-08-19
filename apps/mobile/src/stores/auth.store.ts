@@ -125,6 +125,15 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     // Persist tokens and user to SecureStore (fire-and-forget)
     secureStorage.storeTokens(tokens);
     secureStorage.storeUser(user);
+
+    // Persist roles to SecureStore if provided (fire-and-forget)
+    if (roles !== undefined) {
+      secureStorage.storeRoles(roles);
+    }
+
+    if (activeRole !== undefined && activeRole !== null) {
+      secureStorage.storeActiveRole(activeRole);
+    }
   },
 
   logout: async () => {
@@ -207,10 +216,16 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         await get().refreshTokens();
       }
 
-      // TODO(Task-21): Restore role state from SecureStore
-      // const storedRoles = await secureStorage.getRoles();
-      // const storedActiveRole = await secureStorage.getActiveRole();
-      // if (storedRoles) set({ roles: storedRoles, activeRole: storedActiveRole });
+      // Restore role state from SecureStore
+      const storedRoles = await secureStorage.getRoles();
+      const storedActiveRole = await secureStorage.getActiveRole();
+
+      if (storedRoles && storedRoles.length > 0) {
+        set({
+          roles: storedRoles as UserRole[],
+          activeRole: (storedActiveRole as UserRole) ?? null,
+        });
+      }
     } finally {
       set({ isLoading: false });
     }
@@ -243,7 +258,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
     set({ activeRole: role });
 
-    // TODO(Task-21): Persist activeRole to SecureStore
+    // Persist activeRole to SecureStore (fire-and-forget)
+    secureStorage.storeActiveRole(role);
 
     // Fire-and-forget PATCH to sync active role with backend
     // Lazy import to avoid circular dependency (api.service imports auth.store)
@@ -264,11 +280,22 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       return;
     }
 
-    set({ roles: [...roles, role] });
+    const updatedRoles = [...roles, role];
+    set({ roles: updatedRoles });
+
+    // Persist updated roles to SecureStore (fire-and-forget)
+    secureStorage.storeRoles(updatedRoles);
   },
 
   setRoles: (roles: UserRole[], activeRole: UserRole | null) => {
     set({ roles, activeRole });
+
+    // Persist both roles and activeRole to SecureStore (fire-and-forget)
+    secureStorage.storeRoles(roles);
+
+    if (activeRole) {
+      secureStorage.storeActiveRole(activeRole);
+    }
   },
 }));
 
