@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Roles module (mobile)** — AddSecondRoleButton in Profile > Settings (REQ-6)
+  - `AddSecondRoleButton.tsx` — only renders when user has exactly one role, shows "Add Host/Cleaner role"
+  - Calls `POST /users/roles` with both roles (idempotent), then navigates to onboarding for new role
+  - Loading state, error handling with retry via Alert, spring animation
+  - Full i18n support, accessibility compliant
 - **Roles module (mobile)** — RoleSwitchButton in Profile tab (REQ-5)
   - `RoleSwitchButton.tsx` — only renders when user has both roles, shows "Switch to Host/Cleaner"
   - Calls `switchRole` from auth store (instant local update + async PATCH)
