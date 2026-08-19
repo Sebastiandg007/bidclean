@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "BidClean AI/ML microservice — verification, translation, speech, pricing"
 authors = ["BidClean Team"]
 readme = "README.md"
+package-mode = false
 
 [tool.poetry.dependencies]
 python = "^3.11"
@@ -14,6 +15,7 @@ pydantic = "^2.9.0"
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0.0"
 hypothesis = "^6.100.0"
+httpx = "^0.27.0"
 ruff = "^0.6.0"
 
 [build-system]
