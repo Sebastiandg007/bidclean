@@ -18,7 +18,7 @@ Implementation tasks for the User Roles feature. Covers role selection, Host/Cle
 - [x] 10. Write unit tests for roles service (assign, get, switch, add second role, idempotent assignment)
 - [x] 11. Write unit tests for onboarding status logic (completion checks, gate validation)
 - [x] 12. Create role selection screen (RoleSelectionScreen.tsx — two options, single/dual selection, submit)
-- [-] 13. Create Host onboarding screen (HostOnboardingScreen.tsx — name confirmation, payment method step)
+- [x] 13. Create Host onboarding screen (HostOnboardingScreen.tsx — name confirmation, payment method step)
 - [ ] 14. Create Cleaner onboarding screen (CleanerOnboardingScreen.tsx — KYC trigger, map zone picker, availability picker, specialties)
 - [ ] 15. Create role-based navigation router (RoleBasedNavigator.tsx — renders Host or Cleaner tabs based on active role)
 - [ ] 16. Create Host navigator (HostNavigator.tsx — 4 tabs: Home, Properties, Activity, Profile)

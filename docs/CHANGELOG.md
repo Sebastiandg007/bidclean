@@ -103,3 +103,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Null cleaner profile → all cleaner steps false
   - Dual-role: Host complete, Cleaner incomplete → blocks Cleaner endpoint
   - Dual-role: both complete → allows access for both roles
+- **Roles module (mobile)** — Host onboarding screen
+  - `HostOnboardingScreen.tsx` — two-step onboarding flow (name confirmation + payment method)
+  - Step 1: display name pre-filled from auth store, business toggle, conditional business name
+  - Step 2: Stripe payment info card, "Set up payment" (placeholder), "Skip for now" option
+  - Step indicator with animated dots (1/2, 2/2)
+  - Submits to `POST /users/me/host-profile` on completion
+  - Spring entrance animations, full accessibility support
