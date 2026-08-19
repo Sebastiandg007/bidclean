@@ -6,10 +6,10 @@
         "mcp-remote",
         "https://mcp.revenuecat.ai/mcp",
         "--header",
-        "Authorization: Bearer YOUR_REVENUECAT_API_V2_KEY"
+        "Authorization: Bearer sk_cpKhwMBlXmbdBPvfprrBEWaCoLkpo"
       ],
       "env": {},
-      "disabled": true,
+      "disabled": false,
       "autoApprove": []
     }
   }
