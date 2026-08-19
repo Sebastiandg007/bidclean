@@ -44,6 +44,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Returns user's assigned roles array and current active role
   - Reuses `findUserOrFail` helper for consistent 404 handling
   - Unit tests for getUserRoles (4 test cases)
+- **Roles module** — `PATCH /users/me/active-role` endpoint fully implemented
+  - Switches active role for authenticated user (idempotent)
+  - Validates target role is assigned to the user (BadRequestException if not)
+  - DTO validation via class-validator (rejects invalid enum values)
+  - Returns 404 if user not found, 400 if role not assigned
 - Task execution rules steering file
 - ROADMAP.md for spec tracking
 - Hooks: commit-after-task, no-hardcoded-values, verify-tests-executed

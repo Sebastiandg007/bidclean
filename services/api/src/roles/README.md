@@ -13,6 +13,7 @@ Manages user role assignment (Host/Cleaner), role-specific onboarding profiles, 
 | `roles.service.ts` | Business logic for role assignment, switching, and profiles |
 | `roles.types.ts` | TypeScript enums and interfaces (UserRole, OnboardingStatus) |
 | `dto/assign-roles.dto.ts` | Validation for role assignment requests |
+| `dto/switch-active-role.dto.ts` | Validation for active role switch requests |
 | `dto/host-profile.dto.ts` | Validation for Host onboarding profile data |
 | `dto/cleaner-profile.dto.ts` | Validation for Cleaner onboarding profile data |
 | `entities/host-profile.entity.ts` | TypeORM entity for `host_profiles` table |
@@ -42,7 +43,7 @@ Run migrations with: `npm run migration:run`
 |--------|------|-------------|--------|
 | POST | `/users/roles` | Assign one or both roles to the authenticated user | ✅ Implemented |
 | GET | `/users/me/roles` | Get user's assigned roles and active role | ✅ Implemented |
-| PATCH | `/users/me/active-role` | Switch the currently active role | 🔲 Stub |
+| PATCH | `/users/me/active-role` | Switch the currently active role | ✅ Implemented |
 | POST | `/users/me/host-profile` | Save Host onboarding profile data | 🔲 Stub |
 | POST | `/users/me/cleaner-profile` | Save Cleaner onboarding profile data | 🔲 Stub |
 | GET | `/users/me/onboarding-status` | Get onboarding completion status per role | 🔲 Stub |

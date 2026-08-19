@@ -13,9 +13,9 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { JwtUserPayload } from '../auth/guards/jwt.types';
 import { RolesService } from './roles.service';
 import { AssignRolesDto } from './dto/assign-roles.dto';
+import { SwitchActiveRoleDto } from './dto/switch-active-role.dto';
 import { HostProfileDto } from './dto/host-profile.dto';
 import { CleanerProfileDto } from './dto/cleaner-profile.dto';
-import { UserRole } from './roles.types';
 
 /** Extended request with typed user payload from JWT guard */
 interface AuthenticatedRequest extends Request {
@@ -63,9 +63,10 @@ export class RolesController {
   @Patch('me/active-role')
   async switchActiveRole(
     @Req() req: AuthenticatedRequest,
-    @Body('activeRole') activeRole: UserRole,
+    @Body(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }))
+    dto: SwitchActiveRoleDto,
   ) {
-    return this.rolesService.switchActiveRole(req.user.keycloakId, activeRole);
+    return this.rolesService.switchActiveRole(req.user.keycloakId, dto.activeRole);
   }
 
   /**

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '../auth/entities/user.entity';
@@ -69,10 +69,20 @@ export class RolesService {
   /**
    * Switch the user's active role.
    * Validates that the target role is actually assigned to the user.
+   * Idempotent: switching to the already-active role returns success.
    */
-  async switchActiveRole(_userId: string, _role: UserRole): Promise<SwitchRoleResponse> {
-    // TODO: Implement in task 5
-    throw new Error('Not implemented');
+  async switchActiveRole(keycloakId: string, role: UserRole): Promise<SwitchRoleResponse> {
+    const user = await this.findUserOrFail(keycloakId);
+
+    this.validateRoleIsAssigned(user, role);
+
+    user.activeRole = role;
+    await this.userRepository.save(user);
+
+    return {
+      activeRole: role,
+      message: `Active role switched to '${role}'`,
+    };
   }
 
   /**
@@ -148,6 +158,13 @@ export class RolesService {
   private setActiveRoleIfMissing(user: User): void {
     if (user.activeRole === null && user.roles.length > 0) {
       user.activeRole = user.roles[0] as string;
+    }
+  }
+
+  /** Validate that the target role is assigned to the user. */
+  private validateRoleIsAssigned(user: User, role: UserRole): void {
+    if (!user.roles.includes(role)) {
+      throw new BadRequestException(`Role '${role}' is not assigned to this user`);
     }
   }
 }

@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { NotFoundException } from '@nestjs/common';
+import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { RolesService } from '../roles.service';
 import { HostProfile } from '../entities/host-profile.entity';
 import { CleanerProfile } from '../entities/cleaner-profile.entity';
@@ -233,8 +233,66 @@ describe('RolesService', () => {
   });
 
   describe('switchActiveRole', () => {
-    it.todo('should switch active role when role is assigned');
-    it.todo('should reject switching to a role that is not assigned');
+    const keycloakId = 'kc-user-789';
+
+    const createMockUser = (overrides: Partial<User> = {}): User =>
+      ({
+        id: 'uuid-3',
+        keycloakId,
+        email: 'switch@example.com',
+        fullName: 'Switch User',
+        country: 'US',
+        language: 'en',
+        isEmailVerified: true,
+        roles: [UserRole.HOST, UserRole.CLEANER],
+        activeRole: UserRole.HOST,
+        onboardingStatusHost: OnboardingStatus.IN_PROGRESS,
+        onboardingStatusCleaner: OnboardingStatus.IN_PROGRESS,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        ...overrides,
+      }) as User;
+
+    it('should switch active role when role is assigned', async () => {
+      const user = createMockUser();
+      mockUserRepository.findOne.mockResolvedValue(user);
+      mockUserRepository.save.mockResolvedValue(user);
+
+      const result = await service.switchActiveRole(keycloakId, UserRole.CLEANER);
+
+      expect(result.activeRole).toBe(UserRole.CLEANER);
+      expect(result.message).toContain('cleaner');
+      expect(user.activeRole).toBe(UserRole.CLEANER);
+      expect(mockUserRepository.save).toHaveBeenCalledWith(user);
+    });
+
+    it('should be idempotent when switching to the already-active role', async () => {
+      const user = createMockUser({ activeRole: UserRole.HOST });
+      mockUserRepository.findOne.mockResolvedValue(user);
+      mockUserRepository.save.mockResolvedValue(user);
+
+      const result = await service.switchActiveRole(keycloakId, UserRole.HOST);
+
+      expect(result.activeRole).toBe(UserRole.HOST);
+      expect(user.activeRole).toBe(UserRole.HOST);
+    });
+
+    it('should throw BadRequestException when role is not assigned', async () => {
+      const user = createMockUser({ roles: [UserRole.HOST] });
+      mockUserRepository.findOne.mockResolvedValue(user);
+
+      await expect(
+        service.switchActiveRole(keycloakId, UserRole.CLEANER),
+      ).rejects.toThrow("Role 'cleaner' is not assigned to this user");
+    });
+
+    it('should throw NotFoundException when user not found', async () => {
+      mockUserRepository.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.switchActiveRole(keycloakId, UserRole.HOST),
+      ).rejects.toThrow(NotFoundException);
+    });
   });
 
   describe('saveHostProfile', () => {
