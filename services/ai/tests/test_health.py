@@ -1,10 +1,12 @@
 """Tests for the health check endpoint."""
 
+from typing import Any
+
 from fastapi.testclient import TestClient
 
 from src.main import app
 
-client = TestClient(app)
+client: TestClient = TestClient(app)
 
 
 def test_health_check_returns_200() -> None:
@@ -17,7 +19,7 @@ def test_health_check_returns_200() -> None:
 def test_health_check_payload_structure() -> None:
     """Health endpoint returns expected JSON structure."""
     response = client.get("/health/")
-    data = response.json()
+    data: dict[str, Any] = response.json()
 
     assert data["status"] == "healthy"
     assert data["service"] == "bidclean-ai"

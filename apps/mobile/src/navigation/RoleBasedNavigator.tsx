@@ -2,7 +2,7 @@
  * RoleBasedNavigator — Routes to Host or Cleaner navigation based on active role.
  *
  * This is the root navigation component for authenticated users who have
- * completed onboarding. It reads the active role from the role store and
+ * completed onboarding. It reads the active role from the auth store and
  * renders the corresponding navigator:
  *
  * - activeRole === 'host'    → HostNavigator (4 tabs)
@@ -16,7 +16,7 @@
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 
-import { useRoleStore, selectActiveRole, selectIsHydrated } from '../stores/role.store';
+import { useAuthStore, selectActiveRole, selectIsLoading } from '../stores/auth.store';
 import type { UserRole } from '../screens/roles/roles.types';
 import HostNavigator from './HostNavigator';
 import CleanerNavigator from './CleanerNavigator';
@@ -47,16 +47,16 @@ const NAVIGATOR_BY_ROLE: Record<UserRole, React.ComponentType> = {
 /**
  * Renders the correct navigator based on the user's active role.
  *
- * - Shows a loading indicator while the role state hydrates from SecureStore.
+ * - Shows a loading indicator while the auth state hydrates from SecureStore.
  * - Redirects to role selection when no active role is set.
  * - Renders HostNavigator or CleanerNavigator based on activeRole value.
  */
 export default function RoleBasedNavigator() {
-  const activeRole = useRoleStore(selectActiveRole);
-  const isHydrated = useRoleStore(selectIsHydrated);
+  const activeRole = useAuthStore(selectActiveRole);
+  const isLoading = useAuthStore(selectIsLoading);
   const router = useRouter();
 
-  if (!isHydrated) {
+  if (isLoading) {
     return <LoadingView />;
   }
 
@@ -73,7 +73,7 @@ export default function RoleBasedNavigator() {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 /**
- * Loading state shown while role data hydrates from persistence.
+ * Loading state shown while auth data hydrates from persistence.
  */
 function LoadingView() {
   return (

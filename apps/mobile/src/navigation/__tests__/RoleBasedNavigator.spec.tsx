@@ -8,7 +8,7 @@
 import { render, screen } from '@testing-library/react-native';
 
 import RoleBasedNavigator from '../RoleBasedNavigator';
-import { useRoleStore } from '../../stores/role.store';
+import { useAuthStore } from '../../stores/auth.store';
 
 // ─── Mocks ───────────────────────────────────────────────────────────────────
 
@@ -26,23 +26,23 @@ jest.mock('react-i18next', () => ({
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function setStoreState(overrides: Partial<ReturnType<typeof useRoleStore.getState>>) {
-  useRoleStore.setState(overrides);
+function setStoreState(overrides: Partial<ReturnType<typeof useAuthStore.getState>>) {
+  useAuthStore.setState(overrides);
 }
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
 
 describe('RoleBasedNavigator', () => {
   beforeEach(() => {
-    useRoleStore.setState({
+    useAuthStore.setState({
       activeRole: null,
       roles: [],
-      isHydrated: false,
+      isLoading: true,
     });
   });
 
-  it('renders loading indicator while not hydrated', () => {
-    setStoreState({ isHydrated: false });
+  it('renders loading indicator while loading', () => {
+    setStoreState({ isLoading: true });
 
     render(<RoleBasedNavigator />);
 
@@ -50,7 +50,7 @@ describe('RoleBasedNavigator', () => {
   });
 
   it('renders HostNavigator when activeRole is host', () => {
-    setStoreState({ activeRole: 'host', roles: ['host'], isHydrated: true });
+    setStoreState({ activeRole: 'host', roles: ['host'], isLoading: false });
 
     render(<RoleBasedNavigator />);
 
@@ -59,14 +59,14 @@ describe('RoleBasedNavigator', () => {
   });
 
   it('renders CleanerNavigator when activeRole is cleaner', () => {
-    setStoreState({ activeRole: 'cleaner', roles: ['cleaner'], isHydrated: true });
+    setStoreState({ activeRole: 'cleaner', roles: ['cleaner'], isLoading: false });
 
     render(<RoleBasedNavigator />);
 
-    expect(screen.getByText('Cleaner Experience')).toBeTruthy();
+    expect(screen.getByTestId('cleaner-navigator')).toBeTruthy();
   });
 
-  it('shows loading and triggers redirect when no active role and hydrated', () => {
+  it('shows loading and triggers redirect when no active role and not loading', () => {
     jest.useFakeTimers();
     const mockReplace = jest.fn();
 
@@ -74,7 +74,7 @@ describe('RoleBasedNavigator', () => {
       replace: mockReplace,
     });
 
-    setStoreState({ activeRole: null, roles: [], isHydrated: true });
+    setStoreState({ activeRole: null, roles: [], isLoading: false });
 
     render(<RoleBasedNavigator />);
 

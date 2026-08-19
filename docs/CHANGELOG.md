@@ -146,3 +146,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Active state indicator (accent color dot, opacity changes)
   - Full accessibility (tablist/tab roles, labels, selected state)
   - Placeholder screen content for each tab (ready for real screens)
+- **Roles module (mobile)** — Auth store extended with role state (Task 18)
+  - Merged role.store.ts into auth.store.ts (unified auth + role lifecycle)
+  - Added `activeRole` and `roles` fields to AuthState
+  - Added `switchRole(role)` action — validates role is assigned, fire-and-forget PATCH to backend
+  - Added `addRole(role)` action — idempotent role addition
+  - Added `setRoles(roles, activeRole)` action — set from backend response
+  - Updated `login()` to accept optional roles and activeRole parameters
+  - Updated `hydrate()` with TODO for role persistence (Task 21)
+  - Updated `reset()` to clear role state
+  - Added role selectors: selectActiveRole, selectRoles, selectHasBothRoles
+  - Converted role.store.ts to deprecated re-export wrapper
+  - Updated RoleBasedNavigator to import directly from auth.store
