@@ -51,4 +51,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Returns 404 if user not found, 400 if role not assigned
 - Task execution rules steering file
 - ROADMAP.md for spec tracking
+- **Roles module** — `POST /users/me/host-profile` endpoint fully implemented
+  - Creates or updates Host onboarding profile (upsert/idempotent)
+  - Validates user has the 'host' role assigned (ForbiddenException if not)
+  - Validates businessName is required when isBusiness is true (BadRequestException)
+  - Saves displayName, isBusiness, businessName, paymentMethodAdded
+  - Returns full HostProfile entity
 - Hooks: commit-after-task, no-hardcoded-values, verify-tests-executed

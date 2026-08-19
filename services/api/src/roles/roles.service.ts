@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '../auth/entities/user.entity';
@@ -88,11 +93,16 @@ export class RolesService {
   /**
    * Create or update the Host onboarding profile.
    * Requires the user to have the Host role assigned.
+   * Uses upsert behavior: creates if not exists, updates if exists.
    */
-  async saveHostProfile(_userId: string, _dto: HostProfileDto): Promise<HostProfile> {
-    // TODO: Implement in task 6
-    void this.hostProfileRepository;
-    throw new Error('Not implemented');
+  async saveHostProfile(keycloakId: string, dto: HostProfileDto): Promise<HostProfile> {
+    const user = await this.findUserOrFail(keycloakId);
+
+    this.validateHostRoleAssigned(user);
+    this.validateBusinessFields(dto);
+
+    const profile = await this.upsertHostProfile(user.id, dto);
+    return profile;
   }
 
   /**
@@ -166,5 +176,39 @@ export class RolesService {
     if (!user.roles.includes(role)) {
       throw new BadRequestException(`Role '${role}' is not assigned to this user`);
     }
+  }
+
+  /** Validate user has the Host role assigned (403 if not). */
+  private validateHostRoleAssigned(user: User): void {
+    if (!user.roles.includes(UserRole.HOST)) {
+      throw new ForbiddenException(
+        `Role '${UserRole.HOST}' is required to access this resource`,
+      );
+    }
+  }
+
+  /** Validate business name is provided when isBusiness is true. */
+  private validateBusinessFields(dto: HostProfileDto): void {
+    if (dto.isBusiness && !dto.businessName) {
+      throw new BadRequestException(
+        'Business name is required when isBusiness is true',
+      );
+    }
+  }
+
+  /** Create or update the host profile for a given user. */
+  private async upsertHostProfile(userId: string, dto: HostProfileDto): Promise<HostProfile> {
+    const existing = await this.hostProfileRepository.findOne({
+      where: { userId },
+    });
+
+    const profile = existing ?? this.hostProfileRepository.create({ userId });
+
+    profile.displayName = dto.displayName;
+    profile.isBusiness = dto.isBusiness ?? false;
+    profile.businessName = dto.isBusiness ? (dto.businessName ?? null) : null;
+    profile.paymentMethodAdded = dto.paymentMethodAdded ?? false;
+
+    return this.hostProfileRepository.save(profile);
   }
 }
