@@ -26,7 +26,7 @@ Implementation tasks for the User Roles feature. Covers role selection, Host/Cle
 - [x] 18. Extend auth.store.ts with role state (activeRole, roles array, switchRole action, addRole action)
 - [x] 19. Implement role switch in Profile screen (button that calls switchRole and swaps navigator instantly)
 - [x] 20. Implement "Add second role" option in Profile > Settings (triggers onboarding for new role)
-- [-] 21. Implement role state persistence (save activeRole to SecureStore, restore on app launch)
+- [x] 21. Implement role state persistence (save activeRole to SecureStore, restore on app launch)
 - [ ] 22. Write component tests for RoleSelectionScreen (render, selection, submission)
 - [ ] 23. Write component tests for HostOnboardingScreen (steps, validation)
 - [ ] 24. Write component tests for CleanerOnboardingScreen (steps, map, availability)
