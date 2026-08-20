@@ -23,7 +23,7 @@ Handles identity verification (Know Your Customer) for Cleaners. Orchestrates th
 | `storage/kyc-storage.types.ts` | Storage operation interfaces (upload/download/delete options and results) |
 | `admin/kyc-admin.controller.ts` | Admin endpoints for review queue and decisions |
 | `admin/kyc-admin.service.ts` | Admin business logic (queue, detail, approve/reject) |
-| `jobs/kyc-process.job.ts` | BullMQ job for async AI processing pipeline |
+| `jobs/kyc-process.job.ts` | BullMQ processor for async AI processing pipeline (OCR → liveness → face compare → evaluate → notify) |
 | `jobs/kyc-cleanup.job.ts` | Scheduled job for image retention/deletion |
 | `dto/upload-document.dto.ts` | Validation for document upload requests |
 | `dto/upload-selfie.dto.ts` | Validation for selfie upload requests |
@@ -39,6 +39,7 @@ Handles identity verification (Know Your Customer) for Cleaners. Orchestrates th
 | `__tests__/kyc-admin.service.spec.ts` | Unit tests for admin service |
 | `__tests__/kyc-retry.spec.ts` | Unit tests for KYC retry logic |
 | `__tests__/ai-client.service.spec.ts` | Unit tests for AI client service (HTTP calls, retries, error handling) |
+| `__tests__/kyc-process.job.spec.ts` | Unit tests for KYC processing job (pipeline, thresholds, retries, name matching) |
 
 ## Dependencies
 
@@ -93,6 +94,29 @@ NOT_STARTED → DOCUMENT_UPLOADED → SELFIE_UPLOADED → PROCESSING → VERIFIE
 - States can only move forward (no backwards transitions)
 - Terminal states: VERIFIED, REJECTED
 - Retry creates a new attempt record (does not modify previous attempts)
+
+## Processing Pipeline
+
+The `KycProcessJob` implements the async AI verification pipeline:
+
+```
+SELFIE_UPLOADED → PROCESSING → [AI Pipeline] → VERIFIED / REJECTED
+```
+
+### Pipeline Steps
+1. Transition state to PROCESSING
+2. OCR extraction (short-circuit on deterministic failure)
+3. Liveness detection (short-circuit on deterministic failure)
+4. Face comparison (short-circuit on deterministic failure)
+5. Name match calculation (Levenshtein similarity)
+6. Evaluate all scores against configured thresholds
+7. Transition to VERIFIED or REJECTED
+8. Send push notification via OneSignal
+
+### Error Handling
+- **Deterministic failures** (AI returns 4xx): Immediately reject with reason
+- **Transient failures** (5xx, network, timeout): Throw to let BullMQ retry
+- **Max retries exhausted**: Reject with admin review escalation reason
 
 ## Retry Endpoint
 

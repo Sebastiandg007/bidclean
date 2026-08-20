@@ -16,7 +16,7 @@ Implementation tasks for the KYC Verification feature. Covers the NestJS backend
 - [x] 8. Implement KYC status endpoint (GET /kyc/status — return current verification state, attempt number, rejection reason)
 - [x] 9. Implement KYC retry endpoint (POST /kyc/retry — create new attempt, validate max retries not exceeded, preserve previous attempt)
 - [x] 10. Implement AI client service (HTTP client for internal FastAPI calls — OCR, face-compare, liveness endpoints with error handling and retries)
-- [ ] 11. Implement KYC processing job (BullMQ job with configurable retries and exponential backoff, calls AI service pipeline: OCR → liveness → face-compare with short-circuit on deterministic failures → evaluate thresholds → update state. After max retries, enters admin review.)
+- [-] 11. Implement KYC processing job (BullMQ job with configurable retries and exponential backoff, calls AI service pipeline: OCR → liveness → face-compare with short-circuit on deterministic failures → evaluate thresholds → update state. After max retries, enters admin review.)
 - [ ] 12. Implement KYC cleanup job (BullMQ scheduled job that deletes expired document images from MinIO based on configurable retention period. Deletion is idempotent — if object already deleted, job succeeds without error.)
 - [ ] 13. Implement admin review queue endpoint (GET /admin/kyc/queue — list pending/rejected verifications sorted by age)
 - [ ] 14. Implement admin decision endpoint (POST /admin/kyc/:id/decision — approve or reject with reason, update state, log audit)
