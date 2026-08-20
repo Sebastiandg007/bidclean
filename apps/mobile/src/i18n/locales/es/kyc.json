@@ -1,4 +1,18 @@
 {
+  "status": {
+    "title": "Verificación de identidad",
+    "processing": "Verificando tu identidad...",
+    "processing_subtitle": "Esto suele tardar unos minutos",
+    "verified": "Identidad verificada",
+    "verified_subtitle": "Ya puedes aceptar ofertas de limpieza",
+    "rejected": "Verificación fallida",
+    "rejected_subtitle": "Razón: {{reason}}",
+    "incomplete_title": "Completa tu verificación",
+    "incomplete_subtitle": "Sube tus documentos para empezar a aceptar ofertas",
+    "start_verification": "Iniciar verificación",
+    "retry_button": "Intentar de nuevo",
+    "attempt_label": "Intento {{number}}"
+  },
   "document_capture": {
     "title": "Escanea tu ID",
     "subtitle": "Posiciona tu documento dentro del marco",

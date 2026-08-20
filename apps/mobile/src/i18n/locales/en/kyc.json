@@ -1,4 +1,18 @@
 {
+  "status": {
+    "title": "Identity Verification",
+    "processing": "Verifying your identity...",
+    "processing_subtitle": "This usually takes a few minutes",
+    "verified": "Identity verified",
+    "verified_subtitle": "You can now accept cleaning offers",
+    "rejected": "Verification failed",
+    "rejected_subtitle": "Reason: {{reason}}",
+    "incomplete_title": "Complete your verification",
+    "incomplete_subtitle": "Upload your documents to start accepting offers",
+    "start_verification": "Start verification",
+    "retry_button": "Try again",
+    "attempt_label": "Attempt {{number}}"
+  },
   "document_capture": {
     "title": "Scan your ID",
     "subtitle": "Position your document within the frame",

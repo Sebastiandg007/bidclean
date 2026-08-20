@@ -19,7 +19,7 @@ Cleaner Onboarding / Banner CTA
 |------|---------------|
 | `DocumentCaptureScreen.tsx` | Camera interface for capturing identity documents with quality validation |
 | `SelfieCaptureScreen.tsx` | Front-facing camera for selfie capture with face-shaped overlay and single face validation |
-| `KycStatusScreen.tsx` | Displays current KYC status with retry option when rejected |
+| `KycStatusScreen.tsx` | Displays current KYC status with state-based UI (incomplete banner, processing spinner, verified success, rejected with retry), polls server while PROCESSING |
 | `useKyc.ts` | Custom hook for KYC business logic (upload, status polling, retry) |
 | `kyc.types.ts` | Shared types for KYC screens (status, props, API responses) |
 | `kyc.constants.ts` | Design tokens, quality thresholds, environment-derived config |
@@ -33,7 +33,7 @@ Cleaner Onboarding / Banner CTA
 |------|----------|
 | `__tests__/DocumentCaptureScreen.spec.tsx` | Camera permission, overlay rendering, quality feedback |
 | `__tests__/SelfieCaptureScreen.spec.tsx` | Front camera, face overlay, single face validation |
-| `__tests__/KycStatusScreen.spec.tsx` | Status display per state, retry button visibility |
+| `__tests__/KycStatusScreen.spec.tsx` | Status display per state, retry button visibility, verified callback, polling, banner/CTA for incomplete states |
 
 ## Dependencies
 
