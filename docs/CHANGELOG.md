@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **KYC module (api)** — Upload selfie endpoint (`POST /kyc/selfie`)
+  - `KycController.uploadSelfie` with `FileInterceptor` for multipart file handling
+  - Accepts `Idempotency-Key` header for mobile timeout/retry resilience
+  - Cleaner role validation, file type/size validation (same constraints as document)
+  - Requires document to be uploaded first (state must be DOCUMENT_UPLOADED)
+  - Stores selfie encrypted in MinIO via `KycStorageService` (StorageCategory.SELFIE)
+  - Atomic state transition DOCUMENT_UPLOADED → SELFIE_UPLOADED via `KycStateTransitionService`
+  - Enqueues BullMQ processing job (`process-verification`) with exponential backoff
+  - Idempotent: returns existing status if selfie already uploaded/processing with same key
+  - `KycModule` updated with `BullModule.registerQueue({ name: 'kyc-processing' })`
+  - 12 unit tests covering success, role check, file validation, state conflict, idempotency, job enqueue
 - **KYC module (api)** — Upload document endpoint (`POST /kyc/document`)
   - `KycController.uploadDocument` with `FileInterceptor` for multipart file handling
   - Accepts `Idempotency-Key` header for mobile timeout/retry resilience
