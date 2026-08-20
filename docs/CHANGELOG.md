@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **KYC module (api)** — Centralized audit logging service (`KycAuditService`)
+  - `AuditAction` enum with all tracked actions: STATE_TRANSITION, DOCUMENT_VIEWED, SELFIE_VIEWED, OCR_VIEWED, VERIFICATION_APPROVED, VERIFICATION_REJECTED, DOCUMENT_DELETED, SELFIE_DELETED
+  - Typed methods: `logStateTransition()`, `logDataAccess()`, `logAdminDecision()`, `logDeletion()`
+  - GDPR-compliant admin data access logging (document/selfie/OCR views tracked with actor)
+  - New admin endpoints: `GET /admin/kyc/:id/document` (logs DOCUMENT_VIEWED), `GET /admin/kyc/:id/selfie` (logs SELFIE_VIEWED)
+  - `GET /admin/kyc/:id` now logs OCR_VIEWED when admin views verification details
+  - Refactored all existing audit calls in KycService, KycAdminService, KycProcessJob, KycCleanupJob to use centralized service
+  - 10 unit tests covering all audit methods and action types
 - **KYC module (api)** — Admin decision endpoint (`POST /admin/kyc/:id/decision`)
   - `KycAdminService.makeDecision(verificationId, dto, adminUserId)` approves or rejects a verification
   - Validates verification exists and is in a reviewable state (PROCESSING or REJECTED)
