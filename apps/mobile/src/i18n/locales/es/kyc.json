@@ -15,12 +15,28 @@
       "drivers_license": "Licencia de conducir"
     }
   },
+  "selfie_capture": {
+    "title": "Tómate una selfie",
+    "subtitle": "Posiciona tu rostro dentro de la guía ovalada",
+    "capture_button": "Capturar",
+    "cancel_button": "Cancelar",
+    "uploading": "Subiendo selfie...",
+    "permission_title": "Se necesita acceso a la cámara",
+    "permission_message": "Necesitamos acceso a la cámara para tomar tu selfie de verificación de identidad.",
+    "permission_button": "Dar acceso",
+    "guidance_face_position": "Centra tu rostro en el óvalo y mira directamente a la cámara",
+    "error_multiple_faces": "Se detectaron múltiples rostros. Solo tu rostro debe ser visible.",
+    "error_no_face": "No se detectó ningún rostro. Posiciona tu rostro dentro del óvalo."
+  },
   "quality": {
     "too_blurry": "La imagen está borrosa. Mantén firme.",
     "low_light": "Poca luz. Muévete a un lugar más iluminado.",
     "document_not_visible": "Documento no visible completamente. Ajusta la posición.",
     "hold_steady": "Mantén firme...",
-    "good": "¡Se ve bien!"
+    "good": "¡Se ve bien!",
+    "multiple_faces": "Se detectaron múltiples rostros. Solo tu rostro debe ser visible.",
+    "no_face": "No se detectó ningún rostro. Posiciona tu rostro en el marco.",
+    "face_position": "Ajusta la posición de tu rostro dentro de la guía ovalada."
   },
   "error": {
     "upload_failed": "Error al subir. Intenta de nuevo.",

@@ -15,12 +15,28 @@
       "drivers_license": "Driver's license"
     }
   },
+  "selfie_capture": {
+    "title": "Take a selfie",
+    "subtitle": "Position your face within the oval guide",
+    "capture_button": "Capture",
+    "cancel_button": "Cancel",
+    "uploading": "Uploading selfie...",
+    "permission_title": "Camera access needed",
+    "permission_message": "We need camera access to take your selfie for identity verification.",
+    "permission_button": "Grant access",
+    "guidance_face_position": "Center your face in the oval and look straight ahead",
+    "error_multiple_faces": "Multiple faces detected. Only your face should be visible.",
+    "error_no_face": "No face detected. Position your face within the oval."
+  },
   "quality": {
     "too_blurry": "Image is too blurry. Hold steady.",
     "low_light": "Not enough light. Move to a brighter area.",
     "document_not_visible": "Document not fully visible. Adjust position.",
     "hold_steady": "Hold steady...",
-    "good": "Looking good!"
+    "good": "Looking good!",
+    "multiple_faces": "Multiple faces detected. Only your face should be visible.",
+    "no_face": "No face detected. Position your face in the frame.",
+    "face_position": "Adjust your face position within the oval guide."
   },
   "error": {
     "upload_failed": "Upload failed. Please try again.",
