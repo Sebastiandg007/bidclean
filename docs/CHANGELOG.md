@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **KYC module (api)** — Admin decision endpoint (`POST /admin/kyc/:id/decision`)
+  - `KycAdminService.makeDecision(verificationId, dto, adminUserId)` approves or rejects a verification
+  - Validates verification exists and is in a reviewable state (PROCESSING or REJECTED)
+  - Requires `rejectionReason` when decision is REJECT (BadRequestException if missing)
+  - Uses `KycStateTransitionService` for atomic state transition to VERIFIED or REJECTED
+  - Creates audit log entry with action `VERIFICATION_APPROVED` or `VERIFICATION_REJECTED`
+  - Audit metadata includes verification scores (ocrConfidence, faceSimilarityScore, livenessScore)
+  - Controller extracts admin user ID from JWT (`req.user.sub`)
+  - Admin can override previously rejected verifications (approve after automated rejection)
+  - 7 new unit tests (16 total for admin service) covering all decision scenarios
 - **KYC module (api)** — Admin review queue endpoint (`GET /admin/kyc/queue`)
   - `KycAdminService.getReviewQueue(page, limit)` queries PROCESSING and REJECTED verifications
   - Sorted by `created_at ASC` (oldest first = priority) using partial index
