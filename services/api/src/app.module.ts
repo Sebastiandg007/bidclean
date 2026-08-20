@@ -4,6 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { HealthModule } from './health/health.module';
 import { AuthModule } from './auth/auth.module';
 import { RolesModule } from './roles/roles.module';
+import { KycModule } from './kyc/kyc.module';
 
 /**
  * Root application module.
@@ -30,6 +31,7 @@ import { RolesModule } from './roles/roles.module';
     HealthModule,
     AuthModule,
     RolesModule,
+    KycModule,
   ],
 })
 export class AppModule {}

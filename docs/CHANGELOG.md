@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **KYC module (api)** — scaffolded KYC verification module structure
+  - Module with controller, service, types, DTOs, entity, state machine
+  - `state-machine/` — KYC state machine with valid transition enforcement
+  - `ai-client/` — FastAPI AI service client (OCR, face comparison, liveness)
+  - `storage/` — MinIO encrypted storage service for documents and selfies
+  - `admin/` — Admin review controller and service (queue, detail, decision)
+  - `jobs/` — BullMQ processing job and scheduled cleanup job
+  - `dto/` — Validated DTOs for document upload, selfie upload, admin decision
+  - `entities/` — TypeORM entity for kyc_verifications table
+  - `__tests__/` — Unit tests for state machine, service, and admin service
+  - Registered KycModule in AppModule
 - **Roles module (mobile)** — Role state persistence via SecureStore (REQ-7)
   - `secureStorage.service.ts` — new functions: `storeRoles`, `getRoles`, `storeActiveRole`, `getActiveRole`, `clearRoles`
   - `auth.store.ts` — `hydrate()` restores roles/activeRole from SecureStore on app launch

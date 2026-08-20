@@ -158,6 +158,7 @@ graph TB
             Auth["Auth Module"]
             Roles["Roles Module"]
             Users["Users Module"]
+            KYC["KYC Module"]
             Properties["Properties Module"]
             Offers["Offers Module"]
             Payments["Payments Module"]
@@ -185,6 +186,9 @@ graph TB
 
     Users --> DB
     Roles --> DB
+    KYC --> DB
+    KYC --> Storage
+    KYC --> Queue
     Properties --> DB
     Properties --> Storage
     Offers --> DB
