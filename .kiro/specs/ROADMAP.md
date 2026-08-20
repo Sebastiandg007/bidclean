@@ -11,7 +11,7 @@
 |---|------|--------|-------------|
 | 1 | `user-authentication` | ✅ Completed | None |
 | 2 | `user-roles` | ✅ Completed | Spec 1 |
-| 3 | `kyc-verification` | 🔄 In Progress | Spec 1 |
+| 3 | `kyc-verification` | ✅ Completed | Spec 1 |
 | 4 | `user-profile` | ⬜ Pending | Spec 1, 2 |
 
 ### Sprint 2 — Core Marketplace

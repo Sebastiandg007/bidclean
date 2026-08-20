@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **KYC module (mobile)** — KYC Status Screen fully implemented (Task 25) — **KYC spec complete (25/25 tasks)**
+  - `KycStatusScreen.tsx` — Status display per state: incomplete banner/CTA, processing spinner with polling, verified success, rejected with retry button
+  - Polls server every 5 seconds while PROCESSING, calls `onVerified` callback on success
+  - i18n keys added (`status.*`) in EN and ES for all state messages
+  - 15 unit tests covering all states, retry/verified callbacks, polling behavior, CTA visibility, attempt label
+  - ROADMAP updated: `kyc-verification` spec marked as ✅ Completed
 - **KYC module (mobile)** — Selfie Capture Screen fully implemented (Task 24)
   - `SelfieCaptureScreen.tsx` — Front-facing camera with face-shaped overlay, single face validation, capture + upload flow
   - `components/FaceOverlay.tsx` — Animated oval overlay with accent/error border states for face detection feedback
