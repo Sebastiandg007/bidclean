@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
+import { getQueueToken } from '@nestjs/bullmq';
 import { ConfigService } from '@nestjs/config';
 import {
   ForbiddenException,
@@ -12,6 +13,7 @@ import { KycVerification } from '../entities/kyc-verification.entity';
 import { KycAuditLog } from '../entities/kyc-audit-log.entity';
 import { KycStorageService } from '../storage/kyc-storage.service';
 import { KycStateTransitionService } from '../state-machine/kyc-state-transition.service';
+import { KycProcessJob } from '../jobs/kyc-process.job';
 import { KycStatus, DocumentType } from '../kyc.types';
 import { User } from '../../auth/entities/user.entity';
 
@@ -48,9 +50,15 @@ describe('KycService', () => {
       const config: Record<string, string> = {
         KYC_MAX_ATTEMPTS: '3',
         KYC_MAX_FILE_SIZE_MB: '10',
+        KYC_PROCESSING_MAX_RETRIES: '3',
+        KYC_PROCESSING_BACKOFF_MS: '5000',
       };
       return config[key];
     }),
+  };
+
+  const mockQueue = {
+    add: jest.fn(),
   };
 
   const mockUser: Partial<User> = {
@@ -93,6 +101,8 @@ describe('KycService', () => {
         { provide: ConfigService, useValue: mockConfigService },
         { provide: KycStorageService, useValue: mockStorageService },
         { provide: KycStateTransitionService, useValue: mockStateTransitionService },
+        { provide: KycProcessJob, useValue: { maxRetries: 3, backoffMs: 5000 } },
+        { provide: getQueueToken('kyc-processing'), useValue: mockQueue },
       ],
     }).compile();
 

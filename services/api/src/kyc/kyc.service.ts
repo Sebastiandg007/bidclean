@@ -6,16 +6,18 @@ import {
   PayloadTooLargeException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { InjectQueue } from '@nestjs/bullmq';
 import { ConfigService } from '@nestjs/config';
 import { Repository } from 'typeorm';
+import { Queue } from 'bullmq';
 import { KycVerification } from './entities/kyc-verification.entity';
 import { KycAuditLog } from './entities/kyc-audit-log.entity';
 import { KycStatus, KycStatusResponse } from './kyc.types';
 import { UploadDocumentDto } from './dto/upload-document.dto';
-import { UploadSelfieDto } from './dto/upload-selfie.dto';
 import { KycStorageService } from './storage/kyc-storage.service';
 import { StorageCategory } from './storage/kyc-storage.types';
 import { KycStateTransitionService } from './state-machine/kyc-state-transition.service';
+import { KycProcessJob } from './jobs/kyc-process.job';
 import { User } from '../auth/entities/user.entity';
 
 /** Multer file shape received from controller */
@@ -53,6 +55,9 @@ export class KycService {
     private readonly configService: ConfigService,
     private readonly storageService: KycStorageService,
     private readonly stateTransitionService: KycStateTransitionService,
+    private readonly kycProcessJob: KycProcessJob,
+    @InjectQueue('kyc-processing')
+    private readonly kycProcessingQueue: Queue,
   ) {
     this.maxAttempts = parseInt(
       this.configService.getOrThrow<string>('KYC_MAX_ATTEMPTS'),
@@ -125,13 +130,58 @@ export class KycService {
 
   /**
    * Upload a selfie image and enqueue processing.
+   * Validates role, file, transitions state, creates audit log, and enqueues BullMQ job.
    */
-  async uploadSelfie(userId: string, dto: UploadSelfieDto, file: Buffer) {
-    // TODO: Implement selfie upload flow
-    void userId;
-    void dto;
-    void file;
-    throw new Error('Not implemented');
+  async uploadSelfie(
+    keycloakId: string,
+    file: UploadedFile,
+    idempotencyKey?: string,
+  ): Promise<KycStatusResponse> {
+    const user = await this.findUserByKeycloakId(keycloakId);
+    this.assertCleanerRole(user);
+    this.validateFileType(file.mimetype);
+    this.validateFileSize(file.size);
+
+    const verification = await this.getLatestVerification(user.id);
+    this.assertDocumentUploaded(verification);
+
+    if (this.isIdempotentSelfieUpload(verification, idempotencyKey)) {
+      return this.buildStatusResponse(verification);
+    }
+
+    this.assertNotAlreadyVerified(verification);
+
+    const uploadResult = await this.storageService.upload({
+      buffer: file.buffer,
+      mimeType: file.mimetype,
+      userId: user.id,
+      category: StorageCategory.SELFIE,
+    });
+
+    const transitionResult = await this.stateTransitionService.transition({
+      targetStatus: KycStatus.SELFIE_UPLOADED,
+      context: {
+        verification,
+        selfieStorageKey: uploadResult.key,
+      },
+    });
+
+    await this.updateVerificationSelfie(verification.id, uploadResult.key);
+
+    await this.createAuditLog(
+      verification.id,
+      user.id,
+      transitionResult.previousStatus,
+      transitionResult.newStatus,
+    );
+
+    await this.enqueueProcessingJob(verification.id);
+
+    const updated = await this.kycRepository.findOneOrFail({
+      where: { id: verification.id },
+    });
+
+    return this.buildStatusResponse(updated);
   }
 
   /**
@@ -213,6 +263,69 @@ export class KycService {
     return (
       verification.status === KycStatus.DOCUMENT_UPLOADED &&
       verification.documentStorageKey !== null
+    );
+  }
+
+  /** Check if this is an idempotent selfie re-upload */
+  private isIdempotentSelfieUpload(
+    verification: KycVerification,
+    idempotencyKey?: string,
+  ): boolean {
+    if (!idempotencyKey) return false;
+
+    const isAlreadyUploaded =
+      verification.status === KycStatus.SELFIE_UPLOADED ||
+      verification.status === KycStatus.PROCESSING;
+
+    return isAlreadyUploaded && verification.selfieStorageKey !== null;
+  }
+
+  /** Get the latest verification for a user — throws ConflictException if none exists */
+  private async getLatestVerification(userId: string): Promise<KycVerification> {
+    const verification = await this.kycRepository.findOne({
+      where: { userId },
+      order: { attemptNumber: 'DESC' },
+    });
+
+    if (!verification) {
+      throw new ConflictException('kyc.error.document_not_uploaded');
+    }
+
+    return verification;
+  }
+
+  /** Assert the verification has document uploaded (prerequisite for selfie) */
+  private assertDocumentUploaded(verification: KycVerification): void {
+    if (
+      verification.status === KycStatus.NOT_STARTED ||
+      !verification.documentStorageKey
+    ) {
+      throw new ConflictException('kyc.error.document_not_uploaded');
+    }
+  }
+
+  /** Update the verification record with selfie storage key */
+  private async updateVerificationSelfie(
+    verificationId: string,
+    storageKey: string,
+  ): Promise<void> {
+    await this.kycRepository.update(verificationId, {
+      selfieStorageKey: storageKey,
+    });
+  }
+
+  /** Enqueue a BullMQ processing job for the verification */
+  private async enqueueProcessingJob(verificationId: string): Promise<void> {
+    await this.kycProcessingQueue.add(
+      'process-verification',
+      { verificationId },
+      {
+        attempts: this.kycProcessJob.maxRetries,
+        backoff: {
+          type: 'exponential',
+          delay: this.kycProcessJob.backoffMs,
+        },
+      },
     );
   }
 

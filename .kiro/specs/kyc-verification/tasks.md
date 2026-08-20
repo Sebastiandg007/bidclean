@@ -12,7 +12,7 @@ Implementation tasks for the KYC Verification feature. Covers the NestJS backend
 - [x] 4. Implement KYC state machine (valid transitions, guards, atomic updates, idempotency checks)
 - [x] 5. Implement KYC storage service (MinIO upload with encryption, download, delete, key generation)
 - [x] 6. Implement upload document endpoint (POST /kyc/document — validate file, store in MinIO, transition state to DOCUMENT_UPLOADED, accept Idempotency-Key header)
-- [ ] 7. Implement upload selfie endpoint (POST /kyc/selfie — validate file, store in MinIO, transition state to SELFIE_UPLOADED, enqueue BullMQ processing job, accept Idempotency-Key header)
+- [x] 7. Implement upload selfie endpoint (POST /kyc/selfie — validate file, store in MinIO, transition state to SELFIE_UPLOADED, enqueue BullMQ processing job, accept Idempotency-Key header)
 - [ ] 8. Implement KYC status endpoint (GET /kyc/status — return current verification state, attempt number, rejection reason)
 - [ ] 9. Implement KYC retry endpoint (POST /kyc/retry — create new attempt, validate max retries not exceeded, preserve previous attempt)
 - [ ] 10. Implement AI client service (HTTP client for internal FastAPI calls — OCR, face-compare, liveness endpoints with error handling and retries)

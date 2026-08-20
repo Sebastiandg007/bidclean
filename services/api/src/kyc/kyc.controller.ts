@@ -13,11 +13,11 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { Request } from 'express';
 import { KycService } from './kyc.service';
 import { UploadDocumentDto } from './dto/upload-document.dto';
-import { UploadSelfieDto } from './dto/upload-selfie.dto';
+import { KycStatusResponse } from './kyc.types';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { JwtUserPayload } from '../auth/guards/jwt.types';
 
-/** Multer file shape from @nestjs/platform-express */
+/** Multer file shape received from multipart/form-data upload */
 interface MulterFile {
   readonly fieldname: string;
   readonly originalname: string;
@@ -35,7 +35,7 @@ interface MulterFile {
 @Controller('kyc')
 @UseGuards(JwtAuthGuard)
 export class KycController {
-  constructor(readonly kycService: KycService) {}
+  constructor(private readonly kycService: KycService) {}
 
   /**
    * POST /kyc/document
@@ -49,7 +49,7 @@ export class KycController {
     @UploadedFile() file: MulterFile,
     @Req() req: Request & { user: JwtUserPayload },
     @Headers('idempotency-key') idempotencyKey?: string,
-  ) {
+  ): Promise<KycStatusResponse> {
     return this.kycService.uploadDocument(
       req.user.keycloakId,
       dto,
@@ -64,10 +64,17 @@ export class KycController {
    * Requires Cleaner role.
    */
   @Post('selfie')
-  async uploadSelfie(@Body() dto: UploadSelfieDto) {
-    // TODO: Extract userId from request, handle file upload via interceptor
-    void dto;
-    throw new Error('Not implemented');
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadSelfie(
+    @UploadedFile() file: MulterFile,
+    @Req() req: Request & { user: JwtUserPayload },
+    @Headers('idempotency-key') idempotencyKey?: string,
+  ): Promise<KycStatusResponse> {
+    return this.kycService.uploadSelfie(
+      req.user.keycloakId,
+      file,
+      idempotencyKey,
+    );
   }
 
   /**

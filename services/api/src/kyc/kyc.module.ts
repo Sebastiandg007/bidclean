@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { BullModule } from '@nestjs/bullmq';
 import { KycController } from './kyc.controller';
 import { KycService } from './kyc.service';
 import { KycAdminController } from './admin/kyc-admin.controller';
@@ -21,7 +22,10 @@ import { User } from '../auth/entities/user.entity';
  * admin review, and data retention/cleanup.
  */
 @Module({
-  imports: [TypeOrmModule.forFeature([KycVerification, KycAuditLog, User])],
+  imports: [
+    TypeOrmModule.forFeature([KycVerification, KycAuditLog, User]),
+    BullModule.registerQueue({ name: 'kyc-processing' }),
+  ],
   controllers: [KycController, KycAdminController],
   providers: [
     KycService,
