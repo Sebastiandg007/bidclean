@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **KYC module (ai)** — OCR endpoint fully implemented (Task 19)
+  - `src/kyc/ocr_service.py` — Full OCR service with PaddleOCR text extraction and OpenCV face detection
+  - Extracts: full name, document number, expiry date, date of birth, nationality, document type
+  - Face detection and extraction as base64 JPEG for downstream face-compare endpoint
+  - Per-field and overall confidence scoring (coverage ratio × average OCR confidence)
+  - Document type detection via keyword matching (passport, id_card, drivers_license)
+  - `src/kyc/exceptions.py` — Custom exception hierarchy (KYCServiceError, OCRExtractionError, NoFaceDetectedError, InvalidImageError)
+  - Dependency injection via protocols (`OCREngine`, `FaceDetector`) for testable ML code
+  - PaddleOCR lazy-loaded on first request (not at startup) for fast cold starts
+  - File validation: JPEG/PNG only, configurable max size via `KYC_MAX_FILE_SIZE_MB`
+  - `numpy`, `opencv-python-headless`, `Pillow` added to core dependencies; `paddleocr`/`paddlepaddle` as optional ML group
+  - 23 unit tests for OCR service + 19 endpoint tests (42 total, all passing)
 - **KYC module (ai)** — FastAPI KYC router and configuration (Task 18)
   - `src/kyc/router.py` — APIRouter with prefix `/ai`, stub endpoints for `/ocr`, `/face-compare`, `/liveness`
   - `src/kyc/config.py` — Pydantic-settings `KYCSettings` with `AI_SERVICE_AUTH_TOKEN`, OCR/face/liveness thresholds (lru_cache singleton)

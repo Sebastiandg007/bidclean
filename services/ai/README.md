@@ -16,7 +16,7 @@ AI/ML microservice for BidClean. Handles all machine learning, computer vision, 
 | Module | Responsibility | Status |
 |--------|---------------|--------|
 | `health/` | Health check endpoint | ✅ Active |
-| `kyc/` | KYC: document OCR (PaddleOCR) + face comparison (DeepFace) + liveness (Silent-Face) | ✅ Active (stubs) |
+| `kyc/` | KYC: document OCR (PaddleOCR) + face comparison (DeepFace) + liveness (Silent-Face) | ✅ Active (OCR implemented, face-compare/liveness stubs) |
 | `translation/` | Text translation (LibreTranslate) + language detection | 🔲 Planned |
 | `speech/` | Speech-to-text (Whisper.cpp) + Text-to-speech (Piper) | 🔲 Planned |
 | `pricing/` | AI price estimation based on property photos/data (Bedrock) | 🔲 Planned |
@@ -34,14 +34,15 @@ AI/ML microservice for BidClean. Handles all machine learning, computer vision, 
 
 ```
 src/kyc/
-├── __init__.py          # Module docstring
-├── router.py            # FastAPI router with endpoint definitions
-├── auth.py              # Service-to-service auth dependency
-├── config.py            # Environment-based configuration (pydantic-settings)
-├── models.py            # Pydantic request/response models
-├── ocr_service.py       # OCR implementation (planned)
-├── face_compare_service.py  # Face comparison implementation (planned)
-└── liveness_service.py  # Liveness detection implementation (planned)
+├── __init__.py              # Module docstring
+├── router.py                # FastAPI router with endpoint definitions
+├── auth.py                  # Service-to-service auth dependency
+├── config.py                # Environment-based configuration (pydantic-settings)
+├── models.py                # Pydantic request/response models
+├── exceptions.py            # Custom exception hierarchy (KYCServiceError, OCR, Face, Image)
+├── ocr_service.py           # OCR implementation (PaddleOCR text extraction + OpenCV face detection)
+├── face_compare_service.py  # Face comparison implementation (planned — Task 20)
+└── liveness_service.py      # Liveness detection implementation (planned — Task 21)
 ```
 
 ## How to Run
@@ -75,6 +76,7 @@ poetry run ruff check src/
 | `KYC_OCR_CONFIDENCE_THRESHOLD` | Minimum OCR confidence (0.0–1.0) | No | 0.7 |
 | `KYC_FACE_SIMILARITY_THRESHOLD` | Minimum face similarity (0.0–1.0) | No | 0.6 |
 | `KYC_LIVENESS_THRESHOLD` | Minimum liveness score (0.0–1.0) | No | 0.8 |
+| `KYC_MAX_FILE_SIZE_MB` | Maximum upload file size in MB | No | 10 |
 | `AWS_REGION` | AWS region for Bedrock | Yes | — |
 | `LIBRE_TRANSLATE_URL` | LibreTranslate service URL | Yes | — |
 
