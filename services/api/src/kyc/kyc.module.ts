@@ -13,6 +13,7 @@ import { KycProcessJob } from './jobs/kyc-process.job';
 import { KycCleanupJob } from './jobs/kyc-cleanup.job';
 import { KycVerification } from './entities/kyc-verification.entity';
 import { KycAuditLog } from './entities/kyc-audit-log.entity';
+import { KycVerifiedGuard } from './guards/kyc-verified.guard';
 import { User } from '../auth/entities/user.entity';
 
 /**
@@ -37,7 +38,8 @@ import { User } from '../auth/entities/user.entity';
     KycStateTransitionService,
     KycProcessJob,
     KycCleanupJob,
+    KycVerifiedGuard,
   ],
-  exports: [KycService, KycStateTransitionService, KycAuditService],
+  exports: [KycService, KycStateTransitionService, KycAuditService, KycVerifiedGuard],
 })
 export class KycModule {}

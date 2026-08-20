@@ -31,6 +31,10 @@ Handles identity verification (Know Your Customer) for Cleaners. Orchestrates th
 | `dto/admin-decision.dto.ts` | Validation for admin approve/reject decisions |
 | `entities/kyc-verification.entity.ts` | TypeORM entity for kyc_verifications table |
 | `entities/kyc-audit-log.entity.ts` | TypeORM entity for kyc_audit_logs table |
+| `guards/kyc-verified.guard.ts` | CanActivate guard blocking non-verified Cleaners from accepting offers |
+| `guards/require-kyc-verified.decorator.ts` | Decorator shortcut for applying KycVerifiedGuard |
+| `guards/index.ts` | Barrel exports for guards |
+| `__tests__/kyc-verified.guard.spec.ts` | Unit tests for KYC verified guard |
 | `__tests__/kyc.service.spec.ts` | Unit tests for document upload flow |
 | `__tests__/kyc-status.spec.ts` | Unit tests for KYC status endpoint |
 | `__tests__/kyc-selfie-upload.spec.ts` | Unit tests for selfie upload flow |
@@ -168,6 +172,32 @@ SELFIE_UPLOADED → PROCESSING → [AI Pipeline] → VERIFIED / REJECTED
 }
 ```
 
+
+## Offer Acceptance Guard (KycVerifiedGuard)
+
+The `KycVerifiedGuard` enforces the KYC verification gate at the API level. It prevents Cleaners from accepting offers unless their latest KYC verification status is `VERIFIED`.
+
+### Usage
+
+```typescript
+// Apply to any endpoint that requires KYC verification
+@RequireKycVerified()
+@Post('offers/:id/accept')
+acceptOffer() { ... }
+```
+
+### Behavior
+- Reads `keycloakId` from `request.user` (requires JwtAuthGuard to be applied first)
+- Looks up the user by `keycloakId`
+- If user is NOT a Cleaner → passes through (guard only applies to Cleaners)
+- Queries `kyc_verifications` ordered by `attempt_number DESC` (latest attempt)
+- If no record exists or status !== `VERIFIED` → throws 403 with i18n key `kyc.error.not_verified`
+- If verified → allows access
+
+### Key Design Decisions
+- KYC status is derived from the **latest** verification record (no `kyc_status` column on users)
+- Non-cleaner roles pass through without KYC check
+- Uses the same `User` and `KycVerification` repositories as `KycService`
 
 ## Audit Logging (KycAuditService)
 
