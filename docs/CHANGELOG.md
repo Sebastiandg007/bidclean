@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **KYC module (api)** — Push notification service for KYC status changes (`KycNotificationService`)
+  - Dedicated `KycNotificationService` extracted from inline processing job logic
+  - Sends OneSignal push notifications for VERIFIED and REJECTED events
+  - Integrated with both automated AI processing pipeline and admin manual decisions
+  - Graceful degradation: skips silently when `ONESIGNAL_APP_ID` or `ONESIGNAL_API_KEY` not configured
+  - Never throws on notification failure (logs warning, doesn't break pipeline)
+  - Includes `rejectionReason` in data payload for REJECTED status
+  - Custom `ONESIGNAL_API_URL` override support for testing
+  - 9 unit tests covering payload correctness, missing config, error handling
 - **KYC module (api)** — Offer acceptance guard (`KycVerifiedGuard`)
   - `KycVerifiedGuard` (CanActivate) blocks Cleaners from accepting offers without verified KYC
   - Queries latest `kyc_verifications` record (highest attempt_number) for the user
