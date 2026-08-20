@@ -8,6 +8,7 @@ import { KycAdminService } from './admin/kyc-admin.service';
 import { AiClientService } from './ai-client/ai-client.service';
 import { KycStorageService } from './storage/kyc-storage.service';
 import { KycStateTransitionService } from './state-machine/kyc-state-transition.service';
+import { KycAuditService } from './kyc-audit.service';
 import { KycProcessJob } from './jobs/kyc-process.job';
 import { KycCleanupJob } from './jobs/kyc-cleanup.job';
 import { KycVerification } from './entities/kyc-verification.entity';
@@ -30,12 +31,13 @@ import { User } from '../auth/entities/user.entity';
   providers: [
     KycService,
     KycAdminService,
+    KycAuditService,
     AiClientService,
     KycStorageService,
     KycStateTransitionService,
     KycProcessJob,
     KycCleanupJob,
   ],
-  exports: [KycService, KycStateTransitionService],
+  exports: [KycService, KycStateTransitionService, KycAuditService],
 })
 export class KycModule {}

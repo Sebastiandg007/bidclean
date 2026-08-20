@@ -4,8 +4,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { Repository } from 'typeorm';
 import { KycVerification } from '../entities/kyc-verification.entity';
-import { KycAuditLog } from '../entities/kyc-audit-log.entity';
 import { KycStorageService } from '../storage/kyc-storage.service';
+import { KycAuditService, AuditAction } from '../kyc-audit.service';
 
 /** Default batch size for processing deletions to avoid overwhelming MinIO */
 const DEFAULT_CLEANUP_BATCH_SIZE = 50;
@@ -35,9 +35,8 @@ export class KycCleanupJob {
     private readonly configService: ConfigService,
     @InjectRepository(KycVerification)
     private readonly kycRepository: Repository<KycVerification>,
-    @InjectRepository(KycAuditLog)
-    private readonly auditLogRepository: Repository<KycAuditLog>,
     private readonly storageService: KycStorageService,
+    private readonly kycAuditService: KycAuditService,
   ) {
     this.retentionDays = parseInt(
       this.configService.getOrThrow<string>('KYC_RETENTION_DAYS'),
@@ -189,18 +188,18 @@ export class KycCleanupJob {
     action: string,
     storageKey: string,
   ): Promise<void> {
-    const log = this.auditLogRepository.create({
+    const auditAction = action === AUDIT_ACTION_DOCUMENT_DELETED
+      ? AuditAction.DOCUMENT_DELETED
+      : AuditAction.SELFIE_DELETED;
+
+    await this.kycAuditService.logDeletion({
       verificationId,
-      action,
-      actorId: null,
-      oldStatus: null,
-      newStatus: null,
+      action: auditAction,
       metadata: {
         triggeredBy: AUDIT_METADATA_TRIGGER,
         storageKey,
         retentionDays: this.retentionDays,
       },
     });
-    await this.auditLogRepository.save(log);
   }
 }

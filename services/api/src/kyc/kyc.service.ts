@@ -13,12 +13,12 @@ import { ConfigService } from '@nestjs/config';
 import { Repository } from 'typeorm';
 import { Queue } from 'bullmq';
 import { KycVerification } from './entities/kyc-verification.entity';
-import { KycAuditLog } from './entities/kyc-audit-log.entity';
 import { KycStatus, KycStatusResponse } from './kyc.types';
 import { UploadDocumentDto } from './dto/upload-document.dto';
 import { KycStorageService } from './storage/kyc-storage.service';
 import { StorageCategory } from './storage/kyc-storage.types';
 import { KycStateTransitionService } from './state-machine/kyc-state-transition.service';
+import { KycAuditService } from './kyc-audit.service';
 import { KycProcessJob } from './jobs/kyc-process.job';
 import { User } from '../auth/entities/user.entity';
 
@@ -50,13 +50,12 @@ export class KycService {
   constructor(
     @InjectRepository(KycVerification)
     readonly kycRepository: Repository<KycVerification>,
-    @InjectRepository(KycAuditLog)
-    private readonly auditLogRepository: Repository<KycAuditLog>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     private readonly configService: ConfigService,
     private readonly storageService: KycStorageService,
     private readonly stateTransitionService: KycStateTransitionService,
+    private readonly kycAuditService: KycAuditService,
     private readonly kycProcessJob: KycProcessJob,
     @InjectQueue('kyc-processing')
     private readonly kycProcessingQueue: Queue,
@@ -426,15 +425,12 @@ export class KycService {
     oldStatus: KycStatus,
     newStatus: KycStatus,
   ): Promise<void> {
-    const log = this.auditLogRepository.create({
+    await this.kycAuditService.logStateTransition({
       verificationId,
-      action: 'STATE_TRANSITION',
       actorId,
       oldStatus,
       newStatus,
-      metadata: null,
     });
-    await this.auditLogRepository.save(log);
   }
 
   /** Build the status response DTO from a verification entity */

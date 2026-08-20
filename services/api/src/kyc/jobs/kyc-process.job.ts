@@ -6,10 +6,10 @@ import { Repository } from 'typeorm';
 import { Job } from 'bullmq';
 import axios from 'axios';
 import { KycVerification } from '../entities/kyc-verification.entity';
-import { KycAuditLog } from '../entities/kyc-audit-log.entity';
 import { User } from '../../auth/entities/user.entity';
 import { KycStatus } from '../kyc.types';
 import { KycStateTransitionService } from '../state-machine/kyc-state-transition.service';
+import { KycAuditService } from '../kyc-audit.service';
 import { AiClientService } from '../ai-client/ai-client.service';
 import { AiClientError } from '../ai-client/ai-client.errors';
 import { OcrResult, FaceCompareResult, LivenessResult } from '../ai-client/ai-client.types';
@@ -27,7 +27,6 @@ interface ProcessingThresholds {
 }
 
 /** Constants for audit log actions */
-const AUDIT_ACTION_STATE_TRANSITION = 'STATE_TRANSITION';
 const AUDIT_METADATA_TRIGGER = 'kyc-processing-job';
 
 /** Default OneSignal API URL — overridable via ONESIGNAL_API_URL env var */
@@ -73,11 +72,10 @@ export class KycProcessJob extends WorkerHost {
     private readonly configService: ConfigService,
     @InjectRepository(KycVerification)
     private readonly kycRepository: Repository<KycVerification>,
-    @InjectRepository(KycAuditLog)
-    private readonly auditLogRepository: Repository<KycAuditLog>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     private readonly stateTransitionService: KycStateTransitionService,
+    private readonly kycAuditService: KycAuditService,
     private readonly aiClientService: AiClientService,
   ) {
     super();
@@ -478,14 +476,12 @@ export class KycProcessJob extends WorkerHost {
     oldStatus: KycStatus,
     newStatus: KycStatus,
   ): Promise<void> {
-    const log = this.auditLogRepository.create({
+    await this.kycAuditService.logStateTransition({
       verificationId,
-      action: AUDIT_ACTION_STATE_TRANSITION,
       actorId,
       oldStatus,
       newStatus,
       metadata: { triggeredBy: AUDIT_METADATA_TRIGGER },
     });
-    await this.auditLogRepository.save(log);
   }
 }

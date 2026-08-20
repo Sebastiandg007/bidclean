@@ -7,9 +7,9 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { KycVerification } from '../entities/kyc-verification.entity';
-import { KycAuditLog } from '../entities/kyc-audit-log.entity';
 import { AdminDecisionDto, AdminDecision } from '../dto/admin-decision.dto';
 import { KycStateTransitionService } from '../state-machine/kyc-state-transition.service';
+import { KycAuditService, AuditAction } from '../kyc-audit.service';
 import {
   KycStatus,
   KycQueueItem,
@@ -39,9 +39,8 @@ export class KycAdminService {
   constructor(
     @InjectRepository(KycVerification)
     private readonly kycRepository: Repository<KycVerification>,
-    @InjectRepository(KycAuditLog)
-    private readonly auditLogRepository: Repository<KycAuditLog>,
     private readonly stateTransitionService: KycStateTransitionService,
+    private readonly kycAuditService: KycAuditService,
   ) {}
 
   /**
@@ -99,12 +98,15 @@ export class KycAdminService {
 
   /**
    * Get full verification details for admin review.
+   * Logs OCR_VIEWED access for GDPR compliance.
    * @param verificationId - Verification UUID
+   * @param adminUserId - ID of the admin viewing the detail
    * @returns Detailed verification record
    * @throws NotFoundException when verification does not exist
    */
   async getVerificationDetail(
     verificationId: string,
+    adminUserId?: string,
   ): Promise<KycVerificationDetail> {
     const verification = await this.kycRepository.findOne({
       where: { id: verificationId },
@@ -112,6 +114,15 @@ export class KycAdminService {
 
     if (!verification) {
       throw new NotFoundException('kyc.error.verification_not_found');
+    }
+
+    if (adminUserId) {
+      await this.kycAuditService.logDataAccess({
+        verificationId,
+        actorId: adminUserId,
+        action: AuditAction.OCR_VIEWED,
+        metadata: { viewedFields: ['ocrConfidence', 'extractedName', 'faceSimilarityScore', 'livenessScore'] },
+      });
     }
 
     return {
@@ -133,6 +144,62 @@ export class KycAdminService {
       createdAt: verification.createdAt,
       updatedAt: verification.updatedAt,
     };
+  }
+
+  /**
+   * Get document image URL for admin review.
+   * Logs DOCUMENT_VIEWED for GDPR compliance.
+   * @param verificationId - Verification UUID
+   * @param adminUserId - ID of the admin viewing the document
+   * @returns Object with presigned URL for the document image
+   * @throws NotFoundException when verification or document not found
+   */
+  async getDocumentImage(
+    verificationId: string,
+    adminUserId: string,
+  ): Promise<{ url: string }> {
+    const verification = await this.findVerificationOrFail(verificationId);
+
+    if (!verification.documentStorageKey) {
+      throw new NotFoundException('kyc.error.document_not_found');
+    }
+
+    await this.kycAuditService.logDataAccess({
+      verificationId,
+      actorId: adminUserId,
+      action: AuditAction.DOCUMENT_VIEWED,
+      metadata: { storageKey: verification.documentStorageKey },
+    });
+
+    return { url: verification.documentStorageKey };
+  }
+
+  /**
+   * Get selfie image URL for admin review.
+   * Logs SELFIE_VIEWED for GDPR compliance.
+   * @param verificationId - Verification UUID
+   * @param adminUserId - ID of the admin viewing the selfie
+   * @returns Object with presigned URL for the selfie image
+   * @throws NotFoundException when verification or selfie not found
+   */
+  async getSelfieImage(
+    verificationId: string,
+    adminUserId: string,
+  ): Promise<{ url: string }> {
+    const verification = await this.findVerificationOrFail(verificationId);
+
+    if (!verification.selfieStorageKey) {
+      throw new NotFoundException('kyc.error.selfie_not_found');
+    }
+
+    await this.kycAuditService.logDataAccess({
+      verificationId,
+      actorId: adminUserId,
+      action: AuditAction.SELFIE_VIEWED,
+      metadata: { storageKey: verification.selfieStorageKey },
+    });
+
+    return { url: verification.selfieStorageKey };
   }
 
   /**
@@ -223,15 +290,15 @@ export class KycAdminService {
     adminUserId: string,
     rejectionReason?: string,
   ): Promise<void> {
-    const action =
+    const decision =
       newStatus === KycStatus.VERIFIED
-        ? 'VERIFICATION_APPROVED'
-        : 'VERIFICATION_REJECTED';
+        ? AuditAction.VERIFICATION_APPROVED
+        : AuditAction.VERIFICATION_REJECTED;
 
-    const log = this.auditLogRepository.create({
+    await this.kycAuditService.logAdminDecision({
       verificationId: verification.id,
-      action,
       actorId: adminUserId,
+      decision,
       oldStatus: verification.status,
       newStatus,
       metadata: {
@@ -241,7 +308,5 @@ export class KycAdminService {
         ...(rejectionReason ? { rejectionReason } : {}),
       },
     });
-
-    await this.auditLogRepository.save(log);
   }
 }

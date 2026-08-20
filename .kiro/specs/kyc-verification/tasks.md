@@ -20,7 +20,7 @@ Implementation tasks for the KYC Verification feature. Covers the NestJS backend
 - [x] 12. Implement KYC cleanup job (BullMQ scheduled job that deletes expired document images from MinIO based on configurable retention period. Deletion is idempotent — if object already deleted, job succeeds without error.)
 - [x] 13. Implement admin review queue endpoint (GET /admin/kyc/queue — list pending/rejected verifications sorted by age)
 - [x] 14. Implement admin decision endpoint (POST /admin/kyc/:id/decision — approve or reject with reason, update state, log audit)
-- [ ] 15. Implement KYC audit logging (log all state transitions, admin actions, and data access to kyc_audit_logs. Actions: DOCUMENT_VIEWED, SELFIE_VIEWED, OCR_VIEWED, VERIFICATION_APPROVED, VERIFICATION_REJECTED, DOCUMENT_DELETED, SELFIE_DELETED. Admin image access logged for GDPR compliance.)
+- [-] 15. Implement KYC audit logging (log all state transitions, admin actions, and data access to kyc_audit_logs. Actions: DOCUMENT_VIEWED, SELFIE_VIEWED, OCR_VIEWED, VERIFICATION_APPROVED, VERIFICATION_REJECTED, DOCUMENT_DELETED, SELFIE_DELETED. Admin image access logged for GDPR compliance.)
 - [ ] 16. Implement offer acceptance guard (middleware that checks latest kyc_verifications record status === VERIFIED before allowing offer acceptance — status derived from latest attempt, not a column on users)
 - [ ] 17. Implement push notification on KYC status change (OneSignal integration for VERIFIED and REJECTED events)
 - [ ] 18. Create FastAPI KYC router and configuration (router setup, environment-based thresholds, service-to-service auth middleware)

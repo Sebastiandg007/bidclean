@@ -7,6 +7,7 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
  * Admin KYC controller.
  * Provides endpoints for reviewing and deciding on KYC verifications.
  * All endpoints require admin-level authentication.
+ * Data access is logged for GDPR compliance.
  */
 @Controller('admin/kyc')
 @UseGuards(JwtAuthGuard)
@@ -31,10 +32,40 @@ export class KycAdminController {
   /**
    * GET /admin/kyc/:id
    * Get full verification details for admin review.
+   * Logs OCR_VIEWED for GDPR compliance.
    */
   @Get(':id')
-  async getVerificationDetail(@Param('id') id: string) {
-    return this.kycAdminService.getVerificationDetail(id);
+  async getVerificationDetail(
+    @Param('id') id: string,
+    @Request() req: { user: { sub: string } },
+  ) {
+    return this.kycAdminService.getVerificationDetail(id, req.user.sub);
+  }
+
+  /**
+   * GET /admin/kyc/:id/document
+   * Serve document image to admin.
+   * Logs DOCUMENT_VIEWED for GDPR compliance.
+   */
+  @Get(':id/document')
+  async getDocumentImage(
+    @Param('id') id: string,
+    @Request() req: { user: { sub: string } },
+  ) {
+    return this.kycAdminService.getDocumentImage(id, req.user.sub);
+  }
+
+  /**
+   * GET /admin/kyc/:id/selfie
+   * Serve selfie image to admin.
+   * Logs SELFIE_VIEWED for GDPR compliance.
+   */
+  @Get(':id/selfie')
+  async getSelfieImage(
+    @Param('id') id: string,
+    @Request() req: { user: { sub: string } },
+  ) {
+    return this.kycAdminService.getSelfieImage(id, req.user.sub);
   }
 
   /**

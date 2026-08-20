@@ -12,6 +12,7 @@ Handles identity verification (Know Your Customer) for Cleaners. Orchestrates th
 | `kyc.controller.ts` | REST endpoints for document upload, selfie upload, status, retry |
 | `kyc.service.ts` | Orchestrates KYC flow, coordinates sub-services |
 | `kyc.types.ts` | Shared type definitions (KycStatus, interfaces, config) |
+| `kyc-audit.service.ts` | Centralized audit logging service (GDPR compliance, typed actions) |
 | `state-machine/kyc-state-machine.ts` | Enforces valid state transitions for the KYC flow |
 | `state-machine/kyc-state-transition.service.ts` | Atomic state transitions with pessimistic locking |
 | `state-machine/kyc-state-machine.types.ts` | Type definitions for transitions, guards, and context |
@@ -21,8 +22,8 @@ Handles identity verification (Know Your Customer) for Cleaners. Orchestrates th
 | `ai-client/ai-client.errors.ts` | Custom error classes for AI service failures (timeout, network, HTTP) |
 | `storage/kyc-storage.service.ts` | MinIO client for encrypted image storage (upload, download, delete, key generation) |
 | `storage/kyc-storage.types.ts` | Storage operation interfaces (upload/download/delete options and results) |
-| `admin/kyc-admin.controller.ts` | Admin endpoints for review queue and decisions |
-| `admin/kyc-admin.service.ts` | Admin business logic (queue, detail, approve/reject) |
+| `admin/kyc-admin.controller.ts` | Admin endpoints for review queue, decisions, and image access (with GDPR audit logging) |
+| `admin/kyc-admin.service.ts` | Admin business logic (queue, detail, approve/reject, image access) |
 | `jobs/kyc-process.job.ts` | BullMQ processor for async AI processing pipeline (OCR → liveness → face compare → evaluate → notify) |
 | `jobs/kyc-cleanup.job.ts` | Scheduled cron job (daily 3 AM) for automatic image deletion after retention period |
 | `dto/upload-document.dto.ts` | Validation for document upload requests |
@@ -38,6 +39,7 @@ Handles identity verification (Know Your Customer) for Cleaners. Orchestrates th
 | `__tests__/kyc-storage.service.spec.ts` | Unit tests for MinIO storage operations |
 | `__tests__/kyc-admin.service.spec.ts` | Unit tests for admin service |
 | `__tests__/kyc-retry.spec.ts` | Unit tests for KYC retry logic |
+| `__tests__/kyc-audit.service.spec.ts` | Unit tests for centralized audit logging service |
 | `__tests__/ai-client.service.spec.ts` | Unit tests for AI client service (HTTP calls, retries, error handling) |
 | `__tests__/kyc-process.job.spec.ts` | Unit tests for KYC processing job (pipeline, thresholds, retries, name matching) |
 | `__tests__/kyc-cleanup.job.spec.ts` | Unit tests for KYC cleanup job (batch deletion, audit logging, error handling) |
@@ -61,7 +63,9 @@ Handles identity verification (Know Your Customer) for Cleaners. Orchestrates th
 | GET | `/kyc/status` | Get current verification status | Access token (Cleaner) |
 | POST | `/kyc/retry` | Start a new verification attempt | Access token (Cleaner) |
 | GET | `/admin/kyc/queue` | Get pending verifications for review | Admin token |
-| GET | `/admin/kyc/:id` | Get full verification details | Admin token |
+| GET | `/admin/kyc/:id` | Get full verification details (logs OCR_VIEWED) | Admin token |
+| GET | `/admin/kyc/:id/document` | Get document image (logs DOCUMENT_VIEWED) | Admin token |
+| GET | `/admin/kyc/:id/selfie` | Get selfie image (logs SELFIE_VIEWED) | Admin token |
 | POST | `/admin/kyc/:id/decision` | Approve or reject verification | Admin token |
 
 ## Environment Variables
@@ -163,3 +167,40 @@ SELFIE_UPLOADED → PROCESSING → [AI Pipeline] → VERIFIED / REJECTED
   "retentionDays": 90
 }
 ```
+
+
+## Audit Logging (KycAuditService)
+
+All audit logging is centralized in `kyc-audit.service.ts`, which provides typed methods for every tracked action. This ensures consistent metadata structure, action naming, and GDPR compliance across the module.
+
+### Tracked Actions (AuditAction enum)
+
+| Action | Description | Actor |
+|--------|-------------|-------|
+| `STATE_TRANSITION` | Any KYC state change | User or null (system) |
+| `DOCUMENT_VIEWED` | Admin viewed document image | Admin |
+| `SELFIE_VIEWED` | Admin viewed selfie image | Admin |
+| `OCR_VIEWED` | Admin viewed OCR/verification details | Admin |
+| `VERIFICATION_APPROVED` | Admin approved verification | Admin |
+| `VERIFICATION_REJECTED` | Admin rejected verification | Admin |
+| `DOCUMENT_DELETED` | Document image deleted after retention | null (system) |
+| `SELFIE_DELETED` | Selfie image deleted after retention | null (system) |
+
+### Service Methods
+
+| Method | Purpose | Used By |
+|--------|---------|---------|
+| `logStateTransition()` | Log status changes | `KycService`, `KycProcessJob` |
+| `logDataAccess()` | Log admin image/data views (GDPR) | `KycAdminService` |
+| `logAdminDecision()` | Log approve/reject decisions | `KycAdminService` |
+| `logDeletion()` | Log image deletions | `KycCleanupJob` |
+
+### GDPR Compliance
+
+Admin access to sensitive data (document images, selfie images, OCR extraction results) is automatically logged when accessed through admin endpoints:
+
+- `GET /admin/kyc/:id` → logs `OCR_VIEWED`
+- `GET /admin/kyc/:id/document` → logs `DOCUMENT_VIEWED`
+- `GET /admin/kyc/:id/selfie` → logs `SELFIE_VIEWED`
+
+Each log entry includes the admin's user ID (`actorId`), timestamp (`createdAt`), and relevant metadata (e.g., storage key, viewed fields).
