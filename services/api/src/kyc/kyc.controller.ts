@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  NotImplementedException,
   Post,
   Body,
   UseGuards,
@@ -83,9 +84,10 @@ export class KycController {
    * Requires Cleaner role.
    */
   @Get('status')
-  async getStatus() {
-    // TODO: Extract userId from request
-    throw new Error('Not implemented');
+  async getStatus(
+    @Req() req: Request & { user: JwtUserPayload },
+  ): Promise<KycStatusResponse> {
+    return this.kycService.getStatus(req.user.keycloakId);
   }
 
   /**
@@ -94,8 +96,10 @@ export class KycController {
    * Requires Cleaner role.
    */
   @Post('retry')
-  async retry() {
-    // TODO: Extract userId from request
-    throw new Error('Not implemented');
+  async retry(
+    @Req() _req: Request & { user: JwtUserPayload },
+  ): Promise<KycStatusResponse> {
+    // TODO(KYC-9): Implement via kycService.retry
+    throw new NotImplementedException('KYC retry endpoint not yet implemented');
   }
 }

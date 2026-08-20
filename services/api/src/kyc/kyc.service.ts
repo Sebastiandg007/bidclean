@@ -188,10 +188,25 @@ export class KycService {
    * Get current KYC verification status for a user.
    * Derived from the latest attempt (highest attempt_number).
    */
-  async getStatus(userId: string): Promise<KycStatusResponse> {
-    // TODO: Implement status retrieval from latest attempt
-    void userId;
-    throw new Error('Not implemented');
+  async getStatus(keycloakId: string): Promise<KycStatusResponse> {
+    const user = await this.findUserByKeycloakId(keycloakId);
+    this.assertCleanerRole(user);
+
+    const latestVerification = await this.kycRepository.findOne({
+      where: { userId: user.id },
+      order: { attemptNumber: 'DESC' },
+    });
+
+    if (!latestVerification) {
+      return {
+        status: KycStatus.NOT_STARTED,
+        attemptNumber: 1,
+        rejectionReason: null,
+        completedAt: null,
+      };
+    }
+
+    return this.buildStatusResponse(latestVerification);
   }
 
   /**

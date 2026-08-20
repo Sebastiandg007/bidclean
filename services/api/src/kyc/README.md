@@ -29,6 +29,13 @@ Handles identity verification (Know Your Customer) for Cleaners. Orchestrates th
 | `dto/admin-decision.dto.ts` | Validation for admin approve/reject decisions |
 | `entities/kyc-verification.entity.ts` | TypeORM entity for kyc_verifications table |
 | `entities/kyc-audit-log.entity.ts` | TypeORM entity for kyc_audit_logs table |
+| `__tests__/kyc.service.spec.ts` | Unit tests for document upload flow |
+| `__tests__/kyc-status.spec.ts` | Unit tests for KYC status endpoint |
+| `__tests__/kyc-selfie-upload.spec.ts` | Unit tests for selfie upload flow |
+| `__tests__/kyc-state-machine.spec.ts` | Unit tests for state machine logic |
+| `__tests__/kyc-state-transition.service.spec.ts` | Unit tests for atomic state transitions |
+| `__tests__/kyc-storage.service.spec.ts` | Unit tests for MinIO storage operations |
+| `__tests__/kyc-admin.service.spec.ts` | Unit tests for admin service |
 
 ## Dependencies
 

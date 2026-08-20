@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **KYC module (api)** — KYC status endpoint (`GET /kyc/status`)
+  - `KycService.getStatus(keycloakId)` resolves user, asserts Cleaner role, queries latest verification attempt
+  - Returns `NOT_STARTED` with attemptNumber 1 when no verification record exists
+  - Returns status, attemptNumber, rejectionReason, and completedAt from the highest attempt_number
+  - Uses `idx_kyc_user_attempt` index (ORDER BY attemptNumber DESC) for efficient lookups
+  - `KycController.getStatus` wired to service, same auth pattern as document/selfie endpoints
+  - 7 unit tests covering: no verification, current status, rejection reason, role guard, user not found, multiple attempts, verified state
 - **KYC module (api)** — Upload selfie endpoint (`POST /kyc/selfie`)
   - `KycController.uploadSelfie` with `FileInterceptor` for multipart file handling
   - Accepts `Idempotency-Key` header for mobile timeout/retry resilience
