@@ -8,7 +8,8 @@ Feature-based screen components. Each subfolder represents a screen or screen gr
 
 ```
 screens/
-├── auth/            → Both: login, register, KYC flow
+├── auth/            → Both: login, register, email verification
+├── kyc/             → Cleaner: identity verification (document + selfie + status)
 ├── roles/           → Both: role selection and onboarding (Host/Cleaner)
 ├── radar/           → Cleaner: map with nearby offers
 ├── offer-detail/    → Cleaner: full offer view + accept/counteroffer
