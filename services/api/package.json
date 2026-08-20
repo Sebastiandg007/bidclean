@@ -20,6 +20,7 @@
   },
   "dependencies": {
     "@bidclean/shared": "*",
+    "axios": "1.7.9",
     "@nestjs/bullmq": "10.2.3",
     "@nestjs/common": "10.4.15",
     "@nestjs/config": "4.0.4",

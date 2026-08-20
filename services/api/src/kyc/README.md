@@ -16,8 +16,9 @@ Handles identity verification (Know Your Customer) for Cleaners. Orchestrates th
 | `state-machine/kyc-state-transition.service.ts` | Atomic state transitions with pessimistic locking |
 | `state-machine/kyc-state-machine.types.ts` | Type definitions for transitions, guards, and context |
 | `state-machine/kyc-state-machine.errors.ts` | Custom HTTP exceptions for state machine errors |
-| `ai-client/ai-client.service.ts` | HTTP client for FastAPI AI service (OCR, face compare, liveness) |
+| `ai-client/ai-client.service.ts` | HTTP client for FastAPI AI service (OCR, face compare, liveness) with retries and error handling |
 | `ai-client/ai-client.types.ts` | Request/response types for AI service communication |
+| `ai-client/ai-client.errors.ts` | Custom error classes for AI service failures (timeout, network, HTTP) |
 | `storage/kyc-storage.service.ts` | MinIO client for encrypted image storage (upload, download, delete, key generation) |
 | `storage/kyc-storage.types.ts` | Storage operation interfaces (upload/download/delete options and results) |
 | `admin/kyc-admin.controller.ts` | Admin endpoints for review queue and decisions |
@@ -37,6 +38,7 @@ Handles identity verification (Know Your Customer) for Cleaners. Orchestrates th
 | `__tests__/kyc-storage.service.spec.ts` | Unit tests for MinIO storage operations |
 | `__tests__/kyc-admin.service.spec.ts` | Unit tests for admin service |
 | `__tests__/kyc-retry.spec.ts` | Unit tests for KYC retry logic |
+| `__tests__/ai-client.service.spec.ts` | Unit tests for AI client service (HTTP calls, retries, error handling) |
 
 ## Dependencies
 
@@ -64,7 +66,7 @@ Handles identity verification (Know Your Customer) for Cleaners. Orchestrates th
 
 | Variable | Description | Required |
 |----------|-------------|----------|
-| `AI_SERVICE_URL` | FastAPI AI service base URL | Yes |
+| `KYC_AI_SERVICE_URL` | FastAPI AI service base URL | Yes |
 | `AI_SERVICE_AUTH_TOKEN` | Bearer token for AI service authentication | Yes |
 | `MINIO_ENDPOINT` | MinIO server endpoint | Yes |
 | `MINIO_ROOT_USER` | MinIO access key | Yes |
@@ -75,6 +77,7 @@ Handles identity verification (Know Your Customer) for Cleaners. Orchestrates th
 | `KYC_IMAGE_RETENTION_DAYS` | Days to retain images before auto-deletion | Yes |
 | `KYC_PROCESSING_MAX_RETRIES` | Max retries for processing job | Yes |
 | `KYC_PROCESSING_BACKOFF_MS` | Backoff interval (ms) between retries | Yes |
+| `KYC_PROCESSING_TIMEOUT_MS` | Request timeout (ms) for AI service calls | Yes |
 | `KYC_OCR_CONFIDENCE_MIN` | Minimum OCR confidence threshold | Yes |
 | `KYC_FACE_SIMILARITY_MIN` | Minimum face similarity threshold | Yes |
 | `KYC_LIVENESS_SCORE_MIN` | Minimum liveness score threshold | Yes |
