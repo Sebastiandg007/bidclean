@@ -62,8 +62,8 @@ const ADMIN_REVIEW_REASON = 'Processing failed after maximum retries. Escalated 
 @Processor('kyc-processing')
 export class KycProcessJob extends WorkerHost {
   private readonly logger = new Logger(KycProcessJob.name);
-  private readonly maxRetries: number;
-  private readonly backoffMs: number;
+  readonly maxRetries: number;
+  readonly backoffMs: number;
   private readonly thresholds: ProcessingThresholds;
   private readonly oneSignalAppId: string | null;
   private readonly oneSignalApiKey: string | null;
@@ -387,7 +387,7 @@ export class KycProcessJob extends WorkerHost {
    * Compute normalized similarity between two strings using Levenshtein distance.
    * Returns a value between 0.0 (no match) and 1.0 (exact match).
    */
-  private computeNormalizedSimilarity(str1: string, str2: string): number {
+  computeNormalizedSimilarity(str1: string, str2: string): number {
     const normalized1 = this.normalizeNameForComparison(str1);
     const normalized2 = this.normalizeNameForComparison(str2);
 
