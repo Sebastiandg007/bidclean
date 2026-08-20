@@ -1,8 +1,31 @@
-import { Controller, Get, Post, Body, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  UseGuards,
+  UseInterceptors,
+  UploadedFile,
+  Req,
+  Headers,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { Request } from 'express';
 import { KycService } from './kyc.service';
 import { UploadDocumentDto } from './dto/upload-document.dto';
 import { UploadSelfieDto } from './dto/upload-selfie.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { JwtUserPayload } from '../auth/guards/jwt.types';
+
+/** Multer file shape from @nestjs/platform-express */
+interface MulterFile {
+  readonly fieldname: string;
+  readonly originalname: string;
+  readonly encoding: string;
+  readonly mimetype: string;
+  readonly size: number;
+  readonly buffer: Buffer;
+}
 
 /**
  * KYC controller.
@@ -20,10 +43,19 @@ export class KycController {
    * Requires Cleaner role.
    */
   @Post('document')
-  async uploadDocument(@Body() dto: UploadDocumentDto) {
-    // TODO: Extract userId from request, handle file upload via interceptor
-    void dto;
-    throw new Error('Not implemented');
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadDocument(
+    @Body() dto: UploadDocumentDto,
+    @UploadedFile() file: MulterFile,
+    @Req() req: Request & { user: JwtUserPayload },
+    @Headers('idempotency-key') idempotencyKey?: string,
+  ) {
+    return this.kycService.uploadDocument(
+      req.user.keycloakId,
+      dto,
+      file,
+      idempotencyKey,
+    );
   }
 
   /**

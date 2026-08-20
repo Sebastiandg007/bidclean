@@ -1,11 +1,38 @@
-import { Injectable } from '@nestjs/common';
+import {
+  Injectable,
+  ForbiddenException,
+  BadRequestException,
+  ConflictException,
+  PayloadTooLargeException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ConfigService } from '@nestjs/config';
 import { Repository } from 'typeorm';
 import { KycVerification } from './entities/kyc-verification.entity';
-import { KycStatusResponse } from './kyc.types';
+import { KycAuditLog } from './entities/kyc-audit-log.entity';
+import { KycStatus, KycStatusResponse } from './kyc.types';
 import { UploadDocumentDto } from './dto/upload-document.dto';
 import { UploadSelfieDto } from './dto/upload-selfie.dto';
+import { KycStorageService } from './storage/kyc-storage.service';
+import { StorageCategory } from './storage/kyc-storage.types';
+import { KycStateTransitionService } from './state-machine/kyc-state-transition.service';
+import { User } from '../auth/entities/user.entity';
+
+/** Multer file shape received from controller */
+interface UploadedFile {
+  readonly mimetype: string;
+  readonly size: number;
+  readonly buffer: Buffer;
+}
+
+/** Allowed MIME types for document upload */
+const ALLOWED_MIME_TYPES: readonly string[] = [
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/heic',
+  'image/heif',
+];
 
 /**
  * KYC verification service.
@@ -14,51 +41,93 @@ import { UploadSelfieDto } from './dto/upload-selfie.dto';
 @Injectable()
 export class KycService {
   readonly maxAttempts: number;
+  private readonly maxFileSizeBytes: number;
 
   constructor(
     @InjectRepository(KycVerification)
     readonly kycRepository: Repository<KycVerification>,
+    @InjectRepository(KycAuditLog)
+    private readonly auditLogRepository: Repository<KycAuditLog>,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
     private readonly configService: ConfigService,
+    private readonly storageService: KycStorageService,
+    private readonly stateTransitionService: KycStateTransitionService,
   ) {
     this.maxAttempts = parseInt(
       this.configService.getOrThrow<string>('KYC_MAX_ATTEMPTS'),
       10,
     );
+    const maxFileSizeMb = parseInt(
+      this.configService.getOrThrow<string>('KYC_MAX_FILE_SIZE_MB'),
+      10,
+    );
+    this.maxFileSizeBytes = maxFileSizeMb * 1024 * 1024;
   }
 
   /**
    * Upload an identity document image.
-   * @param userId - Authenticated user ID
-   * @param dto - Document upload metadata
-   * @param file - Image file buffer
-   * @returns Updated verification record
+   * Validates role, file, transitions state, and creates audit log.
    */
-  async uploadDocument(userId: string, dto: UploadDocumentDto, file: Buffer) {
-    // TODO: Implement document upload flow:
-    // 1. Validate state (must be NOT_STARTED)
-    // 2. Store encrypted in MinIO
-    // 3. Transition state to DOCUMENT_UPLOADED
-    // 4. Create audit log entry
-    void userId;
-    void dto;
-    void file;
-    throw new Error('Not implemented');
+  async uploadDocument(
+    keycloakId: string,
+    dto: UploadDocumentDto,
+    file: UploadedFile,
+    idempotencyKey?: string,
+  ): Promise<KycStatusResponse> {
+    const user = await this.findUserByKeycloakId(keycloakId);
+    this.assertCleanerRole(user);
+    this.validateFileType(file.mimetype);
+    this.validateFileSize(file.size);
+
+    const verification = await this.getOrCreateVerification(user.id);
+
+    if (this.isIdempotentUpload(verification, idempotencyKey)) {
+      return this.buildStatusResponse(verification);
+    }
+
+    this.assertNotAlreadyVerified(verification);
+
+    const uploadResult = await this.storageService.upload({
+      buffer: file.buffer,
+      mimeType: file.mimetype,
+      userId: user.id,
+      category: StorageCategory.DOCUMENT,
+    });
+
+    const transitionResult = await this.stateTransitionService.transition({
+      targetStatus: KycStatus.DOCUMENT_UPLOADED,
+      context: {
+        verification,
+        documentStorageKey: uploadResult.key,
+      },
+    });
+
+    await this.updateVerificationDocument(
+      verification.id,
+      dto.documentType,
+      uploadResult.key,
+    );
+
+    await this.createAuditLog(
+      verification.id,
+      user.id,
+      transitionResult.previousStatus,
+      transitionResult.newStatus,
+    );
+
+    const updated = await this.kycRepository.findOneOrFail({
+      where: { id: verification.id },
+    });
+
+    return this.buildStatusResponse(updated);
   }
 
   /**
    * Upload a selfie image and enqueue processing.
-   * @param userId - Authenticated user ID
-   * @param dto - Selfie upload metadata
-   * @param file - Image file buffer
-   * @returns Updated verification record
    */
   async uploadSelfie(userId: string, dto: UploadSelfieDto, file: Buffer) {
-    // TODO: Implement selfie upload flow:
-    // 1. Validate state (must be DOCUMENT_UPLOADED)
-    // 2. Store encrypted in MinIO
-    // 3. Transition state to SELFIE_UPLOADED
-    // 4. Enqueue BullMQ processing job
-    // 5. Create audit log entry
+    // TODO: Implement selfie upload flow
     void userId;
     void dto;
     void file;
@@ -68,8 +137,6 @@ export class KycService {
   /**
    * Get current KYC verification status for a user.
    * Derived from the latest attempt (highest attempt_number).
-   * @param userId - Authenticated user ID
-   * @returns Current status response
    */
   async getStatus(userId: string): Promise<KycStatusResponse> {
     // TODO: Implement status retrieval from latest attempt
@@ -79,17 +146,120 @@ export class KycService {
 
   /**
    * Start a new verification attempt (retry).
-   * Creates a new attempt record — does not modify previous attempts.
-   * @param userId - Authenticated user ID
-   * @returns New verification record
    */
   async retry(userId: string) {
-    // TODO: Implement retry logic:
-    // 1. Validate current status is REJECTED
-    // 2. Check max attempts not exceeded
-    // 3. Create new attempt with incremented attempt_number
-    // 4. Create audit log entry
+    // TODO: Implement retry logic
     void userId;
     throw new Error('Not implemented');
+  }
+
+  /** Look up user by Keycloak ID, throw if not found */
+  private async findUserByKeycloakId(keycloakId: string): Promise<User> {
+    const user = await this.userRepository.findOne({ where: { keycloakId } });
+    if (!user) {
+      throw new ForbiddenException('kyc.error.not_cleaner');
+    }
+    return user;
+  }
+
+  /** Verify user has cleaner role */
+  private assertCleanerRole(user: User): void {
+    if (!user.roles.includes('cleaner')) {
+      throw new ForbiddenException('kyc.error.not_cleaner');
+    }
+  }
+
+  /** Validate file MIME type against allowed list */
+  private validateFileType(mimeType: string): void {
+    if (!ALLOWED_MIME_TYPES.includes(mimeType)) {
+      throw new BadRequestException('kyc.error.invalid_file_type');
+    }
+  }
+
+  /** Validate file size against configured max */
+  private validateFileSize(size: number): void {
+    if (size > this.maxFileSizeBytes) {
+      throw new PayloadTooLargeException('kyc.error.file_too_large');
+    }
+  }
+
+  /** Get the latest verification attempt or create the first one */
+  private async getOrCreateVerification(userId: string): Promise<KycVerification> {
+    const existing = await this.kycRepository.findOne({
+      where: { userId },
+      order: { attemptNumber: 'DESC' },
+    });
+
+    if (existing) {
+      return existing;
+    }
+
+    const created = this.kycRepository.create({
+      userId,
+      status: KycStatus.NOT_STARTED,
+      attemptNumber: 1,
+    });
+
+    return this.kycRepository.save(created);
+  }
+
+  /** Check if this is an idempotent re-upload (document already uploaded) */
+  private isIdempotentUpload(
+    verification: KycVerification,
+    idempotencyKey?: string,
+  ): boolean {
+    if (!idempotencyKey) return false;
+
+    return (
+      verification.status === KycStatus.DOCUMENT_UPLOADED &&
+      verification.documentStorageKey !== null
+    );
+  }
+
+  /** Throw if verification is already in VERIFIED state */
+  private assertNotAlreadyVerified(verification: KycVerification): void {
+    if (verification.status === KycStatus.VERIFIED) {
+      throw new ConflictException('kyc.error.already_verified');
+    }
+  }
+
+  /** Update the verification record with document metadata */
+  private async updateVerificationDocument(
+    verificationId: string,
+    documentType: string,
+    storageKey: string,
+  ): Promise<void> {
+    await this.kycRepository.update(verificationId, {
+      documentType: documentType as KycVerification['documentType'],
+      documentStorageKey: storageKey,
+    });
+  }
+
+  /** Create an audit log entry for the state transition */
+  private async createAuditLog(
+    verificationId: string,
+    actorId: string,
+    oldStatus: KycStatus,
+    newStatus: KycStatus,
+  ): Promise<void> {
+    const log = this.auditLogRepository.create({
+      verificationId,
+      action: 'STATE_TRANSITION',
+      actorId,
+      oldStatus,
+      newStatus,
+      metadata: null,
+    });
+    await this.auditLogRepository.save(log);
+  }
+
+  /** Build the status response DTO from a verification entity */
+  private buildStatusResponse(verification: KycVerification): KycStatusResponse {
+    return {
+      status: verification.status,
+      attemptNumber: verification.attemptNumber,
+      rejectionReason: verification.rejectionReason,
+      completedAt: verification.completedAt,
+    };
   }
 }

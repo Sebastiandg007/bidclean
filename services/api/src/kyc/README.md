@@ -13,6 +13,9 @@ Handles identity verification (Know Your Customer) for Cleaners. Orchestrates th
 | `kyc.service.ts` | Orchestrates KYC flow, coordinates sub-services |
 | `kyc.types.ts` | Shared type definitions (KycStatus, interfaces, config) |
 | `state-machine/kyc-state-machine.ts` | Enforces valid state transitions for the KYC flow |
+| `state-machine/kyc-state-transition.service.ts` | Atomic state transitions with pessimistic locking |
+| `state-machine/kyc-state-machine.types.ts` | Type definitions for transitions, guards, and context |
+| `state-machine/kyc-state-machine.errors.ts` | Custom HTTP exceptions for state machine errors |
 | `ai-client/ai-client.service.ts` | HTTP client for FastAPI AI service (OCR, face compare, liveness) |
 | `ai-client/ai-client.types.ts` | Request/response types for AI service communication |
 | `storage/kyc-storage.service.ts` | MinIO client for encrypted image storage (upload, download, delete, key generation) |
@@ -60,6 +63,7 @@ Handles identity verification (Know Your Customer) for Cleaners. Orchestrates th
 | `MINIO_ROOT_PASSWORD` | MinIO secret key | Yes |
 | `KYC_MINIO_BUCKET` | MinIO bucket name for KYC images | Yes |
 | `KYC_MAX_ATTEMPTS` | Maximum verification attempts per user | Yes |
+| `KYC_MAX_FILE_SIZE_MB` | Maximum file size for uploads (MB) | Yes |
 | `KYC_IMAGE_RETENTION_DAYS` | Days to retain images before auto-deletion | Yes |
 | `KYC_PROCESSING_MAX_RETRIES` | Max retries for processing job | Yes |
 | `KYC_PROCESSING_BACKOFF_MS` | Backoff interval (ms) between retries | Yes |

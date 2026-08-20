@@ -10,6 +10,8 @@ import { KycStateTransitionService } from './state-machine/kyc-state-transition.
 import { KycProcessJob } from './jobs/kyc-process.job';
 import { KycCleanupJob } from './jobs/kyc-cleanup.job';
 import { KycVerification } from './entities/kyc-verification.entity';
+import { KycAuditLog } from './entities/kyc-audit-log.entity';
+import { User } from '../auth/entities/user.entity';
 
 /**
  * KYC verification module.
@@ -19,7 +21,7 @@ import { KycVerification } from './entities/kyc-verification.entity';
  * admin review, and data retention/cleanup.
  */
 @Module({
-  imports: [TypeOrmModule.forFeature([KycVerification])],
+  imports: [TypeOrmModule.forFeature([KycVerification, KycAuditLog, User])],
   controllers: [KycController, KycAdminController],
   providers: [
     KycService,
