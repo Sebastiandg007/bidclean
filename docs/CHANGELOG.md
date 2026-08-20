@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **KYC module (mobile)** — Selfie Capture Screen fully implemented (Task 24)
+  - `SelfieCaptureScreen.tsx` — Front-facing camera with face-shaped overlay, single face validation, capture + upload flow
+  - `components/FaceOverlay.tsx` — Animated oval overlay with accent/error border states for face detection feedback
+  - i18n keys added (`selfie_capture.*`, `quality.multiple_faces`, `quality.no_face`, `quality.face_position`) in EN and ES
+  - 10 unit tests covering camera rendering, face overlay, capture flow, cancel, upload states, permissions
+  - Timer-based face readiness with `updateFaceState` hook ready for future face detection library integration
+  - Server-side liveness detection handles actual face validation (expo-camera v16 removed onFacesDetected)
 - **KYC module (mobile)** — Document Capture Screen fully implemented (Task 23)
   - `DocumentCaptureScreen.tsx` — Camera interface with expo-camera, document type selection, capture + upload flow
   - `components/DocumentOverlay.tsx` — Animated rectangular overlay with corner indicators, accent border on alignment
