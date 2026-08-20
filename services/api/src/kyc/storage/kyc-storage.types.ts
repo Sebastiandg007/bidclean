@@ -10,6 +10,12 @@ export interface StorageUploadResult {
   readonly etag: string;
 }
 
+/** Result of an image download operation */
+export interface StorageDownloadResult {
+  readonly buffer: Buffer;
+  readonly contentType: string;
+}
+
 /** Options for uploading an image to encrypted storage */
 export interface StorageUploadOptions {
   readonly buffer: Buffer;

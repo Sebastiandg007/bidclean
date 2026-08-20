@@ -15,8 +15,8 @@ Handles identity verification (Know Your Customer) for Cleaners. Orchestrates th
 | `state-machine/kyc-state-machine.ts` | Enforces valid state transitions for the KYC flow |
 | `ai-client/ai-client.service.ts` | HTTP client for FastAPI AI service (OCR, face compare, liveness) |
 | `ai-client/ai-client.types.ts` | Request/response types for AI service communication |
-| `storage/kyc-storage.service.ts` | MinIO client for encrypted image storage |
-| `storage/kyc-storage.types.ts` | Storage operation interfaces |
+| `storage/kyc-storage.service.ts` | MinIO client for encrypted image storage (upload, download, delete, key generation) |
+| `storage/kyc-storage.types.ts` | Storage operation interfaces (upload/download/delete options and results) |
 | `admin/kyc-admin.controller.ts` | Admin endpoints for review queue and decisions |
 | `admin/kyc-admin.service.ts` | Admin business logic (queue, detail, approve/reject) |
 | `jobs/kyc-process.job.ts` | BullMQ job for async AI processing pipeline |
@@ -56,7 +56,9 @@ Handles identity verification (Know Your Customer) for Cleaners. Orchestrates th
 | `AI_SERVICE_URL` | FastAPI AI service base URL | Yes |
 | `AI_SERVICE_AUTH_TOKEN` | Bearer token for AI service authentication | Yes |
 | `MINIO_ENDPOINT` | MinIO server endpoint | Yes |
-| `MINIO_KYC_BUCKET` | MinIO bucket name for KYC images | Yes |
+| `MINIO_ROOT_USER` | MinIO access key | Yes |
+| `MINIO_ROOT_PASSWORD` | MinIO secret key | Yes |
+| `KYC_MINIO_BUCKET` | MinIO bucket name for KYC images | Yes |
 | `KYC_MAX_ATTEMPTS` | Maximum verification attempts per user | Yes |
 | `KYC_IMAGE_RETENTION_DAYS` | Days to retain images before auto-deletion | Yes |
 | `KYC_PROCESSING_MAX_RETRIES` | Max retries for processing job | Yes |

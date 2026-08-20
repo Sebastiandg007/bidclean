@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **KYC module (api)** — KYC storage service with MinIO encryption
+  - `KycStorageService` fully implemented with upload, download, delete, and key generation
+  - AES-256 server-side encryption on all uploads (`x-amz-server-side-encryption: AES256`)
+  - Structured storage keys: `kyc/{userId}/{category}/{uuid}.{extension}`
+  - Download returns file buffer and content type for admin review
+  - Idempotent delete (succeeds even if object already deleted)
+  - Auto-creates bucket on module initialization (`OnModuleInit`)
+  - `StorageDownloadResult` interface added to types
+  - `minio` package (v8.0.5) added to API dependencies
+  - 16 unit tests covering all operations and error handling
 - **KYC module (api)** — KYC state machine with guards and atomic transitions
   - `KycStateMachine` enhanced with guard definitions, metadata generation, idempotency checks
   - `KycStateTransitionService` — Injectable service for atomic DB state transitions (SELECT...FOR UPDATE + UPDATE WHERE status = :expected)
