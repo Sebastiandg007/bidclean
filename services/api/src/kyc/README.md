@@ -24,7 +24,7 @@ Handles identity verification (Know Your Customer) for Cleaners. Orchestrates th
 | `admin/kyc-admin.controller.ts` | Admin endpoints for review queue and decisions |
 | `admin/kyc-admin.service.ts` | Admin business logic (queue, detail, approve/reject) |
 | `jobs/kyc-process.job.ts` | BullMQ processor for async AI processing pipeline (OCR → liveness → face compare → evaluate → notify) |
-| `jobs/kyc-cleanup.job.ts` | Scheduled job for image retention/deletion |
+| `jobs/kyc-cleanup.job.ts` | Scheduled cron job (daily 3 AM) for automatic image deletion after retention period |
 | `dto/upload-document.dto.ts` | Validation for document upload requests |
 | `dto/upload-selfie.dto.ts` | Validation for selfie upload requests |
 | `dto/admin-decision.dto.ts` | Validation for admin approve/reject decisions |
@@ -40,6 +40,7 @@ Handles identity verification (Know Your Customer) for Cleaners. Orchestrates th
 | `__tests__/kyc-retry.spec.ts` | Unit tests for KYC retry logic |
 | `__tests__/ai-client.service.spec.ts` | Unit tests for AI client service (HTTP calls, retries, error handling) |
 | `__tests__/kyc-process.job.spec.ts` | Unit tests for KYC processing job (pipeline, thresholds, retries, name matching) |
+| `__tests__/kyc-cleanup.job.spec.ts` | Unit tests for KYC cleanup job (batch deletion, audit logging, error handling) |
 
 ## Dependencies
 
@@ -75,7 +76,7 @@ Handles identity verification (Know Your Customer) for Cleaners. Orchestrates th
 | `KYC_MINIO_BUCKET` | MinIO bucket name for KYC images | Yes |
 | `KYC_MAX_ATTEMPTS` | Maximum verification attempts per user | Yes |
 | `KYC_MAX_FILE_SIZE_MB` | Maximum file size for uploads (MB) | Yes |
-| `KYC_IMAGE_RETENTION_DAYS` | Days to retain images before auto-deletion | Yes |
+| `KYC_RETENTION_DAYS` | Days to retain images before auto-deletion | Yes |
 | `KYC_PROCESSING_MAX_RETRIES` | Max retries for processing job | Yes |
 | `KYC_PROCESSING_BACKOFF_MS` | Backoff interval (ms) between retries | Yes |
 | `KYC_PROCESSING_TIMEOUT_MS` | Request timeout (ms) for AI service calls | Yes |
@@ -140,3 +141,25 @@ SELFIE_UPLOADED → PROCESSING → [AI Pipeline] → VERIFIED / REJECTED
 | Already verified | 409 | `kyc.error.already_verified` |
 | Status not REJECTED | 409 | `kyc.error.not_rejected` |
 | Max attempts reached | 429 | `kyc.error.max_attempts` |
+
+## Cleanup Job
+
+`KycCleanupJob` runs as a scheduled cron job (daily at 3:00 AM) to delete expired document and selfie images from MinIO after the configurable retention period (`KYC_RETENTION_DAYS`).
+
+### Behavior
+- Queries verifications where `completedAt` (or `createdAt` if not completed) is older than retention days AND at least one storage key is present
+- Processes deletions in batches of 50 to avoid overwhelming MinIO
+- Each deletion is independent — if one fails, continues with others
+- After successful MinIO deletion, clears the storage key from the entity
+- Creates audit log entries with actions `DOCUMENT_DELETED` or `SELFIE_DELETED`
+- `actorId` is null (system-triggered action)
+- Deletion is idempotent — if object already deleted from MinIO, job succeeds without error
+
+### Audit Metadata
+```json
+{
+  "triggeredBy": "kyc-cleanup-job",
+  "storageKey": "kyc/{userId}/{category}/{uuid}.{ext}",
+  "retentionDays": 90
+}
+```

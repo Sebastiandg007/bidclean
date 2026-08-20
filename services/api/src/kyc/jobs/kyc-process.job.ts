@@ -4,6 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Repository } from 'typeorm';
 import { Job } from 'bullmq';
+import axios from 'axios';
 import { KycVerification } from '../entities/kyc-verification.entity';
 import { KycAuditLog } from '../entities/kyc-audit-log.entity';
 import { User } from '../../auth/entities/user.entity';
@@ -29,15 +30,15 @@ interface ProcessingThresholds {
 const AUDIT_ACTION_STATE_TRANSITION = 'STATE_TRANSITION';
 const AUDIT_METADATA_TRIGGER = 'kyc-processing-job';
 
-/** OneSignal API base URL (official REST endpoint) */
-const ONESIGNAL_API_URL = 'https://onesignal.com/api/v1/notifications';
+/** Default OneSignal API URL — overridable via ONESIGNAL_API_URL env var */
+const DEFAULT_ONESIGNAL_API_URL = 'https://onesignal.com/api/v1/notifications';
 
 /** Push notification i18n keys */
 const NOTIFICATION_HEADING_KEY = 'kyc.notification.heading';
 const NOTIFICATION_VERIFIED_KEY = 'kyc.notification.verified';
 const NOTIFICATION_REJECTED_KEY = 'kyc.notification.rejected';
 
-/** Default notification content (used when i18n not available in backend) */
+/** Default notification content (fallback when i18n unavailable in backend push) */
 const NOTIFICATION_CONTENT = {
   [NOTIFICATION_HEADING_KEY]: 'KYC Verification Update',
   [NOTIFICATION_VERIFIED_KEY]: 'Your identity has been verified successfully!',
@@ -61,11 +62,12 @@ const ADMIN_REVIEW_REASON = 'Processing failed after maximum retries. Escalated 
 @Processor('kyc-processing')
 export class KycProcessJob extends WorkerHost {
   private readonly logger = new Logger(KycProcessJob.name);
-  readonly maxRetries: number;
-  readonly backoffMs: number;
+  private readonly maxRetries: number;
+  private readonly backoffMs: number;
   private readonly thresholds: ProcessingThresholds;
   private readonly oneSignalAppId: string | null;
   private readonly oneSignalApiKey: string | null;
+  private readonly oneSignalApiUrl: string;
 
   constructor(
     private readonly configService: ConfigService,
@@ -100,6 +102,7 @@ export class KycProcessJob extends WorkerHost {
     };
     this.oneSignalAppId = this.configService.get<string>('ONESIGNAL_APP_ID') ?? null;
     this.oneSignalApiKey = this.configService.get<string>('ONESIGNAL_API_KEY') ?? null;
+    this.oneSignalApiUrl = this.configService.get<string>('ONESIGNAL_API_URL') ?? DEFAULT_ONESIGNAL_API_URL;
   }
 
   /**
@@ -384,7 +387,7 @@ export class KycProcessJob extends WorkerHost {
    * Compute normalized similarity between two strings using Levenshtein distance.
    * Returns a value between 0.0 (no match) and 1.0 (exact match).
    */
-  computeNormalizedSimilarity(str1: string, str2: string): number {
+  private computeNormalizedSimilarity(str1: string, str2: string): number {
     const normalized1 = this.normalizeNameForComparison(str1);
     const normalized2 = this.normalizeNameForComparison(str2);
 
@@ -445,9 +448,8 @@ export class KycProcessJob extends WorkerHost {
         ? NOTIFICATION_CONTENT[NOTIFICATION_VERIFIED_KEY]
         : NOTIFICATION_CONTENT[NOTIFICATION_REJECTED_KEY];
 
-      const { default: axios } = await import('axios');
       await axios.post(
-        ONESIGNAL_API_URL,
+        this.oneSignalApiUrl,
         {
           app_id: this.oneSignalAppId,
           include_external_user_ids: [userId],

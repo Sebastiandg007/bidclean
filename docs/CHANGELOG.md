@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **KYC module (api)** — KYC cleanup job for retention-based image deletion
+  - `KycCleanupJob` scheduled cron job (daily at 3:00 AM via `@nestjs/schedule`)
+  - Deletes expired document/selfie images from MinIO after `KYC_RETENTION_DAYS` retention period
+  - Batch processing (50 verifications per batch) to avoid overwhelming MinIO
+  - Independent deletion per image — failures don't stop other deletions
+  - Clears `documentStorageKey`/`selfieStorageKey` from entity after successful MinIO deletion
+  - Creates audit log entries: `DOCUMENT_DELETED` and `SELFIE_DELETED` actions
+  - Idempotent — re-running is safe; already-deleted objects don't cause errors
+  - 13 unit tests covering batch processing, error handling, audit logging, and idempotency
 - **KYC module (api)** — AI client service for FastAPI communication
   - `AiClientService` fully implemented with HTTP calls to OCR, face-compare, and liveness endpoints
   - Bearer token authentication via `AI_SERVICE_AUTH_TOKEN` env variable
