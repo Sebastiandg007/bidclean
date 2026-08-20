@@ -26,6 +26,7 @@ class KYCSettings(BaseSettings):
     kyc_ocr_confidence_threshold: float = 0.7
     kyc_face_similarity_threshold: float = 0.6
     kyc_liveness_threshold: float = 0.8
+    kyc_max_file_size_mb: int = 10
 
     model_config = {"env_file": ".env", "extra": "ignore"}
 

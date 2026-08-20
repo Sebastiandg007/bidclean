@@ -17,17 +17,25 @@ class OCRResponse(BaseModel):
         extracted_name: Full name extracted from the document.
         document_number: Document ID number extracted.
         expiry_date: Document expiration date (ISO format or null).
+        date_of_birth: Date of birth extracted (or null if not found).
+        nationality: Nationality extracted (or null if not found).
         document_type: Detected document type (e.g., 'passport', 'id_card').
         confidence: Overall OCR confidence score (0.0–1.0).
+        field_confidences: Per-field confidence scores.
         face_detected: Whether a face was detected in the document.
+        face_image: Base64-encoded face crop for face comparison (or null).
     """
 
     extracted_name: str = ""
     document_number: str = ""
     expiry_date: str | None = None
+    date_of_birth: str | None = None
+    nationality: str | None = None
     document_type: str = ""
     confidence: float = Field(default=0.0, ge=0.0, le=1.0)
+    field_confidences: dict[str, float] = Field(default_factory=dict)
     face_detected: bool = False
+    face_image: str | None = None
 
 
 # --- Face Comparison Models ---
