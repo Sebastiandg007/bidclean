@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **KYC module (api)** — Upload document endpoint (`POST /kyc/document`)
+  - `KycController.uploadDocument` with `FileInterceptor` for multipart file handling
+  - Accepts `Idempotency-Key` header for mobile timeout/retry resilience
+  - Cleaner role validation (403 if user lacks cleaner role)
+  - File type validation (jpeg, png, webp, heic, heif) and size validation via env `KYC_MAX_FILE_SIZE_MB`
+  - Stores document encrypted in MinIO via `KycStorageService`
+  - Atomic state transition NOT_STARTED → DOCUMENT_UPLOADED via `KycStateTransitionService`
+  - Creates audit log entry for state transition
+  - Idempotent: returns existing status if document already uploaded with same idempotency key
+  - `KycModule` updated to include `KycAuditLog` and `User` entities in TypeORM
+  - 11 unit tests covering success, role check, file validation, idempotency, and edge cases
 - **KYC module (api)** — KYC storage service with MinIO encryption
   - `KycStorageService` fully implemented with upload, download, delete, and key generation
   - AES-256 server-side encryption on all uploads (`x-amz-server-side-encryption: AES256`)
