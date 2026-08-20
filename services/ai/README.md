@@ -16,7 +16,7 @@ AI/ML microservice for BidClean. Handles all machine learning, computer vision, 
 | Module | Responsibility | Status |
 |--------|---------------|--------|
 | `health/` | Health check endpoint | ✅ Active |
-| `kyc/` | KYC: document OCR (PaddleOCR) + face comparison (DeepFace) + liveness (Silent-Face) | ✅ Active (OCR implemented, face-compare/liveness stubs) |
+| `kyc/` | KYC: document OCR (PaddleOCR) + face comparison (DeepFace) + liveness (Silent-Face) | ✅ Active (OCR + face-compare implemented, liveness stub) |
 | `translation/` | Text translation (LibreTranslate) + language detection | 🔲 Planned |
 | `speech/` | Speech-to-text (Whisper.cpp) + Text-to-speech (Piper) | 🔲 Planned |
 | `pricing/` | AI price estimation based on property photos/data (Bedrock) | 🔲 Planned |
@@ -41,7 +41,7 @@ src/kyc/
 ├── models.py                # Pydantic request/response models
 ├── exceptions.py            # Custom exception hierarchy (KYCServiceError, OCR, Face, Image)
 ├── ocr_service.py           # OCR implementation (PaddleOCR text extraction + OpenCV face detection)
-├── face_compare_service.py  # Face comparison implementation (planned — Task 20)
+├── face_compare_service.py  # Face comparison (DeepFace cosine similarity + threshold evaluation)
 └── liveness_service.py      # Liveness detection implementation (planned — Task 21)
 ```
 
