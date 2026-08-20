@@ -23,7 +23,7 @@ Implementation tasks for the KYC Verification feature. Covers the NestJS backend
 - [x] 15. Implement KYC audit logging (log all state transitions, admin actions, and data access to kyc_audit_logs. Actions: DOCUMENT_VIEWED, SELFIE_VIEWED, OCR_VIEWED, VERIFICATION_APPROVED, VERIFICATION_REJECTED, DOCUMENT_DELETED, SELFIE_DELETED. Admin image access logged for GDPR compliance.)
 - [x] 16. Implement offer acceptance guard (middleware that checks latest kyc_verifications record status === VERIFIED before allowing offer acceptance — status derived from latest attempt, not a column on users)
 - [x] 17. Implement push notification on KYC status change (OneSignal integration for VERIFIED and REJECTED events)
-- [-] 18. Create FastAPI KYC router and configuration (router setup, environment-based thresholds, service-to-service auth middleware)
+- [x] 18. Create FastAPI KYC router and configuration (router setup, environment-based thresholds, service-to-service auth middleware)
 - [ ] 19. Implement OCR endpoint in FastAPI (POST /ai/ocr — PaddleOCR text extraction, face extraction from document, confidence scoring)
 - [ ] 20. Implement face comparison endpoint in FastAPI (POST /ai/face-compare — DeepFace similarity calculation between selfie and document face)
 - [ ] 21. Implement liveness detection endpoint in FastAPI (POST /ai/liveness — Silent-Face-Anti-Spoofing prediction, confidence scoring)

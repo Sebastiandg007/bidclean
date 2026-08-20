@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **KYC module (ai)** — FastAPI KYC router and configuration (Task 18)
+  - `src/kyc/router.py` — APIRouter with prefix `/ai`, stub endpoints for `/ocr`, `/face-compare`, `/liveness`
+  - `src/kyc/config.py` — Pydantic-settings `KYCSettings` with `AI_SERVICE_AUTH_TOKEN`, OCR/face/liveness thresholds (lru_cache singleton)
+  - `src/kyc/auth.py` — Service-to-service Bearer token auth dependency with X-Request-ID correlation logging
+  - `src/kyc/models.py` — Pydantic response models (OCRResponse, FaceCompareResponse, LivenessResponse)
+  - X-Request-ID middleware in `main.py` for correlation propagation (generates UUID when not provided)
+  - `pydantic-settings` and `python-multipart` added to dependencies
+  - 9 unit tests covering auth rejection, acceptance, correlation, and response schemas
 - **KYC module (api)** — Push notification service for KYC status changes (`KycNotificationService`)
   - Dedicated `KycNotificationService` extracted from inline processing job logic
   - Sends OneSignal push notifications for VERIFIED and REJECTED events
