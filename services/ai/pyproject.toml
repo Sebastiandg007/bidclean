@@ -20,6 +20,7 @@ Pillow = "^10.4.0"
 [tool.poetry.group.ml.dependencies]
 paddleocr = "^2.7.0"
 paddlepaddle = "^2.6.0"
+deepface = "^0.0.93"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0.0"

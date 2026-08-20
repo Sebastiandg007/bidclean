@@ -47,3 +47,47 @@ class InvalidImageError(KYCServiceError):
 
     def __init__(self, message: str = "Invalid or unsupported image format") -> None:
         super().__init__(message)
+
+
+# --- Face Comparison Exceptions ---
+
+
+class FaceComparisonError(KYCServiceError):
+    """Base exception for face comparison failures.
+
+    Parent exception for all face comparison domain errors.
+    """
+
+    def __init__(self, message: str = "Face comparison failed") -> None:
+        super().__init__(message)
+
+
+class NoFaceInSelfieError(FaceComparisonError):
+    """Raised when no face is detected in the selfie image.
+
+    The selfie must contain exactly one clearly visible face for comparison.
+    """
+
+    def __init__(self, message: str = "No face detected in selfie image") -> None:
+        super().__init__(message)
+
+
+class MultipleFacesError(FaceComparisonError):
+    """Raised when multiple faces are detected in the selfie.
+
+    Only a single face is allowed in the selfie for identity verification.
+    """
+
+    def __init__(self, message: str = "Multiple faces detected in selfie — only one allowed") -> None:
+        super().__init__(message)
+
+
+class FaceExtractionError(FaceComparisonError):
+    """Raised when face embeddings cannot be extracted.
+
+    This occurs when DeepFace fails to generate embeddings from a detected face,
+    typically due to poor image quality or partial occlusion.
+    """
+
+    def __init__(self, message: str = "Cannot extract face embeddings") -> None:
+        super().__init__(message)

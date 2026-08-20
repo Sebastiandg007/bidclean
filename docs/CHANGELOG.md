@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **KYC module (ai)** — Face comparison endpoint fully implemented (Task 20)
+  - `src/kyc/face_compare_service.py` — Full face comparison service with DeepFace embeddings
+  - Cosine similarity calculation between document face and selfie face
+  - Threshold evaluation via `KYC_FACE_SIMILARITY_THRESHOLD` env variable (default 0.6)
+  - Face embeddings used ONLY in memory — NEVER stored permanently (privacy by design)
+  - Validates exactly one face in selfie (rejects multiple faces)
+  - Custom exceptions: `FaceComparisonError`, `NoFaceInSelfieError`, `MultipleFacesError`, `FaceExtractionError`
+  - Dependency injection via `FaceEmbeddingEngine` protocol for testable ML code
+  - DeepFace lazy-loaded on first request (not at startup) for fast cold starts
+  - Singleton service pattern (`get_face_compare_service`) matching OCR service architecture
+  - File validation on both inputs (JPEG/PNG only, configurable max size)
+  - `deepface` added to `[tool.poetry.group.ml.dependencies]`
+  - 16 unit tests for FaceCompareService + 11 endpoint tests (all passing, 68 total suite)
 - **KYC module (ai)** — OCR endpoint fully implemented (Task 19)
   - `src/kyc/ocr_service.py` — Full OCR service with PaddleOCR text extraction and OpenCV face detection
   - Extracts: full name, document number, expiry date, date of birth, nationality, document type

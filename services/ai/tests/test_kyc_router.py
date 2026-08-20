@@ -8,9 +8,16 @@ import numpy as np
 from fastapi.testclient import TestClient
 
 from src.kyc.config import KYCSettings, get_kyc_settings
-from src.kyc.exceptions import InvalidImageError, OCRExtractionError
+from src.kyc.exceptions import (
+    FaceExtractionError,
+    InvalidImageError,
+    MultipleFacesError,
+    NoFaceInSelfieError,
+    OCRExtractionError,
+)
+from src.kyc.face_compare_service import FaceCompareResult, FaceCompareService
 from src.kyc.ocr_service import OCRResult, OCRService
-from src.kyc.router import get_ocr_service
+from src.kyc.router import get_face_compare_service, get_ocr_service
 from src.main import app
 
 TEST_AUTH_TOKEN = "test-secret-token-for-testing"
@@ -46,8 +53,21 @@ def _mock_ocr_service() -> OCRService:
     return service
 
 
+def _mock_face_compare_service() -> FaceCompareService:
+    """Provide a mock face comparison service for endpoint tests."""
+    service = MagicMock(spec=FaceCompareService)
+
+    # Default: successful comparison with match
+    service.decode_image.return_value = np.zeros((300, 200, 3), dtype=np.uint8)
+    service.compare_faces.return_value = FaceCompareResult(
+        similarity_score=0.85, is_match=True
+    )
+    return service
+
+
 app.dependency_overrides[get_kyc_settings] = _override_settings
 app.dependency_overrides[get_ocr_service] = _mock_ocr_service
+app.dependency_overrides[get_face_compare_service] = _mock_face_compare_service
 client: TestClient = TestClient(app)
 
 
@@ -281,7 +301,7 @@ class TestOCREndpoint:
 
 
 class TestFaceCompareEndpoint:
-    """Tests for the /ai/face-compare endpoint stub."""
+    """Tests for the /ai/face-compare endpoint."""
 
     def test_face_compare_returns_expected_structure(self) -> None:
         """Face compare endpoint returns the correct response schema."""
@@ -297,6 +317,144 @@ class TestFaceCompareEndpoint:
         assert "is_match" in data
         assert isinstance(data["similarity_score"], float)
         assert isinstance(data["is_match"], bool)
+
+    def test_face_compare_returns_match_result(self) -> None:
+        """Face compare returns match when similarity exceeds threshold."""
+        response = client.post(
+            "/ai/face-compare",
+            headers=_auth_header(),
+            files=[_fake_jpeg_file("document_face"), _fake_jpeg_file("selfie")],
+        )
+
+        data = response.json()
+        assert response.status_code == 200
+        assert data["similarity_score"] == 0.85
+        assert data["is_match"] is True
+
+    def test_face_compare_rejects_unsupported_file_type(self) -> None:
+        """Face compare rejects non-JPEG/PNG files with 400."""
+        response = client.post(
+            "/ai/face-compare",
+            headers=_auth_header(),
+            files=[_fake_pdf_file("document_face"), _fake_jpeg_file("selfie")],
+        )
+
+        assert response.status_code == 400
+        assert "Unsupported file type" in response.json()["detail"]
+
+    def test_face_compare_rejects_unsupported_selfie_type(self) -> None:
+        """Face compare rejects unsupported selfie file type with 400."""
+        response = client.post(
+            "/ai/face-compare",
+            headers=_auth_header(),
+            files=[_fake_jpeg_file("document_face"), _fake_pdf_file("selfie")],
+        )
+
+        assert response.status_code == 400
+        assert "Unsupported file type" in response.json()["detail"]
+
+    def test_face_compare_accepts_png_files(self) -> None:
+        """Face compare accepts PNG files."""
+        response = client.post(
+            "/ai/face-compare",
+            headers=_auth_header(),
+            files=[_fake_png_file("document_face"), _fake_png_file("selfie")],
+        )
+
+        assert response.status_code == 200
+
+    def test_face_compare_invalid_document_image_returns_400(self) -> None:
+        """Face compare returns 400 when document image cannot be decoded."""
+        mock_service = _mock_face_compare_service()
+        mock_service.decode_image.side_effect = InvalidImageError("Could not decode image bytes")
+
+        app.dependency_overrides[get_face_compare_service] = lambda: mock_service
+        try:
+            response = client.post(
+                "/ai/face-compare",
+                headers=_auth_header(),
+                files=[_fake_jpeg_file("document_face"), _fake_jpeg_file("selfie")],
+            )
+            assert response.status_code == 400
+            assert "Could not decode" in response.json()["detail"]
+        finally:
+            app.dependency_overrides[get_face_compare_service] = _mock_face_compare_service
+
+    def test_face_compare_no_face_in_selfie_returns_422(self) -> None:
+        """Face compare returns 422 when no face detected in selfie."""
+        mock_service = _mock_face_compare_service()
+        mock_service.compare_faces.side_effect = NoFaceInSelfieError()
+
+        app.dependency_overrides[get_face_compare_service] = lambda: mock_service
+        try:
+            response = client.post(
+                "/ai/face-compare",
+                headers=_auth_header(),
+                files=[_fake_jpeg_file("document_face"), _fake_jpeg_file("selfie")],
+            )
+            assert response.status_code == 422
+            assert "No face detected in selfie" in response.json()["detail"]
+        finally:
+            app.dependency_overrides[get_face_compare_service] = _mock_face_compare_service
+
+    def test_face_compare_multiple_faces_returns_422(self) -> None:
+        """Face compare returns 422 when multiple faces in selfie."""
+        mock_service = _mock_face_compare_service()
+        mock_service.compare_faces.side_effect = MultipleFacesError()
+
+        app.dependency_overrides[get_face_compare_service] = lambda: mock_service
+        try:
+            response = client.post(
+                "/ai/face-compare",
+                headers=_auth_header(),
+                files=[_fake_jpeg_file("document_face"), _fake_jpeg_file("selfie")],
+            )
+            assert response.status_code == 422
+            assert "Multiple faces" in response.json()["detail"]
+        finally:
+            app.dependency_overrides[get_face_compare_service] = _mock_face_compare_service
+
+    def test_face_compare_extraction_error_returns_422(self) -> None:
+        """Face compare returns 422 when face extraction fails."""
+        mock_service = _mock_face_compare_service()
+        mock_service.compare_faces.side_effect = FaceExtractionError(
+            "No face detected in document image"
+        )
+
+        app.dependency_overrides[get_face_compare_service] = lambda: mock_service
+        try:
+            response = client.post(
+                "/ai/face-compare",
+                headers=_auth_header(),
+                files=[_fake_jpeg_file("document_face"), _fake_jpeg_file("selfie")],
+            )
+            assert response.status_code == 422
+            assert "No face detected in document" in response.json()["detail"]
+        finally:
+            app.dependency_overrides[get_face_compare_service] = _mock_face_compare_service
+
+    def test_face_compare_rejects_oversized_file(self) -> None:
+        """Face compare rejects files exceeding max size with 400."""
+        large_data = b"x" * (11 * 1024 * 1024)
+        large_file = ("document_face", ("large.jpg", io.BytesIO(large_data), "image/jpeg"))
+
+        response = client.post(
+            "/ai/face-compare",
+            headers=_auth_header(),
+            files=[large_file, _fake_jpeg_file("selfie")],
+        )
+
+        assert response.status_code == 400
+        assert "File too large" in response.json()["detail"]
+
+    def test_face_compare_requires_auth(self) -> None:
+        """Face compare endpoint requires authentication."""
+        response = client.post(
+            "/ai/face-compare",
+            files=[_fake_jpeg_file("document_face"), _fake_jpeg_file("selfie")],
+        )
+
+        assert response.status_code == 401
 
 
 # --- Liveness Endpoint Tests ---

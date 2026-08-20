@@ -10,7 +10,15 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 
 from src.kyc.auth import verify_service_token
 from src.kyc.config import KYCSettings, get_kyc_settings
-from src.kyc.exceptions import InvalidImageError, OCRExtractionError
+from src.kyc.exceptions import (
+    FaceComparisonError,
+    FaceExtractionError,
+    InvalidImageError,
+    MultipleFacesError,
+    NoFaceInSelfieError,
+    OCRExtractionError,
+)
+from src.kyc.face_compare_service import FaceCompareService
 from src.kyc.models import FaceCompareResponse, LivenessResponse, OCRResponse
 from src.kyc.ocr_service import OCRService
 
@@ -21,8 +29,9 @@ BYTES_PER_MB = 1024 * 1024
 
 router = APIRouter(prefix="/ai", tags=["kyc"], dependencies=[Depends(verify_service_token)])
 
-# Singleton OCR service instance (lazily initialized on first use)
+# Singleton service instances (lazily initialized on first use)
 _ocr_service: OCRService | None = None
+_face_compare_service: FaceCompareService | None = None
 
 
 def get_ocr_service(settings: KYCSettings = Depends(get_kyc_settings)) -> OCRService:
@@ -38,6 +47,23 @@ def get_ocr_service(settings: KYCSettings = Depends(get_kyc_settings)) -> OCRSer
     if _ocr_service is None:
         _ocr_service = OCRService(settings=settings)
     return _ocr_service
+
+
+def get_face_compare_service(
+    settings: KYCSettings = Depends(get_kyc_settings),
+) -> FaceCompareService:
+    """Provide a singleton FaceCompareService instance.
+
+    Args:
+        settings: KYC configuration from environment.
+
+    Returns:
+        Configured FaceCompareService instance.
+    """
+    global _face_compare_service  # noqa: PLW0603
+    if _face_compare_service is None:
+        _face_compare_service = FaceCompareService(settings=settings)
+    return _face_compare_service
 
 
 @router.post(
@@ -156,18 +182,70 @@ async def _read_and_validate_size(file: UploadFile, settings: KYCSettings) -> by
 async def face_compare(
     document_face: UploadFile = File(..., description="Face extracted from document"),
     selfie: UploadFile = File(..., description="Selfie image for comparison"),
+    settings: KYCSettings = Depends(get_kyc_settings),
+    face_service: FaceCompareService = Depends(get_face_compare_service),
 ) -> FaceCompareResponse:
     """Compare a document face against a selfie and return similarity.
+
+    Validates file types and sizes, extracts face embeddings via DeepFace,
+    calculates cosine similarity, and determines match against threshold.
+    Face embeddings are NEVER stored — only used in memory during comparison.
 
     Args:
         document_face: Face image from the identity document.
         selfie: Selfie image taken by the user.
+        settings: KYC configuration settings.
+        face_service: Injected face comparison service.
 
     Returns:
         Similarity score and match determination.
+
+    Raises:
+        HTTPException: 400 for invalid files, 422 for face detection failures.
     """
-    # Stub — full implementation in Task 20
-    return FaceCompareResponse(similarity_score=0.0, is_match=False)
+    _validate_file_type(document_face)
+    _validate_file_type(selfie)
+
+    doc_bytes = await _read_and_validate_size(document_face, settings)
+    selfie_bytes = await _read_and_validate_size(selfie, settings)
+
+    try:
+        doc_image = face_service.decode_image(doc_bytes)
+    except InvalidImageError as exc:
+        logger.warning("Invalid document face image: %s", exc.message)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=exc.message,
+        ) from exc
+
+    try:
+        selfie_image = face_service.decode_image(selfie_bytes)
+    except InvalidImageError as exc:
+        logger.warning("Invalid selfie image: %s", exc.message)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=exc.message,
+        ) from exc
+
+    try:
+        result = face_service.compare_faces(doc_image, selfie_image)
+    except (NoFaceInSelfieError, MultipleFacesError, FaceExtractionError) as exc:
+        logger.warning("Face comparison failed: %s", exc.message)
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=exc.message,
+        ) from exc
+    except FaceComparisonError as exc:
+        logger.error("Unexpected face comparison error: %s", exc.message)
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=exc.message,
+        ) from exc
+
+    return FaceCompareResponse(
+        similarity_score=result.similarity_score,
+        is_match=result.is_match,
+    )
 
 
 @router.post(
