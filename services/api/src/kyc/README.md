@@ -25,6 +25,7 @@ Handles identity verification (Know Your Customer) for Cleaners. Orchestrates th
 | `dto/upload-selfie.dto.ts` | Validation for selfie upload requests |
 | `dto/admin-decision.dto.ts` | Validation for admin approve/reject decisions |
 | `entities/kyc-verification.entity.ts` | TypeORM entity for kyc_verifications table |
+| `entities/kyc-audit-log.entity.ts` | TypeORM entity for kyc_audit_logs table |
 
 ## Dependencies
 

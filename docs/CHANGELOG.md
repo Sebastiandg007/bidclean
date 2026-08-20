@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **KYC module (api)** — Database migration for kyc_verifications and kyc_audit_logs tables
+  - `1700000002000-CreateKycTables.ts` migration with up/down methods
+  - UNIQUE constraint on (user_id, attempt_number) to prevent duplicate attempts
+  - CHECK constraint ensuring attempt_number > 0
+  - Composite index `idx_kyc_user_attempt` for efficient latest-attempt lookups
+  - Partial index `idx_kyc_verifications_review` for admin review queue queries
+  - `kyc_audit_logs` table with FK to verifications and users
+  - `kyc-audit-log.entity.ts` TypeORM entity with full JSDoc documentation
+  - No kyc_status column on users — status derived from latest attempt
 - **KYC module (api)** — scaffolded KYC verification module structure
   - Module with controller, service, types, DTOs, entity, state machine
   - `state-machine/` — KYC state machine with valid transition enforcement

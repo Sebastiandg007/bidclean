@@ -11,6 +11,7 @@ import {
   Check,
 } from 'typeorm';
 import { User } from '../../auth/entities/user.entity';
+import { KycStatus, DocumentType } from '../kyc.types';
 
 /**
  * KYC verification entity.
@@ -29,14 +30,14 @@ export class KycVerification {
   @Column({ name: 'user_id', type: 'uuid' })
   userId!: string;
 
-  @Column({ type: 'varchar', length: 30, default: 'NOT_STARTED' })
-  status!: string;
+  @Column({ type: 'varchar', length: 30, default: KycStatus.NOT_STARTED })
+  status!: KycStatus;
 
   @Column({ name: 'attempt_number', type: 'int', default: 1 })
   attemptNumber!: number;
 
   @Column({ name: 'document_type', type: 'varchar', length: 30, nullable: true })
-  documentType!: string | null;
+  documentType!: DocumentType | null;
 
   @Column({ name: 'document_storage_key', type: 'varchar', length: 512, nullable: true })
   documentStorageKey!: string | null;
