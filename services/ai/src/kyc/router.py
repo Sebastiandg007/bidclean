@@ -14,11 +14,13 @@ from src.kyc.exceptions import (
     FaceComparisonError,
     FaceExtractionError,
     InvalidImageError,
+    LivenessDetectionError,
     MultipleFacesError,
     NoFaceInSelfieError,
     OCRExtractionError,
 )
 from src.kyc.face_compare_service import FaceCompareService
+from src.kyc.liveness_service import LivenessService
 from src.kyc.models import FaceCompareResponse, LivenessResponse, OCRResponse
 from src.kyc.ocr_service import OCRService
 
@@ -32,6 +34,7 @@ router = APIRouter(prefix="/ai", tags=["kyc"], dependencies=[Depends(verify_serv
 # Singleton service instances (lazily initialized on first use)
 _ocr_service: OCRService | None = None
 _face_compare_service: FaceCompareService | None = None
+_liveness_service: LivenessService | None = None
 
 
 def get_ocr_service(settings: KYCSettings = Depends(get_kyc_settings)) -> OCRService:
@@ -64,6 +67,23 @@ def get_face_compare_service(
     if _face_compare_service is None:
         _face_compare_service = FaceCompareService(settings=settings)
     return _face_compare_service
+
+
+def get_liveness_service(
+    settings: KYCSettings = Depends(get_kyc_settings),
+) -> LivenessService:
+    """Provide a singleton LivenessService instance.
+
+    Args:
+        settings: KYC configuration from environment.
+
+    Returns:
+        Configured LivenessService instance.
+    """
+    global _liveness_service  # noqa: PLW0603
+    if _liveness_service is None:
+        _liveness_service = LivenessService(settings=settings)
+    return _liveness_service
 
 
 @router.post(
@@ -255,14 +275,55 @@ async def face_compare(
 )
 async def liveness_check(
     file: UploadFile = File(..., description="Selfie image for liveness detection"),
+    settings: KYCSettings = Depends(get_kyc_settings),
+    liveness_service: LivenessService = Depends(get_liveness_service),
 ) -> LivenessResponse:
     """Detect whether a selfie image is a live person or a spoof.
 
+    Validates file type and size, decodes image, runs anti-spoofing
+    prediction via Silent-Face-Anti-Spoofing, and evaluates the score
+    against the configured liveness threshold.
+    No biometric data is stored — only a score is returned.
+
     Args:
         file: Selfie image to analyze.
+        settings: KYC configuration settings.
+        liveness_service: Injected liveness detection service.
 
     Returns:
         Liveness score and determination.
+
+    Raises:
+        HTTPException: 400 for invalid file type/size, 422 for detection failure.
     """
-    # Stub — full implementation in Task 21
-    return LivenessResponse(liveness_score=0.0, is_live=False)
+    _validate_file_type(file)
+    image_bytes = await _read_and_validate_size(file, settings)
+
+    try:
+        image = liveness_service.decode_image(image_bytes)
+    except InvalidImageError as exc:
+        logger.warning("Invalid image for liveness: %s", exc.message)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=exc.message,
+        ) from exc
+
+    try:
+        result = liveness_service.detect_liveness(image)
+    except NoFaceInSelfieError as exc:
+        logger.warning("No face for liveness detection: %s", exc.message)
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=exc.message,
+        ) from exc
+    except LivenessDetectionError as exc:
+        logger.warning("Liveness detection failed: %s", exc.message)
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=exc.message,
+        ) from exc
+
+    return LivenessResponse(
+        liveness_score=result.liveness_score,
+        is_live=result.is_live,
+    )

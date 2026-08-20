@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **KYC module (ai)** — Liveness detection endpoint fully implemented (Task 21)
+  - `src/kyc/liveness_service.py` — Full liveness detection service with Silent-Face-Anti-Spoofing
+  - Static presentation-attack detection (PAD) on captured selfie images
+  - Threshold evaluation via `KYC_LIVENESS_THRESHOLD` env variable (default 0.8)
+  - No biometric data stored — only a float score is produced and returned
+  - Custom exception: `LivenessDetectionError` for model failures
+  - Dependency injection via `AntiSpoofingEngine` protocol for testable ML code
+  - Silent-Face-Anti-Spoofing lazy-loaded on first request (not at startup) for fast cold starts
+  - Singleton service pattern (`get_liveness_service`) matching OCR/face-compare architecture
+  - File validation (JPEG/PNG only, configurable max size)
+  - Proper error handling: 400 for invalid images, 422 for detection failures
+  - 19 unit tests for LivenessService covering live/spoof detection, thresholds, errors, no-state persistence
 - **KYC module (ai)** — Face comparison endpoint fully implemented (Task 20)
   - `src/kyc/face_compare_service.py` — Full face comparison service with DeepFace embeddings
   - Cosine similarity calculation between document face and selfie face

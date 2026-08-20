@@ -16,8 +16,9 @@ from src.kyc.exceptions import (
     OCRExtractionError,
 )
 from src.kyc.face_compare_service import FaceCompareResult, FaceCompareService
+from src.kyc.liveness_service import LivenessResult, LivenessService
 from src.kyc.ocr_service import OCRResult, OCRService
-from src.kyc.router import get_face_compare_service, get_ocr_service
+from src.kyc.router import get_face_compare_service, get_liveness_service, get_ocr_service
 from src.main import app
 
 TEST_AUTH_TOKEN = "test-secret-token-for-testing"
@@ -65,9 +66,22 @@ def _mock_face_compare_service() -> FaceCompareService:
     return service
 
 
+def _mock_liveness_service() -> LivenessService:
+    """Provide a mock liveness service for endpoint tests."""
+    service = MagicMock(spec=LivenessService)
+
+    # Default: successful liveness detection (live face)
+    service.decode_image.return_value = np.zeros((300, 200, 3), dtype=np.uint8)
+    service.detect_liveness.return_value = LivenessResult(
+        liveness_score=0.92, is_live=True
+    )
+    return service
+
+
 app.dependency_overrides[get_kyc_settings] = _override_settings
 app.dependency_overrides[get_ocr_service] = _mock_ocr_service
 app.dependency_overrides[get_face_compare_service] = _mock_face_compare_service
+app.dependency_overrides[get_liveness_service] = _mock_liveness_service
 client: TestClient = TestClient(app)
 
 

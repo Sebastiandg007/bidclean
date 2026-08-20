@@ -78,7 +78,9 @@ class MultipleFacesError(FaceComparisonError):
     Only a single face is allowed in the selfie for identity verification.
     """
 
-    def __init__(self, message: str = "Multiple faces detected in selfie — only one allowed") -> None:
+    def __init__(
+        self, message: str = "Multiple faces detected in selfie — only one allowed"
+    ) -> None:
         super().__init__(message)
 
 
@@ -90,4 +92,18 @@ class FaceExtractionError(FaceComparisonError):
     """
 
     def __init__(self, message: str = "Cannot extract face embeddings") -> None:
+        super().__init__(message)
+
+
+# --- Liveness Detection Exceptions ---
+
+
+class LivenessDetectionError(KYCServiceError):
+    """Raised when liveness analysis fails.
+
+    This occurs when the anti-spoofing model cannot analyze the image,
+    typically due to poor quality, no face detected, or model failure.
+    """
+
+    def __init__(self, message: str = "Liveness detection failed") -> None:
         super().__init__(message)
