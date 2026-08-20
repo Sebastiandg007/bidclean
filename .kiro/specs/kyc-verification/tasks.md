@@ -27,7 +27,7 @@ Implementation tasks for the KYC Verification feature. Covers the NestJS backend
 - [x] 19. Implement OCR endpoint in FastAPI (POST /ai/ocr — PaddleOCR text extraction, face extraction from document, confidence scoring)
 - [x] 20. Implement face comparison endpoint in FastAPI (POST /ai/face-compare — DeepFace similarity calculation between selfie and document face)
 - [x] 21. Implement liveness detection endpoint in FastAPI (POST /ai/liveness — Silent-Face-Anti-Spoofing prediction, confidence scoring)
-- [-] 22. Create KYC screens folder structure with README (screens, components, hooks, types, tests)
+- [x] 22. Create KYC screens folder structure with README (screens, components, hooks, types, tests)
 - [ ] 23. Implement Document Capture Screen (camera interface, document overlay frame, corner detection, quality feedback with i18n)
 - [ ] 24. Implement Selfie Capture Screen (front camera, face-shaped overlay, single face validation, capture guidance with i18n)
 - [ ] 25. Implement KYC Status Screen (status display per state, retry button for REJECTED, banner/CTA for incomplete, progress indicator for PROCESSING)
