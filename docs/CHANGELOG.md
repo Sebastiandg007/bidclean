@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **KYC module (api)** — Admin review queue endpoint (`GET /admin/kyc/queue`)
+  - `KycAdminService.getReviewQueue(page, limit)` queries PROCESSING and REJECTED verifications
+  - Sorted by `created_at ASC` (oldest first = priority) using partial index
+  - Configurable pagination: page (1-based), limit (configurable with DEFAULT_LIMIT and MAX_LIMIT constants)
+  - Returns `PaginatedQueueResponse` with items, total, page, limit, totalPages
+  - Selects only necessary columns for performance (KycQueueItem fields)
+  - `KycAdminService.getVerificationDetail(id)` returns full detail for admin review
+  - Throws NotFoundException for invalid verification IDs
+  - 9 unit tests covering filtering, sorting, pagination, edge cases, and detail retrieval
 - **KYC module (api)** — KYC cleanup job for retention-based image deletion
   - `KycCleanupJob` scheduled cron job (daily at 3:00 AM via `@nestjs/schedule`)
   - Deletes expired document/selfie images from MinIO after `KYC_RETENTION_DAYS` retention period

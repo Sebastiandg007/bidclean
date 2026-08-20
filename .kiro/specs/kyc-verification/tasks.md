@@ -18,7 +18,7 @@ Implementation tasks for the KYC Verification feature. Covers the NestJS backend
 - [x] 10. Implement AI client service (HTTP client for internal FastAPI calls — OCR, face-compare, liveness endpoints with error handling and retries)
 - [x] 11. Implement KYC processing job (BullMQ job with configurable retries and exponential backoff, calls AI service pipeline: OCR → liveness → face-compare with short-circuit on deterministic failures → evaluate thresholds → update state. After max retries, enters admin review.)
 - [x] 12. Implement KYC cleanup job (BullMQ scheduled job that deletes expired document images from MinIO based on configurable retention period. Deletion is idempotent — if object already deleted, job succeeds without error.)
-- [ ] 13. Implement admin review queue endpoint (GET /admin/kyc/queue — list pending/rejected verifications sorted by age)
+- [-] 13. Implement admin review queue endpoint (GET /admin/kyc/queue — list pending/rejected verifications sorted by age)
 - [ ] 14. Implement admin decision endpoint (POST /admin/kyc/:id/decision — approve or reject with reason, update state, log audit)
 - [ ] 15. Implement KYC audit logging (log all state transitions, admin actions, and data access to kyc_audit_logs. Actions: DOCUMENT_VIEWED, SELFIE_VIEWED, OCR_VIEWED, VERIFICATION_APPROVED, VERIFICATION_REJECTED, DOCUMENT_DELETED, SELFIE_DELETED. Admin image access logged for GDPR compliance.)
 - [ ] 16. Implement offer acceptance guard (middleware that checks latest kyc_verifications record status === VERIFIED before allowing offer acceptance — status derived from latest attempt, not a column on users)

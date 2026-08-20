@@ -7,8 +7,8 @@ import { KycVerification } from '../entities/kyc-verification.entity';
 import { KycAuditLog } from '../entities/kyc-audit-log.entity';
 import { KycStorageService } from '../storage/kyc-storage.service';
 
-/** Batch size for processing deletions to avoid overwhelming MinIO */
-const CLEANUP_BATCH_SIZE = 50;
+/** Default batch size for processing deletions to avoid overwhelming MinIO */
+const DEFAULT_CLEANUP_BATCH_SIZE = 50;
 
 /** Audit log actions for cleanup operations */
 const AUDIT_ACTION_DOCUMENT_DELETED = 'DOCUMENT_DELETED';
@@ -29,6 +29,7 @@ const AUDIT_METADATA_TRIGGER = 'kyc-cleanup-job';
 export class KycCleanupJob {
   private readonly logger = new Logger(KycCleanupJob.name);
   readonly retentionDays: number;
+  private readonly batchSize: number;
 
   constructor(
     private readonly configService: ConfigService,
@@ -40,6 +41,10 @@ export class KycCleanupJob {
   ) {
     this.retentionDays = parseInt(
       this.configService.getOrThrow<string>('KYC_RETENTION_DAYS'),
+      10,
+    );
+    this.batchSize = parseInt(
+      this.configService.get<string>('KYC_CLEANUP_BATCH_SIZE', String(DEFAULT_CLEANUP_BATCH_SIZE)),
       10,
     );
   }
@@ -66,7 +71,7 @@ export class KycCleanupJob {
       const batchDeleted = await this.processBatch(batch);
       totalDeleted += batchDeleted;
 
-      if (batch.length < CLEANUP_BATCH_SIZE) {
+      if (batch.length < this.batchSize) {
         hasMore = false;
       }
     }
@@ -100,7 +105,7 @@ export class KycCleanupJob {
       .andWhere(
         '(v.documentStorageKey IS NOT NULL OR v.selfieStorageKey IS NOT NULL)',
       )
-      .take(CLEANUP_BATCH_SIZE)
+      .take(this.batchSize)
       .getMany();
   }
 
