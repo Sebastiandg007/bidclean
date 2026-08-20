@@ -4,12 +4,12 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Repository } from 'typeorm';
 import { Job } from 'bullmq';
-import axios from 'axios';
 import { KycVerification } from '../entities/kyc-verification.entity';
 import { User } from '../../auth/entities/user.entity';
 import { KycStatus } from '../kyc.types';
 import { KycStateTransitionService } from '../state-machine/kyc-state-transition.service';
 import { KycAuditService } from '../kyc-audit.service';
+import { KycNotificationService } from '../kyc-notification.service';
 import { AiClientService } from '../ai-client/ai-client.service';
 import { AiClientError } from '../ai-client/ai-client.errors';
 import { OcrResult, FaceCompareResult, LivenessResult } from '../ai-client/ai-client.types';
@@ -29,20 +29,7 @@ interface ProcessingThresholds {
 /** Constants for audit log actions */
 const AUDIT_METADATA_TRIGGER = 'kyc-processing-job';
 
-/** Default OneSignal API URL — overridable via ONESIGNAL_API_URL env var */
-const DEFAULT_ONESIGNAL_API_URL = 'https://onesignal.com/api/v1/notifications';
 
-/** Push notification i18n keys */
-const NOTIFICATION_HEADING_KEY = 'kyc.notification.heading';
-const NOTIFICATION_VERIFIED_KEY = 'kyc.notification.verified';
-const NOTIFICATION_REJECTED_KEY = 'kyc.notification.rejected';
-
-/** Default notification content (fallback when i18n unavailable in backend push) */
-const NOTIFICATION_CONTENT = {
-  [NOTIFICATION_HEADING_KEY]: 'KYC Verification Update',
-  [NOTIFICATION_VERIFIED_KEY]: 'Your identity has been verified successfully!',
-  [NOTIFICATION_REJECTED_KEY]: 'Your identity verification was not successful. Please try again.',
-} as const;
 
 /** Admin escalation reason */
 const ADMIN_REVIEW_REASON = 'Processing failed after maximum retries. Escalated to admin review.';
@@ -64,9 +51,6 @@ export class KycProcessJob extends WorkerHost {
   readonly maxRetries: number;
   readonly backoffMs: number;
   private readonly thresholds: ProcessingThresholds;
-  private readonly oneSignalAppId: string | null;
-  private readonly oneSignalApiKey: string | null;
-  private readonly oneSignalApiUrl: string;
 
   constructor(
     private readonly configService: ConfigService,
@@ -77,6 +61,7 @@ export class KycProcessJob extends WorkerHost {
     private readonly stateTransitionService: KycStateTransitionService,
     private readonly kycAuditService: KycAuditService,
     private readonly aiClientService: AiClientService,
+    private readonly kycNotificationService: KycNotificationService,
   ) {
     super();
     this.maxRetries = parseInt(
@@ -98,9 +83,6 @@ export class KycProcessJob extends WorkerHost {
         this.configService.getOrThrow<string>('KYC_LIVENESS_THRESHOLD'),
       ),
     };
-    this.oneSignalAppId = this.configService.get<string>('ONESIGNAL_APP_ID') ?? null;
-    this.oneSignalApiKey = this.configService.get<string>('ONESIGNAL_API_KEY') ?? null;
-    this.oneSignalApiUrl = this.configService.get<string>('ONESIGNAL_API_URL') ?? DEFAULT_ONESIGNAL_API_URL;
   }
 
   /**
@@ -320,7 +302,7 @@ export class KycProcessJob extends WorkerHost {
     );
 
     this.logger.log(`Verification ${verification.id} completed: VERIFIED`);
-    await this.sendPushNotification(verification.userId, KycStatus.VERIFIED);
+    await this.kycNotificationService.notifyStatusChange(verification.userId, KycStatus.VERIFIED);
   }
 
   /** Reject verification with a reason and send notification */
@@ -342,7 +324,7 @@ export class KycProcessJob extends WorkerHost {
     );
 
     this.logger.log(`Verification ${verification.id} rejected: ${reason}`);
-    await this.sendPushNotification(verification.userId, KycStatus.REJECTED);
+    await this.kycNotificationService.notifyStatusChange(verification.userId, KycStatus.REJECTED, reason);
   }
 
   /** Handle errors during processing — transient vs deterministic */
@@ -432,41 +414,6 @@ export class KycProcessJob extends WorkerHost {
     }
 
     return matrix[a.length]![b.length]!;
-  }
-
-  /** Send push notification via OneSignal REST API */
-  private async sendPushNotification(userId: string, status: KycStatus): Promise<void> {
-    if (!this.oneSignalAppId || !this.oneSignalApiKey) {
-      this.logger.debug('OneSignal not configured, skipping push notification');
-      return;
-    }
-
-    try {
-      const message = status === KycStatus.VERIFIED
-        ? NOTIFICATION_CONTENT[NOTIFICATION_VERIFIED_KEY]
-        : NOTIFICATION_CONTENT[NOTIFICATION_REJECTED_KEY];
-
-      await axios.post(
-        this.oneSignalApiUrl,
-        {
-          app_id: this.oneSignalAppId,
-          include_external_user_ids: [userId],
-          contents: { en: message },
-          headings: { en: NOTIFICATION_CONTENT[NOTIFICATION_HEADING_KEY] },
-          data: { type: 'kyc_status_change', status },
-        },
-        {
-          headers: {
-            Authorization: `Basic ${this.oneSignalApiKey}`,
-            'Content-Type': 'application/json',
-          },
-        },
-      );
-      this.logger.log(`Push notification sent to user ${userId} for status ${status}`);
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-      this.logger.warn(`Failed to send push notification: ${errorMsg}`);
-    }
   }
 
   /** Create an audit log entry for state transitions */

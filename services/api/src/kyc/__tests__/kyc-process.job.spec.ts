@@ -9,6 +9,8 @@ import { User } from '../../auth/entities/user.entity';
 import { KycStatus } from '../kyc.types';
 import { KycStateTransitionService } from '../state-machine/kyc-state-transition.service';
 import { AiClientService } from '../ai-client/ai-client.service';
+import { KycNotificationService } from '../kyc-notification.service';
+import { KycAuditService } from '../kyc-audit.service';
 import {
   AiServiceHttpError,
   AiServiceNetworkError,
@@ -51,6 +53,17 @@ describe('KycProcessJob', () => {
     extractDocument: jest.fn(),
     detectLiveness: jest.fn(),
     compareFaces: jest.fn(),
+  };
+
+  const mockKycAuditService = {
+    logStateTransition: jest.fn().mockResolvedValue(undefined),
+    logDataAccess: jest.fn().mockResolvedValue(undefined),
+    logAdminDecision: jest.fn().mockResolvedValue(undefined),
+    logDeletion: jest.fn().mockResolvedValue(undefined),
+  };
+
+  const mockKycNotificationService = {
+    notifyStatusChange: jest.fn().mockResolvedValue(undefined),
   };
 
   const mockConfigValues: Record<string, string | undefined> = {
@@ -163,6 +176,14 @@ describe('KycProcessJob', () => {
           provide: AiClientService,
           useValue: mockAiClientService,
         },
+        {
+          provide: KycAuditService,
+          useValue: mockKycAuditService,
+        },
+        {
+          provide: KycNotificationService,
+          useValue: mockKycNotificationService,
+        },
       ],
     }).compile();
 
@@ -239,7 +260,7 @@ describe('KycProcessJob', () => {
       );
 
       // Should create audit log entries
-      expect(mockAuditLogRepository.save).toHaveBeenCalled();
+      expect(mockKycAuditService.logStateTransition).toHaveBeenCalled();
     });
   });
 
@@ -584,18 +605,16 @@ describe('KycProcessJob', () => {
       await job.process(mockJobInstance);
 
       // Should create audit log for PROCESSING transition
-      expect(mockAuditLogRepository.create).toHaveBeenCalledWith(
+      expect(mockKycAuditService.logStateTransition).toHaveBeenCalledWith(
         expect.objectContaining({
-          action: 'STATE_TRANSITION',
           oldStatus: KycStatus.SELFIE_UPLOADED,
           newStatus: KycStatus.PROCESSING,
         }),
       );
 
       // Should create audit log for VERIFIED transition
-      expect(mockAuditLogRepository.create).toHaveBeenCalledWith(
+      expect(mockKycAuditService.logStateTransition).toHaveBeenCalledWith(
         expect.objectContaining({
-          action: 'STATE_TRANSITION',
           oldStatus: KycStatus.PROCESSING,
           newStatus: KycStatus.VERIFIED,
         }),

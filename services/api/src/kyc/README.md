@@ -13,6 +13,7 @@ Handles identity verification (Know Your Customer) for Cleaners. Orchestrates th
 | `kyc.service.ts` | Orchestrates KYC flow, coordinates sub-services |
 | `kyc.types.ts` | Shared type definitions (KycStatus, interfaces, config) |
 | `kyc-audit.service.ts` | Centralized audit logging service (GDPR compliance, typed actions) |
+| `kyc-notification.service.ts` | Push notification service (OneSignal) for KYC status changes (VERIFIED/REJECTED) |
 | `state-machine/kyc-state-machine.ts` | Enforces valid state transitions for the KYC flow |
 | `state-machine/kyc-state-transition.service.ts` | Atomic state transitions with pessimistic locking |
 | `state-machine/kyc-state-machine.types.ts` | Type definitions for transitions, guards, and context |
@@ -46,6 +47,7 @@ Handles identity verification (Know Your Customer) for Cleaners. Orchestrates th
 | `__tests__/kyc-audit.service.spec.ts` | Unit tests for centralized audit logging service |
 | `__tests__/ai-client.service.spec.ts` | Unit tests for AI client service (HTTP calls, retries, error handling) |
 | `__tests__/kyc-process.job.spec.ts` | Unit tests for KYC processing job (pipeline, thresholds, retries, name matching) |
+| `__tests__/kyc-notification.service.spec.ts` | Unit tests for KYC notification service (OneSignal integration, error handling) |
 | `__tests__/kyc-cleanup.job.spec.ts` | Unit tests for KYC cleanup job (batch deletion, audit logging, error handling) |
 
 ## Dependencies
@@ -92,6 +94,9 @@ Handles identity verification (Know Your Customer) for Cleaners. Orchestrates th
 | `KYC_FACE_SIMILARITY_MIN` | Minimum face similarity threshold | Yes |
 | `KYC_LIVENESS_SCORE_MIN` | Minimum liveness score threshold | Yes |
 | `KYC_NAME_MATCH_MIN` | Minimum name match score threshold | Yes |
+| `ONESIGNAL_APP_ID` | OneSignal application ID for push notifications | No |
+| `ONESIGNAL_API_KEY` | OneSignal REST API key | No |
+| `ONESIGNAL_API_URL` | OneSignal API URL override (defaults to official endpoint) | No |
 
 ## State Machine
 

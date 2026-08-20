@@ -9,6 +9,8 @@ import { KycAdminService } from '../admin/kyc-admin.service';
 import { KycVerification } from '../entities/kyc-verification.entity';
 import { KycAuditLog } from '../entities/kyc-audit-log.entity';
 import { KycStateTransitionService } from '../state-machine/kyc-state-transition.service';
+import { KycAuditService } from '../kyc-audit.service';
+import { KycNotificationService } from '../kyc-notification.service';
 import { AdminDecision } from '../dto/admin-decision.dto';
 import { KycStatus, DocumentType } from '../kyc.types';
 
@@ -40,6 +42,17 @@ describe('KycAdminService', () => {
     transition: jest.fn(),
   };
 
+  const mockKycAuditService = {
+    logStateTransition: jest.fn().mockResolvedValue(undefined),
+    logDataAccess: jest.fn().mockResolvedValue(undefined),
+    logAdminDecision: jest.fn().mockResolvedValue(undefined),
+    logDeletion: jest.fn().mockResolvedValue(undefined),
+  };
+
+  const mockKycNotificationService = {
+    notifyStatusChange: jest.fn().mockResolvedValue(undefined),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -55,6 +68,14 @@ describe('KycAdminService', () => {
         {
           provide: KycStateTransitionService,
           useValue: mockStateTransitionService,
+        },
+        {
+          provide: KycAuditService,
+          useValue: mockKycAuditService,
+        },
+        {
+          provide: KycNotificationService,
+          useValue: mockKycNotificationService,
         },
       ],
     }).compile();
@@ -295,20 +316,15 @@ describe('KycAdminService', () => {
         },
       });
 
-      expect(mockAuditLogRepository.create).toHaveBeenCalledWith({
-        verificationId: processingVerification.id,
-        action: 'VERIFICATION_APPROVED',
-        actorId: adminUserId,
-        oldStatus: KycStatus.PROCESSING,
-        newStatus: KycStatus.VERIFIED,
-        metadata: {
-          ocrConfidence: processingVerification.ocrConfidence,
-          faceSimilarityScore: processingVerification.faceSimilarityScore,
-          livenessScore: processingVerification.livenessScore,
-        },
-      });
+      expect(mockKycAuditService.logAdminDecision).toHaveBeenCalledWith(
+        expect.objectContaining({
+          verificationId: processingVerification.id,
+          actorId: adminUserId,
+          decision: 'VERIFICATION_APPROVED',
+          newStatus: KycStatus.VERIFIED,
+        }),
+      );
 
-      expect(mockAuditLogRepository.save).toHaveBeenCalled();
       expect(result.status).toBe(KycStatus.VERIFIED);
     });
 
@@ -350,19 +366,14 @@ describe('KycAdminService', () => {
         },
       });
 
-      expect(mockAuditLogRepository.create).toHaveBeenCalledWith({
-        verificationId: processingVerification.id,
-        action: 'VERIFICATION_REJECTED',
-        actorId: adminUserId,
-        oldStatus: KycStatus.PROCESSING,
-        newStatus: KycStatus.REJECTED,
-        metadata: {
-          ocrConfidence: processingVerification.ocrConfidence,
-          faceSimilarityScore: processingVerification.faceSimilarityScore,
-          livenessScore: processingVerification.livenessScore,
-          rejectionReason,
-        },
-      });
+      expect(mockKycAuditService.logAdminDecision).toHaveBeenCalledWith(
+        expect.objectContaining({
+          verificationId: processingVerification.id,
+          actorId: adminUserId,
+          decision: 'VERIFICATION_REJECTED',
+          newStatus: KycStatus.REJECTED,
+        }),
+      );
 
       expect(result.status).toBe(KycStatus.REJECTED);
     });
