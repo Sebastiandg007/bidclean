@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **KYC module (api)** — KYC environment variables added to `.env.example`
+  - AI service URL and auth token (`KYC_AI_SERVICE_URL`, `AI_SERVICE_AUTH_TOKEN`)
+  - Verification thresholds: OCR confidence, face similarity, liveness (`KYC_OCR_CONFIDENCE_THRESHOLD`, `KYC_FACE_SIMILARITY_THRESHOLD`, `KYC_LIVENESS_THRESHOLD`)
+  - Retry & processing: max attempts, BullMQ retries, backoff, timeout (`KYC_MAX_ATTEMPTS`, `KYC_MAX_RETRY_ATTEMPTS`, `KYC_PROCESSING_MAX_RETRIES`, `KYC_PROCESSING_BACKOFF_MS`, `KYC_PROCESSING_TIMEOUT_MS`)
+  - Storage: MinIO bucket, retention period, max file size (`KYC_MINIO_BUCKET`, `KYC_RETENTION_DAYS`, `KYC_MAX_FILE_SIZE_MB`)
+  - Image quality: minimum dimensions (`KYC_MIN_IMAGE_WIDTH`, `KYC_MIN_IMAGE_HEIGHT`)
+  - Rate limiting and concurrency (`KYC_RATE_LIMIT_PER_HOUR`, `KYC_MAX_CONCURRENT`)
 - **KYC module (api)** — Database migration for kyc_verifications and kyc_audit_logs tables
   - `1700000002000-CreateKycTables.ts` migration with up/down methods
   - UNIQUE constraint on (user_id, attempt_number) to prevent duplicate attempts
