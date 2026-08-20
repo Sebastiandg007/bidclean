@@ -1,0 +1,30 @@
+{
+  "document_capture": {
+    "title": "Escanea tu ID",
+    "subtitle": "Posiciona tu documento dentro del marco",
+    "capture_button": "Capturar",
+    "cancel_button": "Cancelar",
+    "uploading": "Subiendo documento...",
+    "permission_title": "Se necesita acceso a la cámara",
+    "permission_message": "Necesitamos acceso a la cámara para escanear tu documento de identidad.",
+    "permission_button": "Dar acceso",
+    "select_document_type": "Selecciona tipo de documento",
+    "document_types": {
+      "national_id": "Cédula de identidad",
+      "passport": "Pasaporte",
+      "drivers_license": "Licencia de conducir"
+    }
+  },
+  "quality": {
+    "too_blurry": "La imagen está borrosa. Mantén firme.",
+    "low_light": "Poca luz. Muévete a un lugar más iluminado.",
+    "document_not_visible": "Documento no visible completamente. Ajusta la posición.",
+    "hold_steady": "Mantén firme...",
+    "good": "¡Se ve bien!"
+  },
+  "error": {
+    "upload_failed": "Error al subir. Intenta de nuevo.",
+    "network_error": "Error de red. Verifica tu conexión.",
+    "unknown_error": "Algo salió mal. Intenta de nuevo."
+  }
+}

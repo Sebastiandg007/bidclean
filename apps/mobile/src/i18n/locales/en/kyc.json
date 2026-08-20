@@ -1,0 +1,30 @@
+{
+  "document_capture": {
+    "title": "Scan your ID",
+    "subtitle": "Position your document within the frame",
+    "capture_button": "Capture",
+    "cancel_button": "Cancel",
+    "uploading": "Uploading document...",
+    "permission_title": "Camera access needed",
+    "permission_message": "We need camera access to scan your identity document.",
+    "permission_button": "Grant access",
+    "select_document_type": "Select document type",
+    "document_types": {
+      "national_id": "National ID",
+      "passport": "Passport",
+      "drivers_license": "Driver's license"
+    }
+  },
+  "quality": {
+    "too_blurry": "Image is too blurry. Hold steady.",
+    "low_light": "Not enough light. Move to a brighter area.",
+    "document_not_visible": "Document not fully visible. Adjust position.",
+    "hold_steady": "Hold steady...",
+    "good": "Looking good!"
+  },
+  "error": {
+    "upload_failed": "Upload failed. Please try again.",
+    "network_error": "Network error. Check your connection.",
+    "unknown_error": "Something went wrong. Try again."
+  }
+}

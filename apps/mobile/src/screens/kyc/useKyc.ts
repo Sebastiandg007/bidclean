@@ -3,15 +3,19 @@
  *
  * Handles document/selfie upload, status polling, retry flow,
  * and quality validation orchestration.
- *
- * Implementation in Task 23-25.
  */
 
+import { useCallback, useState } from 'react';
+import * as Crypto from 'expo-crypto';
+
+import { apiClient } from '../../services/api.service';
 import type {
   DocumentType,
   KycStatus,
   KycStatusResponse,
 } from './kyc.types';
+
+// ─── Types ───────────────────────────────────────────────────────────────────
 
 /** Return type for the useKyc hook */
 export interface UseKycReturn {
@@ -37,11 +41,21 @@ export interface UseKycReturn {
   statusResponse: KycStatusResponse | null;
 }
 
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+async function generateIdempotencyKey(): Promise<string> {
+  const bytes = await Crypto.getRandomBytesAsync(16);
+  return Array.from(bytes)
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+}
+
+// ─── Hook ────────────────────────────────────────────────────────────────────
+
 /**
  * Hook for managing the KYC verification flow.
  *
  * Provides upload functions, status polling, and retry logic.
- * All configurable values (timeouts, max file size) come from environment.
  *
  * @example
  * ```tsx
@@ -49,6 +63,101 @@ export interface UseKycReturn {
  * ```
  */
 export function useKyc(): UseKycReturn {
-  // TODO(KYC-23): Implement full hook logic with API calls and state management
-  throw new Error('useKyc not yet implemented');
+  const [status, setStatus] = useState<KycStatus>('NOT_STARTED');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [errorKey, setErrorKey] = useState<string | null>(null);
+  const [attemptNumber, setAttemptNumber] = useState(1);
+  const [statusResponse, setStatusResponse] = useState<KycStatusResponse | null>(null);
+
+  const refreshStatus = useCallback(async () => {
+    setIsLoading(true);
+    setErrorKey(null);
+
+    try {
+      const response = await apiClient.get<KycStatusResponse>('/kyc/status');
+      const data = response.data;
+
+      setStatus(data.status);
+      setAttemptNumber(data.attemptNumber);
+      setStatusResponse(data);
+    } catch {
+      setErrorKey('kyc:error.network_error');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const uploadDocument = useCallback(
+    async (image: string, documentType: DocumentType) => {
+      setIsUploading(true);
+      setErrorKey(null);
+
+      try {
+        const idempotencyKey = await generateIdempotencyKey();
+
+        await apiClient.post(
+          '/kyc/document',
+          { image, documentType, idempotencyKey },
+          { headers: { 'Idempotency-Key': idempotencyKey } },
+        );
+
+        setStatus('DOCUMENT_UPLOADED');
+      } catch {
+        setErrorKey('kyc:error.upload_failed');
+      } finally {
+        setIsUploading(false);
+      }
+    },
+    [],
+  );
+
+  const uploadSelfie = useCallback(async (image: string) => {
+    setIsUploading(true);
+    setErrorKey(null);
+
+    try {
+      const idempotencyKey = await generateIdempotencyKey();
+
+      await apiClient.post(
+        '/kyc/selfie',
+        { image, idempotencyKey },
+        { headers: { 'Idempotency-Key': idempotencyKey } },
+      );
+
+      setStatus('SELFIE_UPLOADED');
+    } catch {
+      setErrorKey('kyc:error.upload_failed');
+    } finally {
+      setIsUploading(false);
+    }
+  }, []);
+
+  const retry = useCallback(async () => {
+    setIsLoading(true);
+    setErrorKey(null);
+
+    try {
+      await apiClient.post('/kyc/retry');
+      setStatus('NOT_STARTED');
+      setAttemptNumber((prev) => prev + 1);
+    } catch {
+      setErrorKey('kyc:error.unknown_error');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  return {
+    status,
+    isLoading,
+    isUploading,
+    errorKey,
+    attemptNumber,
+    uploadDocument,
+    uploadSelfie,
+    retry,
+    refreshStatus,
+    statusResponse,
+  };
 }

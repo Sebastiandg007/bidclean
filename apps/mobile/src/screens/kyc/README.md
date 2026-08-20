@@ -22,6 +22,7 @@ Cleaner Onboarding / Banner CTA
 | `KycStatusScreen.tsx` | Displays current KYC status with retry option when rejected |
 | `useKyc.ts` | Custom hook for KYC business logic (upload, status polling, retry) |
 | `kyc.types.ts` | Shared types for KYC screens (status, props, API responses) |
+| `kyc.constants.ts` | Design tokens, quality thresholds, environment-derived config |
 | `components/DocumentOverlay.tsx` | Camera overlay showing correct document positioning frame |
 | `components/FaceOverlay.tsx` | Face-shaped overlay guiding selfie positioning |
 | `components/QualityFeedback.tsx` | Real-time quality feedback (blur, lighting, positioning) |

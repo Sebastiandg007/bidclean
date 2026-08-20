@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **KYC module (mobile)** — Document Capture Screen fully implemented (Task 23)
+  - `DocumentCaptureScreen.tsx` — Camera interface with expo-camera, document type selection, capture + upload flow
+  - `components/DocumentOverlay.tsx` — Animated rectangular overlay with corner indicators, accent border on alignment
+  - `components/QualityFeedback.tsx` — Animated quality feedback banners (blur, lighting, document visibility) with i18n
+  - `useKyc.ts` — Custom hook with document/selfie upload, status polling, retry, idempotency key generation
+  - `kyc.constants.ts` — Design tokens, quality thresholds, environment-derived config (KYC_MIN_IMAGE_WIDTH/HEIGHT)
+  - `i18n/locales/en/kyc.json` + `i18n/locales/es/kyc.json` — Full English and Spanish translations for KYC flow
+  - Client-side image quality validation: sharpness detection, lighting check, corner/resolution check
+  - Camera permission handling with graceful fallback UI
+  - `expo-camera` (16.0.9) and `expo-image-manipulator` (13.0.5) added as dependencies
+  - 8 unit tests covering permission, overlay, doc types, capture flow, cancel, disabled state
 - **KYC module (ai)** — Liveness detection endpoint fully implemented (Task 21)
   - `src/kyc/liveness_service.py` — Full liveness detection service with Silent-Face-Anti-Spoofing
   - Static presentation-attack detection (PAD) on captured selfie images
