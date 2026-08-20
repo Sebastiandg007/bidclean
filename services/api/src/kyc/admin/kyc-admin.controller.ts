@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Param, Body, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Param, Body, Query, UseGuards, Request } from '@nestjs/common';
 import { KycAdminService } from './kyc-admin.service';
 import { AdminDecisionDto } from '../dto/admin-decision.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
@@ -45,8 +45,8 @@ export class KycAdminController {
   async makeDecision(
     @Param('id') id: string,
     @Body() dto: AdminDecisionDto,
+    @Request() req: { user: { sub: string } },
   ) {
-    // TODO: Extract admin user ID from request context
-    return this.kycAdminService.makeDecision(id, dto);
+    return this.kycAdminService.makeDecision(id, dto, req.user.sub);
   }
 }

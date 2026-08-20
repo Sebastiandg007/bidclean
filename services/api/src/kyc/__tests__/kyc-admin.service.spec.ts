@@ -1,8 +1,15 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { NotFoundException } from '@nestjs/common';
+import {
+  NotFoundException,
+  BadRequestException,
+  ConflictException,
+} from '@nestjs/common';
 import { KycAdminService } from '../admin/kyc-admin.service';
 import { KycVerification } from '../entities/kyc-verification.entity';
+import { KycAuditLog } from '../entities/kyc-audit-log.entity';
+import { KycStateTransitionService } from '../state-machine/kyc-state-transition.service';
+import { AdminDecision } from '../dto/admin-decision.dto';
 import { KycStatus, DocumentType } from '../kyc.types';
 
 describe('KycAdminService', () => {
@@ -24,6 +31,15 @@ describe('KycAdminService', () => {
     createQueryBuilder: jest.fn(() => mockQueryBuilder),
   };
 
+  const mockAuditLogRepository = {
+    create: jest.fn((entity) => entity),
+    save: jest.fn(),
+  };
+
+  const mockStateTransitionService = {
+    transition: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -31,6 +47,14 @@ describe('KycAdminService', () => {
         {
           provide: getRepositoryToken(KycVerification),
           useValue: mockRepository,
+        },
+        {
+          provide: getRepositoryToken(KycAuditLog),
+          useValue: mockAuditLogRepository,
+        },
+        {
+          provide: KycStateTransitionService,
+          useValue: mockStateTransitionService,
         },
       ],
     }).compile();
@@ -210,6 +234,226 @@ describe('KycAdminService', () => {
       await expect(
         service.getVerificationDetail('non-existent-id'),
       ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('makeDecision', () => {
+    const adminUserId = 'admin-uuid-1';
+
+    const processingVerification = {
+      id: 'verification-1',
+      userId: 'user-1',
+      status: KycStatus.PROCESSING,
+      attemptNumber: 1,
+      documentType: DocumentType.PASSPORT,
+      extractedName: 'Jane Smith',
+      extractedDocumentNumber: 'P123456',
+      extractedExpiryDate: new Date('2026-06-15'),
+      ocrConfidence: 0.96,
+      faceSimilarityScore: 0.91,
+      livenessScore: 0.94,
+      nameMatchScore: 0.89,
+      rejectionReason: null,
+      reviewedBy: null,
+      reviewedAt: null,
+      createdAt: new Date('2024-02-01T00:00:00Z'),
+      updatedAt: new Date('2024-02-01T01:00:00Z'),
+    };
+
+    it('should approve a verification: transition to VERIFIED and create audit log', async () => {
+      mockRepository.findOne
+        .mockResolvedValueOnce(processingVerification)
+        .mockResolvedValueOnce({
+          ...processingVerification,
+          status: KycStatus.VERIFIED,
+          reviewedBy: adminUserId,
+          reviewedAt: new Date(),
+        });
+
+      mockStateTransitionService.transition.mockResolvedValue({
+        verificationId: processingVerification.id,
+        previousStatus: KycStatus.PROCESSING,
+        newStatus: KycStatus.VERIFIED,
+        wasIdempotent: false,
+        transitionedAt: new Date(),
+      });
+
+      mockAuditLogRepository.save.mockResolvedValue({});
+
+      const result = await service.makeDecision(
+        processingVerification.id,
+        { decision: AdminDecision.APPROVE },
+        adminUserId,
+      );
+
+      expect(mockStateTransitionService.transition).toHaveBeenCalledWith({
+        targetStatus: KycStatus.VERIFIED,
+        context: {
+          verification: processingVerification,
+          reviewedBy: adminUserId,
+          rejectionReason: undefined,
+        },
+      });
+
+      expect(mockAuditLogRepository.create).toHaveBeenCalledWith({
+        verificationId: processingVerification.id,
+        action: 'VERIFICATION_APPROVED',
+        actorId: adminUserId,
+        oldStatus: KycStatus.PROCESSING,
+        newStatus: KycStatus.VERIFIED,
+        metadata: {
+          ocrConfidence: processingVerification.ocrConfidence,
+          faceSimilarityScore: processingVerification.faceSimilarityScore,
+          livenessScore: processingVerification.livenessScore,
+        },
+      });
+
+      expect(mockAuditLogRepository.save).toHaveBeenCalled();
+      expect(result.status).toBe(KycStatus.VERIFIED);
+    });
+
+    it('should reject a verification: transition to REJECTED with reason and create audit log', async () => {
+      const rejectionReason = 'Document appears to be tampered with';
+
+      mockRepository.findOne
+        .mockResolvedValueOnce(processingVerification)
+        .mockResolvedValueOnce({
+          ...processingVerification,
+          status: KycStatus.REJECTED,
+          rejectionReason,
+          reviewedBy: adminUserId,
+          reviewedAt: new Date(),
+        });
+
+      mockStateTransitionService.transition.mockResolvedValue({
+        verificationId: processingVerification.id,
+        previousStatus: KycStatus.PROCESSING,
+        newStatus: KycStatus.REJECTED,
+        wasIdempotent: false,
+        transitionedAt: new Date(),
+      });
+
+      mockAuditLogRepository.save.mockResolvedValue({});
+
+      const result = await service.makeDecision(
+        processingVerification.id,
+        { decision: AdminDecision.REJECT, rejectionReason },
+        adminUserId,
+      );
+
+      expect(mockStateTransitionService.transition).toHaveBeenCalledWith({
+        targetStatus: KycStatus.REJECTED,
+        context: {
+          verification: processingVerification,
+          reviewedBy: adminUserId,
+          rejectionReason,
+        },
+      });
+
+      expect(mockAuditLogRepository.create).toHaveBeenCalledWith({
+        verificationId: processingVerification.id,
+        action: 'VERIFICATION_REJECTED',
+        actorId: adminUserId,
+        oldStatus: KycStatus.PROCESSING,
+        newStatus: KycStatus.REJECTED,
+        metadata: {
+          ocrConfidence: processingVerification.ocrConfidence,
+          faceSimilarityScore: processingVerification.faceSimilarityScore,
+          livenessScore: processingVerification.livenessScore,
+          rejectionReason,
+        },
+      });
+
+      expect(result.status).toBe(KycStatus.REJECTED);
+    });
+
+    it('should throw BadRequestException when rejecting without reason', async () => {
+      mockRepository.findOne.mockResolvedValue(processingVerification);
+
+      await expect(
+        service.makeDecision(
+          processingVerification.id,
+          { decision: AdminDecision.REJECT },
+          adminUserId,
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw NotFoundException when verification does not exist', async () => {
+      mockRepository.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.makeDecision(
+          'non-existent-id',
+          { decision: AdminDecision.APPROVE },
+          adminUserId,
+        ),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should throw ConflictException when verification is NOT_STARTED (not reviewable)', async () => {
+      mockRepository.findOne.mockResolvedValue({
+        ...processingVerification,
+        status: KycStatus.NOT_STARTED,
+      });
+
+      await expect(
+        service.makeDecision(
+          processingVerification.id,
+          { decision: AdminDecision.APPROVE },
+          adminUserId,
+        ),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('should throw ConflictException when verification is already VERIFIED', async () => {
+      mockRepository.findOne.mockResolvedValue({
+        ...processingVerification,
+        status: KycStatus.VERIFIED,
+      });
+
+      await expect(
+        service.makeDecision(
+          processingVerification.id,
+          { decision: AdminDecision.APPROVE },
+          adminUserId,
+        ),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('should allow decision on REJECTED verification (admin override)', async () => {
+      const rejectedVerification = {
+        ...processingVerification,
+        status: KycStatus.REJECTED,
+        rejectionReason: 'Previous reason',
+      };
+
+      mockRepository.findOne
+        .mockResolvedValueOnce(rejectedVerification)
+        .mockResolvedValueOnce({
+          ...rejectedVerification,
+          status: KycStatus.VERIFIED,
+          reviewedBy: adminUserId,
+          reviewedAt: new Date(),
+        });
+
+      mockStateTransitionService.transition.mockResolvedValue({
+        verificationId: rejectedVerification.id,
+        previousStatus: KycStatus.REJECTED,
+        newStatus: KycStatus.VERIFIED,
+        wasIdempotent: false,
+        transitionedAt: new Date(),
+      });
+
+      mockAuditLogRepository.save.mockResolvedValue({});
+
+      const result = await service.makeDecision(
+        rejectedVerification.id,
+        { decision: AdminDecision.APPROVE },
+        adminUserId,
+      );
+
+      expect(result.status).toBe(KycStatus.VERIFIED);
     });
   });
 });
