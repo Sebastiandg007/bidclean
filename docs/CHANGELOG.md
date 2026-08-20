@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **KYC module (api)** — KYC state machine with guards and atomic transitions
+  - `KycStateMachine` enhanced with guard definitions, metadata generation, idempotency checks
+  - `KycStateTransitionService` — Injectable service for atomic DB state transitions (SELECT...FOR UPDATE + UPDATE WHERE status = :expected)
+  - Custom error classes: `InvalidStateTransitionError`, `StateConflictError`, `MaxAttemptsExceededError`, `TransitionGuardError`
+  - Typed interfaces: `TransitionContext`, `TransitionResult`, `TransitionOptions`, `NamedGuard`
+  - Guards: documentStorageKeyRequired, selfieStorageKeyRequired, documentMustExist, selfieMustExist, rejectionReasonRequired
+  - Idempotent transitions: mobile retry returns success without DB write when already in target state
+  - Transition metadata: timestamps recorded per state change (documentUploadedAt, selfieUploadedAt, processingStartedAt, completedAt)
+  - 70 unit tests (49 state machine + 21 transition service)
 - **KYC module (api)** — KYC environment variables added to `.env.example`
   - AI service URL and auth token (`KYC_AI_SERVICE_URL`, `AI_SERVICE_AUTH_TOKEN`)
   - Verification thresholds: OCR confidence, face similarity, liveness (`KYC_OCR_CONFIDENCE_THRESHOLD`, `KYC_FACE_SIMILARITY_THRESHOLD`, `KYC_LIVENESS_THRESHOLD`)

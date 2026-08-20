@@ -9,7 +9,7 @@ Implementation tasks for the KYC Verification feature. Covers the NestJS backend
 - [x] 1. Create KYC module structure in NestJS (module, controller, service, types, DTOs, entities, state-machine/, ai-client/, storage/, admin/, jobs/, tests folder, README)
 - [x] 2. Create database migration for kyc_verifications table (with UNIQUE and CHECK constraints, idx_kyc_user_attempt index), kyc_audit_logs table. No kyc_status column on users — status is derived from latest attempt.
 - [x] 3. Add KYC environment variables to .env.example (thresholds, retention, MinIO bucket, AI service URL, AI_SERVICE_AUTH_TOKEN, rate limits, KYC_PROCESSING_MAX_RETRIES, KYC_PROCESSING_BACKOFF_MS)
-- [ ] 4. Implement KYC state machine (valid transitions, guards, atomic updates, idempotency checks)
+- [x] 4. Implement KYC state machine (valid transitions, guards, atomic updates, idempotency checks)
 - [ ] 5. Implement KYC storage service (MinIO upload with encryption, download, delete, key generation)
 - [ ] 6. Implement upload document endpoint (POST /kyc/document — validate file, store in MinIO, transition state to DOCUMENT_UPLOADED, accept Idempotency-Key header)
 - [ ] 7. Implement upload selfie endpoint (POST /kyc/selfie — validate file, store in MinIO, transition state to SELFIE_UPLOADED, enqueue BullMQ processing job, accept Idempotency-Key header)
