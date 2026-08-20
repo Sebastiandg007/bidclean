@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **KYC module (api)** — Offer acceptance guard (`KycVerifiedGuard`)
+  - `KycVerifiedGuard` (CanActivate) blocks Cleaners from accepting offers without verified KYC
+  - Queries latest `kyc_verifications` record (highest attempt_number) for the user
+  - Non-cleaner roles pass through without KYC check
+  - `@RequireKycVerified()` decorator for easy endpoint-level application
+  - i18n error key: `kyc.error.not_verified` (ForbiddenException)
+  - 11 unit tests covering all KYC states, role passthrough, and edge cases
 - **KYC module (api)** — Centralized audit logging service (`KycAuditService`)
   - `AuditAction` enum with all tracked actions: STATE_TRANSITION, DOCUMENT_VIEWED, SELFIE_VIEWED, OCR_VIEWED, VERIFICATION_APPROVED, VERIFICATION_REJECTED, DOCUMENT_DELETED, SELFIE_DELETED
   - Typed methods: `logStateTransition()`, `logDataAccess()`, `logAdminDecision()`, `logDeletion()`
