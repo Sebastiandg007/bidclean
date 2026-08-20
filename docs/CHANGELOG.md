@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **KYC module (api)** — AI client service for FastAPI communication
+  - `AiClientService` fully implemented with HTTP calls to OCR, face-compare, and liveness endpoints
+  - Bearer token authentication via `AI_SERVICE_AUTH_TOKEN` env variable
+  - `X-Request-ID` correlation header on every request for distributed tracing
+  - Configurable request timeout via `KYC_PROCESSING_TIMEOUT_MS`
+  - Retry logic with exponential backoff (`KYC_PROCESSING_MAX_RETRIES`, `KYC_PROCESSING_BACKOFF_MS`)
+  - Retries on transient failures (5xx, network errors, timeouts); no retry on deterministic failures (4xx)
+  - Custom error hierarchy: `AiClientError`, `AiServiceHttpError`, `AiServiceNetworkError`, `AiServiceTimeoutError`
+  - 13 unit tests covering all success, retry, timeout, and error scenarios
+  - `axios` added as pinned dependency
 - **KYC module (api)** — KYC retry endpoint (`POST /kyc/retry`)
   - `KycService.retry(keycloakId)` validates Cleaner role, checks latest verification status
   - Only REJECTED verifications can be retried (409 if VERIFIED, 409 if in-progress)
