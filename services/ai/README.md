@@ -16,16 +16,33 @@ AI/ML microservice for BidClean. Handles all machine learning, computer vision, 
 | Module | Responsibility | Status |
 |--------|---------------|--------|
 | `health/` | Health check endpoint | ✅ Active |
-| `verification/` | KYC: document OCR (PaddleOCR) + face comparison (DeepFace) + liveness | 🔲 Planned |
+| `kyc/` | KYC: document OCR (PaddleOCR) + face comparison (DeepFace) + liveness (Silent-Face) | ✅ Active (stubs) |
 | `translation/` | Text translation (LibreTranslate) + language detection | 🔲 Planned |
 | `speech/` | Speech-to-text (Whisper.cpp) + Text-to-speech (Piper) | 🔲 Planned |
 | `pricing/` | AI price estimation based on property photos/data (Bedrock) | 🔲 Planned |
 
 ## API Endpoints
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/health` | Service health check |
+| Method | Path | Description | Auth |
+|--------|------|-------------|------|
+| GET | `/health` | Service health check | None |
+| POST | `/ai/ocr` | Extract text and face from document image | Bearer token |
+| POST | `/ai/face-compare` | Compare two face images, return similarity | Bearer token |
+| POST | `/ai/liveness` | Detect liveness/spoofing in selfie | Bearer token |
+
+## KYC Module Structure
+
+```
+src/kyc/
+├── __init__.py          # Module docstring
+├── router.py            # FastAPI router with endpoint definitions
+├── auth.py              # Service-to-service auth dependency
+├── config.py            # Environment-based configuration (pydantic-settings)
+├── models.py            # Pydantic request/response models
+├── ocr_service.py       # OCR implementation (planned)
+├── face_compare_service.py  # Face comparison implementation (planned)
+└── liveness_service.py  # Liveness detection implementation (planned)
+```
 
 ## How to Run
 
@@ -35,10 +52,34 @@ poetry install
 poetry run uvicorn src.main:app --reload --port 8000
 ```
 
+## How to Test
+
+```bash
+cd services/ai
+poetry run pytest
+```
+
+## How to Lint
+
+```bash
+cd services/ai
+poetry run ruff check src/
+```
+
 ## Environment Variables
 
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `PORT` | Service port (default: 8000) | No |
-| `AWS_REGION` | AWS region for Bedrock | Yes |
-| `LIBRE_TRANSLATE_URL` | LibreTranslate service URL | Yes |
+| Variable | Description | Required | Default |
+|----------|-------------|----------|---------|
+| `PORT` | Service port | No | 8000 |
+| `AI_SERVICE_AUTH_TOKEN` | Bearer token for service-to-service auth | Yes | — |
+| `KYC_OCR_CONFIDENCE_THRESHOLD` | Minimum OCR confidence (0.0–1.0) | No | 0.7 |
+| `KYC_FACE_SIMILARITY_THRESHOLD` | Minimum face similarity (0.0–1.0) | No | 0.6 |
+| `KYC_LIVENESS_THRESHOLD` | Minimum liveness score (0.0–1.0) | No | 0.8 |
+| `AWS_REGION` | AWS region for Bedrock | Yes | — |
+| `LIBRE_TRANSLATE_URL` | LibreTranslate service URL | Yes | — |
+
+## Authentication
+
+All `/ai/*` endpoints require a `Bearer` token in the `Authorization` header.
+The token is validated against the `AI_SERVICE_AUTH_TOKEN` environment variable.
+Requests should include an `X-Request-ID` header for correlation tracking.
