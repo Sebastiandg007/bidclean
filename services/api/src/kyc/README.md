@@ -36,6 +36,7 @@ Handles identity verification (Know Your Customer) for Cleaners. Orchestrates th
 | `__tests__/kyc-state-transition.service.spec.ts` | Unit tests for atomic state transitions |
 | `__tests__/kyc-storage.service.spec.ts` | Unit tests for MinIO storage operations |
 | `__tests__/kyc-admin.service.spec.ts` | Unit tests for admin service |
+| `__tests__/kyc-retry.spec.ts` | Unit tests for KYC retry logic |
 
 ## Dependencies
 
@@ -89,3 +90,26 @@ NOT_STARTED → DOCUMENT_UPLOADED → SELFIE_UPLOADED → PROCESSING → VERIFIE
 - States can only move forward (no backwards transitions)
 - Terminal states: VERIFIED, REJECTED
 - Retry creates a new attempt record (does not modify previous attempts)
+
+## Retry Endpoint
+
+`POST /kyc/retry` allows a Cleaner whose verification was REJECTED to start a new attempt.
+
+### Preconditions
+- User must have `cleaner` role
+- Latest verification must be in `REJECTED` status
+- `attemptNumber` must be less than `KYC_MAX_ATTEMPTS` (env variable)
+
+### Behavior
+- Creates a NEW `kyc_verifications` record with `attemptNumber = previous + 1`
+- New record starts in `NOT_STARTED` status
+- Previous attempt record is preserved (immutable once completed)
+- Creates an audit log entry for the retry
+
+### Error Responses
+| Condition | HTTP Status | Error Key |
+|-----------|-------------|-----------|
+| Not a Cleaner | 403 | `kyc.error.not_cleaner` |
+| Already verified | 409 | `kyc.error.already_verified` |
+| Status not REJECTED | 409 | `kyc.error.not_rejected` |
+| Max attempts reached | 429 | `kyc.error.max_attempts` |

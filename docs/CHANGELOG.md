@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **KYC module (api)** — KYC retry endpoint (`POST /kyc/retry`)
+  - `KycService.retry(keycloakId)` validates Cleaner role, checks latest verification status
+  - Only REJECTED verifications can be retried (409 if VERIFIED, 409 if in-progress)
+  - Max attempts check using `KYC_MAX_ATTEMPTS` env variable (429 if exceeded)
+  - Creates new `KycVerification` record with `attemptNumber = previous + 1`, status `NOT_STARTED`
+  - Preserves old attempt record (immutable once completed — new record, no updates)
+  - Creates audit log entry for the retry (REJECTED → NOT_STARTED)
+  - `KycController.retry` wired to service with JWT auth
+  - 10 unit tests covering: success, attempt numbering, 429 max attempts, 409 verified, 403 role, immutability, audit log, edge cases
 - **KYC module (api)** — KYC status endpoint (`GET /kyc/status`)
   - `KycService.getStatus(keycloakId)` resolves user, asserts Cleaner role, queries latest verification attempt
   - Returns `NOT_STARTED` with attemptNumber 1 when no verification record exists

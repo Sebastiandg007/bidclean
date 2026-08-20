@@ -1,7 +1,6 @@
 import {
   Controller,
   Get,
-  NotImplementedException,
   Post,
   Body,
   UseGuards,
@@ -93,13 +92,12 @@ export class KycController {
   /**
    * POST /kyc/retry
    * Start a new verification attempt.
-   * Requires Cleaner role.
+   * Requires Cleaner role. Previous attempt must be REJECTED.
    */
   @Post('retry')
   async retry(
-    @Req() _req: Request & { user: JwtUserPayload },
+    @Req() req: Request & { user: JwtUserPayload },
   ): Promise<KycStatusResponse> {
-    // TODO(KYC-9): Implement via kycService.retry
-    throw new NotImplementedException('KYC retry endpoint not yet implemented');
+    return this.kycService.retry(req.user.keycloakId);
   }
 }

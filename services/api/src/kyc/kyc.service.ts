@@ -4,6 +4,8 @@ import {
   BadRequestException,
   ConflictException,
   PayloadTooLargeException,
+  HttpException,
+  HttpStatus,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { InjectQueue } from '@nestjs/bullmq';
@@ -211,11 +213,65 @@ export class KycService {
 
   /**
    * Start a new verification attempt (retry).
+   * Only allowed when previous attempt was REJECTED and max attempts not exceeded.
    */
-  async retry(userId: string) {
-    // TODO: Implement retry logic
-    void userId;
-    throw new Error('Not implemented');
+  async retry(keycloakId: string): Promise<KycStatusResponse> {
+    const user = await this.findUserByKeycloakId(keycloakId);
+    this.assertCleanerRole(user);
+
+    const latestVerification = await this.kycRepository.findOne({
+      where: { userId: user.id },
+      order: { attemptNumber: 'DESC' },
+    });
+
+    this.assertCanRetry(latestVerification);
+
+    const newAttempt = await this.createNewAttempt(
+      user.id,
+      latestVerification!.attemptNumber,
+    );
+
+    await this.createAuditLog(
+      newAttempt.id,
+      user.id,
+      KycStatus.REJECTED,
+      KycStatus.NOT_STARTED,
+    );
+
+    return this.buildStatusResponse(newAttempt);
+  }
+
+  /** Validate preconditions for retry: must be REJECTED and under max attempts */
+  private assertCanRetry(verification: KycVerification | null): void {
+    if (!verification) {
+      throw new ConflictException('kyc.error.no_verification');
+    }
+
+    if (verification.status === KycStatus.VERIFIED) {
+      throw new ConflictException('kyc.error.already_verified');
+    }
+
+    if (verification.status !== KycStatus.REJECTED) {
+      throw new ConflictException('kyc.error.not_rejected');
+    }
+
+    if (verification.attemptNumber >= this.maxAttempts) {
+      throw new HttpException('kyc.error.max_attempts', HttpStatus.TOO_MANY_REQUESTS);
+    }
+  }
+
+  /** Create a new verification attempt with incremented attempt number */
+  private async createNewAttempt(
+    userId: string,
+    previousAttemptNumber: number,
+  ): Promise<KycVerification> {
+    const newVerification = this.kycRepository.create({
+      userId,
+      status: KycStatus.NOT_STARTED,
+      attemptNumber: previousAttemptNumber + 1,
+    });
+
+    return this.kycRepository.save(newVerification);
   }
 
   /** Look up user by Keycloak ID, throw if not found */
