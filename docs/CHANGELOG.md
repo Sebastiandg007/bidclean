@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Profile module (portfolio endpoints)** — POST /profile/me/portfolio and DELETE /profile/me/portfolio/:photoId fully implemented (Task 16)
+  - `uploadPortfolioPhoto` controller endpoint: Cleaner role guard (`@RequireOnboarding(UserRole.CLEANER)`), multipart file upload via `FileInterceptor`, optional caption via `UploadPhotoDto`
+  - `deletePortfolioPhoto` controller endpoint: Cleaner role guard, UUID validation (`ParseUUIDPipe v4`), returns 204 No Content
+  - Both endpoints resolve internal userId from JWT keycloakId before delegating to `PortfolioService`
+  - 7 controller unit tests covering upload, caption, missing file, error propagation, MIME types, delete, and NotFoundException
 - **Profile module (portfolio service)** — Portfolio photo service fully implemented (Task 15)
   - `PortfolioService` with MinIO upload, AES-256 server-side encryption, sharp image resize
   - Upload validates MIME type (JPEG, PNG, WebP), max file size (`PROFILE_PHOTO_MAX_SIZE_MB`), and max photo count (`PROFILE_MAX_PORTFOLIO_PHOTOS`)

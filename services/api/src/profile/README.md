@@ -26,7 +26,7 @@ Manages user profile data, photos, portfolio, settings, profile completeness cal
 | `webhooks/` | Keycloak Event Listener webhook for email sync |
 | `dto/` | Request/response validation DTOs with class-validator |
 | `entities/` | TypeORM entities (profile_details, user_settings, portfolio_photos) |
-| `__tests__/` | Unit test files for all services |
+| `__tests__/` | Unit test files for all services and controllers |
 
 ## Dependencies
 

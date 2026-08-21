@@ -13,12 +13,15 @@ import {
   BadRequestException,
   NotImplementedException,
   ParseUUIDPipe,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Request } from 'express';
 import { ProfileService } from './profile.service';
 import { ProfilePhotoService } from './photo/profile-photo.service';
 import { PortfolioService } from './portfolio/portfolio.service';
+import { PortfolioUploadResult } from './portfolio/portfolio.types';
 import { SettingsService } from './settings/settings.service';
 import { AccountService } from './account/account.service';
 import { CompletenessService } from './completeness/completeness.service';
@@ -27,6 +30,7 @@ import { UpdateHostProfileDto } from './dto/update-host-profile.dto';
 import { UpdateCleanerProfileDto } from './dto/update-cleaner-profile.dto';
 import { UpdateSettingsDto } from './dto/update-settings.dto';
 import { DeleteAccountDto } from './dto/delete-account.dto';
+import { UploadPhotoDto } from './dto/upload-photo.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { JwtUserPayload } from '../auth/guards/jwt.types';
 import { OnboardingGateGuard, RequireOnboarding } from '../roles/guards';
@@ -150,18 +154,44 @@ export class ProfileController {
 
   /** POST /profile/me/portfolio — upload portfolio photo */
   @Post('me/portfolio')
-  async uploadPortfolioPhoto(@Req() _req: Request): Promise<unknown> {
-    void this.portfolioService;
-    throw new NotImplementedException();
+  @UseGuards(JwtAuthGuard, OnboardingGateGuard)
+  @RequireOnboarding(UserRole.CLEANER)
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadPortfolioPhoto(
+    @Req() req: Request & { user: JwtUserPayload },
+    @UploadedFile() file: Express.Multer.File,
+    @Body() dto: UploadPhotoDto,
+  ): Promise<PortfolioUploadResult> {
+    if (!file) {
+      throw new BadRequestException('profile.error.no_file_provided');
+    }
+
+    const userId = await this.profileService.findUserIdByKeycloakId(
+      req.user.keycloakId,
+    );
+
+    return this.portfolioService.uploadPhoto(
+      userId,
+      file.buffer,
+      file.mimetype,
+      dto.caption,
+    );
   }
 
   /** DELETE /profile/me/portfolio/:photoId — remove portfolio photo */
   @Delete('me/portfolio/:photoId')
+  @UseGuards(JwtAuthGuard, OnboardingGateGuard)
+  @RequireOnboarding(UserRole.CLEANER)
+  @HttpCode(HttpStatus.NO_CONTENT)
   async deletePortfolioPhoto(
-    @Req() _req: Request,
-    @Param('photoId') _photoId: string,
-  ): Promise<unknown> {
-    throw new NotImplementedException();
+    @Req() req: Request & { user: JwtUserPayload },
+    @Param('photoId', new ParseUUIDPipe({ version: '4' })) photoId: string,
+  ): Promise<void> {
+    const userId = await this.profileService.findUserIdByKeycloakId(
+      req.user.keycloakId,
+    );
+
+    await this.portfolioService.deletePhoto(userId, photoId);
   }
 
   /** GET /profile/me/settings — get user settings */
