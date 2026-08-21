@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Profile module (portfolio service)** — Portfolio photo service fully implemented (Task 15)
+  - `PortfolioService` with MinIO upload, AES-256 server-side encryption, sharp image resize
+  - Upload validates MIME type (JPEG, PNG, WebP), max file size (`PROFILE_PHOTO_MAX_SIZE_MB`), and max photo count (`PROFILE_MAX_PORTFOLIO_PHOTOS`)
+  - Storage key pattern: `{userId}/portfolio/{uuid}.{extension}` in the same bucket as profile photos
+  - `display_order` auto-assigned as MAX(existing) + 1 for correct ordering
+  - Delete removes photo from MinIO (idempotent) + database record, validates ownership
+  - `getPhotos(userId)` returns all photos ordered by `display_order` with signed URLs
+  - `getPhotoCount(userId)` for completeness derivation via COUNT(*) — never a stored boolean
+  - `generateSignedUrl(storageKey)` with configurable expiry (`PROFILE_PHOTO_URL_EXPIRY_SECONDS`)
+  - Bucket auto-creation on module initialization (`OnModuleInit`)
+  - 21 unit tests covering upload, resize, encryption, validation, ordering, deletion, signed URLs
 - **Profile module (GET /profile/:userId)** — Public profile endpoint fully implemented (Task 14)
   - `ProfileRepository.findPublicProfile(userId)` dedicated SELECT query that NEVER selects email, phone, settings, or exact coordinates
   - SQL query uses LEFT JOINs to users, profile_details, cleaner_profiles, and kyc_verifications tables

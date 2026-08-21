@@ -19,7 +19,7 @@ Manages user profile data, photos, portfolio, settings, profile completeness cal
 | Folder | Responsibility |
 |--------|---------------|
 | `photo/` | Profile photo upload (resize via sharp, AES-256 encryption), deletion, signed URL generation (MinIO) |
-| `portfolio/` | Portfolio photo management for Cleaner users |
+| `portfolio/` | Portfolio photo management for Cleaner users (upload, delete, ordering, signed URLs, max count validation) |
 | `settings/` | User preferences (language, theme, notifications) |
 | `account/` | Email/password change URLs, account deletion (async via BullMQ) |
 | `completeness/` | Profile completion calculation with configurable weights |
