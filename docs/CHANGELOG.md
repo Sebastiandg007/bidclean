@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Profile module (api)** — Database migration for `profile_details` table (Task 2)
+  - `1700000003000-CreateProfileDetailsTables.ts` migration with up/down methods
+  - UUID primary key with `gen_random_uuid()`
+  - FK to `users(id)` with `ON DELETE CASCADE`
+  - UNIQUE constraint `uq_profile_details_user` on `user_id`
+  - Index `idx_profile_details_user` on `user_id` for fast lookups
+  - Idempotent (`IF NOT EXISTS`) and reversible (`DROP TABLE IF EXISTS`)
 - **Profile module (api)** — Scaffolded full profile module structure (Task 1)
   - `profile.module.ts` — NestJS module with TypeORM entities, BullMQ queue, ConfigModule
   - `profile.controller.ts` — All 15 endpoint stubs with proper HTTP decorators

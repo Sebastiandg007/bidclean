@@ -10,8 +10,10 @@ import {
  * Portfolio photo entity.
  * Stores portfolio image references for Cleaner users.
  * One-to-many relationship with users table (ON DELETE CASCADE).
+ * Unique constraint on storage_key (uq_portfolio_photos_key).
  */
 @Entity('portfolio_photos')
+@Index('idx_portfolio_photos_order', ['userId', 'displayOrder'])
 export class PortfolioPhoto {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
@@ -23,7 +25,6 @@ export class PortfolioPhoto {
   @Column({ name: 'storage_key', type: 'varchar', length: 512, unique: true })
   storageKey!: string;
 
-  @Index('idx_portfolio_photos_order')
   @Column({ name: 'display_order', type: 'integer', default: 0 })
   displayOrder!: number;
 
