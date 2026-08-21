@@ -24,6 +24,7 @@ import { PortfolioService } from './portfolio/portfolio.service';
 import { PortfolioUploadResult } from './portfolio/portfolio.types';
 import { SettingsService } from './settings/settings.service';
 import { AccountService } from './account/account.service';
+import { EmailChangeUrlResponse } from './account/account.types';
 import { CompletenessService } from './completeness/completeness.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UpdateHostProfileDto } from './dto/update-host-profile.dto';
@@ -248,9 +249,11 @@ export class ProfileController {
 
   /** POST /profile/me/change-email — get Keycloak email change URL */
   @Post('me/change-email')
-  async changeEmail(@Req() _req: Request): Promise<unknown> {
-    void this.accountService;
-    throw new NotImplementedException();
+  @UseGuards(JwtAuthGuard)
+  async changeEmail(
+    @Req() req: Request & { user: JwtUserPayload },
+  ): Promise<EmailChangeUrlResponse> {
+    return this.accountService.getEmailChangeUrl(req.user.keycloakId);
   }
 
   /** POST /profile/me/change-password — get Keycloak password change URL */

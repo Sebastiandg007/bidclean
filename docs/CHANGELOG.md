@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Profile module (change-email endpoint)** — POST /profile/me/change-email fully implemented (Task 23)
+  - `AccountService.getEmailChangeUrl(keycloakId)` builds Keycloak Account Console URL for email change
+  - URL pattern: `{KEYCLOAK_BASE_URL}/realms/{KEYCLOAK_REALM}/account/#/personal-info`
+  - Uses `ConfigService` to read env vars (no hardcoded values)
+  - Controller endpoint protected with `JwtAuthGuard`, extracts `keycloakId` from JWT
+  - Returns `{ url: string }` for the mobile app to open in system browser (not WebView)
+  - Error handling: returns 502 with `profile.error.email_change_failed` on failure
+  - `EmailChangeUrlResponse` type added to `account.types.ts`
+  - 6 unit tests covering URL construction, config reading, realm inclusion, and path validation
 - **Profile module (Keycloak email webhook)** — POST /webhooks/keycloak/email fully implemented (Task 22)
   - `KeycloakEmailController.handleEmailEvent` validates `x-webhook-secret` header, returns 401 on mismatch
   - `KeycloakEmailService.validateWebhookSecret` compares header against `KEYCLOAK_WEBHOOK_SECRET` env var

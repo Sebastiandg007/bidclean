@@ -2,6 +2,11 @@
  * Account management types.
  */
 
+/** Response containing a Keycloak Account Console URL for email change */
+export interface EmailChangeUrlResponse {
+  readonly url: string;
+}
+
 /** User deletion status values */
 export type DeletionStatus = 'DELETION_PENDING' | 'DELETED';
 
