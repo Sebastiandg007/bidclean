@@ -12,7 +12,7 @@ Implementation tasks for the User Profile feature. Covers the NestJS backend mod
 - [x] 4. Create database migration for portfolio_photos table (with UNIQUE constraint on storage_key, composite index on user_id + display_order)
 - [x] 5. Create database migration to add deletion_status column to users table (VARCHAR(30), nullable, values: NULL/DELETION_PENDING/DELETED)
 - [x] 6. Add profile environment variables to .env.example (MINIO_PROFILE_PHOTOS_BUCKET, PROFILE_PHOTO_MAX_SIZE_MB, PROFILE_PHOTO_MAX_DIMENSION_PX, PROFILE_PHOTO_URL_EXPIRY_SECONDS, PROFILE_MAX_PORTFOLIO_PHOTOS, PROFILE_UPLOAD_TIMEOUT_MS, PROFILE_RATE_LIMIT_PER_MINUTE, PROFILE_NAME_MAX_LENGTH, PROFILE_BIO_MAX_LENGTH, PROFILE_DELETE_CONFIRMATION_WORD, PROFILE_DELETION_MAX_RETRIES, PROFILE_COMPLETENESS_WEIGHTS_HOST, PROFILE_COMPLETENESS_WEIGHTS_CLEANER, KEYCLOAK_WEBHOOK_SECRET)
-- [-] 7. Implement profile photo service (MinIO upload with encryption, resize via sharp, signed URL generation with configurable expiry, old photo deletion on replacement, photo removal)
+- [x] 7. Implement profile photo service (MinIO upload with encryption, resize via sharp, signed URL generation with configurable expiry, old photo deletion on replacement, photo removal)
 - [ ] 8. Implement GET /profile/me endpoint (return full private profile including role-specific fields from host_profiles/cleaner_profiles based on active role, include signed photo URL)
 - [ ] 9. Implement PATCH /profile/me endpoint (update common fields only: display_name, phone_number — validate phone E.164 format, validate display_name non-empty and max length)
 - [ ] 10. Implement PATCH /profile/me/host endpoint (update host-specific fields in host_profiles: business_name — Host role guard required)
