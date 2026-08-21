@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -112,11 +113,22 @@ export class ProfileService {
     return data;
   }
 
+  /**
+   * Updates host-specific profile fields (business_name).
+   * Verifies user has 'host' role and host profile exists.
+   * Returns the full updated PrivateProfile.
+   */
   async updateHostProfile(
-    _userId: string,
-    _dto: UpdateHostProfileDto,
+    keycloakId: string,
+    dto: UpdateHostProfileDto,
   ): Promise<PrivateProfile> {
-    throw new NotFoundException('profile.error.not_found');
+    const user = await this.findUserByKeycloakId(keycloakId);
+    this.validateHostRole(user);
+
+    const hostProfile = await this.findHostProfileOrFail(user.id);
+    await this.applyHostProfileUpdates(hostProfile, dto);
+
+    return this.getPrivateProfile(keycloakId);
   }
 
   async updateCleanerProfile(
@@ -216,5 +228,37 @@ export class ProfileService {
       workZoneLabel: null,
       availability: cleanerProfile.availability as CleanerProfileFields['availability'],
     };
+  }
+
+  /** Validates that the user has the host role assigned. */
+  private validateHostRole(user: User): void {
+    if (!user.roles.includes('host')) {
+      throw new ForbiddenException('profile.error.not_host');
+    }
+  }
+
+  /** Finds the host profile for a user, throws if not found. */
+  private async findHostProfileOrFail(userId: string): Promise<HostProfile> {
+    const hostProfile = await this.hostProfileRepository.findOne({
+      where: { userId },
+    });
+
+    if (!hostProfile) {
+      throw new NotFoundException('profile.error.not_found');
+    }
+
+    return hostProfile;
+  }
+
+  /** Applies DTO updates to the host profile entity. */
+  private async applyHostProfileUpdates(
+    hostProfile: HostProfile,
+    dto: UpdateHostProfileDto,
+  ): Promise<void> {
+    if (dto.businessName !== undefined) {
+      hostProfile.businessName = dto.businessName ?? null;
+    }
+
+    await this.hostProfileRepository.save(hostProfile);
   }
 }

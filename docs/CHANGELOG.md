@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Profile module (PATCH /profile/me/host)** — Update host-specific profile fields endpoint implemented
+  - `ProfileService.updateHostProfile(keycloakId, dto)` updates `business_name` in `host_profiles` table
+  - `ProfileController.updateHostProfile` with `JwtAuthGuard` + `OnboardingGateGuard` + `@RequireOnboarding(UserRole.HOST)`
+  - Validates user has 'host' role (ForbiddenException with i18n key `profile.error.not_host`)
+  - Validates host profile exists (NotFoundException with i18n key `profile.error.not_found`)
+  - Supports `null` businessName to clear the value
+  - Returns full `PrivateProfile` after update via `getPrivateProfile`
+  - 5 unit tests covering update, role validation, not found, full response, null clearing
 - **Profile module (PATCH /profile/me)** — Update common profile fields endpoint implemented
   - `ProfileService.updateCommonProfile(keycloakId, dto)` updates display_name and/or phone_number
   - `ProfileController.updateMyProfile` with JwtAuthGuard protecting the endpoint

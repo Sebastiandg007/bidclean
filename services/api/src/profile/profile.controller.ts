@@ -24,6 +24,8 @@ import { UpdateSettingsDto } from './dto/update-settings.dto';
 import { DeleteAccountDto } from './dto/delete-account.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { JwtUserPayload } from '../auth/guards/jwt.types';
+import { OnboardingGateGuard, RequireOnboarding } from '../roles/guards';
+import { UserRole } from '../roles/roles.types';
 import { PrivateProfile } from './profile.types';
 
 /**
@@ -63,11 +65,13 @@ export class ProfileController {
 
   /** PATCH /profile/me/host — update host-specific fields */
   @Patch('me/host')
+  @UseGuards(JwtAuthGuard, OnboardingGateGuard)
+  @RequireOnboarding(UserRole.HOST)
   async updateHostProfile(
-    @Req() _req: Request,
-    @Body() _dto: UpdateHostProfileDto,
-  ): Promise<unknown> {
-    throw new NotImplementedException();
+    @Req() req: Request & { user: JwtUserPayload },
+    @Body() dto: UpdateHostProfileDto,
+  ): Promise<PrivateProfile> {
+    return this.profileService.updateHostProfile(req.user.keycloakId, dto);
   }
 
   /** PATCH /profile/me/cleaner — update cleaner-specific fields */

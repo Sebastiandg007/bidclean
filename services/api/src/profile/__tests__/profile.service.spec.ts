@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException, BadRequestException } from '@nestjs/common';
+import { NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { ProfileService } from '../profile.service';
 import { ProfileRepository } from '../profile.repository';
@@ -17,7 +17,7 @@ describe('ProfileService', () => {
   };
   let profilePhotoService: { getSignedUrl: jest.Mock };
   let userRepository: { findOne: jest.Mock };
-  let hostProfileRepository: { findOne: jest.Mock };
+  let hostProfileRepository: { findOne: jest.Mock; save: jest.Mock };
   let cleanerProfileRepository: { findOne: jest.Mock };
 
   const mockUser = {
@@ -78,7 +78,7 @@ describe('ProfileService', () => {
     };
 
     userRepository = { findOne: jest.fn() };
-    hostProfileRepository = { findOne: jest.fn() };
+    hostProfileRepository = { findOne: jest.fn(), save: jest.fn() };
     cleanerProfileRepository = { findOne: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -371,6 +371,78 @@ describe('ProfileService', () => {
       expect(result.email).toBe('test@example.com');
       expect(result.roles).toEqual(['host']);
       expect(result.hostProfile).toEqual({ businessName: 'My Cleaning Business' });
+    });
+  });
+
+  describe('updateHostProfile', () => {
+    const setupHostUpdateMocks = () => {
+      userRepository.findOne.mockResolvedValue(mockUser);
+      profileRepository.findByUserId.mockResolvedValue(mockProfileDetails);
+      profilePhotoService.getSignedUrl.mockResolvedValue({
+        url: 'https://minio.local/signed-url',
+        expiresAt: new Date('2024-12-31T00:00:00Z'),
+      });
+      hostProfileRepository.findOne.mockResolvedValue(mockHostProfile);
+      hostProfileRepository.save.mockResolvedValue(mockHostProfile);
+    };
+
+    it('should update business_name when provided', async () => {
+      setupHostUpdateMocks();
+
+      await service.updateHostProfile('kc-id-abc', {
+        businessName: 'New Business Name',
+      });
+
+      expect(hostProfileRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({ businessName: 'New Business Name' }),
+      );
+    });
+
+    it('should throw ForbiddenException when user does not have host role', async () => {
+      const cleanerOnlyUser = {
+        ...mockUser,
+        roles: ['cleaner'],
+        activeRole: 'cleaner',
+      };
+      userRepository.findOne.mockResolvedValue(cleanerOnlyUser);
+
+      await expect(
+        service.updateHostProfile('kc-id-abc', { businessName: 'Test' }),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should throw NotFoundException when host profile not found', async () => {
+      userRepository.findOne.mockResolvedValue(mockUser);
+      hostProfileRepository.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.updateHostProfile('kc-id-abc', { businessName: 'Test' }),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should return full PrivateProfile after update', async () => {
+      setupHostUpdateMocks();
+
+      const result = await service.updateHostProfile('kc-id-abc', {
+        businessName: 'Updated Business',
+      });
+
+      expect(result.userId).toBe('user-uuid-123');
+      expect(result.email).toBe('test@example.com');
+      expect(result.roles).toEqual(['host']);
+      expect(result.hostProfile).toEqual({ businessName: 'Updated Business' });
+    });
+
+    it('should allow null businessName to clear the value', async () => {
+      setupHostUpdateMocks();
+
+      await service.updateHostProfile('kc-id-abc', {
+        businessName: null as unknown as string,
+      });
+
+      expect(hostProfileRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({ businessName: null }),
+      );
     });
   });
 });
