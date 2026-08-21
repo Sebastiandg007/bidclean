@@ -76,8 +76,8 @@ Manages user profile data, photos, portfolio, settings, profile completeness cal
 | `PROFILE_BIO_MAX_LENGTH` | Maximum bio length | Yes |
 | `PROFILE_DELETE_CONFIRMATION_WORD` | Word user must type to confirm deletion | Yes |
 | `PROFILE_DELETION_MAX_RETRIES` | Max retries for deletion job | Yes |
-| `PROFILE_COMPLETENESS_WEIGHTS_HOST` | JSON object with host field weights (must sum to 100) | Yes |
-| `PROFILE_COMPLETENESS_WEIGHTS_CLEANER` | JSON object with cleaner field weights (must sum to 100) | Yes |
+| `PROFILE_COMPLETENESS_WEIGHTS_HOST` | Comma/colon field weights (format: `field:weight,...`, must sum to 100) | Yes |
+| `PROFILE_COMPLETENESS_WEIGHTS_CLEANER` | Comma/colon field weights (format: `field:weight,...`, must sum to 100) | Yes |
 | `KEYCLOAK_WEBHOOK_SECRET` | Shared secret for Keycloak webhook validation | Yes |
 
 ## Architecture Notes
