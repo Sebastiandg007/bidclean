@@ -31,7 +31,7 @@ Implementation tasks for the User Profile feature. Covers the NestJS backend mod
 - [x] 23. Implement account service — change email (POST /profile/me/change-email — generate Keycloak email change URL for system browser, return URL)
 - [x] 24. Implement account service — change password (POST /profile/me/change-password — generate Keycloak password change URL for system browser, return URL)
 - [x] 25. Implement account deletion request handler (POST /profile/me/delete-account — validate confirmation word, check no active services, mark user DELETION_PENDING, disable Keycloak account, enqueue BullMQ job, return 202)
-- [-] 26. Implement async deletion job processor (BullMQ consumer: cancel RevenueCat → delete Keycloak → delete MinIO → anonymize PII in DB → mark DELETED — with retries, idempotency keys, audit logging, dead-letter queue)
+- [x] 26. Implement async deletion job processor (BullMQ consumer: cancel RevenueCat → delete Keycloak → delete MinIO → anonymize PII in DB → mark DELETED — with retries, idempotency keys, audit logging, dead-letter queue)
 - [ ] 27. Create mobile profile screens folder structure with README (screens, components, hooks, types, constants, tests)
 - [ ] 28. Implement ProfileScreen (main profile view — conditionally renders HostProfileCard or CleanerProfileCard based on active role, includes ProfileHeader with completeness ring, RoleSwitchButton or AddSecondRoleButton)
 - [ ] 29. Implement EditProfileScreen (form for personal data + role-specific fields, phone validation, specialties picker, work zone map selector, availability scheduler, bio input, save via split endpoints: common/host/cleaner)
