@@ -30,7 +30,8 @@ Manages user profile data, photos, portfolio, settings, profile completeness cal
 
 ## Dependencies
 
-- **TypeORM** — database access for profile_details, user_settings, portfolio_photos
+- **AuthModule** — provides JwtAuthGuard for endpoint protection
+- **TypeORM** — database access for profile_details, user_settings, portfolio_photos, users, host_profiles, cleaner_profiles
 - **BullMQ** — async account deletion queue
 - **ConfigModule** — environment variable access
 - **MinIO** — object storage for photos (via env configuration)

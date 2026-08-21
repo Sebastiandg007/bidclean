@@ -7,6 +7,7 @@ import {
   Param,
   Body,
   Req,
+  UseGuards,
   NotImplementedException,
 } from '@nestjs/common';
 import { Request } from 'express';
@@ -21,6 +22,9 @@ import { UpdateHostProfileDto } from './dto/update-host-profile.dto';
 import { UpdateCleanerProfileDto } from './dto/update-cleaner-profile.dto';
 import { UpdateSettingsDto } from './dto/update-settings.dto';
 import { DeleteAccountDto } from './dto/delete-account.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { JwtUserPayload } from '../auth/guards/jwt.types';
+import { PrivateProfile } from './profile.types';
 
 /**
  * Profile controller.
@@ -40,9 +44,11 @@ export class ProfileController {
 
   /** GET /profile/me — full private profile */
   @Get('me')
-  async getMyProfile(@Req() _req: Request): Promise<unknown> {
-    void this.profileService;
-    throw new NotImplementedException();
+  @UseGuards(JwtAuthGuard)
+  async getMyProfile(
+    @Req() req: Request & { user: JwtUserPayload },
+  ): Promise<PrivateProfile> {
+    return this.profileService.getPrivateProfile(req.user.keycloakId);
   }
 
   /** PATCH /profile/me — update common fields */

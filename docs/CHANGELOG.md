@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Profile module (GET /profile/me)** — Private profile endpoint implemented (Task 8)
+  - `ProfileService.getPrivateProfile(keycloakId)` fetches user, profile_details, role-specific data
+  - `ProfileController.getMyProfile` with JwtAuthGuard protecting the endpoint
+  - Returns full `PrivateProfile` shape: common fields + host/cleaner-specific fields
+  - Signed photo URL generated via `ProfilePhotoService.getSignedUrl` when photo exists
+  - Gracefully creates `profile_details` if not yet set up for the user
+  - Host role returns `businessName` from `host_profiles` table
+  - Cleaner role returns `specialties`, `workZoneCenter` (lat/lng), `workZoneRadiusKm`, `availability`
+  - `workZoneLabel` returns null (column not yet available on cleaner_profiles entity)
+  - ProfileModule now imports `AuthModule` and `TypeOrmModule.forFeature([User, HostProfile, CleanerProfile])`
+  - 9 unit tests covering all scenarios (host, cleaner, dual-role, no photo, user not found, auto-create)
 - **Profile module (photo service)** — Profile photo service fully implemented (Task 7)
   - `ProfilePhotoService` with MinIO upload, AES-256 server-side encryption
   - Image resize via `sharp` to configurable max dimension (`PROFILE_PHOTO_MAX_DIMENSION_PX`)

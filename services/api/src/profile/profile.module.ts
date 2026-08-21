@@ -17,6 +17,10 @@ import { KeycloakEmailService } from './webhooks/keycloak-email.service';
 import { ProfileDetails } from './entities/profile-details.entity';
 import { UserSettings } from './entities/user-settings.entity';
 import { PortfolioPhoto } from './entities/portfolio-photo.entity';
+import { User } from '../auth/entities/user.entity';
+import { HostProfile } from '../roles/entities/host-profile.entity';
+import { CleanerProfile } from '../roles/entities/cleaner-profile.entity';
+import { AuthModule } from '../auth/auth.module';
 
 /**
  * Profile module.
@@ -29,8 +33,16 @@ import { PortfolioPhoto } from './entities/portfolio-photo.entity';
 @Module({
   imports: [
     ConfigModule,
-    TypeOrmModule.forFeature([ProfileDetails, UserSettings, PortfolioPhoto]),
+    TypeOrmModule.forFeature([
+      ProfileDetails,
+      UserSettings,
+      PortfolioPhoto,
+      User,
+      HostProfile,
+      CleanerProfile,
+    ]),
     BullModule.registerQueue({ name: 'account-deletion' }),
+    AuthModule,
   ],
   controllers: [ProfileController, KeycloakEmailController],
   providers: [
