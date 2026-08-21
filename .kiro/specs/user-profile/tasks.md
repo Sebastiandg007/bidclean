@@ -26,7 +26,7 @@ Implementation tasks for the User Profile feature. Covers the NestJS backend mod
 - [x] 18. Implement completeness weight validation at boot (onModuleInit: validate sum(weights) === 100 for both Host and Cleaner configs, fail fast with clear error message if invalid)
 - [x] 19. Implement GET /profile/me/completeness endpoint (return percentage + breakdown of completed/incomplete fields per role)
 - [x] 20. Implement settings service (create default settings on user creation, update with validation — valid language codes, valid theme values, boolean notifications)
-- [ ] 21. Implement GET /profile/me/settings and PATCH /profile/me/settings endpoints (get settings, update with validation, return updated settings)
+- [-] 21. Implement GET /profile/me/settings and PATCH /profile/me/settings endpoints (get settings, update with validation, return updated settings)
 - [ ] 22. Implement Keycloak email webhook listener (POST /webhooks/keycloak/email — validate webhook secret, extract email from event payload, update users.email denormalized cache by keycloak_id)
 - [ ] 23. Implement account service — change email (POST /profile/me/change-email — generate Keycloak email change URL for system browser, return URL)
 - [ ] 24. Implement account service — change password (POST /profile/me/change-password — generate Keycloak password change URL for system browser, return URL)

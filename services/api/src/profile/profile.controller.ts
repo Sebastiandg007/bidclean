@@ -37,6 +37,8 @@ import { OnboardingGateGuard, RequireOnboarding } from '../roles/guards';
 import { UserRole } from '../roles/roles.types';
 import { PrivateProfile, ProfileCompleteness } from './profile.types';
 import { PublicProfileDto } from './dto/public-profile.dto';
+import { UserSettings } from './entities/user-settings.entity';
+import { UserSettingsResponse, ThemeOption } from './settings/settings.types';
 
 /**
  * Profile controller.
@@ -206,18 +208,42 @@ export class ProfileController {
 
   /** GET /profile/me/settings — get user settings */
   @Get('me/settings')
-  async getSettings(@Req() _req: Request): Promise<unknown> {
-    void this.settingsService;
-    throw new NotImplementedException();
+  @UseGuards(JwtAuthGuard)
+  async getSettings(
+    @Req() req: Request & { user: JwtUserPayload },
+  ): Promise<UserSettingsResponse> {
+    const userId = await this.profileService.findUserIdByKeycloakId(
+      req.user.keycloakId,
+    );
+    const settings = await this.settingsService.getSettings(userId);
+
+    return this.mapSettingsToResponse(settings);
   }
 
   /** PATCH /profile/me/settings — update user settings */
   @Patch('me/settings')
+  @UseGuards(JwtAuthGuard)
   async updateSettings(
-    @Req() _req: Request,
-    @Body() _dto: UpdateSettingsDto,
-  ): Promise<unknown> {
-    throw new NotImplementedException();
+    @Req() req: Request & { user: JwtUserPayload },
+    @Body() dto: UpdateSettingsDto,
+  ): Promise<UserSettingsResponse> {
+    const userId = await this.profileService.findUserIdByKeycloakId(
+      req.user.keycloakId,
+    );
+    const updated = await this.settingsService.updateSettings(userId, dto);
+
+    return this.mapSettingsToResponse(updated);
+  }
+
+  /** Maps UserSettings entity to response (excludes internal fields). */
+  private mapSettingsToResponse(settings: UserSettings): UserSettingsResponse {
+    return {
+      language: settings.language,
+      theme: settings.theme as ThemeOption,
+      isPushEnabled: settings.isPushEnabled,
+      isEmailNotificationsEnabled: settings.isEmailNotificationsEnabled,
+      isSoundsEnabled: settings.isSoundsEnabled,
+    };
   }
 
   /** POST /profile/me/change-email — get Keycloak email change URL */

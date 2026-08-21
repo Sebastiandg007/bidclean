@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Profile module (settings endpoints)** — GET /profile/me/settings and PATCH /profile/me/settings fully implemented (Task 21)
+  - `ProfileController.getSettings` with `JwtAuthGuard` protecting the endpoint
+  - `ProfileController.updateSettings` with `JwtAuthGuard` protecting the endpoint
+  - Resolves internal userId from JWT keycloakId via `ProfileService.findUserIdByKeycloakId`
+  - GET returns existing settings or creates defaults (lazy creation via SettingsService)
+  - PATCH validates and applies partial updates via `SettingsService.updateSettings`
+  - Response maps entity to `UserSettingsResponse` (excludes id, userId, createdAt, updatedAt)
+  - 11 controller unit tests covering response mapping, auth guard, error propagation, partial updates
 - **Profile module (settings service)** — Settings service fully implemented with validation (Task 20)
   - `SettingsService.getSettings(userId)` returns existing settings or creates defaults (lazy creation pattern)
   - `SettingsService.updateSettings(userId, dto)` validates and applies partial updates
