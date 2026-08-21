@@ -90,9 +90,9 @@ Handles identity verification (Know Your Customer) for Cleaners. Orchestrates th
 | `KYC_PROCESSING_MAX_RETRIES` | Max retries for processing job | Yes |
 | `KYC_PROCESSING_BACKOFF_MS` | Backoff interval (ms) between retries | Yes |
 | `KYC_PROCESSING_TIMEOUT_MS` | Request timeout (ms) for AI service calls | Yes |
-| `KYC_OCR_CONFIDENCE_MIN` | Minimum OCR confidence threshold | Yes |
-| `KYC_FACE_SIMILARITY_MIN` | Minimum face similarity threshold | Yes |
-| `KYC_LIVENESS_SCORE_MIN` | Minimum liveness score threshold | Yes |
+| `KYC_OCR_CONFIDENCE_THRESHOLD` | Minimum OCR confidence threshold | Yes |
+| `KYC_FACE_SIMILARITY_THRESHOLD` | Minimum face similarity threshold | Yes |
+| `KYC_LIVENESS_THRESHOLD` | Minimum liveness score threshold | Yes |
 | `KYC_NAME_MATCH_MIN` | Minimum name match score threshold | Yes |
 | `ONESIGNAL_APP_ID` | OneSignal application ID for push notifications | No |
 | `ONESIGNAL_API_KEY` | OneSignal REST API key | No |

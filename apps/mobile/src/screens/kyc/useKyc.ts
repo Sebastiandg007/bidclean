@@ -29,10 +29,10 @@ export interface UseKycReturn {
   errorKey: string | null;
   /** Current attempt number */
   attemptNumber: number;
-  /** Upload a captured document image */
-  uploadDocument: (image: string, documentType: DocumentType) => Promise<void>;
-  /** Upload a captured selfie image */
-  uploadSelfie: (image: string) => Promise<void>;
+  /** Upload a captured document image (pass the file URI from the camera) */
+  uploadDocument: (imageUri: string, documentType: DocumentType) => Promise<void>;
+  /** Upload a captured selfie image (pass the file URI from the camera) */
+  uploadSelfie: (imageUri: string) => Promise<void>;
   /** Start a new verification attempt (retry) */
   retry: () => Promise<void>;
   /** Refresh the current KYC status from the server */
@@ -89,18 +89,27 @@ export function useKyc(): UseKycReturn {
   }, []);
 
   const uploadDocument = useCallback(
-    async (image: string, documentType: DocumentType) => {
+    async (imageUri: string, documentType: DocumentType) => {
       setIsUploading(true);
       setErrorKey(null);
 
       try {
         const idempotencyKey = await generateIdempotencyKey();
 
-        await apiClient.post(
-          '/kyc/document',
-          { image, documentType, idempotencyKey },
-          { headers: { 'Idempotency-Key': idempotencyKey } },
-        );
+        const formData = new FormData();
+        formData.append('file', {
+          uri: imageUri,
+          type: 'image/jpeg',
+          name: 'document.jpg',
+        } as any); // eslint-disable-line @typescript-eslint/no-explicit-any -- RN FormData accepts {uri, type, name} objects
+        formData.append('documentType', documentType);
+
+        await apiClient.post('/kyc/document', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+            'Idempotency-Key': idempotencyKey,
+          },
+        });
 
         setStatus('DOCUMENT_UPLOADED');
       } catch {
@@ -112,18 +121,26 @@ export function useKyc(): UseKycReturn {
     [],
   );
 
-  const uploadSelfie = useCallback(async (image: string) => {
+  const uploadSelfie = useCallback(async (imageUri: string) => {
     setIsUploading(true);
     setErrorKey(null);
 
     try {
       const idempotencyKey = await generateIdempotencyKey();
 
-      await apiClient.post(
-        '/kyc/selfie',
-        { image, idempotencyKey },
-        { headers: { 'Idempotency-Key': idempotencyKey } },
-      );
+      const formData = new FormData();
+      formData.append('file', {
+        uri: imageUri,
+        type: 'image/jpeg',
+        name: 'selfie.jpg',
+      } as any); // eslint-disable-line @typescript-eslint/no-explicit-any -- RN FormData accepts {uri, type, name} objects
+
+      await apiClient.post('/kyc/selfie', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          'Idempotency-Key': idempotencyKey,
+        },
+      });
 
       setStatus('SELFIE_UPLOADED');
     } catch {

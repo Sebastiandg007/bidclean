@@ -11,6 +11,9 @@ import {
   StorageCategory,
 } from './kyc-storage.types';
 
+/** Default presigned URL expiry: 15 minutes */
+const PRESIGNED_URL_EXPIRY_SECONDS = 900;
+
 /**
  * KYC storage service.
  * Manages encrypted object storage for document and selfie images via MinIO.
@@ -109,6 +112,18 @@ export class KycStorageService implements OnModuleInit {
       }
       throw error;
     }
+  }
+
+  /**
+   * Generate a presigned URL for temporary read access to a stored object.
+   * Used by admin endpoints to securely serve images without exposing raw keys.
+   * @param key - Storage key of the object
+   * @param expirySeconds - URL expiry time in seconds (default: 15 minutes)
+   * @returns Time-limited presigned URL for the object
+   */
+  async getPresignedUrl(key: string, expirySeconds = PRESIGNED_URL_EXPIRY_SECONDS): Promise<string> {
+    this.logger.log(`Generating presigned URL for: ${this.bucketName}/${key}`);
+    return this.minioClient.presignedGetObject(this.bucketName, key, expirySeconds);
   }
 
   /**

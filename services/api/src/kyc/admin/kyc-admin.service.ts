@@ -11,6 +11,7 @@ import { AdminDecisionDto, AdminDecision } from '../dto/admin-decision.dto';
 import { KycStateTransitionService } from '../state-machine/kyc-state-transition.service';
 import { KycAuditService, AuditAction } from '../kyc-audit.service';
 import { KycNotificationService } from '../kyc-notification.service';
+import { KycStorageService } from '../storage/kyc-storage.service';
 import {
   KycStatus,
   KycQueueItem,
@@ -43,6 +44,7 @@ export class KycAdminService {
     private readonly stateTransitionService: KycStateTransitionService,
     private readonly kycAuditService: KycAuditService,
     private readonly kycNotificationService: KycNotificationService,
+    private readonly kycStorageService: KycStorageService,
   ) {}
 
   /**
@@ -173,7 +175,11 @@ export class KycAdminService {
       metadata: { storageKey: verification.documentStorageKey },
     });
 
-    return { url: verification.documentStorageKey };
+    const presignedUrl = await this.kycStorageService.getPresignedUrl(
+      verification.documentStorageKey,
+    );
+
+    return { url: presignedUrl };
   }
 
   /**
@@ -201,7 +207,11 @@ export class KycAdminService {
       metadata: { storageKey: verification.selfieStorageKey },
     });
 
-    return { url: verification.selfieStorageKey };
+    const presignedUrl = await this.kycStorageService.getPresignedUrl(
+      verification.selfieStorageKey,
+    );
+
+    return { url: presignedUrl };
   }
 
   /**

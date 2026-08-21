@@ -32,6 +32,7 @@ import { COLORS, FONT_SIZE, SPACING, SPRING_CONFIG } from './kyc.constants';
 const ANIMATION_DELAY_MS = 200;
 const POLLING_INTERVAL_MS = 5000;
 const ICON_SIZE = 80;
+const ICON_FONT_SIZE = 36;
 
 /** States considered incomplete (user needs to upload documents) */
 const INCOMPLETE_STATES: KycStatus[] = [
@@ -53,14 +54,20 @@ function getStatusCategory(status: KycStatus): StatusCategory {
 
 // ─── Sub-Components ──────────────────────────────────────────────────────────
 
-function StatusIcon({ category }: { category: StatusCategory }) {
-  const iconMap: Record<StatusCategory, string> = {
-    incomplete: '📄',
-    processing: '',
-    verified: '✓',
-    rejected: '✕',
-  };
+const STATUS_ICONS: Record<Exclude<StatusCategory, 'processing'>, string> = {
+  incomplete: '📄',
+  verified: '✓',
+  rejected: '✕',
+};
 
+const STATUS_COLORS: Record<StatusCategory, string> = {
+  incomplete: COLORS.warning,
+  processing: COLORS.accent,
+  verified: COLORS.accent,
+  rejected: COLORS.error,
+};
+
+function StatusIcon({ category }: { category: StatusCategory }) {
   if (category === 'processing') {
     return (
       <View
@@ -76,20 +83,13 @@ function StatusIcon({ category }: { category: StatusCategory }) {
     );
   }
 
-  const colorMap: Record<StatusCategory, string> = {
-    incomplete: COLORS.warning,
-    processing: COLORS.accent,
-    verified: COLORS.accent,
-    rejected: COLORS.error,
-  };
-
   return (
     <View
-      style={[styles.iconContainer, { borderColor: colorMap[category] }]}
+      style={[styles.iconContainer, { borderColor: STATUS_COLORS[category] }]}
       accessibilityLabel={category}
     >
-      <Text style={[styles.iconText, { color: colorMap[category] }]}>
-        {iconMap[category]}
+      <Text style={[styles.iconText, { color: STATUS_COLORS[category] }]}>
+        {STATUS_ICONS[category]}
       </Text>
     </View>
   );
@@ -236,7 +236,7 @@ export function KycStatusScreen({ onRetry, onVerified }: KycStatusScreenProps) {
 interface StatusMessageProps {
   category: StatusCategory;
   rejectionReason: string;
-  t: (key: string, options?: Record<string, unknown>) => string;
+  t: ReturnType<typeof useTranslation>['t'];
 }
 
 function StatusMessage({ category, rejectionReason, t }: StatusMessageProps) {
@@ -341,7 +341,7 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.lg,
   },
   iconText: {
-    fontSize: 36,
+    fontSize: ICON_FONT_SIZE,
     fontWeight: '700',
   },
   messageContainer: {
