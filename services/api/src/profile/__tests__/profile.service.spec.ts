@@ -18,7 +18,7 @@ describe('ProfileService', () => {
   let profilePhotoService: { getSignedUrl: jest.Mock };
   let userRepository: { findOne: jest.Mock };
   let hostProfileRepository: { findOne: jest.Mock; save: jest.Mock };
-  let cleanerProfileRepository: { findOne: jest.Mock };
+  let cleanerProfileRepository: { findOne: jest.Mock; save: jest.Mock };
 
   const mockUser = {
     id: 'user-uuid-123',
@@ -79,7 +79,7 @@ describe('ProfileService', () => {
 
     userRepository = { findOne: jest.fn() };
     hostProfileRepository = { findOne: jest.fn(), save: jest.fn() };
-    cleanerProfileRepository = { findOne: jest.fn() };
+    cleanerProfileRepository = { findOne: jest.fn(), save: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -443,6 +443,192 @@ describe('ProfileService', () => {
       expect(hostProfileRepository.save).toHaveBeenCalledWith(
         expect.objectContaining({ businessName: null }),
       );
+    });
+  });
+
+  describe('updateCleanerProfile', () => {
+    const cleanerUser = {
+      ...mockUser,
+      roles: ['cleaner'],
+      activeRole: 'cleaner',
+    };
+
+    const validAvailability = {
+      monday: { enabled: true, start: '08:00', end: '18:00' },
+      tuesday: { enabled: true, start: '08:00', end: '18:00' },
+      wednesday: { enabled: false, start: null, end: null },
+      thursday: { enabled: true, start: '09:00', end: '17:00' },
+      friday: { enabled: true, start: '08:00', end: '20:00' },
+      saturday: { enabled: false, start: null, end: null },
+      sunday: { enabled: false, start: null, end: null },
+    };
+
+    const setupCleanerUpdateMocks = () => {
+      userRepository.findOne.mockResolvedValue(cleanerUser);
+      profileRepository.findByUserId.mockResolvedValue(mockProfileDetails);
+      profileRepository.updateProfile.mockResolvedValue(mockProfileDetails);
+      profilePhotoService.getSignedUrl.mockResolvedValue({
+        url: 'https://minio.local/signed-url',
+        expiresAt: new Date('2024-12-31T00:00:00Z'),
+      });
+      cleanerProfileRepository.findOne.mockResolvedValue({ ...mockCleanerProfile });
+      cleanerProfileRepository.save.mockResolvedValue(mockCleanerProfile);
+    };
+
+    it('should update specialties when provided', async () => {
+      setupCleanerUpdateMocks();
+
+      await service.updateCleanerProfile('kc-id-abc', {
+        specialties: ['airbnb', 'offices', 'homes'],
+      });
+
+      expect(cleanerProfileRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({ specialties: ['airbnb', 'offices', 'homes'] }),
+      );
+    });
+
+    it('should update work zone center (lat/lng) and radius when provided', async () => {
+      setupCleanerUpdateMocks();
+
+      await service.updateCleanerProfile('kc-id-abc', {
+        workZoneCenter: { lat: 40.7128, lng: -74.006 },
+        workZoneRadiusKm: 15,
+      });
+
+      expect(cleanerProfileRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          workZoneLat: 40.7128,
+          workZoneLng: -74.006,
+          workZoneRadiusKm: 15,
+        }),
+      );
+    });
+
+    it('should update availability when provided with valid schema', async () => {
+      setupCleanerUpdateMocks();
+
+      await service.updateCleanerProfile('kc-id-abc', {
+        availability: validAvailability,
+      });
+
+      expect(cleanerProfileRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({ availability: validAvailability }),
+      );
+    });
+
+    it('should update bio in profile_details when provided', async () => {
+      setupCleanerUpdateMocks();
+
+      await service.updateCleanerProfile('kc-id-abc', {
+        bio: 'I am a professional cleaner with 5 years of experience.',
+      });
+
+      expect(profileRepository.updateProfile).toHaveBeenCalledWith(
+        'user-uuid-123',
+        { bio: 'I am a professional cleaner with 5 years of experience.' },
+      );
+    });
+
+    it('should throw ForbiddenException when user does not have cleaner role', async () => {
+      const hostOnlyUser = {
+        ...mockUser,
+        roles: ['host'],
+        activeRole: 'host',
+      };
+      userRepository.findOne.mockResolvedValue(hostOnlyUser);
+
+      await expect(
+        service.updateCleanerProfile('kc-id-abc', {
+          specialties: ['airbnb'],
+        }),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should throw NotFoundException when cleaner profile not found', async () => {
+      userRepository.findOne.mockResolvedValue(cleanerUser);
+      cleanerProfileRepository.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.updateCleanerProfile('kc-id-abc', {
+          specialties: ['airbnb'],
+        }),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should throw BadRequestException when availability has invalid schema', async () => {
+      setupCleanerUpdateMocks();
+
+      const invalidAvailability = {
+        monday: { enabled: true, start: null, end: null },
+        tuesday: { enabled: true, start: '08:00', end: '18:00' },
+        wednesday: { enabled: false, start: null, end: null },
+        thursday: { enabled: false, start: null, end: null },
+        friday: { enabled: false, start: null, end: null },
+        saturday: { enabled: false, start: null, end: null },
+        sunday: { enabled: false, start: null, end: null },
+      };
+
+      await expect(
+        service.updateCleanerProfile('kc-id-abc', {
+          availability: invalidAvailability as any,
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw BadRequestException when availability has non-null times for disabled day', async () => {
+      setupCleanerUpdateMocks();
+
+      const invalidAvailability = {
+        monday: { enabled: false, start: '08:00', end: '18:00' },
+        tuesday: { enabled: false, start: null, end: null },
+        wednesday: { enabled: false, start: null, end: null },
+        thursday: { enabled: false, start: null, end: null },
+        friday: { enabled: false, start: null, end: null },
+        saturday: { enabled: false, start: null, end: null },
+        sunday: { enabled: false, start: null, end: null },
+      };
+
+      await expect(
+        service.updateCleanerProfile('kc-id-abc', {
+          availability: invalidAvailability as any,
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw BadRequestException when bio exceeds max length', async () => {
+      setupCleanerUpdateMocks();
+
+      const longBio = 'a'.repeat(2001);
+
+      await expect(
+        service.updateCleanerProfile('kc-id-abc', { bio: longBio }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should return full PrivateProfile after update', async () => {
+      setupCleanerUpdateMocks();
+
+      const result = await service.updateCleanerProfile('kc-id-abc', {
+        specialties: ['airbnb'],
+      });
+
+      expect(result.userId).toBe('user-uuid-123');
+      expect(result.email).toBe('test@example.com');
+      expect(result.roles).toEqual(['cleaner']);
+      expect(result.cleanerProfile).not.toBeNull();
+    });
+
+    it('should allow partial updates (only specialties without other fields)', async () => {
+      setupCleanerUpdateMocks();
+
+      await service.updateCleanerProfile('kc-id-abc', {
+        specialties: ['homes'],
+      });
+
+      expect(cleanerProfileRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({ specialties: ['homes'] }),
+      );
+      expect(profileRepository.updateProfile).not.toHaveBeenCalled();
     });
   });
 });

@@ -13,6 +13,9 @@ import {
   PublicProfile,
   HostProfileFields,
   CleanerProfileFields,
+  DayOfWeek,
+  DayAvailability,
+  WeeklyAvailability,
 } from './profile.types';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UpdateHostProfileDto } from './dto/update-host-profile.dto';
@@ -21,6 +24,14 @@ import { User } from '../auth/entities/user.entity';
 import { HostProfile } from '../roles/entities/host-profile.entity';
 import { CleanerProfile } from '../roles/entities/cleaner-profile.entity';
 import { ProfileDetails } from './entities/profile-details.entity';
+
+const DAYS_OF_WEEK: DayOfWeek[] = [
+  'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday',
+];
+
+const TIME_FORMAT_REGEX = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+const DEFAULT_BIO_MAX_LENGTH = 2000;
 
 /**
  * Core profile service.
@@ -131,11 +142,26 @@ export class ProfileService {
     return this.getPrivateProfile(keycloakId);
   }
 
+  /**
+   * Updates cleaner-specific profile fields (specialties, work_zone, availability, bio).
+   * Verifies user has 'cleaner' role and cleaner profile exists.
+   * Validates availability JSONB schema and bio max length.
+   * Returns the full updated PrivateProfile.
+   */
   async updateCleanerProfile(
-    _userId: string,
-    _dto: UpdateCleanerProfileDto,
+    keycloakId: string,
+    dto: UpdateCleanerProfileDto,
   ): Promise<PrivateProfile> {
-    throw new NotFoundException('profile.error.not_found');
+    const user = await this.findUserByKeycloakId(keycloakId);
+    this.validateCleanerRole(user);
+
+    const cleanerProfile = await this.findCleanerProfileOrFail(user.id);
+
+    this.validateCleanerDto(dto);
+    await this.applyCleanerProfileUpdates(cleanerProfile, dto);
+    await this.updateBioIfProvided(user.id, dto.bio);
+
+    return this.getPrivateProfile(keycloakId);
   }
 
   /** Finds the internal user by their Keycloak subject ID. */
@@ -260,5 +286,122 @@ export class ProfileService {
     }
 
     await this.hostProfileRepository.save(hostProfile);
+  }
+
+  /** Validates that the user has the cleaner role assigned. */
+  private validateCleanerRole(user: User): void {
+    if (!user.roles.includes('cleaner')) {
+      throw new ForbiddenException('profile.error.not_cleaner');
+    }
+  }
+
+  /** Finds the cleaner profile for a user, throws if not found. */
+  private async findCleanerProfileOrFail(userId: string): Promise<CleanerProfile> {
+    const cleanerProfile = await this.cleanerProfileRepository.findOne({
+      where: { userId },
+    });
+
+    if (!cleanerProfile) {
+      throw new NotFoundException('profile.error.not_found');
+    }
+
+    return cleanerProfile;
+  }
+
+  /** Validates the cleaner DTO fields: availability schema and bio length. */
+  private validateCleanerDto(dto: UpdateCleanerProfileDto): void {
+    if (dto.availability !== undefined) {
+      this.validateAvailabilitySchema(dto.availability);
+    }
+
+    if (dto.bio !== undefined) {
+      this.validateBioLength(dto.bio);
+    }
+  }
+
+  /** Validates the WeeklyAvailability JSONB schema. */
+  private validateAvailabilitySchema(availability: WeeklyAvailability): void {
+    const keys = Object.keys(availability);
+    const hasAllDays = DAYS_OF_WEEK.every((day) => keys.includes(day));
+    const hasOnlyValidDays = keys.every((key) =>
+      DAYS_OF_WEEK.includes(key as DayOfWeek),
+    );
+
+    if (!hasAllDays || !hasOnlyValidDays) {
+      throw new BadRequestException('profile.error.invalid_availability');
+    }
+
+    for (const day of DAYS_OF_WEEK) {
+      this.validateDayAvailability(day, availability[day]);
+    }
+  }
+
+  /** Validates a single day's availability slot. */
+  private validateDayAvailability(_day: string, slot: DayAvailability): void {
+    if (typeof slot.enabled !== 'boolean') {
+      throw new BadRequestException('profile.error.invalid_availability');
+    }
+
+    if (slot.enabled) {
+      if (!slot.start || !slot.end) {
+        throw new BadRequestException('profile.error.invalid_availability');
+      }
+      if (!TIME_FORMAT_REGEX.test(slot.start) || !TIME_FORMAT_REGEX.test(slot.end)) {
+        throw new BadRequestException('profile.error.invalid_availability');
+      }
+    } else {
+      if (slot.start !== null || slot.end !== null) {
+        throw new BadRequestException('profile.error.invalid_availability');
+      }
+    }
+  }
+
+  /** Validates bio does not exceed configurable max length. */
+  private validateBioLength(bio: string): void {
+    const maxLength = parseInt(
+      process.env.PROFILE_BIO_MAX_LENGTH ?? String(DEFAULT_BIO_MAX_LENGTH),
+      10,
+    );
+
+    if (bio.length > maxLength) {
+      throw new BadRequestException('profile.error.bio_too_long');
+    }
+  }
+
+  /** Applies DTO updates to the cleaner profile entity. */
+  private async applyCleanerProfileUpdates(
+    cleanerProfile: CleanerProfile,
+    dto: UpdateCleanerProfileDto,
+  ): Promise<void> {
+    if (dto.specialties !== undefined) {
+      cleanerProfile.specialties = dto.specialties;
+    }
+
+    if (dto.workZoneCenter !== undefined) {
+      cleanerProfile.workZoneLat = dto.workZoneCenter.lat;
+      cleanerProfile.workZoneLng = dto.workZoneCenter.lng;
+    }
+
+    if (dto.workZoneRadiusKm !== undefined) {
+      cleanerProfile.workZoneRadiusKm = dto.workZoneRadiusKm;
+    }
+
+    if (dto.availability !== undefined) {
+      cleanerProfile.availability = dto.availability as Record<string, unknown>;
+    }
+
+    await this.cleanerProfileRepository.save(cleanerProfile);
+  }
+
+  /** Updates bio in profile_details if provided in the DTO. */
+  private async updateBioIfProvided(
+    userId: string,
+    bio: string | undefined,
+  ): Promise<void> {
+    if (bio === undefined) {
+      return;
+    }
+
+    await this.profileRepository.updateProfile(userId, { bio });
   }
 }

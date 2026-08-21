@@ -76,11 +76,13 @@ export class ProfileController {
 
   /** PATCH /profile/me/cleaner — update cleaner-specific fields */
   @Patch('me/cleaner')
+  @UseGuards(JwtAuthGuard, OnboardingGateGuard)
+  @RequireOnboarding(UserRole.CLEANER)
   async updateCleanerProfile(
-    @Req() _req: Request,
-    @Body() _dto: UpdateCleanerProfileDto,
-  ): Promise<unknown> {
-    throw new NotImplementedException();
+    @Req() req: Request & { user: JwtUserPayload },
+    @Body() dto: UpdateCleanerProfileDto,
+  ): Promise<PrivateProfile> {
+    return this.profileService.updateCleanerProfile(req.user.keycloakId, dto);
   }
 
   /** POST /profile/me/photo — upload profile photo */

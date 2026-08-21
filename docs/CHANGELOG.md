@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Profile module (PATCH /profile/me/cleaner)** — Update cleaner-specific profile fields endpoint implemented
+  - `ProfileService.updateCleanerProfile(keycloakId, dto)` updates specialties, work zone, availability in `cleaner_profiles` + bio in `profile_details`
+  - `ProfileController.updateCleanerProfile` with `JwtAuthGuard` + `OnboardingGateGuard` + `@RequireOnboarding(UserRole.CLEANER)`
+  - Validates user has 'cleaner' role (ForbiddenException with i18n key `profile.error.not_cleaner`)
+  - Validates cleaner profile exists (NotFoundException with i18n key `profile.error.not_found`)
+  - Validates availability JSONB schema (all 7 days present, HH:mm time format, enabled/disabled consistency)
+  - Validates bio max length via configurable env `PROFILE_BIO_MAX_LENGTH` (default 2000)
+  - Maps `workZoneCenter.lat/lng` to `workZoneLat/workZoneLng` columns
+  - Bio stored in `profile_details.bio` (not in cleaner_profiles)
+  - Supports partial updates (any combination of fields)
+  - Returns full `PrivateProfile` after update via `getPrivateProfile`
+  - 11 unit tests covering all update scenarios, validations, role guard, partial updates
 - **Profile module (PATCH /profile/me/host)** — Update host-specific profile fields endpoint implemented
   - `ProfileService.updateHostProfile(keycloakId, dto)` updates `business_name` in `host_profiles` table
   - `ProfileController.updateHostProfile` with `JwtAuthGuard` + `OnboardingGateGuard` + `@RequireOnboarding(UserRole.HOST)`
