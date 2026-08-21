@@ -20,7 +20,7 @@ Manages user profile data, photos, portfolio, settings, profile completeness cal
 |--------|---------------|
 | `photo/` | Profile photo upload (resize via sharp, AES-256 encryption), deletion, signed URL generation (MinIO) |
 | `portfolio/` | Portfolio photo management for Cleaner users (upload, delete, ordering, signed URLs, max count validation) |
-| `settings/` | User preferences (language, theme, notifications) |
+| `settings/` | User preferences (language, theme, notifications) — validates supported languages (en/es/fr/de/it/pt/nl), theme (dark/light/system), boolean notifications. Lazy creation on first access. |
 | `account/` | Email/password change URLs, account deletion (async via BullMQ) |
 | `completeness/` | Profile completion calculation with configurable weights |
 | `webhooks/` | Keycloak Event Listener webhook for email sync |

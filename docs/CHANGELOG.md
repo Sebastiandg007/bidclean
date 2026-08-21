@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Profile module (settings service)** — Settings service fully implemented with validation (Task 20)
+  - `SettingsService.getSettings(userId)` returns existing settings or creates defaults (lazy creation pattern)
+  - `SettingsService.updateSettings(userId, dto)` validates and applies partial updates
+  - `SettingsService.createDefaultSettings(userId)` creates row with default values (language=en, theme=system, all notifications=true)
+  - Language validation against SUPPORTED_LANGUAGES constant (en/es/fr/de/it/pt/nl)
+  - Theme validation against VALID_THEMES constant (dark/light/system)
+  - Boolean notification fields validated at runtime as safety net
+  - Language normalized to lowercase before storage
+  - Named constants exported: SUPPORTED_LANGUAGES, VALID_THEMES, DEFAULT_SETTINGS
+  - Error key: `profile.error.invalid_settings` (BadRequestException)
+  - 14 unit tests covering get, create defaults, update, validation, partial updates
 - **Profile module (completeness endpoint)** — GET /profile/me/completeness endpoint fully implemented (Task 18)
   - `ProfileController.getCompleteness` with `JwtAuthGuard` protecting the endpoint
   - `ProfileService.findUserWithRole(keycloakId)` helper resolves both userId and activeRole in a single lookup
