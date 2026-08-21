@@ -342,6 +342,38 @@ export class KeycloakService {
     return data;
   }
 
+  /**
+   * Disable a user's Keycloak account (sets enabled: false).
+   * Used during account deletion to immediately prevent login.
+   */
+  async disableUser(keycloakUserId: string): Promise<void> {
+    const adminToken = await this.getAdminAccessToken();
+
+    const url = `${ENDPOINT.adminUsers(this.config.baseUrl, this.config.realm)}/${keycloakUserId}`;
+
+    const response = await fetch(url, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${adminToken}`,
+      },
+      body: JSON.stringify({ enabled: false }),
+    });
+
+    if (!response.ok) {
+      const errorBody = await this.safeReadBody(response);
+      this.logger.error(
+        `Failed to disable user ${keycloakUserId}: ${response.status} - ${errorBody}`,
+      );
+      throw new HttpException(
+        'Failed to disable user in identity provider',
+        HttpStatus.BAD_GATEWAY,
+      );
+    }
+
+    this.logger.log(`User disabled in Keycloak: ${keycloakUserId}`);
+  }
+
   // -------------------------------------------------------------------------
   // Private helpers
   // -------------------------------------------------------------------------

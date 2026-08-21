@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Profile module (account deletion request)** — POST /profile/me/delete-account fully implemented (Task 25)
+  - `AccountService.requestAccountDeletion(userId, keycloakId, confirmationWord)` orchestrates the deletion flow
+  - Validates confirmation word against `PROFILE_DELETE_CONFIRMATION_WORD` env var (default: "DELETE")
+  - Checks no active services / prevents duplicate deletion requests (ConflictException 409)
+  - Marks user as `DELETION_PENDING` in the `users.deletion_status` column
+  - Disables Keycloak account via `KeycloakService.disableUser()` (new method added)
+  - Enqueues BullMQ job to `account-deletion` queue with `DeletionJobPayload`
+  - Controller returns HTTP 202 Accepted with `{ message: 'profile.account_deletion_requested' }`
+  - `KeycloakService.disableUser(keycloakId)` added — PUT to Keycloak Admin API with `{ enabled: false }`
+  - `User.deletionStatus` column added to entity (nullable VARCHAR(30))
+  - `KeycloakService` exported from `AuthModule` for cross-module injection
+  - 8 unit tests covering validation, conflict detection, Keycloak disable, BullMQ enqueue, error handling
 - **Profile module (change-password endpoint)** — POST /profile/me/change-password fully implemented (Task 24)
   - `AccountService.getPasswordChangeUrl(keycloakId)` builds Keycloak Account Console URL for password change
   - URL pattern: `{KEYCLOAK_BASE_URL}/realms/{KEYCLOAK_REALM}/account/#/security/signingin`

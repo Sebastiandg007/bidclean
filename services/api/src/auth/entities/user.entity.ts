@@ -51,6 +51,10 @@ export class User {
   @Column({ name: 'onboarding_status_cleaner', type: 'varchar', length: 20, default: 'NOT_STARTED' })
   onboardingStatusCleaner!: string;
 
+  /** Account deletion status: NULL (active) | DELETION_PENDING | DELETED */
+  @Column({ name: 'deletion_status', type: 'varchar', length: 30, nullable: true })
+  deletionStatus!: string | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
 

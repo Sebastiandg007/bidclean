@@ -35,6 +35,6 @@ import { BiometricChallenge } from './entities/biometric-challenge.entity';
     JwtAuthGuard,
     RateLimitGuard,
   ],
-  exports: [AuthService, EmailVerificationSyncService, JwtAuthGuard, RateLimitGuard],
+  exports: [AuthService, KeycloakService, EmailVerificationSyncService, JwtAuthGuard, RateLimitGuard],
 })
 export class AuthModule {}

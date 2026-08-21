@@ -11,7 +11,6 @@ import {
   UseInterceptors,
   UploadedFile,
   BadRequestException,
-  NotImplementedException,
   ParseUUIDPipe,
   HttpCode,
   HttpStatus,
@@ -270,10 +269,22 @@ export class ProfileController {
 
   /** POST /profile/me/delete-account — request account deletion */
   @Post('me/delete-account')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.ACCEPTED)
   async deleteAccount(
-    @Req() _req: Request,
-    @Body() _dto: DeleteAccountDto,
-  ): Promise<unknown> {
-    throw new NotImplementedException();
+    @Req() req: Request & { user: JwtUserPayload },
+    @Body() dto: DeleteAccountDto,
+  ): Promise<{ message: string }> {
+    const userId = await this.profileService.findUserIdByKeycloakId(
+      req.user.keycloakId,
+    );
+
+    await this.accountService.requestAccountDeletion(
+      userId,
+      req.user.keycloakId,
+      dto.confirmationWord,
+    );
+
+    return { message: 'profile.account_deletion_requested' };
   }
 }
