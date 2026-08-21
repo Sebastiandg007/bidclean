@@ -20,7 +20,7 @@ Implementation tasks for the User Profile feature. Covers the NestJS backend mod
 - [x] 12. Implement POST /profile/me/photo endpoint (multipart upload, validate format and size, resize, store in MinIO, update photo_storage_key in profile_details, delete old photo if exists)
 - [x] 13. Implement DELETE /profile/me/photo endpoint (remove photo from MinIO, set photo_storage_key to NULL)
 - [x] 14. Implement GET /profile/:userId public profile endpoint (dedicated repository method findPublicProfile that SELECTs only public columns — display_name, photo_storage_key, member_since, bio, specialties, work_zone_label, KYC badge status — NEVER selects email, phone, settings, exact coordinates)
-- [-] 15. Implement portfolio service (upload photo to MinIO with user subfolder, validate max count from env, manage display_order, delete photo from MinIO + DB, derive portfolio completeness from COUNT(*))
+- [x] 15. Implement portfolio service (upload photo to MinIO with user subfolder, validate max count from env, manage display_order, delete photo from MinIO + DB, derive portfolio completeness from COUNT(*))
 - [ ] 16. Implement POST /profile/me/portfolio and DELETE /profile/me/portfolio/:photoId endpoints (Cleaner role guard, max portfolio count validation, upload/delete with MinIO)
 - [ ] 17. Implement profile completeness service (calculate percentage per role using configurable field weights from env, read from profile_details + host_profiles/cleaner_profiles + portfolio_photos COUNT + kyc_verifications + external aggregates)
 - [ ] 18. Implement completeness weight validation at boot (onModuleInit: validate sum(weights) === 100 for both Host and Cleaner configs, fail fast with clear error message if invalid)
