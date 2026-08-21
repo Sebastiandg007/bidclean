@@ -23,7 +23,7 @@ Implementation tasks for the User Profile feature. Covers the NestJS backend mod
 - [x] 15. Implement portfolio service (upload photo to MinIO with user subfolder, validate max count from env, manage display_order, delete photo from MinIO + DB, derive portfolio completeness from COUNT(*))
 - [x] 16. Implement POST /profile/me/portfolio and DELETE /profile/me/portfolio/:photoId endpoints (Cleaner role guard, max portfolio count validation, upload/delete with MinIO)
 - [x] 17. Implement profile completeness service (calculate percentage per role using configurable field weights from env, read from profile_details + host_profiles/cleaner_profiles + portfolio_photos COUNT + kyc_verifications + external aggregates)
-- [-] 18. Implement completeness weight validation at boot (onModuleInit: validate sum(weights) === 100 for both Host and Cleaner configs, fail fast with clear error message if invalid)
+- [x] 18. Implement completeness weight validation at boot (onModuleInit: validate sum(weights) === 100 for both Host and Cleaner configs, fail fast with clear error message if invalid)
 - [ ] 19. Implement GET /profile/me/completeness endpoint (return percentage + breakdown of completed/incomplete fields per role)
 - [ ] 20. Implement settings service (create default settings on user creation, update with validation — valid language codes, valid theme values, boolean notifications)
 - [ ] 21. Implement GET /profile/me/settings and PATCH /profile/me/settings endpoints (get settings, update with validation, return updated settings)
