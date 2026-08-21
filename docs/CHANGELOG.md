@@ -8,7 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- **Profile module (GET /profile/me)** — Private profile endpoint implemented (Task 8)
+- **Profile module (PATCH /profile/me)** — Update common profile fields endpoint implemented
+  - `ProfileService.updateCommonProfile(keycloakId, dto)` updates display_name and/or phone_number
+  - `ProfileController.updateMyProfile` with JwtAuthGuard protecting the endpoint
+  - display_name validation: non-empty when provided (BadRequestException with i18n key)
+  - phone_number supports E.164 format validation and allows `null` to clear value
+  - Only includes explicitly provided fields in the update (partial update semantics)
+  - Returns full `PrivateProfile` after update via `getPrivateProfile`
+  - DTO updated with `@MinLength(1)` for displayName and nullable phoneNumber support
+  - 7 unit tests covering all scenarios (update single/both fields, validation, null phone, not found)
   - `ProfileService.getPrivateProfile(keycloakId)` fetches user, profile_details, role-specific data
   - `ProfileController.getMyProfile` with JwtAuthGuard protecting the endpoint
   - Returns full `PrivateProfile` shape: common fields + host/cleaner-specific fields

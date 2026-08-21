@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException } from '@nestjs/common';
+import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { ProfileService } from '../profile.service';
 import { ProfileRepository } from '../profile.repository';
@@ -10,7 +10,11 @@ import { CleanerProfile } from '../../roles/entities/cleaner-profile.entity';
 
 describe('ProfileService', () => {
   let service: ProfileService;
-  let profileRepository: { findByUserId: jest.Mock; createProfile: jest.Mock };
+  let profileRepository: {
+    findByUserId: jest.Mock;
+    createProfile: jest.Mock;
+    updateProfile: jest.Mock;
+  };
   let profilePhotoService: { getSignedUrl: jest.Mock };
   let userRepository: { findOne: jest.Mock };
   let hostProfileRepository: { findOne: jest.Mock };
@@ -66,6 +70,7 @@ describe('ProfileService', () => {
     profileRepository = {
       findByUserId: jest.fn(),
       createProfile: jest.fn(),
+      updateProfile: jest.fn(),
     };
 
     profilePhotoService = {
@@ -269,6 +274,103 @@ describe('ProfileService', () => {
 
       expect(result.cleanerProfile!.workZoneCenter).toBeNull();
       expect(result.cleanerProfile!.workZoneRadiusKm).toBeNull();
+    });
+  });
+
+  describe('updateCommonProfile', () => {
+    const setupUpdateMocks = () => {
+      userRepository.findOne.mockResolvedValue(mockUser);
+      profileRepository.findByUserId.mockResolvedValue(mockProfileDetails);
+      profileRepository.updateProfile.mockResolvedValue(mockProfileDetails);
+      profilePhotoService.getSignedUrl.mockResolvedValue({
+        url: 'https://minio.local/signed-url',
+        expiresAt: new Date('2024-12-31T00:00:00Z'),
+      });
+      hostProfileRepository.findOne.mockResolvedValue(mockHostProfile);
+    };
+
+    it('should update display_name when provided', async () => {
+      setupUpdateMocks();
+
+      await service.updateCommonProfile('kc-id-abc', {
+        displayName: 'New Name',
+      });
+
+      expect(profileRepository.updateProfile).toHaveBeenCalledWith(
+        'user-uuid-123',
+        { displayName: 'New Name' },
+      );
+    });
+
+    it('should update phone_number when provided', async () => {
+      setupUpdateMocks();
+
+      await service.updateCommonProfile('kc-id-abc', {
+        phoneNumber: '+573001234567',
+      });
+
+      expect(profileRepository.updateProfile).toHaveBeenCalledWith(
+        'user-uuid-123',
+        { phoneNumber: '+573001234567' },
+      );
+    });
+
+    it('should update both fields together', async () => {
+      setupUpdateMocks();
+
+      await service.updateCommonProfile('kc-id-abc', {
+        displayName: 'Updated Name',
+        phoneNumber: '+14155552671',
+      });
+
+      expect(profileRepository.updateProfile).toHaveBeenCalledWith(
+        'user-uuid-123',
+        { displayName: 'Updated Name', phoneNumber: '+14155552671' },
+      );
+    });
+
+    it('should throw BadRequestException when display_name is empty string', async () => {
+      setupUpdateMocks();
+
+      await expect(
+        service.updateCommonProfile('kc-id-abc', { displayName: '' }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw NotFoundException when user does not exist', async () => {
+      userRepository.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.updateCommonProfile('non-existent-kc-id', {
+          displayName: 'Name',
+        }),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should allow null phone_number to clear the value', async () => {
+      setupUpdateMocks();
+
+      await service.updateCommonProfile('kc-id-abc', {
+        phoneNumber: null as unknown as string,
+      });
+
+      expect(profileRepository.updateProfile).toHaveBeenCalledWith(
+        'user-uuid-123',
+        { phoneNumber: null },
+      );
+    });
+
+    it('should return full PrivateProfile after update', async () => {
+      setupUpdateMocks();
+
+      const result = await service.updateCommonProfile('kc-id-abc', {
+        displayName: 'New Name',
+      });
+
+      expect(result.userId).toBe('user-uuid-123');
+      expect(result.email).toBe('test@example.com');
+      expect(result.roles).toEqual(['host']);
+      expect(result.hostProfile).toEqual({ businessName: 'My Cleaning Business' });
     });
   });
 });

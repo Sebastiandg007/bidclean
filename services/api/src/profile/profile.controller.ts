@@ -53,11 +53,12 @@ export class ProfileController {
 
   /** PATCH /profile/me — update common fields */
   @Patch('me')
+  @UseGuards(JwtAuthGuard)
   async updateMyProfile(
-    @Req() _req: Request,
-    @Body() _dto: UpdateProfileDto,
-  ): Promise<unknown> {
-    throw new NotImplementedException();
+    @Req() req: Request & { user: JwtUserPayload },
+    @Body() dto: UpdateProfileDto,
+  ): Promise<PrivateProfile> {
+    return this.profileService.updateCommonProfile(req.user.keycloakId, dto);
   }
 
   /** PATCH /profile/me/host — update host-specific fields */

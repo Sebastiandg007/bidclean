@@ -1,17 +1,25 @@
-import { IsOptional, IsString, MaxLength, Matches } from 'class-validator';
+import {
+  IsOptional,
+  IsString,
+  MaxLength,
+  MinLength,
+  Matches,
+} from 'class-validator';
 
 /**
  * DTO for updating common profile fields.
  * Used by PATCH /profile/me.
+ * Only display_name and phone_number are updatable via this endpoint.
  */
 export class UpdateProfileDto {
   @IsOptional()
   @IsString()
-  @MaxLength(255)
+  @MinLength(1, { message: 'profile.error.invalid_display_name' })
+  @MaxLength(100)
   displayName?: string;
 
   @IsOptional()
   @IsString()
   @Matches(/^\+[1-9]\d{1,14}$/, { message: 'profile.error.invalid_phone' })
-  phoneNumber?: string;
+  phoneNumber?: string | null;
 }

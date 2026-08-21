@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ProfileRepository } from './profile.repository';
@@ -66,11 +70,46 @@ export class ProfileService {
     throw new NotFoundException('profile.error.not_found');
   }
 
+  /**
+   * Updates common profile fields (display_name, phone_number).
+   * Validates display_name is non-empty when provided.
+   * Returns the full updated PrivateProfile.
+   */
   async updateCommonProfile(
-    _userId: string,
-    _dto: UpdateProfileDto,
+    keycloakId: string,
+    dto: UpdateProfileDto,
   ): Promise<PrivateProfile> {
-    throw new NotFoundException('profile.error.not_found');
+    const user = await this.findUserByKeycloakId(keycloakId);
+    await this.findOrCreateProfileDetails(user.id);
+
+    const updateData = this.buildCommonUpdateData(dto);
+    await this.profileRepository.updateProfile(user.id, updateData);
+
+    return this.getPrivateProfile(keycloakId);
+  }
+
+  /**
+   * Builds partial update object from the DTO.
+   * Only includes fields that are explicitly provided (not undefined).
+   * Validates display_name is non-empty when provided.
+   */
+  private buildCommonUpdateData(
+    dto: UpdateProfileDto,
+  ): Partial<ProfileDetails> {
+    const data: Partial<ProfileDetails> = {};
+
+    if (dto.displayName !== undefined) {
+      if (dto.displayName.trim().length === 0) {
+        throw new BadRequestException('profile.error.invalid_display_name');
+      }
+      data.displayName = dto.displayName;
+    }
+
+    if (dto.phoneNumber !== undefined) {
+      data.phoneNumber = dto.phoneNumber;
+    }
+
+    return data;
   }
 
   async updateHostProfile(
