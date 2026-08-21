@@ -6,7 +6,7 @@ Implementation tasks for the User Profile feature. Covers the NestJS backend mod
 
 ## Tasks
 
-- [ ] 1. Create profile module structure in NestJS (module, controller, service, types, repository, dto/, entities/, photo/, portfolio/, settings/, account/, completeness/, webhooks/, __tests__/, README)
+- [-] 1. Create profile module structure in NestJS (module, controller, service, types, repository, dto/, entities/, photo/, portfolio/, settings/, account/, completeness/, webhooks/, __tests__/, README)
 - [ ] 2. Create database migration for profile_details table (id, user_id, display_name, phone_number, photo_storage_key, bio, created_at, updated_at — with UNIQUE constraint on user_id, idx_profile_details_user index)
 - [ ] 3. Create database migration for user_settings table (with UNIQUE constraint on user_id, CHECK constraint on theme, idx_user_settings_user index)
 - [ ] 4. Create database migration for portfolio_photos table (with UNIQUE constraint on storage_key, composite index on user_id + display_order)

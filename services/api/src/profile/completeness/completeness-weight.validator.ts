@@ -43,7 +43,7 @@ export class CompletenessWeightValidator {
       if (error instanceof SyntaxError) {
         const errorMessage = `Invalid JSON for ${role} completeness weights configuration.`;
         this.logger.error(errorMessage);
-        throw new Error(errorMessage);
+        throw new Error(errorMessage, { cause: error });
       }
       throw error;
     }

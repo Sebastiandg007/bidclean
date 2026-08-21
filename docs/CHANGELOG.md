@@ -8,6 +8,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Profile module (api)** — Scaffolded full profile module structure (Task 1)
+  - `profile.module.ts` — NestJS module with TypeORM entities, BullMQ queue, ConfigModule
+  - `profile.controller.ts` — All 15 endpoint stubs with proper HTTP decorators
+  - `profile.service.ts` — Core service with method stubs
+  - `profile.types.ts` — Full type definitions (PrivateProfile, PublicProfile, WeeklyAvailability, etc.)
+  - `profile.repository.ts` — Repository with findPublicProfile dedicated query stub
+  - `photo/` — ProfilePhotoService + types
+  - `portfolio/` — PortfolioService + types
+  - `settings/` — SettingsService + types
+  - `account/` — AccountService + types + DeletionJobProcessor
+  - `completeness/` — CompletenessService + types + boot-time weight validator
+  - `webhooks/` — KeycloakEmailController + KeycloakEmailService
+  - `dto/` — 7 DTO files with class-validator decorators
+  - `entities/` — 3 TypeORM entities (profile_details, user_settings, portfolio_photos)
+  - `__tests__/` — 8 test file shells with describe blocks
+  - Registered ProfileModule in AppModule
 - **KYC module (mobile)** — KYC Status Screen fully implemented (Task 25) — **KYC spec complete (25/25 tasks)**
   - `KycStatusScreen.tsx` — Status display per state: incomplete banner/CTA, processing spinner with polling, verified success, rejected with retry button
   - Polls server every 5 seconds while PROCESSING, calls `onVerified` callback on success
