@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Profile module (api)** — Database migration for `user_settings` table (Task 3)
+  - `1700000004000-CreateUserSettingsTable.ts` migration with up/down methods
+  - UUID primary key with `gen_random_uuid()`
+  - FK to `users(id)` with `ON DELETE CASCADE`
+  - UNIQUE constraint `uq_user_settings_user` on `user_id`
+  - CHECK constraint `chk_theme` limiting theme to 'dark', 'light', 'system'
+  - Index `idx_user_settings_user` on `user_id` for fast lookups
+  - Idempotent (`IF NOT EXISTS`) and reversible (`DROP TABLE IF EXISTS`)
 - **Profile module (api)** — Database migration for `profile_details` table (Task 2)
   - `1700000003000-CreateProfileDetailsTables.ts` migration with up/down methods
   - UUID primary key with `gen_random_uuid()`
