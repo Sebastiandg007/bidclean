@@ -7,6 +7,11 @@ export interface EmailChangeUrlResponse {
   readonly url: string;
 }
 
+/** Response containing a Keycloak Account Console URL for password change */
+export interface PasswordChangeUrlResponse {
+  readonly url: string;
+}
+
 /** User deletion status values */
 export type DeletionStatus = 'DELETION_PENDING' | 'DELETED';
 
