@@ -1,15 +1,18 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
+/** Expected sum of all field weights per role */
+const EXPECTED_WEIGHT_SUM = 100;
+
 /**
  * Boot-time validator for completeness weights.
- * Ensures sum(weights) === 100 for both Host and Cleaner configs.
+ * Parses the "field:weight,field:weight" env format and ensures sum(weights) === 100
+ * for both Host and Cleaner configs.
  * Application fails fast if validation fails.
  */
 @Injectable()
 export class CompletenessWeightValidator {
   private readonly logger = new Logger(CompletenessWeightValidator.name);
-  private readonly EXPECTED_SUM = 100;
 
   constructor(private readonly configService: ConfigService) {}
 
@@ -26,26 +29,52 @@ export class CompletenessWeightValidator {
     }
   }
 
-  private validateRoleWeights(role: string, weightsJson: string): void {
-    try {
-      const weights = JSON.parse(weightsJson) as Record<string, number>;
-      const sum = Object.values(weights).reduce((acc, val) => acc + val, 0);
+  private validateRoleWeights(role: string, weightsRaw: string): void {
+    const entries = this.parseWeightString(role, weightsRaw);
+    const sum = entries.reduce((acc, val) => acc + val.weight, 0);
 
-      if (sum !== this.EXPECTED_SUM) {
-        const errorMessage =
-          `Profile completeness weights for ${role} sum to ${sum}, expected ${this.EXPECTED_SUM}.`;
-        this.logger.error(errorMessage);
-        throw new Error(errorMessage);
-      }
-
-      this.logger.log(`Profile completeness weights for ${role} validated successfully (sum=${sum}).`);
-    } catch (error) {
-      if (error instanceof SyntaxError) {
-        const errorMessage = `Invalid JSON for ${role} completeness weights configuration.`;
-        this.logger.error(errorMessage);
-        throw new Error(errorMessage, { cause: error });
-      }
-      throw error;
+    if (sum !== EXPECTED_WEIGHT_SUM) {
+      const errorMessage =
+        `Profile completeness weights for ${role} sum to ${sum}, expected ${EXPECTED_WEIGHT_SUM}.`;
+      this.logger.error(errorMessage);
+      throw new Error(errorMessage);
     }
+
+    this.logger.log(`Profile completeness weights for ${role} validated successfully (sum=${sum}).`);
+  }
+
+  /**
+   * Parse "field:weight,field:weight" format into structured entries.
+   * Validates that each entry has a valid name and numeric weight.
+   */
+  private parseWeightString(
+    role: string,
+    raw: string,
+  ): { name: string; weight: number }[] {
+    const entries = raw.split(',').map((entry) => {
+      const parts = entry.trim().split(':');
+      if (parts.length !== 2) {
+        throw new Error(
+          `Invalid completeness weight entry for ${role}: "${entry}". Expected format: "field:weight"`,
+        );
+      }
+
+      const name = (parts[0] ?? '').trim();
+      const weight = Number((parts[1] ?? '').trim());
+
+      if (!name) {
+        throw new Error(`Empty field name in completeness weights for ${role}: "${entry}"`);
+      }
+
+      if (isNaN(weight) || weight < 0) {
+        throw new Error(
+          `Invalid weight value in completeness weights for ${role}: "${entry}". Must be a non-negative number.`,
+        );
+      }
+
+      return { name, weight };
+    });
+
+    return entries;
   }
 }

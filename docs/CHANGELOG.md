@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Profile module (completeness service)** — Fully implemented profile completeness calculation (Task 17)
+  - `CompletenessService.calculateCompleteness(userId, role)` computes percentage per role on every request (never cached)
+  - Parses configurable weights from env in `field:weight,field:weight` format (`PROFILE_COMPLETENESS_WEIGHTS_HOST`, `PROFILE_COMPLETENESS_WEIGHTS_CLEANER`)
+  - Host checks: name, photo, business_name, payment_method, first_property (placeholder for future properties module)
+  - Cleaner checks: name, photo, specialties, work_zone, availability, portfolio (COUNT(*)), kyc (latest VERIFIED status), bio
+  - Portfolio completeness derived from `PortfolioService.getPhotoCount()` — never a stored boolean
+  - KYC verification checked via raw query on `kyc_verifications` table (latest attempt, status = VERIFIED)
+  - Availability checks for at least one day with `enabled: true`
+  - Dependencies: ProfileRepository, PortfolioService, HostProfile/CleanerProfile repos, DataSource, ConfigService
+  - `CompletenessWeightValidator` updated to parse comma/colon format (was JSON.parse before)
+  - 21 unit tests covering all field checks, edge cases (whitespace, empty objects, null profiles), percentage calculations
 - **Profile module (portfolio endpoints)** — POST /profile/me/portfolio and DELETE /profile/me/portfolio/:photoId fully implemented (Task 16)
   - `uploadPortfolioPhoto` controller endpoint: Cleaner role guard (`@RequireOnboarding(UserRole.CLEANER)`), multipart file upload via `FileInterceptor`, optional caption via `UploadPhotoDto`
   - `deletePortfolioPhoto` controller endpoint: Cleaner role guard, UUID validation (`ParseUUIDPipe v4`), returns 204 No Content
