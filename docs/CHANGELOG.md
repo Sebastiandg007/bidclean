@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Profile module (DELETE /profile/me/photo)** — Remove profile photo endpoint fully implemented (Task 13)
+  - `ProfileController.deletePhoto` with `JwtAuthGuard` protecting the endpoint
+  - Resolves internal userId from JWT keycloakId via `ProfileService.findUserIdByKeycloakId`
+  - Delegates to `ProfilePhotoService.deletePhoto` for MinIO object removal and storage key nulling
+  - Returns full `PrivateProfile` (with null photoUrl) after successful deletion
+  - Idempotent — succeeds even when no photo exists (no error thrown)
+  - 6 unit tests covering deletion flow, idempotency, error propagation, guard verification
 - **Profile module (POST /profile/me/photo)** — Upload profile photo endpoint fully implemented (Task 12)
   - `ProfileController.uploadPhoto` with `JwtAuthGuard`, `FileInterceptor`, and `@UploadedFile()` decorators
   - Accepts multipart file upload on `file` field

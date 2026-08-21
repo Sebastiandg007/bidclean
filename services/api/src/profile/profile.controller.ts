@@ -116,8 +116,17 @@ export class ProfileController {
 
   /** DELETE /profile/me/photo — remove profile photo */
   @Delete('me/photo')
-  async deletePhoto(@Req() _req: Request): Promise<unknown> {
-    throw new NotImplementedException();
+  @UseGuards(JwtAuthGuard)
+  async deletePhoto(
+    @Req() req: Request & { user: JwtUserPayload },
+  ): Promise<PrivateProfile> {
+    const userId = await this.profileService.findUserIdByKeycloakId(
+      req.user.keycloakId,
+    );
+
+    await this.profilePhotoService.deletePhoto(userId);
+
+    return this.profileService.getPrivateProfile(req.user.keycloakId);
   }
 
   /** GET /profile/me/completeness — profile completeness percentage */
