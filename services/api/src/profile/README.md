@@ -18,7 +18,7 @@ Manages user profile data, photos, portfolio, settings, profile completeness cal
 
 | Folder | Responsibility |
 |--------|---------------|
-| `photo/` | Profile photo upload, deletion, signed URL generation (MinIO) |
+| `photo/` | Profile photo upload (resize via sharp, AES-256 encryption), deletion, signed URL generation (MinIO) |
 | `portfolio/` | Portfolio photo management for Cleaner users |
 | `settings/` | User preferences (language, theme, notifications) |
 | `account/` | Email/password change URLs, account deletion (async via BullMQ) |
@@ -34,6 +34,7 @@ Manages user profile data, photos, portfolio, settings, profile completeness cal
 - **BullMQ** — async account deletion queue
 - **ConfigModule** — environment variable access
 - **MinIO** — object storage for photos (via env configuration)
+- **sharp** — image resizing (fit within max dimension, maintaining aspect ratio)
 - **Keycloak** — credential management delegation and webhook events
 - **user-roles module** — reads/writes host_profiles and cleaner_profiles tables (not owned)
 - **kyc-verification module** — reads KYC status for completeness (read-only)

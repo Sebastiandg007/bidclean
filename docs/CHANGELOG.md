@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Profile module (photo service)** — Profile photo service fully implemented (Task 7)
+  - `ProfilePhotoService` with MinIO upload, AES-256 server-side encryption
+  - Image resize via `sharp` to configurable max dimension (`PROFILE_PHOTO_MAX_DIMENSION_PX`)
+  - Signed URL generation with configurable expiry (`PROFILE_PHOTO_URL_EXPIRY_SECONDS`)
+  - Old photo deletion from MinIO when a new one replaces it
+  - Photo removal (delete from MinIO, set `photo_storage_key` to NULL)
+  - File format validation (JPEG, PNG, WebP only) and size validation (`PROFILE_PHOTO_MAX_SIZE_MB`)
+  - Bucket auto-creation on module initialization (`OnModuleInit`)
+  - Storage key pattern: `{userId}/avatar.{extension}`
+  - Idempotent deletion (handles already-deleted objects gracefully)
+  - 16 unit tests covering upload, resize, encryption, validation, deletion, signed URLs
+  - `sharp` (v0.33.5) added as dependency
 - **Profile module (config)** — Profile environment variables added to `.env.example` (Task 6)
   - Storage: `MINIO_PROFILE_PHOTOS_BUCKET` (MinIO bucket for profile/portfolio photos)
   - Photo constraints: `PROFILE_PHOTO_MAX_SIZE_MB`, `PROFILE_PHOTO_MAX_DIMENSION_PX`, `PROFILE_PHOTO_URL_EXPIRY_SECONDS`
