@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Param, Body, Query, UseGuards, Request } from '@nestjs/common';
-import { KycAdminService } from './kyc-admin.service';
+import { KycAdminService, PaginatedQueueResponse } from './kyc-admin.service';
 import { AdminDecisionDto } from '../dto/admin-decision.dto';
+import { KycVerificationDetail } from '../kyc.types';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
 /**
@@ -22,7 +23,7 @@ export class KycAdminController {
   async getQueue(
     @Query('page') page?: string,
     @Query('limit') limit?: string,
-  ) {
+  ): Promise<PaginatedQueueResponse> {
     return this.kycAdminService.getReviewQueue(
       page ? parseInt(page, 10) : undefined,
       limit ? parseInt(limit, 10) : undefined,
@@ -38,7 +39,7 @@ export class KycAdminController {
   async getVerificationDetail(
     @Param('id') id: string,
     @Request() req: { user: { sub: string } },
-  ) {
+  ): Promise<KycVerificationDetail> {
     return this.kycAdminService.getVerificationDetail(id, req.user.sub);
   }
 
@@ -51,7 +52,7 @@ export class KycAdminController {
   async getDocumentImage(
     @Param('id') id: string,
     @Request() req: { user: { sub: string } },
-  ) {
+  ): Promise<{ url: string }> {
     return this.kycAdminService.getDocumentImage(id, req.user.sub);
   }
 
@@ -64,7 +65,7 @@ export class KycAdminController {
   async getSelfieImage(
     @Param('id') id: string,
     @Request() req: { user: { sub: string } },
-  ) {
+  ): Promise<{ url: string }> {
     return this.kycAdminService.getSelfieImage(id, req.user.sub);
   }
 
@@ -77,7 +78,7 @@ export class KycAdminController {
     @Param('id') id: string,
     @Body() dto: AdminDecisionDto,
     @Request() req: { user: { sub: string } },
-  ) {
+  ): Promise<KycVerificationDetail> {
     return this.kycAdminService.makeDecision(id, dto, req.user.sub);
   }
 }
