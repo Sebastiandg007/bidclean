@@ -1,0 +1,154 @@
+import {
+  Controller,
+  Get,
+  Patch,
+  Post,
+  Delete,
+  Param,
+  Body,
+  Req,
+  NotImplementedException,
+} from '@nestjs/common';
+import { Request } from 'express';
+import { ProfileService } from './profile.service';
+import { ProfilePhotoService } from './photo/profile-photo.service';
+import { PortfolioService } from './portfolio/portfolio.service';
+import { SettingsService } from './settings/settings.service';
+import { AccountService } from './account/account.service';
+import { CompletenessService } from './completeness/completeness.service';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+import { UpdateHostProfileDto } from './dto/update-host-profile.dto';
+import { UpdateCleanerProfileDto } from './dto/update-cleaner-profile.dto';
+import { UpdateSettingsDto } from './dto/update-settings.dto';
+import { DeleteAccountDto } from './dto/delete-account.dto';
+
+/**
+ * Profile controller.
+ * Exposes all profile-related endpoints: CRUD, photo, portfolio,
+ * settings, account operations, and completeness.
+ */
+@Controller('profile')
+export class ProfileController {
+  constructor(
+    private readonly profileService: ProfileService,
+    private readonly profilePhotoService: ProfilePhotoService,
+    private readonly portfolioService: PortfolioService,
+    private readonly settingsService: SettingsService,
+    private readonly accountService: AccountService,
+    private readonly completenessService: CompletenessService,
+  ) {}
+
+  /** GET /profile/me — full private profile */
+  @Get('me')
+  async getMyProfile(@Req() _req: Request): Promise<unknown> {
+    void this.profileService;
+    throw new NotImplementedException();
+  }
+
+  /** PATCH /profile/me — update common fields */
+  @Patch('me')
+  async updateMyProfile(
+    @Req() _req: Request,
+    @Body() _dto: UpdateProfileDto,
+  ): Promise<unknown> {
+    throw new NotImplementedException();
+  }
+
+  /** PATCH /profile/me/host — update host-specific fields */
+  @Patch('me/host')
+  async updateHostProfile(
+    @Req() _req: Request,
+    @Body() _dto: UpdateHostProfileDto,
+  ): Promise<unknown> {
+    throw new NotImplementedException();
+  }
+
+  /** PATCH /profile/me/cleaner — update cleaner-specific fields */
+  @Patch('me/cleaner')
+  async updateCleanerProfile(
+    @Req() _req: Request,
+    @Body() _dto: UpdateCleanerProfileDto,
+  ): Promise<unknown> {
+    throw new NotImplementedException();
+  }
+
+  /** POST /profile/me/photo — upload profile photo */
+  @Post('me/photo')
+  async uploadPhoto(@Req() _req: Request): Promise<unknown> {
+    void this.profilePhotoService;
+    throw new NotImplementedException();
+  }
+
+  /** DELETE /profile/me/photo — remove profile photo */
+  @Delete('me/photo')
+  async deletePhoto(@Req() _req: Request): Promise<unknown> {
+    throw new NotImplementedException();
+  }
+
+  /** GET /profile/me/completeness — profile completeness percentage */
+  @Get('me/completeness')
+  async getCompleteness(@Req() _req: Request): Promise<unknown> {
+    void this.completenessService;
+    throw new NotImplementedException();
+  }
+
+  /** GET /profile/:userId — public profile */
+  @Get(':userId')
+  async getPublicProfile(@Param('userId') _userId: string): Promise<unknown> {
+    throw new NotImplementedException();
+  }
+
+  /** POST /profile/me/portfolio — upload portfolio photo */
+  @Post('me/portfolio')
+  async uploadPortfolioPhoto(@Req() _req: Request): Promise<unknown> {
+    void this.portfolioService;
+    throw new NotImplementedException();
+  }
+
+  /** DELETE /profile/me/portfolio/:photoId — remove portfolio photo */
+  @Delete('me/portfolio/:photoId')
+  async deletePortfolioPhoto(
+    @Req() _req: Request,
+    @Param('photoId') _photoId: string,
+  ): Promise<unknown> {
+    throw new NotImplementedException();
+  }
+
+  /** GET /profile/me/settings — get user settings */
+  @Get('me/settings')
+  async getSettings(@Req() _req: Request): Promise<unknown> {
+    void this.settingsService;
+    throw new NotImplementedException();
+  }
+
+  /** PATCH /profile/me/settings — update user settings */
+  @Patch('me/settings')
+  async updateSettings(
+    @Req() _req: Request,
+    @Body() _dto: UpdateSettingsDto,
+  ): Promise<unknown> {
+    throw new NotImplementedException();
+  }
+
+  /** POST /profile/me/change-email — get Keycloak email change URL */
+  @Post('me/change-email')
+  async changeEmail(@Req() _req: Request): Promise<unknown> {
+    void this.accountService;
+    throw new NotImplementedException();
+  }
+
+  /** POST /profile/me/change-password — get Keycloak password change URL */
+  @Post('me/change-password')
+  async changePassword(@Req() _req: Request): Promise<unknown> {
+    throw new NotImplementedException();
+  }
+
+  /** POST /profile/me/delete-account — request account deletion */
+  @Post('me/delete-account')
+  async deleteAccount(
+    @Req() _req: Request,
+    @Body() _dto: DeleteAccountDto,
+  ): Promise<unknown> {
+    throw new NotImplementedException();
+  }
+}
