@@ -8,6 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Profile module (async deletion job processor)** — BullMQ consumer fully implemented (Task 26)
+  - `DeletionJobProcessor` extends `WorkerHost` with `@Processor('account-deletion')` decorator
+  - 5-step deletion cascade: Cancel RevenueCat → Delete Keycloak → Delete MinIO → Anonymize PII → Mark DELETED
+  - RevenueCat integration: DELETE /v1/subscribers/{userId} with configurable API key and URL
+  - `KeycloakService.deleteUser(keycloakId)` added — DELETE to Keycloak Admin API, handles 404 (idempotent)
+  - MinIO cleanup: lists all objects under `{userId}/` prefix and bulk-removes them
+  - PII anonymization in transaction: users.email → NULL, display_name → "Deleted User", phone/photo/bio → NULL
+  - Final step marks `users.deletion_status = 'DELETED'`
+  - Each step is individually idempotent (safe to retry on BullMQ exponential backoff)
+  - Structured audit logging: [DELETION AUDIT] Step {name}: STARTED/COMPLETED/FAILED
+  - Transient errors re-thrown to trigger BullMQ retry; permanent errors (404s) handled gracefully
+  - Dead-letter queue support via BullMQ's built-in max retry + failedReason mechanism
+  - All configurable values from environment: `REVENUECAT_API_KEY`, `REVENUECAT_API_URL`, `REVENUECAT_PROJECT_ID`
+  - 13 unit tests covering full cascade, step ordering, idempotency, failure handling, PII verification
 - **Profile module (account deletion request)** — POST /profile/me/delete-account fully implemented (Task 25)
   - `AccountService.requestAccountDeletion(userId, keycloakId, confirmationWord)` orchestrates the deletion flow
   - Validates confirmation word against `PROFILE_DELETE_CONFIRMATION_WORD` env var (default: "DELETE")

@@ -343,6 +343,42 @@ export class KeycloakService {
   }
 
   /**
+   * Permanently delete a user from Keycloak via Admin API.
+   * Used in the async deletion job to remove the user entirely.
+   * Handles 404 gracefully (user already deleted — idempotent).
+   */
+  async deleteUser(keycloakUserId: string): Promise<void> {
+    const adminToken = await this.getAdminAccessToken();
+
+    const url = `${ENDPOINT.adminUsers(this.config.baseUrl, this.config.realm)}/${keycloakUserId}`;
+
+    const response = await fetch(url, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${adminToken}`,
+      },
+    });
+
+    if (response.status === 404) {
+      this.logger.warn(`Keycloak user ${keycloakUserId} already deleted (404) — skipping`);
+      return;
+    }
+
+    if (!response.ok) {
+      const errorBody = await this.safeReadBody(response);
+      this.logger.error(
+        `Failed to delete user ${keycloakUserId}: ${response.status} - ${errorBody}`,
+      );
+      throw new HttpException(
+        'Failed to delete user from identity provider',
+        HttpStatus.BAD_GATEWAY,
+      );
+    }
+
+    this.logger.log(`User permanently deleted from Keycloak: ${keycloakUserId}`);
+  }
+
+  /**
    * Disable a user's Keycloak account (sets enabled: false).
    * Used during account deletion to immediately prevent login.
    */
