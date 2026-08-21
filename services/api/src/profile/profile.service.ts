@@ -88,6 +88,15 @@ export class ProfileService {
   }
 
   /**
+   * Resolves user ID and active role from a Keycloak subject ID.
+   * Used by the completeness endpoint to get both values in a single lookup.
+   */
+  async findUserWithRole(keycloakId: string): Promise<{ id: string; activeRole: string | null }> {
+    const user = await this.findUserByKeycloakId(keycloakId);
+    return { id: user.id, activeRole: user.activeRole };
+  }
+
+  /**
    * Gets the public profile for a user by their internal user ID.
    * Only non-sensitive fields are returned via a dedicated SELECT query.
    */

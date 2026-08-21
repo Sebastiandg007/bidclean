@@ -35,7 +35,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { JwtUserPayload } from '../auth/guards/jwt.types';
 import { OnboardingGateGuard, RequireOnboarding } from '../roles/guards';
 import { UserRole } from '../roles/roles.types';
-import { PrivateProfile } from './profile.types';
+import { PrivateProfile, ProfileCompleteness } from './profile.types';
 import { PublicProfileDto } from './dto/public-profile.dto';
 
 /**
@@ -137,9 +137,19 @@ export class ProfileController {
 
   /** GET /profile/me/completeness — profile completeness percentage */
   @Get('me/completeness')
-  async getCompleteness(@Req() _req: Request): Promise<unknown> {
-    void this.completenessService;
-    throw new NotImplementedException();
+  @UseGuards(JwtAuthGuard)
+  async getCompleteness(
+    @Req() req: Request & { user: JwtUserPayload },
+  ): Promise<ProfileCompleteness> {
+    const { id, activeRole } = await this.profileService.findUserWithRole(
+      req.user.keycloakId,
+    );
+
+    if (!activeRole) {
+      throw new BadRequestException('profile.error.no_active_role');
+    }
+
+    return this.completenessService.calculateCompleteness(id, activeRole);
   }
 
   /** GET /profile/:userId — public profile */

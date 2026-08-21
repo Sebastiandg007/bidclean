@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Profile module (completeness endpoint)** — GET /profile/me/completeness endpoint fully implemented (Task 18)
+  - `ProfileController.getCompleteness` with `JwtAuthGuard` protecting the endpoint
+  - `ProfileService.findUserWithRole(keycloakId)` helper resolves both userId and activeRole in a single lookup
+  - Returns `ProfileCompleteness` (percentage, role, fields breakdown with weights and completion status)
+  - Returns `BadRequestException` with i18n key `profile.error.no_active_role` when user has no active role set
+  - Delegates to `CompletenessService.calculateCompleteness(userId, activeRole)` for role-specific calculation
+  - 8 unit tests covering success (host/cleaner), auth guard verification, error handling (null role, propagation)
 - Add boot-time validation tests for profile completeness weights (`CompletenessWeightValidator` — 12 unit tests)
 - **Profile module (completeness service)** — Fully implemented profile completeness calculation (Task 17)
   - `CompletenessService.calculateCompleteness(userId, role)` computes percentage per role on every request (never cached)
