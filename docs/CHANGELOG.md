@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Add boot-time validation tests for profile completeness weights (`CompletenessWeightValidator` — 12 unit tests)
 - **Profile module (completeness service)** — Fully implemented profile completeness calculation (Task 17)
   - `CompletenessService.calculateCompleteness(userId, role)` computes percentage per role on every request (never cached)
   - Parses configurable weights from env in `field:weight,field:weight` format (`PROFILE_COMPLETENESS_WEIGHTS_HOST`, `PROFILE_COMPLETENESS_WEIGHTS_CLEANER`)

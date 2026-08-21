@@ -2,7 +2,7 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
-import { ProfileCompleteness, CompletenessField } from '../profile.types';
+import { ProfileCompleteness, CompletenessField, DayAvailability } from '../profile.types';
 import { CompletenessWeightValidator } from './completeness-weight.validator';
 import { CompletenessFieldWeight } from './completeness.types';
 import { ProfileRepository } from '../profile.repository';
@@ -199,9 +199,9 @@ export class CompletenessService implements OnModuleInit {
       return false;
     }
 
-    return Object.values(cleanerProfile.availability).some(
-      (day) => typeof day === 'object' && day !== null && (day as { enabled?: boolean }).enabled === true,
-    );
+    const availability = cleanerProfile.availability as Record<string, DayAvailability>;
+
+    return Object.values(availability).some((day) => day?.enabled === true);
   }
 
   private isBioCompleted(profile: ProfileDetails | null): boolean {
