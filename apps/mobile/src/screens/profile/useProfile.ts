@@ -1,39 +1,221 @@
 /**
  * useProfile — Zustand store hook + API calls for profile data.
+ *
  * Manages full private profile, completeness, and CRUD operations.
- * Fetches profile on app start, caches locally.
+ * Fetches profile on demand, caches locally in the store.
+ * Uses split endpoints: PATCH /profile/me (common), /profile/me/host, /profile/me/cleaner.
  */
 
-// TODO: Implement in task 28
+import { create } from 'zustand';
+import type {
+  FullProfile,
+  ProfileCompleteness,
+  CommonProfile,
+  HostProfile,
+  CleanerProfile,
+} from './profile.types';
+import { PROFILE_PHOTO } from './profile.constants';
 
-import type { FullProfile } from './profile.types';
+// ─── Constants ───────────────────────────────────────────────────────────────
 
-/** Profile store state shape (placeholder for Zustand implementation) */
+const ENDPOINTS = {
+  PROFILE: '/profile/me',
+  COMPLETENESS: '/profile/me/completeness',
+  HOST: '/profile/me/host',
+  CLEANER: '/profile/me/cleaner',
+  PHOTO: '/profile/me/photo',
+} as const;
+
+// ─── Types ───────────────────────────────────────────────────────────────────
+
 export interface ProfileState {
   profile: FullProfile | null;
   isLoading: boolean;
   error: string | null;
-  fetchProfile: () => Promise<void>;
-  updateCommon: (data: Partial<{ displayName: string; phoneNumber: string | null }>) => Promise<void>;
-  updateHost: (data: Partial<{ businessName: string | null }>) => Promise<void>;
-  updateCleaner: (data: Partial<{
-    specialties: string[];
-    workZoneCenter: { lat: number; lng: number };
-    workZoneRadiusKm: number;
-    workZoneLabel: string;
-    availability: Record<string, unknown>;
-    bio: string;
-  }>) => Promise<void>;
-  uploadPhoto: (uri: string) => Promise<void>;
-  removePhoto: () => Promise<void>;
 }
 
+export interface ProfileActions {
+  fetchProfile: () => Promise<void>;
+  fetchCompleteness: () => Promise<void>;
+  updateCommon: (data: Partial<Pick<CommonProfile, 'displayName' | 'phoneNumber'>>) => Promise<void>;
+  updateHost: (data: Partial<Pick<HostProfile, 'businessName'>>) => Promise<void>;
+  updateCleaner: (data: Partial<Pick<CleanerProfile, 'specialties' | 'workZoneCenter' | 'workZoneRadiusKm' | 'workZoneLabel' | 'availability' | 'bio'>>) => Promise<void>;
+  uploadPhoto: (uri: string) => Promise<void>;
+  removePhoto: () => Promise<void>;
+  reset: () => void;
+}
+
+export type ProfileStore = ProfileState & ProfileActions;
+
+// ─── Initial State ───────────────────────────────────────────────────────────
+
+const initialState: ProfileState = {
+  profile: null,
+  isLoading: false,
+  error: null,
+};
+
+// ─── Store ───────────────────────────────────────────────────────────────────
+
+export const useProfileStore = create<ProfileStore>((set, get) => ({
+  ...initialState,
+
+  fetchProfile: async () => {
+    set({ isLoading: true, error: null });
+
+    try {
+      const { apiClient } = await import('../../services/api.service');
+      const response = await apiClient.get<FullProfile>(ENDPOINTS.PROFILE);
+      set({ profile: response.data, isLoading: false });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to fetch profile';
+      set({ error: message, isLoading: false });
+    }
+  },
+
+  fetchCompleteness: async () => {
+    try {
+      const { apiClient } = await import('../../services/api.service');
+      const response = await apiClient.get<ProfileCompleteness>(ENDPOINTS.COMPLETENESS);
+      const current = get().profile;
+
+      if (current) {
+        set({ profile: { ...current, completeness: response.data } });
+      }
+    } catch {
+      // Silent failure — completeness is non-critical
+    }
+  },
+
+  updateCommon: async (data) => {
+    set({ error: null });
+
+    try {
+      const { apiClient } = await import('../../services/api.service');
+      const response = await apiClient.patch<CommonProfile>(ENDPOINTS.PROFILE, data);
+      const current = get().profile;
+
+      if (current) {
+        set({ profile: { ...current, common: response.data } });
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to update profile';
+      set({ error: message });
+      throw err;
+    }
+  },
+
+  updateHost: async (data) => {
+    set({ error: null });
+
+    try {
+      const { apiClient } = await import('../../services/api.service');
+      const response = await apiClient.patch<HostProfile>(ENDPOINTS.HOST, data);
+      const current = get().profile;
+
+      if (current) {
+        set({ profile: { ...current, host: response.data } });
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to update host profile';
+      set({ error: message });
+      throw err;
+    }
+  },
+
+  updateCleaner: async (data) => {
+    set({ error: null });
+
+    try {
+      const { apiClient } = await import('../../services/api.service');
+      const response = await apiClient.patch<CleanerProfile>(ENDPOINTS.CLEANER, data);
+      const current = get().profile;
+
+      if (current) {
+        set({ profile: { ...current, cleaner: response.data } });
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to update cleaner profile';
+      set({ error: message });
+      throw err;
+    }
+  },
+
+  uploadPhoto: async (uri) => {
+    set({ error: null });
+
+    try {
+      const { apiClient } = await import('../../services/api.service');
+      const formData = new FormData();
+
+      formData.append('photo', {
+        uri,
+        type: 'image/jpeg',
+        name: 'profile.jpg',
+      } as unknown as Blob);
+
+      const response = await apiClient.post<{ photoUrl: string }>(
+        ENDPOINTS.PHOTO,
+        formData,
+        {
+          headers: { 'Content-Type': 'multipart/form-data' },
+          timeout: PROFILE_PHOTO.UPLOAD_TIMEOUT_MS,
+        },
+      );
+
+      const current = get().profile;
+
+      if (current) {
+        set({
+          profile: {
+            ...current,
+            common: { ...current.common, photoUrl: response.data.photoUrl },
+          },
+        });
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to upload photo';
+      set({ error: message });
+      throw err;
+    }
+  },
+
+  removePhoto: async () => {
+    set({ error: null });
+
+    try {
+      const { apiClient } = await import('../../services/api.service');
+      await apiClient.delete(ENDPOINTS.PHOTO);
+
+      const current = get().profile;
+
+      if (current) {
+        set({
+          profile: {
+            ...current,
+            common: { ...current.common, photoUrl: null },
+          },
+        });
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to remove photo';
+      set({ error: message });
+      throw err;
+    }
+  },
+
+  reset: () => {
+    set({ ...initialState });
+  },
+}));
+
+// ─── Hook ────────────────────────────────────────────────────────────────────
+
 /**
- * Hook placeholder — will create Zustand store in task 28.
+ * Convenience hook that returns all profile store state and actions.
  */
-export function useProfile(): ProfileState {
-  // TODO: Create Zustand store with API integration
-  throw new Error('useProfile not yet implemented — see task 28');
+export function useProfile(): ProfileStore {
+  return useProfileStore();
 }
 
 export default useProfile;

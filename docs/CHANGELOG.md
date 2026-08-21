@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Profile module (mobile)** — ProfileScreen with role-based views and completeness (Task 28)
+  - `ProfileScreen.tsx` — Main profile view with conditional HostProfileCard/CleanerProfileCard rendering
+  - `ProfileHeader.tsx` — Photo with signed URL handling, display name, email, member since, completeness ring
+  - `CompletenessRing.tsx` — Animated circular progress ring using react-native-reanimated
+  - `HostProfileCard.tsx` — Business name, properties count, payment methods, rating, completed services
+  - `CleanerProfileCard.tsx` — Specialties chips, work zone, availability, bio, portfolio, KYC badge
+  - `useProfile.ts` — Zustand store with fetchProfile, updateCommon/Host/Cleaner, uploadPhoto, removePhoto
+  - `useSignedUrl.ts` — Hook parsing S3 signed URL expiry with auto-invalidation timer
+  - 7 unit tests covering loading/error states, role-based rendering, role switch/add button logic
 - **Profile module (mobile)** — Profile screens folder structure created with README (Task 27)
   - Complete scaffold for `apps/mobile/src/screens/profile/` with all placeholder files
   - 6 screen files: ProfileScreen, EditProfileScreen, SettingsScreen, AccountScreen, PortfolioGalleryScreen, PublicProfileScreen
