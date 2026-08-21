@@ -78,6 +78,15 @@ export class ProfileService {
     };
   }
 
+  /**
+   * Resolves the internal user ID from a Keycloak subject ID.
+   * Used by controllers that need the internal userId (e.g., photo upload).
+   */
+  async findUserIdByKeycloakId(keycloakId: string): Promise<string> {
+    const user = await this.findUserByKeycloakId(keycloakId);
+    return user.id;
+  }
+
   async getPublicProfile(_userId: string): Promise<PublicProfile> {
     throw new NotFoundException('profile.error.not_found');
   }

@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Profile module (POST /profile/me/photo)** — Upload profile photo endpoint fully implemented (Task 12)
+  - `ProfileController.uploadPhoto` with `JwtAuthGuard`, `FileInterceptor`, and `@UploadedFile()` decorators
+  - Accepts multipart file upload on `file` field
+  - Resolves internal userId from JWT keycloakId via `ProfileService.findUserIdByKeycloakId`
+  - Delegates to `ProfilePhotoService.uploadPhoto` for validation, resize, and MinIO storage
+  - Returns full `PrivateProfile` (with updated signed photo URL) after successful upload
+  - Guard clause throws `BadRequestException` with i18n key when no file provided
+  - `ProfileService.findUserIdByKeycloakId(keycloakId)` public method added for controller use
+  - `@types/multer` (v1.4.12) added to devDependencies for file upload type support
+  - 5 unit tests covering upload flow, missing file, error propagation, PNG/WebP mimetypes
 - **Profile module (PATCH /profile/me/cleaner)** — Update cleaner-specific profile fields endpoint implemented
   - `ProfileService.updateCleanerProfile(keycloakId, dto)` updates specialties, work zone, availability in `cleaner_profiles` + bio in `profile_details`
   - `ProfileController.updateCleanerProfile` with `JwtAuthGuard` + `OnboardingGateGuard` + `@RequireOnboarding(UserRole.CLEANER)`

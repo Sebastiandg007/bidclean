@@ -8,8 +8,12 @@ import {
   Body,
   Req,
   UseGuards,
+  UseInterceptors,
+  UploadedFile,
+  BadRequestException,
   NotImplementedException,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { Request } from 'express';
 import { ProfileService } from './profile.service';
 import { ProfilePhotoService } from './photo/profile-photo.service';
@@ -87,9 +91,27 @@ export class ProfileController {
 
   /** POST /profile/me/photo — upload profile photo */
   @Post('me/photo')
-  async uploadPhoto(@Req() _req: Request): Promise<unknown> {
-    void this.profilePhotoService;
-    throw new NotImplementedException();
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadPhoto(
+    @Req() req: Request & { user: JwtUserPayload },
+    @UploadedFile() file: Express.Multer.File,
+  ): Promise<PrivateProfile> {
+    if (!file) {
+      throw new BadRequestException('profile.error.no_file_provided');
+    }
+
+    const userId = await this.profileService.findUserIdByKeycloakId(
+      req.user.keycloakId,
+    );
+
+    await this.profilePhotoService.uploadPhoto(
+      userId,
+      file.buffer,
+      file.mimetype,
+    );
+
+    return this.profileService.getPrivateProfile(req.user.keycloakId);
   }
 
   /** DELETE /profile/me/photo — remove profile photo */
