@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Profile module (Keycloak email webhook)** — POST /webhooks/keycloak/email fully implemented (Task 22)
+  - `KeycloakEmailController.handleEmailEvent` validates `x-webhook-secret` header, returns 401 on mismatch
+  - `KeycloakEmailService.validateWebhookSecret` compares header against `KEYCLOAK_WEBHOOK_SECRET` env var
+  - `KeycloakEmailService.processEmailChange` updates `users.email` WHERE `keycloak_id` matches event userId
+  - Ignores non-UPDATE_EMAIL event types silently (returns 200)
+  - Logs warning if no user found by keycloak_id (does not throw, returns 200)
+  - 11 unit tests covering secret validation, email update, event filtering, user-not-found, controller auth
 - **Profile module (settings endpoints)** — GET /profile/me/settings and PATCH /profile/me/settings fully implemented (Task 21)
   - `ProfileController.getSettings` with `JwtAuthGuard` protecting the endpoint
   - `ProfileController.updateSettings` with `JwtAuthGuard` protecting the endpoint

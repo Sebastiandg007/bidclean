@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Headers, NotImplementedException } from '@nestjs/common';
+import { Controller, Post, Body, Headers, UnauthorizedException } from '@nestjs/common';
 import { KeycloakEmailService } from './keycloak-email.service';
 import { KeycloakEmailEvent } from '../profile.types';
 
@@ -14,10 +14,13 @@ export class KeycloakEmailController {
   /** POST /webhooks/keycloak/email — receive email change event */
   @Post('email')
   async handleEmailEvent(
-    @Body() _event: KeycloakEmailEvent,
-    @Headers('x-webhook-secret') _webhookSecret: string,
+    @Body() event: KeycloakEmailEvent,
+    @Headers('x-webhook-secret') webhookSecret: string,
   ): Promise<void> {
-    void this.keycloakEmailService;
-    throw new NotImplementedException();
+    if (!this.keycloakEmailService.validateWebhookSecret(webhookSecret)) {
+      throw new UnauthorizedException();
+    }
+
+    await this.keycloakEmailService.processEmailChange(event);
   }
 }
