@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Profile module (mobile)** — Profile screens folder structure created with README (Task 27)
+  - Complete scaffold for `apps/mobile/src/screens/profile/` with all placeholder files
+  - 6 screen files: ProfileScreen, EditProfileScreen, SettingsScreen, AccountScreen, PortfolioGalleryScreen, PublicProfileScreen
+  - 3 hooks: useProfile (Zustand store), useSettings (settings sync), useSignedUrl (URL expiry detection)
+  - 9 components: ProfileHeader, HostProfileCard, CleanerProfileCard, CompletenessRing, RoleSwitchButton (re-export), AddSecondRoleButton (re-export), SettingsItem, PortfolioGrid, DeleteAccountModal
+  - 5 test files with `it.todo()` placeholders for each screen
+  - `profile.types.ts` with full TypeScript type definitions
+  - `profile.constants.ts` with env-derived configuration (no hardcoded values)
+  - Comprehensive README following KYC module documentation pattern
 - **Profile module (async deletion job processor)** — BullMQ consumer fully implemented (Task 26)
   - `DeletionJobProcessor` extends `WorkerHost` with `@Processor('account-deletion')` decorator
   - 5-step deletion cascade: Cancel RevenueCat → Delete Keycloak → Delete MinIO → Anonymize PII → Mark DELETED
