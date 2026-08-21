@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Profile module (api)** — Database migration to add `deletion_status` column to `users` table (Task 5)
+  - `1700000006000-AddDeletionStatusToUsers.ts` migration with up/down methods
+  - `deletion_status VARCHAR(30) DEFAULT NULL` — nullable column for async account deletion state
+  - Valid values: NULL (active), 'DELETION_PENDING', 'DELETED' (application-level validation)
+  - Partial index `idx_users_deletion_status` on non-NULL rows for efficient pending-deletion lookups
+  - Idempotent (`IF NOT EXISTS` / `IF EXISTS`) and fully reversible
 - **Profile module (api)** — Database migration for `portfolio_photos` table (Task 4)
   - `1700000005000-CreatePortfolioPhotosTable.ts` migration with up/down methods
   - UUID primary key with `gen_random_uuid()`
