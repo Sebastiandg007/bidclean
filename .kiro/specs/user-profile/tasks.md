@@ -15,7 +15,7 @@ Implementation tasks for the User Profile feature. Covers the NestJS backend mod
 - [x] 7. Implement profile photo service (MinIO upload with encryption, resize via sharp, signed URL generation with configurable expiry, old photo deletion on replacement, photo removal)
 - [x] 8. Implement GET /profile/me endpoint (return full private profile including role-specific fields from host_profiles/cleaner_profiles based on active role, include signed photo URL)
 - [x] 9. Implement PATCH /profile/me endpoint (update common fields only: display_name, phone_number — validate phone E.164 format, validate display_name non-empty and max length)
-- [-] 10. Implement PATCH /profile/me/host endpoint (update host-specific fields in host_profiles: business_name — Host role guard required)
+- [x] 10. Implement PATCH /profile/me/host endpoint (update host-specific fields in host_profiles: business_name — Host role guard required)
 - [ ] 11. Implement PATCH /profile/me/cleaner endpoint (update cleaner-specific fields in cleaner_profiles: specialties, work_zone_center, work_zone_radius_km, work_zone_label, availability + bio in profile_details — Cleaner role guard, validate specialties array, validate availability JSONB schema, validate bio max length)
 - [ ] 12. Implement POST /profile/me/photo endpoint (multipart upload, validate format and size, resize, store in MinIO, update photo_storage_key in profile_details, delete old photo if exists)
 - [ ] 13. Implement DELETE /profile/me/photo endpoint (remove photo from MinIO, set photo_storage_key to NULL)
