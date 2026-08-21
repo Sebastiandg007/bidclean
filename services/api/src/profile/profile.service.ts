@@ -87,8 +87,29 @@ export class ProfileService {
     return user.id;
   }
 
-  async getPublicProfile(_userId: string): Promise<PublicProfile> {
-    throw new NotFoundException('profile.error.not_found');
+  /**
+   * Gets the public profile for a user by their internal user ID.
+   * Only non-sensitive fields are returned via a dedicated SELECT query.
+   */
+  async getPublicProfile(userId: string): Promise<PublicProfile> {
+    const row = await this.profileRepository.findPublicProfile(userId);
+
+    if (!row) {
+      throw new NotFoundException('profile.error.user_not_found');
+    }
+
+    const photoUrl = await this.resolvePhotoUrl(row.photoStorageKey);
+
+    return {
+      userId: row.userId,
+      displayName: row.displayName,
+      photoUrl,
+      bio: row.bio,
+      memberSince: row.memberSince,
+      specialties: row.specialties,
+      workZoneLabel: null,
+      isKycVerified: row.isKycVerified,
+    };
   }
 
   /**

@@ -1,8 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { ProfileDetails } from './entities/profile-details.entity';
-import { PublicProfile } from './profile.types';
+import { PublicProfileRow } from './profile.types';
+import { KycStatus } from '../kyc/kyc.types';
 
 /**
  * Profile repository.
@@ -14,6 +15,7 @@ export class ProfileRepository {
   constructor(
     @InjectRepository(ProfileDetails)
     private readonly profileDetailsRepo: Repository<ProfileDetails>,
+    private readonly dataSource: DataSource,
   ) {}
 
   async findByUserId(userId: string): Promise<ProfileDetails | null> {
@@ -30,10 +32,35 @@ export class ProfileRepository {
 
   /**
    * Dedicated public profile query.
-   * SELECTs only non-sensitive public columns — NEVER email, phone, settings, exact coordinates.
+   * SELECTs ONLY non-sensitive public columns via explicit column list.
+   * NEVER selects: email, phone_number, settings, work_zone_lat, work_zone_lng.
    */
-  async findPublicProfile(_userId: string): Promise<PublicProfile | null> {
-    throw new Error('Not implemented');
+  async findPublicProfile(userId: string): Promise<PublicProfileRow | null> {
+    const rows = await this.dataSource.query(
+      `SELECT
+        u.id AS "userId",
+        pd.display_name AS "displayName",
+        pd.photo_storage_key AS "photoStorageKey",
+        pd.bio AS "bio",
+        u.created_at AS "memberSince",
+        cp.specialties AS "specialties",
+        EXISTS (
+          SELECT 1 FROM kyc_verifications kv
+          WHERE kv.user_id = u.id AND kv.status = $2
+        ) AS "isKycVerified"
+      FROM users u
+      LEFT JOIN profile_details pd ON pd.user_id = u.id
+      LEFT JOIN cleaner_profiles cp ON cp.user_id = u.id
+      WHERE u.id = $1
+      LIMIT 1`,
+      [userId, KycStatus.VERIFIED],
+    );
+
+    if (!rows || rows.length === 0) {
+      return null;
+    }
+
+    return rows[0] as PublicProfileRow;
   }
 
   async createProfile(data: Partial<ProfileDetails>): Promise<ProfileDetails> {

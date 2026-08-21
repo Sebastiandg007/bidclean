@@ -93,6 +93,17 @@ export interface SignedPhotoUrl {
   readonly expiresAt: Date;
 }
 
+/** Raw row returned by findPublicProfile dedicated SELECT query */
+export interface PublicProfileRow {
+  readonly userId: string;
+  readonly displayName: string;
+  readonly photoStorageKey: string | null;
+  readonly bio: string | null;
+  readonly memberSince: Date;
+  readonly specialties: string[] | null;
+  readonly isKycVerified: boolean;
+}
+
 /** Account deletion job payload */
 export interface DeletionJobPayload {
   readonly userId: string;

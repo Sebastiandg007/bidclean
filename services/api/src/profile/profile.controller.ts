@@ -12,6 +12,7 @@ import {
   UploadedFile,
   BadRequestException,
   NotImplementedException,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Request } from 'express';
@@ -31,6 +32,7 @@ import { JwtUserPayload } from '../auth/guards/jwt.types';
 import { OnboardingGateGuard, RequireOnboarding } from '../roles/guards';
 import { UserRole } from '../roles/roles.types';
 import { PrivateProfile } from './profile.types';
+import { PublicProfileDto } from './dto/public-profile.dto';
 
 /**
  * Profile controller.
@@ -138,8 +140,12 @@ export class ProfileController {
 
   /** GET /profile/:userId — public profile */
   @Get(':userId')
-  async getPublicProfile(@Param('userId') _userId: string): Promise<unknown> {
-    throw new NotImplementedException();
+  @UseGuards(JwtAuthGuard)
+  async getPublicProfile(
+    @Param('userId', new ParseUUIDPipe({ version: '4' })) userId: string,
+  ): Promise<PublicProfileDto> {
+    const publicProfile = await this.profileService.getPublicProfile(userId);
+    return publicProfile as PublicProfileDto;
   }
 
   /** POST /profile/me/portfolio — upload portfolio photo */

@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Profile module (GET /profile/:userId)** — Public profile endpoint fully implemented (Task 14)
+  - `ProfileRepository.findPublicProfile(userId)` dedicated SELECT query that NEVER selects email, phone, settings, or exact coordinates
+  - SQL query uses LEFT JOINs to users, profile_details, cleaner_profiles, and kyc_verifications tables
+  - `ProfileService.getPublicProfile(userId)` orchestrates data retrieval and photo URL resolution
+  - `ProfileController.getPublicProfile` with `JwtAuthGuard` and `ParseUUIDPipe` UUID validation
+  - Returns `PublicProfile`: displayName, photoUrl (signed), bio, memberSince, specialties, workZoneLabel (null for now), isKycVerified
+  - KYC badge derived from EXISTS subquery checking for any VERIFIED kyc_verifications record
+  - workZoneLabel returns null (reverse geocoding to be implemented in a future task)
+  - 9 unit tests covering public fields, NotFoundException, photo URL resolution, KYC status, specialties
 - **Profile module (DELETE /profile/me/photo)** — Remove profile photo endpoint fully implemented (Task 13)
   - `ProfileController.deletePhoto` with `JwtAuthGuard` protecting the endpoint
   - Resolves internal userId from JWT keycloakId via `ProfileService.findUserIdByKeycloakId`
