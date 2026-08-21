@@ -54,6 +54,21 @@
 | 23 | `samsung-optimization` | ⬜ Pending | All mobile specs |
 | 24 | `dark-light-theme` | ⬜ Pending | Spec 7 |
 
+### Sprint 7 — QA & Formal Testing
+| # | Spec | Status | Dependencies |
+|---|------|--------|-------------|
+| 25 | `quality-assurance-pbt` | ⬜ Pending | All specs (1-24) |
+
+> **Sprint 7 scope:** Exhaustive testing of the ENTIRE system after all features are implemented.
+> - Property-Based Testing (fast-check + Hypothesis) with 100+ iterations per property and shrinking
+> - Correctness Properties verification across ALL modules
+> - E2E flows: registration → KYC → publish offer → negotiate → escrow payment → service → complete
+> - Integration tests with real infrastructure (Docker: PostgreSQL, Redis, Keycloak, MinIO)
+> - Load testing with k6 (100+ concurrent users)
+> - Cross-module conflict detection (requirements from different specs don't contradict)
+> - Ambiguity analysis: PBT finds cases no requirement covers → reported as gaps
+> - Per-module PBT: auth, roles, KYC, profile, offers, payments, chat, notifications
+
 ## How to Use This File
 
 1. Check **Current Sprint** to know what phase the project is in.
