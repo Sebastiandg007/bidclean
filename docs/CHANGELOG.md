@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Profile module (config)** — Profile environment variables added to `.env.example` (Task 6)
+  - Storage: `MINIO_PROFILE_PHOTOS_BUCKET` (MinIO bucket for profile/portfolio photos)
+  - Photo constraints: `PROFILE_PHOTO_MAX_SIZE_MB`, `PROFILE_PHOTO_MAX_DIMENSION_PX`, `PROFILE_PHOTO_URL_EXPIRY_SECONDS`
+  - Portfolio: `PROFILE_MAX_PORTFOLIO_PHOTOS` (max portfolio photos per Cleaner)
+  - Upload & rate limiting: `PROFILE_UPLOAD_TIMEOUT_MS`, `PROFILE_RATE_LIMIT_PER_MINUTE`
+  - Field validation: `PROFILE_NAME_MAX_LENGTH`, `PROFILE_BIO_MAX_LENGTH`
+  - Account deletion: `PROFILE_DELETE_CONFIRMATION_WORD`, `PROFILE_DELETION_MAX_RETRIES`
+  - Completeness weights: `PROFILE_COMPLETENESS_WEIGHTS_HOST`, `PROFILE_COMPLETENESS_WEIGHTS_CLEANER` (both must sum to 100)
+  - Keycloak webhook: `KEYCLOAK_WEBHOOK_SECRET` (for email sync Event Listener)
 - **Profile module (api)** — Database migration to add `deletion_status` column to `users` table (Task 5)
   - `1700000006000-AddDeletionStatusToUsers.ts` migration with up/down methods
   - `deletion_status VARCHAR(30) DEFAULT NULL` — nullable column for async account deletion state
