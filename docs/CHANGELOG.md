@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Profile module (api)** — Database migration for `portfolio_photos` table (Task 4)
+  - `1700000005000-CreatePortfolioPhotosTable.ts` migration with up/down methods
+  - UUID primary key with `gen_random_uuid()`
+  - FK to `users(id)` with `ON DELETE CASCADE`
+  - UNIQUE constraint `uq_portfolio_photos_key` on `storage_key`
+  - Composite index `idx_portfolio_photos_order` on `(user_id, display_order)` for ordered queries
+  - Index `idx_portfolio_photos_user` on `user_id` for fast lookups
+  - Idempotent (`IF NOT EXISTS`) and reversible (`DROP TABLE IF EXISTS`)
 - **Profile module (api)** — Database migration for `user_settings` table (Task 3)
   - `1700000004000-CreateUserSettingsTable.ts` migration with up/down methods
   - UUID primary key with `gen_random_uuid()`

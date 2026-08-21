@@ -9,7 +9,7 @@ Implementation tasks for the User Profile feature. Covers the NestJS backend mod
 - [x] 1. Create profile module structure in NestJS (module, controller, service, types, repository, dto/, entities/, photo/, portfolio/, settings/, account/, completeness/, webhooks/, __tests__/, README)
 - [x] 2. Create database migration for profile_details table (id, user_id, display_name, phone_number, photo_storage_key, bio, created_at, updated_at — with UNIQUE constraint on user_id, idx_profile_details_user index)
 - [x] 3. Create database migration for user_settings table (with UNIQUE constraint on user_id, CHECK constraint on theme, idx_user_settings_user index)
-- [ ] 4. Create database migration for portfolio_photos table (with UNIQUE constraint on storage_key, composite index on user_id + display_order)
+- [-] 4. Create database migration for portfolio_photos table (with UNIQUE constraint on storage_key, composite index on user_id + display_order)
 - [ ] 5. Create database migration to add deletion_status column to users table (VARCHAR(30), nullable, values: NULL/DELETION_PENDING/DELETED)
 - [ ] 6. Add profile environment variables to .env.example (MINIO_PROFILE_PHOTOS_BUCKET, PROFILE_PHOTO_MAX_SIZE_MB, PROFILE_PHOTO_MAX_DIMENSION_PX, PROFILE_PHOTO_URL_EXPIRY_SECONDS, PROFILE_MAX_PORTFOLIO_PHOTOS, PROFILE_UPLOAD_TIMEOUT_MS, PROFILE_RATE_LIMIT_PER_MINUTE, PROFILE_NAME_MAX_LENGTH, PROFILE_BIO_MAX_LENGTH, PROFILE_DELETE_CONFIRMATION_WORD, PROFILE_DELETION_MAX_RETRIES, PROFILE_COMPLETENESS_WEIGHTS_HOST, PROFILE_COMPLETENESS_WEIGHTS_CLEANER, KEYCLOAK_WEBHOOK_SECRET)
 - [ ] 7. Implement profile photo service (MinIO upload with encryption, resize via sharp, signed URL generation with configurable expiry, old photo deletion on replacement, photo removal)
