@@ -1,0 +1,68 @@
+{
+  "profile": {
+    "loading": "Cargando perfil...",
+    "empty": "No hay datos de perfil disponibles",
+    "error": {
+      "fetchFailed": "No se pudo cargar el perfil",
+      "update_failed": "Error al actualizar el perfil",
+      "update_host_failed": "Error al actualizar info de negocio",
+      "update_cleaner_failed": "Error al actualizar info profesional",
+      "upload_photo_failed": "Error al subir la foto",
+      "remove_photo_failed": "Error al eliminar la foto"
+    },
+    "edit": {
+      "title": "Editar Perfil",
+      "no_profile": "No hay datos de perfil disponibles",
+      "section_personal": "Información Personal",
+      "section_host": "Información del Negocio",
+      "section_specialties": "Especialidades",
+      "section_work_zone": "Zona de Trabajo",
+      "section_availability": "Disponibilidad",
+      "section_bio": "Acerca de Ti",
+      "display_name": "Nombre para mostrar",
+      "display_name_placeholder": "Ingresa tu nombre",
+      "phone_number": "Número de Teléfono",
+      "phone_placeholder": "+573001234567",
+      "business_name": "Nombre del Negocio",
+      "business_name_placeholder": "Ingresa el nombre de tu negocio",
+      "work_zone_label": "Área / Barrio",
+      "work_zone_placeholder": "ej., Centro, Norte",
+      "radius_km": "Radio de Servicio",
+      "km_unit": "km",
+      "bio_placeholder": "Cuéntale a tus clientes sobre ti y tu experiencia...",
+      "save": "Guardar Cambios",
+      "cancel": "Cancelar",
+      "success_title": "Perfil Actualizado",
+      "success_message": "Tus cambios se han guardado exitosamente.",
+      "error_title": "Error",
+      "error_message": "Algo salió mal. Por favor intenta de nuevo.",
+      "error": {
+        "name_required": "El nombre es obligatorio",
+        "name_too_long": "El nombre es demasiado largo",
+        "invalid_phone": "El teléfono debe estar en formato E.164 (ej., +573001234567)",
+        "bio_too_long": "La biografía excede la longitud máxima"
+      },
+      "days": {
+        "monday": "Lunes",
+        "tuesday": "Martes",
+        "wednesday": "Miércoles",
+        "thursday": "Jueves",
+        "friday": "Viernes",
+        "saturday": "Sábado",
+        "sunday": "Domingo"
+      }
+    },
+    "specialties": {
+      "deep_cleaning": "Limpieza Profunda",
+      "regular_cleaning": "Limpieza Regular",
+      "move_in_out": "Mudanzas",
+      "post_construction": "Post Construcción",
+      "office_cleaning": "Limpieza de Oficinas",
+      "carpet_cleaning": "Limpieza de Alfombras",
+      "window_cleaning": "Limpieza de Ventanas",
+      "laundry": "Lavandería",
+      "organizing": "Organización",
+      "eco_friendly": "Eco-Amigable"
+    }
+  }
+}

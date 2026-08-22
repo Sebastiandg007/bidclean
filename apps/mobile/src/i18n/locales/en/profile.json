@@ -1,0 +1,68 @@
+{
+  "profile": {
+    "loading": "Loading profile...",
+    "empty": "No profile data available",
+    "error": {
+      "fetchFailed": "Could not load profile",
+      "update_failed": "Failed to update profile",
+      "update_host_failed": "Failed to update business info",
+      "update_cleaner_failed": "Failed to update professional info",
+      "upload_photo_failed": "Failed to upload photo",
+      "remove_photo_failed": "Failed to remove photo"
+    },
+    "edit": {
+      "title": "Edit Profile",
+      "no_profile": "No profile data available",
+      "section_personal": "Personal Information",
+      "section_host": "Business Information",
+      "section_specialties": "Specialties",
+      "section_work_zone": "Work Zone",
+      "section_availability": "Availability",
+      "section_bio": "About You",
+      "display_name": "Display Name",
+      "display_name_placeholder": "Enter your name",
+      "phone_number": "Phone Number",
+      "phone_placeholder": "+1234567890",
+      "business_name": "Business Name",
+      "business_name_placeholder": "Enter your business name",
+      "work_zone_label": "Area / Neighborhood",
+      "work_zone_placeholder": "e.g., Downtown, Midtown",
+      "radius_km": "Service Radius",
+      "km_unit": "km",
+      "bio_placeholder": "Tell clients about yourself and your experience...",
+      "save": "Save Changes",
+      "cancel": "Cancel",
+      "success_title": "Profile Updated",
+      "success_message": "Your changes have been saved successfully.",
+      "error_title": "Error",
+      "error_message": "Something went wrong. Please try again.",
+      "error": {
+        "name_required": "Display name is required",
+        "name_too_long": "Display name is too long",
+        "invalid_phone": "Phone number must be in E.164 format (e.g., +1234567890)",
+        "bio_too_long": "Bio exceeds maximum length"
+      },
+      "days": {
+        "monday": "Monday",
+        "tuesday": "Tuesday",
+        "wednesday": "Wednesday",
+        "thursday": "Thursday",
+        "friday": "Friday",
+        "saturday": "Saturday",
+        "sunday": "Sunday"
+      }
+    },
+    "specialties": {
+      "deep_cleaning": "Deep Cleaning",
+      "regular_cleaning": "Regular Cleaning",
+      "move_in_out": "Move In/Out",
+      "post_construction": "Post Construction",
+      "office_cleaning": "Office Cleaning",
+      "carpet_cleaning": "Carpet Cleaning",
+      "window_cleaning": "Window Cleaning",
+      "laundry": "Laundry",
+      "organizing": "Organizing",
+      "eco_friendly": "Eco-Friendly"
+    }
+  }
+}

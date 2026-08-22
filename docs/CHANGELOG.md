@@ -8,6 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Profile module (mobile)** — EditProfileScreen with role-specific forms and validation (Task 29)
+  - `EditProfileScreen.tsx` — Full form screen for editing personal data + role-specific fields
+  - Phone E.164 validation via regex
+  - Display name validation (required, max length from constants)
+  - Bio input with character counter and max length validation
+  - Specialties picker with toggleable chips (predefined categories from constants)
+  - Work zone selector with area label and configurable radius input
+  - Availability scheduler with day-by-day toggle and time range inputs
+  - Host-specific section: business name field (conditional on active role)
+  - Save via split PATCH endpoints: `updateCommon`, `updateHost`, `updateCleaner`
+  - Loading/error states during async save operations
+  - Navigation back after successful save
+  - i18n translations added for EN and ES (`profile.json`)
+  - `profile.constants.ts` extended with `WORK_ZONE`, `WEEKDAYS`, `PREDEFINED_SPECIALTIES`
 - **Profile module (mobile)** — ProfileScreen with role-based views and completeness (Task 28)
   - `ProfileScreen.tsx` — Main profile view with conditional HostProfileCard/CleanerProfileCard rendering
   - `ProfileHeader.tsx` — Photo with signed URL handling, display name, email, member since, completeness ring

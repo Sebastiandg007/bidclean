@@ -29,6 +29,44 @@ export const VALIDATION = {
   BIO_MAX_LENGTH: Number(extra.PROFILE_BIO_MAX_LENGTH) || 500,
 } as const;
 
+/** Work zone configuration (from env with defaults) */
+export const WORK_ZONE = {
+  DEFAULT_RADIUS_KM: Number(extra.PROFILE_WORK_ZONE_DEFAULT_RADIUS_KM) || 10,
+  MIN_RADIUS_KM: Number(extra.PROFILE_WORK_ZONE_MIN_RADIUS_KM) || 1,
+  MAX_RADIUS_KM: Number(extra.PROFILE_WORK_ZONE_MAX_RADIUS_KM) || 50,
+} as const;
+
+/** Default time values for availability scheduler */
+export const AVAILABILITY_DEFAULTS = {
+  START_TIME: '08:00',
+  END_TIME: '18:00',
+} as const;
+
+/** Days of the week for availability scheduler */
+export const WEEKDAYS = [
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday',
+  'friday',
+  'saturday',
+  'sunday',
+] as const;
+
+/** Predefined cleaning specialties available for selection */
+export const PREDEFINED_SPECIALTIES = [
+  'deep_cleaning',
+  'regular_cleaning',
+  'move_in_out',
+  'post_construction',
+  'office_cleaning',
+  'carpet_cleaning',
+  'window_cleaning',
+  'laundry',
+  'organizing',
+  'eco_friendly',
+] as const;
+
 /** Supported image MIME types for upload */
 export const SUPPORTED_IMAGE_TYPES = [
   'image/jpeg',

@@ -23,7 +23,7 @@ Viewing another user's profile:
 | File | Responsibility |
 |------|---------------|
 | `ProfileScreen.tsx` | Main profile view — conditionally renders Host or Cleaner card based on active role, includes completeness ring |
-| `EditProfileScreen.tsx` | Form for editing personal data + role-specific fields, saves via split PATCH endpoints |
+| `EditProfileScreen.tsx` | Form for editing personal data + role-specific fields (phone E.164 validation, specialties picker, work zone selector, availability scheduler, bio input), saves via split PATCH endpoints (common/host/cleaner) |
 | `SettingsScreen.tsx` | Language selector, theme toggle, notification preferences |
 | `AccountScreen.tsx` | Email change (system browser), password change (system browser), delete account |
 | `PortfolioGalleryScreen.tsx` | Cleaner portfolio photo grid with upload, reorder, and delete |

@@ -26,6 +26,30 @@ const ENDPOINTS = {
   PHOTO: '/profile/me/photo',
 } as const;
 
+/** i18n error keys for profile operations */
+const ERROR_KEYS = {
+  FETCH_PROFILE: 'profile.error.fetch_failed',
+  UPDATE_COMMON: 'profile.error.update_failed',
+  UPDATE_HOST: 'profile.error.update_host_failed',
+  UPDATE_CLEANER: 'profile.error.update_cleaner_failed',
+  UPLOAD_PHOTO: 'profile.error.upload_photo_failed',
+  REMOVE_PHOTO: 'profile.error.remove_photo_failed',
+} as const;
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+async function getApiClient() {
+  const { apiClient } = await import('../../services/api.service');
+  return apiClient;
+}
+
+function extractErrorMessage(err: unknown, fallbackKey: string): string {
+  if (err instanceof Error && err.message) {
+    return err.message;
+  }
+  return fallbackKey;
+}
+
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 export interface ProfileState {
@@ -64,26 +88,25 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
     set({ isLoading: true, error: null });
 
     try {
-      const { apiClient } = await import('../../services/api.service');
-      const response = await apiClient.get<FullProfile>(ENDPOINTS.PROFILE);
+      const client = await getApiClient();
+      const response = await client.get<FullProfile>(ENDPOINTS.PROFILE);
       set({ profile: response.data, isLoading: false });
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to fetch profile';
-      set({ error: message, isLoading: false });
+      set({ error: extractErrorMessage(err, ERROR_KEYS.FETCH_PROFILE), isLoading: false });
     }
   },
 
   fetchCompleteness: async () => {
     try {
-      const { apiClient } = await import('../../services/api.service');
-      const response = await apiClient.get<ProfileCompleteness>(ENDPOINTS.COMPLETENESS);
+      const client = await getApiClient();
+      const response = await client.get<ProfileCompleteness>(ENDPOINTS.COMPLETENESS);
       const current = get().profile;
 
       if (current) {
         set({ profile: { ...current, completeness: response.data } });
       }
     } catch {
-      // Silent failure — completeness is non-critical
+      // Silent failure — completeness is non-critical UI enhancement
     }
   },
 
@@ -91,15 +114,15 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
     set({ error: null });
 
     try {
-      const { apiClient } = await import('../../services/api.service');
-      const response = await apiClient.patch<CommonProfile>(ENDPOINTS.PROFILE, data);
+      const client = await getApiClient();
+      const response = await client.patch<CommonProfile>(ENDPOINTS.PROFILE, data);
       const current = get().profile;
 
       if (current) {
         set({ profile: { ...current, common: response.data } });
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to update profile';
+      const message = extractErrorMessage(err, ERROR_KEYS.UPDATE_COMMON);
       set({ error: message });
       throw err;
     }
@@ -109,15 +132,15 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
     set({ error: null });
 
     try {
-      const { apiClient } = await import('../../services/api.service');
-      const response = await apiClient.patch<HostProfile>(ENDPOINTS.HOST, data);
+      const client = await getApiClient();
+      const response = await client.patch<HostProfile>(ENDPOINTS.HOST, data);
       const current = get().profile;
 
       if (current) {
         set({ profile: { ...current, host: response.data } });
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to update host profile';
+      const message = extractErrorMessage(err, ERROR_KEYS.UPDATE_HOST);
       set({ error: message });
       throw err;
     }
@@ -127,15 +150,15 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
     set({ error: null });
 
     try {
-      const { apiClient } = await import('../../services/api.service');
-      const response = await apiClient.patch<CleanerProfile>(ENDPOINTS.CLEANER, data);
+      const client = await getApiClient();
+      const response = await client.patch<CleanerProfile>(ENDPOINTS.CLEANER, data);
       const current = get().profile;
 
       if (current) {
         set({ profile: { ...current, cleaner: response.data } });
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to update cleaner profile';
+      const message = extractErrorMessage(err, ERROR_KEYS.UPDATE_CLEANER);
       set({ error: message });
       throw err;
     }
@@ -145,16 +168,16 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
     set({ error: null });
 
     try {
-      const { apiClient } = await import('../../services/api.service');
+      const client = await getApiClient();
       const formData = new FormData();
 
-      formData.append('photo', {
+      formData.append('file', {
         uri,
         type: 'image/jpeg',
         name: 'profile.jpg',
       } as unknown as Blob);
 
-      const response = await apiClient.post<{ photoUrl: string }>(
+      const response = await client.post<{ photoUrl: string }>(
         ENDPOINTS.PHOTO,
         formData,
         {
@@ -174,7 +197,7 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
         });
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to upload photo';
+      const message = extractErrorMessage(err, ERROR_KEYS.UPLOAD_PHOTO);
       set({ error: message });
       throw err;
     }
@@ -184,8 +207,8 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
     set({ error: null });
 
     try {
-      const { apiClient } = await import('../../services/api.service');
-      await apiClient.delete(ENDPOINTS.PHOTO);
+      const client = await getApiClient();
+      await client.delete(ENDPOINTS.PHOTO);
 
       const current = get().profile;
 
@@ -198,14 +221,14 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
         });
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to remove photo';
+      const message = extractErrorMessage(err, ERROR_KEYS.REMOVE_PHOTO);
       set({ error: message });
       throw err;
     }
   },
 
   reset: () => {
-    set({ ...initialState });
+    set(initialState);
   },
 }));
 
