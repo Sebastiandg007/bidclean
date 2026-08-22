@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Properties module (api)** — Property environment variables added to `.env.example` (Task 4)
+  - Storage: `MINIO_PROPERTY_PHOTOS_BUCKET`
+  - Photo constraints: `PROPERTY_PHOTO_MAX_SIZE_MB`, `PROPERTY_PHOTO_MAX_DIMENSION_PX`, `PROPERTY_PHOTO_URL_EXPIRY_SECONDS`, `PROPERTY_MAX_PHOTOS`
+  - Upload & rate limiting: `PROPERTY_UPLOAD_TIMEOUT_MS`, `PROPERTY_RATE_LIMIT_PER_MINUTE`
+  - Field validation: `PROPERTY_MAX_SQM`, `PROPERTY_MAX_BEDROOMS`, `PROPERTY_MAX_BATHROOMS`, `PROPERTY_MAX_CHECKLIST_ITEMS`, `PROPERTY_MAX_REQUIREMENTS`
+  - Geocoding: `MAPBOX_ACCESS_TOKEN`, `PROPERTY_GEOCODING_RATE_LIMIT`
 - **Properties module (api)** — Database migration for `property_photos` table (Task 3)
   - `1700000008000-CreatePropertyPhotosTable.ts` migration with full up/down methods
   - UUID primary key with `gen_random_uuid()`
