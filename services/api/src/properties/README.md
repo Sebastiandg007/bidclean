@@ -23,7 +23,7 @@ Manages property CRUD for Hosts — the physical spaces where cleaning services 
 | `dto/` | Request/response validation DTOs |
 | `photo/` | Photo upload, resize, storage, ordering service |
 | `geocoding/` | Mapbox forward/reverse geocoding proxy |
-| `guards/` | PropertyOwnerGuard (ownership check) |
+| `guards/` | PropertyOwnerGuard (ownership verification — secondary defense) |
 | `contracts/` | Inter-module interfaces (offer-editability, property-readiness) |
 | `__tests__/` | Unit and integration tests |
 

@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Properties module (api)** — PropertyOwnerGuard implemented with ownership verification (Task 6)
+  - `property-owner.guard.ts` — CanActivate guard enforcing property ownership
+  - Extracts `propertyId` from route params (`:id` parameter)
+  - Resolves internal user ID from JWT `keycloakId` via User repository
+  - Queries properties table WHERE `id = :propertyId AND user_id = :userId AND deleted_at IS NULL`
+  - Throws `ForbiddenException` if property not found, not owned, or soft-deleted
+  - Secondary defense layer (primary enforcement at repository query level)
+  - Must be applied AFTER JwtAuthGuard (depends on `request.user`)
+  - 8 unit tests covering ownership, non-existence, non-owner, soft-delete, user-not-found scenarios
 - **Properties module (api)** — Property and PropertyPhoto TypeORM entities implemented (Task 5)
   - `property.entity.ts` — Full entity with 24 columns, PostGIS geography, soft delete, all CHECK constraints
   - `property-photo.entity.ts` — Photo entity with mime_type, file_size_bytes, transactional ordering support
