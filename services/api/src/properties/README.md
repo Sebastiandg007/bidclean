@@ -27,6 +27,49 @@ Manages property CRUD for Hosts — the physical spaces where cleaning services 
 | `contracts/` | Inter-module interfaces (offer-editability, property-readiness) |
 | `__tests__/` | Unit and integration tests |
 
+## Database Tables
+
+### `properties`
+Physical spaces where cleaning services are performed. Uses PostGIS for geospatial storage.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | UUID (PK) | Auto-generated primary key |
+| `user_id` | UUID (FK → users) | Owner reference, CASCADE on delete |
+| `name` | VARCHAR(100) | Property name |
+| `type` | VARCHAR(30) | Type: apartment, house, office, airbnb, commercial_space, other |
+| `description` | TEXT | Optional description |
+| `address_street` | VARCHAR(255) | Street address (private) |
+| `address_city` | VARCHAR(100) | City |
+| `address_state` | VARCHAR(100) | State/province (optional) |
+| `address_postal_code` | VARCHAR(20) | Postal code (optional) |
+| `address_country` | CHAR(2) | ISO alpha-2 country code |
+| `location` | GEOGRAPHY(Point, 4326) | PostGIS point for spatial queries |
+| `formatted_address` | VARCHAR(500) | Full formatted address from geocoding (private) |
+| `location_source` | VARCHAR(20) | How coordinates were obtained: GEOCODED or MANUAL |
+| `square_meters` | NUMERIC(8,2) | Property area (must be > 0) |
+| `bedrooms` | INTEGER | Number of bedrooms (≥ 0) |
+| `bathrooms` | INTEGER | Number of bathrooms (≥ 1) |
+| `floor_number` | INTEGER | Floor number (optional) |
+| `has_parking` | BOOLEAN | Parking availability |
+| `has_elevator` | BOOLEAN | Elevator availability |
+| `special_requirements` | VARCHAR(100)[] | Special cleaning requirements |
+| `checklist_items` | VARCHAR(200)[] | Property-specific checklist |
+| `access_instructions` | TEXT | How to access (private, revealed after match) |
+| `deleted_at` | TIMESTAMPTZ | Soft delete timestamp (NULL = active) |
+| `created_at` | TIMESTAMPTZ | Creation timestamp |
+| `updated_at` | TIMESTAMPTZ | Last update timestamp |
+
+**Indexes:**
+- `idx_properties_user` — FK index on `user_id`
+- `idx_properties_user_active` — Partial index on `user_id` WHERE `deleted_at IS NULL`
+- `idx_properties_location` — GiST index on `location` for spatial queries
+- `idx_properties_type` — Partial index on `type` WHERE `deleted_at IS NULL`
+
+**CHECK constraints:** `chk_type`, `chk_country`, `chk_sqm`, `chk_bedrooms`, `chk_bathrooms`, `chk_location_source`
+
+**Migration:** `1700000007000-CreatePropertiesTable.ts`
+
 ## Dependencies
 
 - **TypeORM** — database access (PostgreSQL + PostGIS)

@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Properties module (api)** — Database migration for `properties` table with PostGIS support (Task 2)
+  - `1700000007000-CreatePropertiesTable.ts` migration with full up/down methods
+  - UUID primary key with `gen_random_uuid()`
+  - FK to `users(id)` with `ON DELETE CASCADE`
+  - PostGIS `GEOGRAPHY(Point, 4326)` column for spatial queries
+  - `location_source` VARCHAR(20) NOT NULL with CHECK constraint (GEOCODED, MANUAL)
+  - Structured address columns (street, city, state, postal_code, country)
+  - Dimensions: square_meters, bedrooms, bathrooms, floor_number
+  - Amenities: has_parking, has_elevator, special_requirements array, checklist_items array
+  - Soft delete via `deleted_at` TIMESTAMP WITH TIME ZONE
+  - CHECK constraints: chk_type, chk_country, chk_sqm, chk_bedrooms, chk_bathrooms, chk_location_source
+  - GiST index on location for spatial queries
+  - Partial indexes on user_id and type for active records
+  - `CREATE EXTENSION IF NOT EXISTS postgis` for safety (idempotent)
+  - Fully reversible (down drops table and all indexes)
 - **Properties module (api)** — Module structure created (Task 1)
   - Full NestJS module scaffolding: module, controller, service, repository, types, constants
   - Entities: Property (PostGIS geography, soft delete, CHECK constraints), PropertyPhoto (transactional ordering)
