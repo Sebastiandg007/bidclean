@@ -6,6 +6,7 @@ import { AuthModule } from './auth/auth.module';
 import { RolesModule } from './roles/roles.module';
 import { KycModule } from './kyc/kyc.module';
 import { ProfileModule } from './profile/profile.module';
+import { PropertiesModule } from './properties/properties.module';
 
 /**
  * Root application module.
@@ -34,6 +35,7 @@ import { ProfileModule } from './profile/profile.module';
     RolesModule,
     KycModule,
     ProfileModule,
+    PropertiesModule,
   ],
 })
 export class AppModule {}

@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Properties module (api)** — Module structure created (Task 1)
+  - Full NestJS module scaffolding: module, controller, service, repository, types, constants
+  - Entities: Property (PostGIS geography, soft delete, CHECK constraints), PropertyPhoto (transactional ordering)
+  - DTOs: CreateProperty, UpdateProperty, PropertyQuery, GeocodeRequest, ReorderPhotos, PropertyResponse
+  - Services: PropertyPhotoService (shell), GeocodingService (shell)
+  - Guards: PropertyOwnerGuard (shell)
+  - Contracts: OfferEditabilityCheck, PropertyReadinessCheck interfaces
+  - Module registered in AppModule
 - **Profile module (mobile)** — Complete i18n translation files for profile module (Task 34)
   - Added missing keys for `profile.header.*` (memberSince, editButton, photo.a11y, photo.image)
   - Added missing keys for `profile.host.*` (title, businessName, notSet, properties, paymentMethods, rating, completedServices, memberSince)
