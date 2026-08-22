@@ -108,12 +108,12 @@ export class Property {
   @Column({ name: 'has_elevator', type: 'boolean', default: false })
   hasElevator!: boolean;
 
-  /** Special requirements array */
-  @Column({ name: 'special_requirements', type: 'varchar', array: true, default: '{}' })
+  /** Special requirements array (max 100 chars per item) */
+  @Column({ name: 'special_requirements', type: 'varchar', length: 100, array: true, default: '{}' })
   specialRequirements!: string[];
 
-  /** Cleaning checklist items */
-  @Column({ name: 'checklist_items', type: 'varchar', array: true, default: '{}' })
+  /** Cleaning checklist items (max 200 chars per item) */
+  @Column({ name: 'checklist_items', type: 'varchar', length: 200, array: true, default: '{}' })
   checklistItems!: string[];
 
   /** Access instructions (private — revealed only after match) */
