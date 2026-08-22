@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Properties module (api)** — Property and PropertyPhoto TypeORM entities implemented (Task 5)
+  - `property.entity.ts` — Full entity with 24 columns, PostGIS geography, soft delete, all CHECK constraints
+  - `property-photo.entity.ts` — Photo entity with mime_type, file_size_bytes, transactional ordering support
+  - All columns have JSDoc documentation explaining purpose and privacy level
+  - Array columns with per-item length constraints (special_requirements: 100, checklist_items: 200)
+  - Relations: Property ManyToOne User (CASCADE), PropertyPhoto ManyToOne Property (CASCADE)
+  - Standard indexes defined (user_id, type, property_id, composite order)
 - **Properties module (api)** — Property environment variables added to `.env.example` (Task 4)
   - Storage: `MINIO_PROPERTY_PHOTOS_BUCKET`
   - Photo constraints: `PROPERTY_PHOTO_MAX_SIZE_MB`, `PROPERTY_PHOTO_MAX_DIMENSION_PX`, `PROPERTY_PHOTO_URL_EXPIRY_SECONDS`, `PROPERTY_MAX_PHOTOS`
