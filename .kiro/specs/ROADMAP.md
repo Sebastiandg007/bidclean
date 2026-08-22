@@ -2,7 +2,7 @@
 
 > This file tracks the state of all feature specs. Read this first in any new session to know where the project stands and what to work on next.
 
-## Current Sprint: Sprint 1 — Auth & Users
+## Current Sprint: Sprint 2 — Core Marketplace
 
 ## Specs Status
 
@@ -17,7 +17,7 @@
 ### Sprint 2 — Core Marketplace
 | # | Spec | Status | Dependencies |
 |---|------|--------|-------------|
-| 5 | `property-management` | ⬜ Pending | Spec 1, 2 |
+| 5 | `property-management` | 🔄 In Progress | Spec 1, 2 |
 | 6 | `offer-publishing` | ⬜ Pending | Spec 5 |
 | 7 | `offer-radar` | ⬜ Pending | Spec 5, 6 |
 | 8 | `offer-negotiation` | ⬜ Pending | Spec 6, 7 |
