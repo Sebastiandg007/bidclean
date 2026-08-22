@@ -34,7 +34,7 @@ Implementation tasks for the User Profile feature. Covers the NestJS backend mod
 - [x] 26. Implement async deletion job processor (BullMQ consumer: cancel RevenueCat → delete Keycloak → delete MinIO → anonymize PII in DB → mark DELETED — with retries, idempotency keys, audit logging, dead-letter queue)
 - [x] 27. Create mobile profile screens folder structure with README (screens, components, hooks, types, constants, tests)
 - [x] 28. Implement ProfileScreen (main profile view — conditionally renders HostProfileCard or CleanerProfileCard based on active role, includes ProfileHeader with completeness ring, RoleSwitchButton or AddSecondRoleButton)
-- [-] 29. Implement EditProfileScreen (form for personal data + role-specific fields, phone validation, specialties picker, work zone map selector, availability scheduler, bio input, save via split endpoints: common/host/cleaner)
+- [x] 29. Implement EditProfileScreen (form for personal data + role-specific fields, phone validation, specialties picker, work zone map selector, availability scheduler, bio input, save via split endpoints: common/host/cleaner)
 - [ ] 30. Implement SettingsScreen (language selector with immediate i18n reload, theme toggle with immediate apply, notification preference toggles, sync to backend)
 - [ ] 31. Implement AccountScreen (change email button → system browser, change password button → system browser, delete account button → DeleteAccountModal with confirmation input)
 - [ ] 32. Implement PortfolioGalleryScreen (grid display of portfolio photos, upload button, reorder via drag, delete with confirmation, lazy loading with pagination)
