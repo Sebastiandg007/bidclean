@@ -64,6 +64,11 @@ interface PhotoItemProps {
   onMoveDown: (photoId: string) => void;
 }
 
+interface UploadButtonProps {
+  onPress: () => void;
+  disabled: boolean;
+}
+
 // ─── Sub-Components ──────────────────────────────────────────────────────────
 
 function PhotoItem({
@@ -127,7 +132,7 @@ function PhotoItem({
   );
 }
 
-function UploadButton({ onPress, disabled }: { onPress: () => void; disabled: boolean }): React.JSX.Element {
+function UploadButton({ onPress, disabled }: UploadButtonProps): React.JSX.Element {
   const { t } = useTranslation();
 
   return (

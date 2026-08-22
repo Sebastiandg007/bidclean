@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Profile module (mobile)** — PublicProfileScreen fully implemented (Task 33)
+  - `PublicProfileScreen.tsx` — Complete public profile view via GET /profile/:userId endpoint
+  - Displays only public fields: display name, photo, member since, bio, specialties, work zone label, KYC badge, average rating, completed services, business name (host), portfolio gallery (read-only)
+  - Profile photo with signed URL expiry handling via `useSignedUrl` hook
+  - Fallback placeholder showing user initial when photo URL is expired or null
+  - Specialties displayed as accent-colored chips matching CleanerProfileCard pattern
+  - KYC badge with verified styling (accent border + translucent background)
+  - Read-only portfolio gallery using 3-column FlatList with signed URL per photo
+  - Loading, error, and not-found states with proper testIDs
+  - All text uses i18n keys (`profile.public.*` namespace) — EN and ES translations added
+  - No private fields (email, phone, settings, coordinates) ever exposed
+  - Route param extraction via `useLocalSearchParams` from expo-router
+  - 25 unit tests covering all display states, data fetching, privacy, signed URL, KYC, portfolio, host/cleaner
 - **Profile module (mobile)** — PortfolioGalleryScreen for Cleaner portfolio management (Task 32)
   - `PortfolioGalleryScreen.tsx` — Full portfolio management with upload, reorder, and delete
   - `PortfolioGrid.tsx` — Grid component with 3-column FlatList, photo overlay controls

@@ -130,6 +130,20 @@
         "load_failed": "No se pudieron cargar las fotos del portafolio"
       }
     },
+    "public": {
+      "loading": "Cargando perfil...",
+      "error": "No se pudo cargar el perfil",
+      "notFound": "Usuario no encontrado",
+      "memberSince": "Miembro desde {{date}}",
+      "bio": "Acerca de",
+      "specialties": "Especialidades",
+      "workZone": "Área de Servicio",
+      "portfolio": "Portafolio",
+      "rating": "Calificación",
+      "completedServices": "Servicios Completados",
+      "kycVerified": "Verificado",
+      "businessName": "Negocio"
+    },
     "specialties": {
       "deep_cleaning": "Limpieza Profunda",
       "regular_cleaning": "Limpieza Regular",

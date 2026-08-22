@@ -27,7 +27,7 @@ Viewing another user's profile:
 | `SettingsScreen.tsx` | Language selector, theme toggle, notification preferences |
 | `AccountScreen.tsx` | Email change (system browser), password change (system browser), delete account |
 | `PortfolioGalleryScreen.tsx` | Cleaner portfolio photo grid with upload, reorder, and delete |
-| `PublicProfileScreen.tsx` | View another user's public profile (public fields only) |
+| `PublicProfileScreen.tsx` | View another user's public profile (public fields only via GET /profile/:userId — displays name, photo with signed URL, member since, bio, specialties, work zone label, KYC badge, rating, completed services, business name, read-only portfolio gallery) |
 | `useProfile.ts` | Zustand store hook + API calls for profile data |
 | `useSettings.ts` | Settings store hook + backend sync |
 | `useSignedUrl.ts` | Hook that detects expired signed URLs and requests fresh ones |

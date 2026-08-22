@@ -130,6 +130,20 @@
         "load_failed": "Could not load portfolio photos"
       }
     },
+    "public": {
+      "loading": "Loading profile...",
+      "error": "Could not load profile",
+      "notFound": "User not found",
+      "memberSince": "Member since {{date}}",
+      "bio": "About",
+      "specialties": "Specialties",
+      "workZone": "Service Area",
+      "portfolio": "Portfolio",
+      "rating": "Rating",
+      "completedServices": "Completed Services",
+      "kycVerified": "Verified",
+      "businessName": "Business"
+    },
     "specialties": {
       "deep_cleaning": "Deep Cleaning",
       "regular_cleaning": "Regular Cleaning",
