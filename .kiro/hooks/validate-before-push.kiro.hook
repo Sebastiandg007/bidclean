@@ -1,8 +1,8 @@
 {
   "enabled": true,
-  "name": "Validate & Fix Lint Before Push",
-  "description": "Runs ESLint with --fix across the entire monorepo (apps/mobile + services/api) before any git push. Automatically fixes what it can, amends the commit if fixes were applied, and blocks the push only if unfixable errors remain.",
-  "version": "3",
+  "name": "Validate Lint & Types Before Push",
+  "description": "Runs ESLint with --fix and tsc --noEmit across the entire monorepo before any git push. Automatically fixes lint issues, amends the commit if fixes were applied, and blocks the push only if unfixable errors remain.",
+  "version": "4",
   "when": {
     "type": "preToolUse",
     "toolTypes": [
@@ -11,6 +11,6 @@
   },
   "then": {
     "type": "askAgent",
-    "prompt": "This shell command contains 'git push'. Before proceeding, you MUST validate the entire monorepo passes lint. Follow these steps IN ORDER:\n\n1. Run 'npx eslint --fix apps/mobile/src services/api/src --ext .ts,.tsx --max-warnings 0' from the project root.\n2. If eslint --fix modified files (check git status), stage the fixes with 'git add -A' and amend the last commit with 'git commit --amend --no-edit'.\n3. Run 'npx eslint apps/mobile/src services/api/src --ext .ts,.tsx --max-warnings 0' again to verify no remaining errors.\n4. If step 3 still fails, manually fix the remaining errors (they are not auto-fixable), stage, and amend the commit.\n5. Only proceed with the git push when lint passes with zero errors.\n\nDo NOT skip this process. Do NOT push if lint fails."
+    "prompt": "This shell command contains 'git push'. Before proceeding, you MUST validate the entire monorepo passes lint AND type-check. Follow these steps IN ORDER:\n\n1. Run 'npx eslint --fix apps/mobile/src services/api/src --ext .ts,.tsx --max-warnings 0' from the project root.\n2. Run 'npx tsc --noEmit --project apps/mobile/tsconfig.json' from the project root.\n3. If eslint --fix modified files (check git status), stage the fixes with 'git add -A' and amend the last commit with 'git commit --amend --no-edit'.\n4. If either check failed and could not be auto-fixed, manually fix the remaining errors, stage, and amend the commit.\n5. Only proceed with the git push when BOTH lint and tsc pass with zero errors.\n\nDo NOT skip this process. Do NOT push if either check fails."
   }
 }

@@ -192,7 +192,7 @@ export function PublicProfileScreen(): React.JSX.Element {
     setError(null);
 
     try {
-      const client = getApiClient();
+      const client = await getApiClient();
       const response = await client.get<PublicProfileResponse>(`/profile/${userId}`);
       setProfile(response.data);
     } catch {

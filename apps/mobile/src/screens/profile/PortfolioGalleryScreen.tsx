@@ -78,7 +78,7 @@ export function PortfolioGalleryScreen(): React.JSX.Element {
     setIsLoading(true);
 
     try {
-      const client = getApiClient();
+      const client = await getApiClient();
       const response = await client.get<PortfolioPhoto[]>(
         `${ENDPOINTS.PORTFOLIO}?page=${page}&limit=${PAGE_SIZE}`,
       );
@@ -136,7 +136,7 @@ export function PortfolioGalleryScreen(): React.JSX.Element {
     setIsUploading(true);
 
     try {
-      const client = getApiClient();
+      const client = await getApiClient();
       const formData = new FormData();
 
       formData.append('file', {
@@ -175,7 +175,7 @@ export function PortfolioGalleryScreen(): React.JSX.Element {
             style: 'destructive',
             onPress: async () => {
               try {
-                const client = getApiClient();
+                const client = await getApiClient();
                 await client.delete(`${ENDPOINTS.PORTFOLIO}/${photoId}`);
                 setPhotos((prev) => prev.filter((p) => p.id !== photoId));
               } catch (err) {
@@ -200,7 +200,7 @@ export function PortfolioGalleryScreen(): React.JSX.Element {
         if (index <= 0) return prev;
 
         const updated = [...prev];
-        [updated[index - 1], updated[index]] = [updated[index], updated[index - 1]];
+        [updated[index - 1], updated[index]] = [updated[index]!, updated[index - 1]!];
         return updated;
       });
     },
@@ -214,7 +214,7 @@ export function PortfolioGalleryScreen(): React.JSX.Element {
         if (index < 0 || index >= prev.length - 1) return prev;
 
         const updated = [...prev];
-        [updated[index], updated[index + 1]] = [updated[index + 1], updated[index]];
+        [updated[index], updated[index + 1]] = [updated[index + 1]!, updated[index]!];
         return updated;
       });
     },

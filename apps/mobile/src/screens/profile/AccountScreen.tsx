@@ -91,7 +91,7 @@ export function AccountScreen(): React.JSX.Element {
 
   const handleChangeEmail = useCallback(async () => {
     try {
-      const client = getApiClient();
+      const client = await getApiClient();
       const response = await client.post<{ url: string }>(ENDPOINTS.CHANGE_EMAIL);
       await WebBrowser.openBrowserAsync(response.data.url);
     } catch (err) {
@@ -102,7 +102,7 @@ export function AccountScreen(): React.JSX.Element {
 
   const handleChangePassword = useCallback(async () => {
     try {
-      const client = getApiClient();
+      const client = await getApiClient();
       const response = await client.post<{ url: string }>(ENDPOINTS.CHANGE_PASSWORD);
       await WebBrowser.openBrowserAsync(response.data.url);
     } catch (err) {
@@ -123,7 +123,7 @@ export function AccountScreen(): React.JSX.Element {
     setDeletionLoading(true);
 
     try {
-      const client = getApiClient();
+      const client = await getApiClient();
       const response = await client.post(ENDPOINTS.DELETE_ACCOUNT, {
         confirmationWord: CONFIRMATION_WORD,
       });

@@ -3,7 +3,6 @@
  * Covers: system browser links, delete flow with confirmation modal.
  */
 
-import React from 'react';
 import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 
 // ─── Mocks ───────────────────────────────────────────────────────────────────

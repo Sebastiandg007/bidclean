@@ -4,7 +4,6 @@
  * KYC badge, portfolio gallery, loading/error states, business name for hosts.
  */
 
-import React from 'react';
 import { render } from '@testing-library/react-native';
 
 // ─── Mocks ───────────────────────────────────────────────────────────────────
