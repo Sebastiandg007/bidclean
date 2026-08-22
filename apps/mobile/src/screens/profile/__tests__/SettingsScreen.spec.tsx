@@ -7,7 +7,7 @@
 
 import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 import { useSettingsStore } from '../useSettings';
-import type { SettingsData } from '../useSettings';
+import type { ThemePreference } from '../profile.types';
 
 // ─── Mocks ───────────────────────────────────────────────────────────────────
 
@@ -20,7 +20,14 @@ jest.mock('react-i18next', () => ({
   }),
 }));
 
-// SafeAreaView is mocked globally in src/__mocks__/setup.ts
+jest.mock('react-native-safe-area-context', () => {
+  const { View } = require('react-native');
+  return {
+    SafeAreaView: View,
+    SafeAreaProvider: View,
+    useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+  };
+});
 
 jest.mock('expo-secure-store', () => ({
   getItemAsync: jest.fn().mockResolvedValue(null),
@@ -39,10 +46,10 @@ jest.mock('i18next', () => ({
   changeLanguage: jest.fn().mockResolvedValue(undefined),
 }));
 
-function mockSettingsData(): SettingsData {
+function mockSettingsData() {
   return {
     language: 'en',
-    theme: 'system',
+    theme: 'system' as ThemePreference,
     isPushEnabled: true,
     isEmailNotificationsEnabled: true,
     isSoundsEnabled: true,
