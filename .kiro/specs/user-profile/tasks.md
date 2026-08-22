@@ -39,7 +39,7 @@ Implementation tasks for the User Profile feature. Covers the NestJS backend mod
 - [x] 31. Implement AccountScreen (change email button → system browser, change password button → system browser, delete account button → DeleteAccountModal with confirmation input)
 - [x] 32. Implement PortfolioGalleryScreen (grid display of portfolio photos, upload button, reorder via drag, delete with confirmation, lazy loading with pagination)
 - [x] 33. Implement PublicProfileScreen (display public fields only via dedicated endpoint, profile photo with signed URL expiry handling, name, bio, ratings, specialties, portfolio gallery read-only, KYC badge, member since)
-- [ ] 34. Create i18n translation files for profile module (en/profile.json, es/profile.json — all screen labels, error messages, settings options, confirmation dialogs)
+- [-] 34. Create i18n translation files for profile module (en/profile.json, es/profile.json — all screen labels, error messages, settings options, confirmation dialogs)
 
 ## Task Dependency Graph
 

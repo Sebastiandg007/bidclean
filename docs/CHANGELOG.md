@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Profile module (mobile)** — Complete i18n translation files for profile module (Task 34)
+  - Added missing keys for `profile.header.*` (memberSince, editButton, photo.a11y, photo.image)
+  - Added missing keys for `profile.host.*` (title, businessName, notSet, properties, paymentMethods, rating, completedServices, memberSince)
+  - Added missing keys for `profile.cleaner.*` (title, kycVerified, kycPending, specialties, noSpecialties, workZone, notSet, availability, availableDays, bio, portfolio, rating, completedServices, memberSince)
+  - Added missing keys for `profile.completeness.*` (a11y, title, percentage, fieldsCompleted, fieldsIncomplete, breakdown)
+  - Both EN and ES files have identical key structures
+  - Spanish translations are natural/professional (not machine-translated)
+  - All existing translations preserved unchanged
 - **Profile module (mobile)** — PublicProfileScreen fully implemented (Task 33)
   - `PublicProfileScreen.tsx` — Complete public profile view via GET /profile/:userId endpoint
   - Displays only public fields: display name, photo, member since, bio, specialties, work zone label, KYC badge, average rating, completed services, business name (host), portfolio gallery (read-only)

@@ -10,6 +10,48 @@
       "upload_photo_failed": "Failed to upload photo",
       "remove_photo_failed": "Failed to remove photo"
     },
+    "header": {
+      "memberSince": "Member since {{date}}",
+      "editButton": "Edit Profile",
+      "photo": {
+        "a11y": "Profile photo, tap to edit",
+        "image": "{{name}}'s profile photo"
+      }
+    },
+    "host": {
+      "title": "Host Profile",
+      "businessName": "Business Name",
+      "notSet": "Not set",
+      "properties": "Properties",
+      "paymentMethods": "Payment Methods",
+      "rating": "Average Rating",
+      "completedServices": "Completed Services",
+      "memberSince": "Member Since"
+    },
+    "cleaner": {
+      "title": "Cleaner Profile",
+      "kycVerified": "Verified",
+      "kycPending": "Unverified",
+      "specialties": "Specialties",
+      "noSpecialties": "No specialties added",
+      "workZone": "Work Zone",
+      "notSet": "Not set",
+      "availability": "Availability",
+      "availableDays": "{{count}} days/week",
+      "bio": "Bio",
+      "portfolio": "Portfolio Photos",
+      "rating": "Average Rating",
+      "completedServices": "Completed Services",
+      "memberSince": "Member Since"
+    },
+    "completeness": {
+      "a11y": "Profile {{percentage}} percent complete",
+      "title": "Profile Completeness",
+      "percentage": "{{value}}% complete",
+      "fieldsCompleted": "{{count}} fields completed",
+      "fieldsIncomplete": "{{count}} fields incomplete",
+      "breakdown": "Completeness Breakdown"
+    },
     "edit": {
       "title": "Edit Profile",
       "no_profile": "No profile data available",

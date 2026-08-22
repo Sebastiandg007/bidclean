@@ -10,6 +10,48 @@
       "upload_photo_failed": "Error al subir la foto",
       "remove_photo_failed": "Error al eliminar la foto"
     },
+    "header": {
+      "memberSince": "Miembro desde {{date}}",
+      "editButton": "Editar Perfil",
+      "photo": {
+        "a11y": "Foto de perfil, toca para editar",
+        "image": "Foto de perfil de {{name}}"
+      }
+    },
+    "host": {
+      "title": "Perfil de Anfitrión",
+      "businessName": "Nombre del Negocio",
+      "notSet": "Sin definir",
+      "properties": "Propiedades",
+      "paymentMethods": "Métodos de Pago",
+      "rating": "Calificación Promedio",
+      "completedServices": "Servicios Completados",
+      "memberSince": "Miembro Desde"
+    },
+    "cleaner": {
+      "title": "Perfil de Profesional",
+      "kycVerified": "Verificado",
+      "kycPending": "Sin verificar",
+      "specialties": "Especialidades",
+      "noSpecialties": "Sin especialidades añadidas",
+      "workZone": "Zona de Trabajo",
+      "notSet": "Sin definir",
+      "availability": "Disponibilidad",
+      "availableDays": "{{count}} días/semana",
+      "bio": "Biografía",
+      "portfolio": "Fotos del Portafolio",
+      "rating": "Calificación Promedio",
+      "completedServices": "Servicios Completados",
+      "memberSince": "Miembro Desde"
+    },
+    "completeness": {
+      "a11y": "Perfil {{percentage}} por ciento completo",
+      "title": "Completitud del Perfil",
+      "percentage": "{{value}}% completo",
+      "fieldsCompleted": "{{count}} campos completados",
+      "fieldsIncomplete": "{{count}} campos incompletos",
+      "breakdown": "Desglose de Completitud"
+    },
     "edit": {
       "title": "Editar Perfil",
       "no_profile": "No hay datos de perfil disponibles",
