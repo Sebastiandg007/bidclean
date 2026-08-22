@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Properties module (api)** — Offer-editability contract with default provider (Task 7)
+  - `DefaultOfferEditabilityCheck` class implementing the `OfferEditabilityCheck` interface
+  - Returns `{ editable: true, blockedFields: [] }` until offer-publishing spec provides real implementation
+  - `OFFER_EDITABILITY_CHECK` DI token for swappable injection
+  - Registered in `PropertiesModule` via `useClass` provider — easy to override later
+  - `PropertiesService` now injects the contract via token instead of implementing it directly
+  - `checkEditability(propertyId, fields)` method on `PropertiesService` delegates to injected contract
+  - 8 unit tests covering all return behaviors and interface conformance
 - **Properties module (api)** — PropertyOwnerGuard implemented with ownership verification (Task 6)
   - `property-owner.guard.ts` — CanActivate guard enforcing property ownership
   - Extracts `propertyId` from route params (`:id` parameter)

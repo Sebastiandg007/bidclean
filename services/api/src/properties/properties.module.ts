@@ -10,6 +10,10 @@ import { PropertyOwnerGuard } from './guards/property-owner.guard';
 import { Property } from './entities/property.entity';
 import { PropertyPhoto } from './entities/property-photo.entity';
 import { User } from '../auth/entities/user.entity';
+import {
+  OFFER_EDITABILITY_CHECK,
+  DefaultOfferEditabilityCheck,
+} from './contracts/offer-editability.interface';
 
 /**
  * Properties module.
@@ -20,6 +24,9 @@ import { User } from '../auth/entities/user.entity';
  * PostGIS spatial storage with location_source tracking,
  * address privacy enforcement via dedicated SELECT queries,
  * and offer-readiness calculation.
+ *
+ * The OfferEditabilityCheck contract is provided via DI token so it can be
+ * swapped with a real implementation when the offer-publishing spec is built.
  */
 @Module({
   imports: [
@@ -33,7 +40,11 @@ import { User } from '../auth/entities/user.entity';
     PropertyPhotoService,
     GeocodingService,
     PropertyOwnerGuard,
+    {
+      provide: OFFER_EDITABILITY_CHECK,
+      useClass: DefaultOfferEditabilityCheck,
+    },
   ],
-  exports: [PropertiesService, PropertiesRepository],
+  exports: [PropertiesService, PropertiesRepository, OFFER_EDITABILITY_CHECK],
 })
 export class PropertiesModule {}

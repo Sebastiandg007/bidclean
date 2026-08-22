@@ -10,7 +10,7 @@ Manages property CRUD for Hosts — the physical spaces where cleaning services 
 |------|---------------|
 | `properties.module.ts` | NestJS module registration |
 | `properties.controller.ts` | HTTP endpoint routing and guards |
-| `properties.service.ts` | Business logic orchestration, offer-editability contract |
+| `properties.service.ts` | Business logic orchestration, delegates editability to injected contract |
 | `properties.repository.ts` | Database queries with ownership enforcement |
 | `properties.types.ts` | TypeScript type/interface definitions |
 | `properties.constants.ts` | Configurable limits, allowed values, defaults |
@@ -24,7 +24,7 @@ Manages property CRUD for Hosts — the physical spaces where cleaning services 
 | `photo/` | Photo upload, resize, storage, ordering service |
 | `geocoding/` | Mapbox forward/reverse geocoding proxy |
 | `guards/` | PropertyOwnerGuard (ownership verification — secondary defense) |
-| `contracts/` | Inter-module interfaces (offer-editability, property-readiness) |
+| `contracts/` | Inter-module interfaces and DI tokens (offer-editability with default provider, property-readiness) |
 | `__tests__/` | Unit and integration tests |
 
 ## Database Tables

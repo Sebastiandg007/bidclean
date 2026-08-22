@@ -5,7 +5,7 @@ import {
   Injectable,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, Repository } from 'typeorm';
 import { Request } from 'express';
 import { Property } from '../entities/property.entity';
 import { User } from '../../auth/entities/user.entity';
@@ -45,8 +45,8 @@ export class PropertyOwnerGuard implements CanActivate {
   }
 
   /** Extract the property ID from route params. */
-  private extractPropertyId(request: Request & { user: JwtUserPayload }): string {
-    return request.params.id as string;
+  private extractPropertyId(request: Request): string {
+    return request.params.id;
   }
 
   /** Look up the internal user by Keycloak ID. */
@@ -66,7 +66,7 @@ export class PropertyOwnerGuard implements CanActivate {
       where: {
         id: propertyId,
         userId,
-        deletedAt: null as unknown as Date,
+        deletedAt: IsNull(),
       },
     });
 

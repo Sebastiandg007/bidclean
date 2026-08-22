@@ -8,6 +8,12 @@
  * When the offer-publishing spec is built, it will provide a real
  * implementation that blocks edits on properties with active offers.
  */
+
+import { Injectable } from '@nestjs/common';
+
+/** DI token for the offer-editability contract */
+export const OFFER_EDITABILITY_CHECK = 'OFFER_EDITABILITY_CHECK';
+
 export interface OfferEditabilityCheck {
   /**
    * Determines whether a property can be modified given the current offer state.
@@ -25,6 +31,27 @@ export interface OfferEditabilityResult {
   readonly editable: boolean;
   readonly blockedFields: string[];
   readonly reason?: string;
+}
+
+/**
+ * Default offer-editability implementation.
+ *
+ * Always allows edits — returns { editable: true, blockedFields: [] }
+ * for all properties and fields. This will be replaced by a real
+ * implementation when the offer-publishing spec is built.
+ */
+@Injectable()
+export class DefaultOfferEditabilityCheck implements OfferEditabilityCheck {
+  /**
+   * Returns editable=true unconditionally until offer-publishing
+   * provides a real implementation that checks active offer state.
+   */
+  async canModifyProperty(
+    _propertyId: string,
+    _fields: string[],
+  ): Promise<OfferEditabilityResult> {
+    return { editable: true, blockedFields: [] };
+  }
 }
 
 /**
