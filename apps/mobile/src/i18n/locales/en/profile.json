@@ -85,6 +85,28 @@
         "sync_failed": "Failed to save settings. Changes are saved locally."
       }
     },
+    "account": {
+      "title": "Account",
+      "section_security": "Security",
+      "section_danger": "Danger Zone",
+      "change_email": "Change Email",
+      "change_password": "Change Password",
+      "delete_account": "Delete Account",
+      "delete_modal": {
+        "title": "Delete Account",
+        "warning": "This action is permanent and cannot be undone. All your data, including your profile, settings, and history, will be permanently deleted.",
+        "confirmation_label": "Type DELETE to confirm",
+        "confirmation_placeholder": "DELETE",
+        "confirm": "Delete My Account",
+        "cancel": "Cancel"
+      },
+      "error": {
+        "email_change_failed": "Could not open email change. Please try again.",
+        "password_change_failed": "Could not open password change. Please try again.",
+        "deletion_failed": "Account deletion failed. Please try again.",
+        "active_services": "You have active services. Please complete or cancel them before deleting your account."
+      }
+    },
     "specialties": {
       "deep_cleaning": "Deep Cleaning",
       "regular_cleaning": "Regular Cleaning",

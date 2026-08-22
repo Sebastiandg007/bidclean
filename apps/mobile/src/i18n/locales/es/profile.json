@@ -85,6 +85,28 @@
         "sync_failed": "Error al guardar configuración. Los cambios se guardaron localmente."
       }
     },
+    "account": {
+      "title": "Cuenta",
+      "section_security": "Seguridad",
+      "section_danger": "Zona de Peligro",
+      "change_email": "Cambiar Correo Electrónico",
+      "change_password": "Cambiar Contraseña",
+      "delete_account": "Eliminar Cuenta",
+      "delete_modal": {
+        "title": "Eliminar Cuenta",
+        "warning": "Esta acción es permanente y no se puede deshacer. Todos tus datos, incluyendo tu perfil, configuración e historial, serán eliminados permanentemente.",
+        "confirmation_label": "Escribe DELETE para confirmar",
+        "confirmation_placeholder": "DELETE",
+        "confirm": "Eliminar Mi Cuenta",
+        "cancel": "Cancelar"
+      },
+      "error": {
+        "email_change_failed": "No se pudo abrir el cambio de correo. Por favor intenta de nuevo.",
+        "password_change_failed": "No se pudo abrir el cambio de contraseña. Por favor intenta de nuevo.",
+        "deletion_failed": "La eliminación de la cuenta falló. Por favor intenta de nuevo.",
+        "active_services": "Tienes servicios activos. Por favor complétalos o cancélalos antes de eliminar tu cuenta."
+      }
+    },
     "specialties": {
       "deep_cleaning": "Limpieza Profunda",
       "regular_cleaning": "Limpieza Regular",

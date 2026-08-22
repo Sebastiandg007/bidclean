@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Profile module (mobile)** — AccountScreen with system browser links and delete account flow (Task 31)
+  - `AccountScreen.tsx` — Full account management screen with change email, change password, delete account
+  - `DeleteAccountModal.tsx` — Confirmation dialog requiring user to type DELETE before account deletion
+  - Change email/password buttons open system browser via `expo-web-browser` (not WebView) for Keycloak flows
+  - Delete account flow: POST /profile/me/delete-account with confirmation word
+  - On successful deletion (202): resets auth state and navigates to Welcome screen
+  - On active services conflict (409): shows specific error message
+  - Uses SettingsItem component in selector mode for action buttons
+  - Design tokens match existing SettingsScreen pattern (SafeAreaView, ScrollView, card layout)
+  - All text uses i18n keys — account keys added to EN and ES profile.json
+  - 8 unit tests covering system browser, delete flow, confirmation, navigation, error states
 - **Profile module (mobile)** — SettingsScreen with language/theme/notification preferences (Task 30)
   - `useSettings.ts` — Zustand store with SecureStore persistence and backend sync
   - `SettingsItem.tsx` — Reusable settings row component (toggle and selector modes)

@@ -64,7 +64,7 @@ Viewing another user's profile:
 - `react-native-safe-area-context` — Safe area wrapper
 - `expo-router` — Navigation between profile screens
 - `expo-image-picker` — Profile photo and portfolio upload
-- `expo-linking` — System browser for Keycloak flows (email/password change)
+- `expo-web-browser` — System browser for Keycloak flows (email/password change)
 - `zustand` — Profile and settings state management
 - `expo-secure-store` — Local settings persistence for offline access
 - API service (`src/services/api.service.ts`) — Profile endpoints
