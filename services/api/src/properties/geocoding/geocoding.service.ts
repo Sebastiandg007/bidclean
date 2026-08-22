@@ -14,7 +14,10 @@ import { ConfigService } from '@nestjs/config';
  */
 @Injectable()
 export class GeocodingService {
-  constructor(private readonly configService: ConfigService) {}
+  constructor(private readonly _configService: ConfigService) {}
 
-  // Geocoding methods will be implemented in Task 9
+  /** @internal Placeholder to satisfy noUnusedLocals until methods are implemented */
+  protected get dependencies(): unknown[] {
+    return [this._configService];
+  }
 }

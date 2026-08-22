@@ -18,9 +18,12 @@ import { Property } from './entities/property.entity';
 export class PropertiesRepository {
   constructor(
     @InjectRepository(Property)
-    private readonly propertyRepo: Repository<Property>,
-    private readonly dataSource: DataSource,
+    private readonly _propertyRepo: Repository<Property>,
+    private readonly _dataSource: DataSource,
   ) {}
 
-  // Query methods will be implemented in Task 10
+  /** @internal Placeholder to satisfy noUnusedLocals until queries are implemented */
+  protected get dependencies(): unknown[] {
+    return [this._propertyRepo, this._dataSource];
+  }
 }

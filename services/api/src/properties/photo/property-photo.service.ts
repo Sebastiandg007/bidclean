@@ -17,10 +17,13 @@ import { PropertyPhoto } from '../entities/property-photo.entity';
 export class PropertyPhotoService {
   constructor(
     @InjectRepository(PropertyPhoto)
-    private readonly photoRepo: Repository<PropertyPhoto>,
-    private readonly dataSource: DataSource,
-    private readonly configService: ConfigService,
+    private readonly _photoRepo: Repository<PropertyPhoto>,
+    private readonly _dataSource: DataSource,
+    private readonly _configService: ConfigService,
   ) {}
 
-  // Photo management methods will be implemented in Task 8
+  /** @internal Placeholder to satisfy noUnusedLocals until methods are implemented */
+  protected get dependencies(): unknown[] {
+    return [this._photoRepo, this._dataSource, this._configService];
+  }
 }

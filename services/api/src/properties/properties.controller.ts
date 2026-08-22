@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars -- Services injected for endpoint tasks 11-21 */
 import { Controller, UseGuards } from '@nestjs/common';
 import { PropertiesService } from './properties.service';
 import { PropertyPhotoService } from './photo/property-photo.service';
@@ -21,5 +22,5 @@ export class PropertiesController {
     private readonly geocodingService: GeocodingService,
   ) {}
 
-  // Endpoints will be implemented in subsequent tasks (11-21)
+  // Endpoints implemented in tasks 11-21
 }

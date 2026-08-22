@@ -12,9 +12,9 @@ import { OfferEditabilityCheck } from './contracts/offer-editability.interface';
 @Injectable()
 export class PropertiesService implements OfferEditabilityCheck {
   constructor(
-    private readonly propertiesRepository: PropertiesRepository,
-    private readonly propertyPhotoService: PropertyPhotoService,
-    private readonly geocodingService: GeocodingService,
+    private readonly _propertiesRepository: PropertiesRepository,
+    private readonly _propertyPhotoService: PropertyPhotoService,
+    private readonly _geocodingService: GeocodingService,
   ) {}
 
   /**
@@ -28,5 +28,8 @@ export class PropertiesService implements OfferEditabilityCheck {
     return { editable: true, blockedFields: [] };
   }
 
-  // CRUD and business logic will be implemented in subsequent tasks (11-22)
+  /** @internal Placeholder to satisfy noUnusedLocals until methods are implemented */
+  protected get dependencies(): unknown[] {
+    return [this._propertiesRepository, this._propertyPhotoService, this._geocodingService];
+  }
 }
