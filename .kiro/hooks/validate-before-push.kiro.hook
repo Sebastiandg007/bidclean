@@ -1,16 +1,16 @@
 {
   "enabled": true,
   "name": "Validate Lint & Types Before Push",
-  "description": "Before executing git push, runs lint and typecheck locally to catch issues that would fail CI. Prevents pushing code that breaks the pipeline.",
-  "version": "1",
+  "description": "Validates lint and typecheck pass before any git push. Only triggers on shell commands that contain 'git push' — does NOT intercept other shell commands like test runners or git status.",
+  "version": "2",
   "when": {
     "type": "preToolUse",
     "toolTypes": [
-      "shell"
+      ".*git\\s+push.*"
     ]
   },
   "then": {
     "type": "askAgent",
-    "prompt": "If the command being executed contains 'git push', you MUST first run lint and typecheck to validate the code passes CI checks. Run these commands in order: 1) 'npm run lint' from the workspace root, 2) 'npm run typecheck' from the workspace root. If ANY of these commands fail (non-zero exit code), DO NOT proceed with the push. Instead, fix the lint/typecheck errors first, then retry the push. If all checks pass, proceed with the original git push command. If the command does NOT contain 'git push', ignore this instruction and allow the command to proceed."
+    "prompt": "This shell command contains 'git push'. Before proceeding, you MUST run lint and typecheck to validate the code passes CI checks. Run these commands in order: 1) 'npm run lint' from the apps/mobile directory, 2) 'npx tsc --noEmit' from the apps/mobile directory. If ANY of these commands fail (non-zero exit code), DO NOT proceed with the push. Instead, fix the lint/typecheck errors first, then retry the push. If all checks pass, proceed with the original git push command."
   }
 }
