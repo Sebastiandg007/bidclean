@@ -20,7 +20,13 @@ export class PropertiesController {
     private readonly propertiesService: PropertiesService,
     private readonly propertyPhotoService: PropertyPhotoService,
     private readonly geocodingService: GeocodingService,
-  ) {}
+  ) {
+    // Services injected for use in endpoint handlers (tasks 11-21).
+    // Reference to suppress noUnusedLocals until endpoints are implemented.
+    void this.propertiesService;
+    void this.propertyPhotoService;
+    void this.geocodingService;
+  }
 
   // Endpoints implemented in tasks 11-21
 }
