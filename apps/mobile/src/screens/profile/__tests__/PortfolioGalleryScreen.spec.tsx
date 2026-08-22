@@ -39,7 +39,6 @@ jest.mock('expo-image-picker', () => ({
 jest.spyOn(Alert, 'alert');
 
 import { PortfolioGalleryScreen } from '../PortfolioGalleryScreen';
-import * as ImagePicker from 'expo-image-picker';
 
 // ─── Test Data ───────────────────────────────────────────────────────────────
 

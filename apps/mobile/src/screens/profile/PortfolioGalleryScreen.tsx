@@ -44,9 +44,9 @@ const PAGE_SIZE = 10;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function getApiClient() {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { apiClient } = require('../../services/api.service') as {
+async function getApiClient() {
+   
+  const { apiClient } = await import('../../services/api.service') as {
     apiClient: {
       get: <T>(url: string) => Promise<{ data: T }>;
       post: <T>(url: string, data?: unknown, config?: Record<string, unknown>) => Promise<{ data: T }>;

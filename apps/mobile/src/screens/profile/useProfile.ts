@@ -38,6 +38,7 @@ const ERROR_KEYS = {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 async function getApiClient() {
   const { apiClient } = await import('../../services/api.service');
   return apiClient;

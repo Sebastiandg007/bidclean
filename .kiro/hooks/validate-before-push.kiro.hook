@@ -1,8 +1,8 @@
 {
   "enabled": true,
-  "name": "Validate Lint & Types Before Push",
-  "description": "Validates lint and typecheck pass before any git push. Only triggers on shell commands that contain 'git push' — does NOT intercept other shell commands like test runners or git status.",
-  "version": "2",
+  "name": "Validate & Fix Lint Before Push",
+  "description": "Runs ESLint with --fix across the entire monorepo (apps/mobile + services/api) before any git push. Automatically fixes what it can, amends the commit if fixes were applied, and blocks the push only if unfixable errors remain.",
+  "version": "3",
   "when": {
     "type": "preToolUse",
     "toolTypes": [
@@ -11,6 +11,6 @@
   },
   "then": {
     "type": "askAgent",
-    "prompt": "This shell command contains 'git push'. Before proceeding, you MUST run lint and typecheck to validate the code passes CI checks. Run these commands in order: 1) 'npm run lint' from the apps/mobile directory, 2) 'npx tsc --noEmit' from the apps/mobile directory. If ANY of these commands fail (non-zero exit code), DO NOT proceed with the push. Instead, fix the lint/typecheck errors first, then retry the push. If all checks pass, proceed with the original git push command."
+    "prompt": "This shell command contains 'git push'. Before proceeding, you MUST validate the entire monorepo passes lint. Follow these steps IN ORDER:\n\n1. Run 'npx eslint --fix apps/mobile/src services/api/src --ext .ts,.tsx --max-warnings 0' from the project root.\n2. If eslint --fix modified files (check git status), stage the fixes with 'git add -A' and amend the last commit with 'git commit --amend --no-edit'.\n3. Run 'npx eslint apps/mobile/src services/api/src --ext .ts,.tsx --max-warnings 0' again to verify no remaining errors.\n4. If step 3 still fails, manually fix the remaining errors (they are not auto-fixable), stage, and amend the commit.\n5. Only proceed with the git push when lint passes with zero errors.\n\nDo NOT skip this process. Do NOT push if lint fails."
   }
 }

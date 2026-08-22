@@ -60,9 +60,9 @@ const CONFIRMATION_WORD = 'DELETE';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function getApiClient() {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { apiClient } = require('../../services/api.service') as { apiClient: { post: <T>(url: string, data?: unknown) => Promise<{ data: T; status: number }> } };
+async function getApiClient() {
+   
+  const { apiClient } = await import('../../services/api.service') as { apiClient: { post: <T>(url: string, data?: unknown) => Promise<{ data: T; status: number }> } };
   return apiClient;
 }
 
