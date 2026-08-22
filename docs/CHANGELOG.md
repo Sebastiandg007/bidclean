@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Profile module (mobile)** — SettingsScreen with language/theme/notification preferences (Task 30)
+  - `useSettings.ts` — Zustand store with SecureStore persistence and backend sync
+  - `SettingsItem.tsx` — Reusable settings row component (toggle and selector modes)
+  - `SettingsScreen.tsx` — Full settings UI with language picker, theme selector, notification toggles
+  - Language change triggers immediate i18n reload via `i18n.changeLanguage()`
+  - Theme change applies immediately via Zustand state
+  - All changes persist locally (offline access) AND sync to backend (cross-device)
+  - Picker modal component for language/theme selection
+  - Error handling with toast alert on sync failure
+  - i18n translations added for settings keys (EN and ES)
+  - 8 component tests covering all user interactions
 - **Profile module (mobile)** — EditProfileScreen with role-specific forms and validation (Task 29)
   - `EditProfileScreen.tsx` — Full form screen for editing personal data + role-specific fields
   - Phone E.164 validation via regex

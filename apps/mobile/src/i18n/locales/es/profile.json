@@ -52,6 +52,39 @@
         "sunday": "Domingo"
       }
     },
+    "settings": {
+      "title": "Configuración",
+      "loading": "Cargando configuración...",
+      "section_language": "Idioma",
+      "section_theme": "Apariencia",
+      "section_notifications": "Notificaciones",
+      "language_label": "Idioma de la App",
+      "theme_label": "Tema",
+      "push_notifications": "Notificaciones Push",
+      "email_notifications": "Notificaciones por Email",
+      "sounds": "Sonidos en la App",
+      "select_language": "Seleccionar Idioma",
+      "select_theme": "Seleccionar Tema",
+      "languages": {
+        "en": "Inglés",
+        "es": "Español",
+        "fr": "Francés",
+        "de": "Alemán",
+        "it": "Italiano",
+        "pt": "Portugués",
+        "nl": "Holandés"
+      },
+      "themes": {
+        "dark": "Oscuro",
+        "light": "Claro",
+        "system": "Sistema"
+      },
+      "error": {
+        "title": "Error de Sincronización",
+        "fetch_failed": "No se pudo cargar la configuración",
+        "sync_failed": "Error al guardar configuración. Los cambios se guardaron localmente."
+      }
+    },
     "specialties": {
       "deep_cleaning": "Limpieza Profunda",
       "regular_cleaning": "Limpieza Regular",

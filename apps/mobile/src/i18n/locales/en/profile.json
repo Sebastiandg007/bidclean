@@ -52,6 +52,39 @@
         "sunday": "Sunday"
       }
     },
+    "settings": {
+      "title": "Settings",
+      "loading": "Loading settings...",
+      "section_language": "Language",
+      "section_theme": "Appearance",
+      "section_notifications": "Notifications",
+      "language_label": "App Language",
+      "theme_label": "Theme",
+      "push_notifications": "Push Notifications",
+      "email_notifications": "Email Notifications",
+      "sounds": "In-App Sounds",
+      "select_language": "Select Language",
+      "select_theme": "Select Theme",
+      "languages": {
+        "en": "English",
+        "es": "Spanish",
+        "fr": "French",
+        "de": "German",
+        "it": "Italian",
+        "pt": "Portuguese",
+        "nl": "Dutch"
+      },
+      "themes": {
+        "dark": "Dark",
+        "light": "Light",
+        "system": "System"
+      },
+      "error": {
+        "title": "Sync Error",
+        "fetch_failed": "Could not load settings",
+        "sync_failed": "Failed to save settings. Changes are saved locally."
+      }
+    },
     "specialties": {
       "deep_cleaning": "Deep Cleaning",
       "regular_cleaning": "Regular Cleaning",
