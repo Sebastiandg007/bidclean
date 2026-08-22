@@ -56,6 +56,7 @@ Viewing another user's profile:
 | `__tests__/EditProfileScreen.spec.tsx` | Form validation, split endpoint saves, phone E.164 validation |
 | `__tests__/SettingsScreen.spec.tsx` | Language/theme/notification changes, immediate UI updates |
 | `__tests__/AccountScreen.spec.tsx` | System browser links, delete flow with confirmation modal |
+| `__tests__/PortfolioGalleryScreen.spec.tsx` | Empty state, grid rendering, upload trigger, delete confirmation, max photos, API calls |
 | `__tests__/PublicProfileScreen.spec.tsx` | Public fields display, signed URL handling, no private data leak |
 
 ## Dependencies

@@ -107,6 +107,29 @@
         "active_services": "You have active services. Please complete or cancel them before deleting your account."
       }
     },
+    "portfolio": {
+      "title": "Portfolio",
+      "empty_title": "No Photos Yet",
+      "empty_description": "Upload your best work to attract more clients",
+      "upload": "Upload Photo",
+      "delete_title": "Delete Photo",
+      "delete_message": "Are you sure you want to remove this photo from your portfolio?",
+      "delete_confirm": "Delete",
+      "delete_cancel": "Cancel",
+      "move_up": "Move Up",
+      "move_down": "Move Down",
+      "max_reached": "Portfolio limit reached ({{max}} photos)",
+      "photo_count": "{{count}} of {{max}} photos",
+      "loading": "Loading portfolio...",
+      "uploading": "Uploading...",
+      "load_more": "Load more",
+      "error": {
+        "upload_failed": "Failed to upload portfolio photo",
+        "delete_failed": "Failed to delete portfolio photo",
+        "reorder_failed": "Failed to reorder photos",
+        "load_failed": "Could not load portfolio photos"
+      }
+    },
     "specialties": {
       "deep_cleaning": "Deep Cleaning",
       "regular_cleaning": "Regular Cleaning",

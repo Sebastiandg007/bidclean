@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Profile module (mobile)** — PortfolioGalleryScreen for Cleaner portfolio management (Task 32)
+  - `PortfolioGalleryScreen.tsx` — Full portfolio management with upload, reorder, and delete
+  - `PortfolioGrid.tsx` — Grid component with 3-column FlatList, photo overlay controls
+  - Upload via expo-image-picker with permission handling and multipart FormData
+  - Delete with confirmation alert (Alert.alert with cancel/destructive buttons)
+  - Reorder via move up/down controls on each photo
+  - Lazy loading with page-based pagination (10 photos per page)
+  - Empty state when no photos, max reached banner at PORTFOLIO.MAX_PHOTOS limit
+  - All configurable values from environment (PROFILE_MAX_PORTFOLIO_PHOTOS, PROFILE_UPLOAD_TIMEOUT_MS)
+  - i18n keys added for EN and ES (profile.portfolio.* namespace)
+  - Manual mock for expo-image-picker (not in package.json, standard Expo module)
 - **Profile module (mobile)** — AccountScreen with system browser links and delete account flow (Task 31)
   - `AccountScreen.tsx` — Full account management screen with change email, change password, delete account
   - `DeleteAccountModal.tsx` — Confirmation dialog requiring user to type DELETE before account deletion

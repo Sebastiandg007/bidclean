@@ -107,6 +107,29 @@
         "active_services": "Tienes servicios activos. Por favor complétalos o cancélalos antes de eliminar tu cuenta."
       }
     },
+    "portfolio": {
+      "title": "Portafolio",
+      "empty_title": "Sin Fotos Aún",
+      "empty_description": "Sube tus mejores trabajos para atraer más clientes",
+      "upload": "Subir Foto",
+      "delete_title": "Eliminar Foto",
+      "delete_message": "¿Estás seguro de que deseas eliminar esta foto de tu portafolio?",
+      "delete_confirm": "Eliminar",
+      "delete_cancel": "Cancelar",
+      "move_up": "Mover Arriba",
+      "move_down": "Mover Abajo",
+      "max_reached": "Límite del portafolio alcanzado ({{max}} fotos)",
+      "photo_count": "{{count}} de {{max}} fotos",
+      "loading": "Cargando portafolio...",
+      "uploading": "Subiendo...",
+      "load_more": "Cargar más",
+      "error": {
+        "upload_failed": "Error al subir foto del portafolio",
+        "delete_failed": "Error al eliminar foto del portafolio",
+        "reorder_failed": "Error al reordenar las fotos",
+        "load_failed": "No se pudieron cargar las fotos del portafolio"
+      }
+    },
     "specialties": {
       "deep_cleaning": "Limpieza Profunda",
       "regular_cleaning": "Limpieza Regular",
