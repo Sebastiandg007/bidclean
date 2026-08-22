@@ -70,6 +70,27 @@ Physical spaces where cleaning services are performed. Uses PostGIS for geospati
 
 **Migration:** `1700000007000-CreatePropertiesTable.ts`
 
+### `property_photos`
+Property images with display ordering and metadata for auditing/validation.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | UUID (PK) | Auto-generated primary key |
+| `property_id` | UUID (FK → properties) | Parent property reference, CASCADE on delete |
+| `storage_key` | VARCHAR(512) | MinIO object key (UNIQUE) |
+| `mime_type` | VARCHAR(50) | Image MIME type for auditing |
+| `file_size_bytes` | INTEGER | File size for validation |
+| `display_order` | INTEGER | Photo ordering (0-based, contiguous) |
+| `created_at` | TIMESTAMPTZ | Creation timestamp |
+
+**Indexes:**
+- `idx_property_photos_property` — FK index on `property_id`
+- `idx_property_photos_order` — Composite index on `(property_id, display_order)` for ordered queries
+
+**Constraints:** `uq_property_photos_key` (UNIQUE on storage_key), `FK_property_photos_property_id` (FK CASCADE)
+
+**Migration:** `1700000008000-CreatePropertyPhotosTable.ts`
+
 ## Dependencies
 
 - **TypeORM** — database access (PostgreSQL + PostGIS)

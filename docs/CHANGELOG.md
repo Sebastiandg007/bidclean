@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Properties module (api)** — Database migration for `property_photos` table (Task 3)
+  - `1700000008000-CreatePropertyPhotosTable.ts` migration with full up/down methods
+  - UUID primary key with `gen_random_uuid()`
+  - FK to `properties(id)` with `ON DELETE CASCADE`
+  - `storage_key` VARCHAR(512) NOT NULL with UNIQUE constraint (`uq_property_photos_key`)
+  - `mime_type` VARCHAR(50) NOT NULL for auditing image types
+  - `file_size_bytes` INTEGER NOT NULL for validation and quota tracking
+  - `display_order` INTEGER NOT NULL DEFAULT 0 for photo ordering
+  - Index `idx_property_photos_property` on `property_id` for FK lookups
+  - Composite index `idx_property_photos_order` on `(property_id, display_order)` for ordered queries
+  - Idempotent (`IF NOT EXISTS`) and fully reversible (`DROP TABLE IF EXISTS`)
 - **Properties module (api)** — Database migration for `properties` table with PostGIS support (Task 2)
   - `1700000007000-CreatePropertiesTable.ts` migration with full up/down methods
   - UUID primary key with `gen_random_uuid()`
