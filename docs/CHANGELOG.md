@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Properties module (api)** — PropertiesRepository fully implemented (Task 10)
+  - `findOneByOwner(propertyId, userId)` — single property with `WHERE user_id AND deleted_at IS NULL` enforcement + photos relation
+  - `findAllByOwner(userId, options)` — paginated list with search (ILIKE on name/street/city), type filter, configurable sort (updated_at/created_at/name DESC), page size capped at `PROPERTY_LIST_MAX_PAGE_SIZE`
+  - `findPublicProperty(propertyId)` — dedicated raw SQL SELECT with explicit column list that NEVER returns address_street, address_state, address_postal_code, formatted_address, location, location_source, or access_instructions
+  - `createProperty(data)` — create via TypeORM repository with returning
+  - `updateProperty(propertyId, userId, data)` — update with ownership enforcement (WHERE user_id AND deleted_at IS NULL)
+  - `softDelete(propertyId, userId)` — sets deleted_at with ownership check
+  - `findByIdempotencyKey(userId, idempotencyKey)` — lookup via property_idempotency_keys table
+  - `countPhotos(propertyId)` — count photos for offer-readiness check
+  - `getCoverPhoto(propertyId)` — get photo with display_order = 0 for list cards
+  - All parameterized queries (no string concatenation)
+  - `FindAllByOwnerOptions` interface exported for service layer use
+  - 26 unit tests covering ownership enforcement, pagination, public view privacy, CRUD, idempotency, photos
 - **Properties module (api)** — GeocodingService fully implemented (Task 9)
   - `GeocodingService` with Mapbox forward/reverse geocoding via native `fetch`
   - `forwardGeocode(request, userId)` — address text → lat/lng with country filtering
