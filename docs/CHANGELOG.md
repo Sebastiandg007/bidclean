@@ -8,6 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Properties module (api)** — PropertyPhotoService fully implemented (Task 8)
+  - `PropertyPhotoService` with MinIO upload, AES-256 server-side encryption, sharp image resize
+  - `uploadPhoto(propertyId, file, mimeType, idempotencyKey?)` validates format, size, max count; resizes; uploads; saves entity with mime_type and file_size_bytes from resized buffer
+  - Idempotency support via optional key — returns existing photo if already uploaded
+  - Storage key format: `{propertyId}/{photoId}.{extension}` (ownership validated at controller level)
+  - `deletePhoto(propertyId, photoId)` with TRANSACTION + SELECT FOR UPDATE lock, MinIO removal (idempotent), and contiguous display_order renumbering
+  - `reorderPhotos(propertyId, orderedPhotoIds)` with TRANSACTION + SELECT FOR UPDATE lock, validates all IDs belong to property
+  - `getSignedUrl(storageKey)` generates presigned GET URL with configurable expiry
+  - `getPhotoCount(propertyId)` for photo count queries
+  - `getPhotosWithUrls(propertyId)` returns all photos ordered by display_order ASC with signed URLs
+  - Display order always contiguous (0, 1, 2, ...) — cover photo is always display_order = 0
+  - Bucket auto-creation on module initialization (`OnModuleInit`)
+  - Error handling with typed exceptions and i18n keys: `property.error.max_photos_reached`, `property.error.invalid_photo_format`, `property.error.photo_too_large`, `property.error.photo_not_found`
+  - 21 unit tests covering upload, validation, idempotency, delete with renumbering, reorder, signed URLs, SELECT FOR UPDATE locking
 - **Properties module (api)** — Offer-editability contract with default provider (Task 7)
   - `DefaultOfferEditabilityCheck` class implementing the `OfferEditabilityCheck` interface
   - Returns `{ editable: true, blockedFields: [] }` until offer-publishing spec provides real implementation

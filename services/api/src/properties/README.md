@@ -21,7 +21,7 @@ Manages property CRUD for Hosts — the physical spaces where cleaning services 
 |-----------|---------------|
 | `entities/` | TypeORM entity definitions (Property, PropertyPhoto) |
 | `dto/` | Request/response validation DTOs |
-| `photo/` | Photo upload, resize, storage, ordering service |
+| `photo/` | Photo upload, resize, storage, ordering service (`PropertyPhotoService`) |
 | `geocoding/` | Mapbox forward/reverse geocoding proxy |
 | `guards/` | PropertyOwnerGuard (ownership verification — secondary defense) |
 | `contracts/` | Inter-module interfaces and DI tokens (offer-editability with default provider, property-readiness) |
@@ -119,8 +119,13 @@ Property images with display ordering and metadata for auditing/validation.
 
 | Variable | Description | Required |
 |----------|-------------|----------|
+| `MINIO_ENDPOINT` | MinIO endpoint URL | Yes |
+| `MINIO_ROOT_USER` | MinIO access key | Yes |
+| `MINIO_ROOT_PASSWORD` | MinIO secret key | Yes |
 | `MINIO_PROPERTY_PHOTOS_BUCKET` | MinIO bucket for property photos | Yes |
 | `PROPERTY_PHOTO_MAX_SIZE_MB` | Max photo file size | Yes |
+| `PROPERTY_PHOTO_MAX_DIMENSION_PX` | Max resize dimension (px) | Yes |
+| `PROPERTY_PHOTO_URL_EXPIRY_SECONDS` | Signed URL expiry duration | Yes |
 | `PROPERTY_MAX_PHOTOS` | Max photos per property | Yes |
 | `MAPBOX_ACCESS_TOKEN` | Mapbox API token for geocoding | Yes |
 | `PROPERTY_GEOCODING_RATE_LIMIT` | Rate limit per user (requests/min) | Yes |
