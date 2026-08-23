@@ -22,7 +22,7 @@ Manages property CRUD for Hosts — the physical spaces where cleaning services 
 | `entities/` | TypeORM entity definitions (Property, PropertyPhoto) |
 | `dto/` | Request/response validation DTOs |
 | `photo/` | Photo upload, resize, storage, ordering service (`PropertyPhotoService`) |
-| `geocoding/` | Mapbox forward/reverse geocoding proxy |
+| `geocoding/` | Mapbox forward/reverse geocoding proxy (`GeocodingService`) |
 | `guards/` | PropertyOwnerGuard (ownership verification — secondary defense) |
 | `contracts/` | Inter-module interfaces and DI tokens (offer-editability with default provider, property-readiness) |
 | `__tests__/` | Unit and integration tests |
@@ -139,3 +139,34 @@ npm run dev
 # Run module tests
 npm test -- --testPathPattern=properties
 ```
+
+## Geocoding Service
+
+The `GeocodingService` provides a server-side proxy to the Mapbox Geocoding API v5.
+
+### Forward Geocoding (`forwardGeocode`)
+Converts an address string to geographic coordinates (lat/lng).
+
+- **Input:** `{ address: string, country: string }` + `userId`
+- **Validation:** Address ≤ 300 chars, country in supported list
+- **Output:** `{ lat, lng, formattedAddress, confidence }` or `null` on failure
+- **API call:** `GET /geocoding/v5/mapbox.places/{encodedQuery}.json?country={code}&access_token={token}`
+
+### Reverse Geocoding (`reverseGeocode`)
+Converts coordinates to a structured address.
+
+- **Input:** `{ lat: number, lng: number }` + `userId`
+- **Validation:** lat ∈ [-90, 90], lng ∈ [-180, 180]
+- **Output:** `{ formattedAddress, street, city, state, country, postalCode }` or `null` on failure
+- **API call:** `GET /geocoding/v5/mapbox.places/{lng},{lat}.json?access_token={token}`
+
+### Rate Limiting
+- In-memory per-user sliding window (1-minute window)
+- Limit configurable via `PROPERTY_GEOCODING_RATE_LIMIT` env variable
+- Throws HTTP 429 when exceeded
+
+### Error Handling
+- Geocoding failures are **non-blocking** — always returns `null` instead of throwing
+- Validation errors (bad input) throw `BadRequestException`
+- Rate limit exceeded throws `HttpException(429)`
+- All errors logged via NestJS Logger for debugging

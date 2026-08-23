@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Properties module (api)** — GeocodingService fully implemented (Task 9)
+  - `GeocodingService` with Mapbox forward/reverse geocoding via native `fetch`
+  - `forwardGeocode(request, userId)` — address text → lat/lng with country filtering
+  - `reverseGeocode(request, userId)` — lat/lng → structured address (street, city, state, country, postalCode)
+  - Input validation: address ≤ 300 chars, country in supported list, lat ∈ [-90,90], lng ∈ [-180,180]
+  - Per-user in-memory rate limiting with sliding window (configurable via `PROPERTY_GEOCODING_RATE_LIMIT`)
+  - Non-blocking error handling: API/network failures return `null` instead of throwing
+  - Validation errors throw `BadRequestException`; rate limit exceeded throws `HttpException(429)`
+  - All errors logged via NestJS Logger for debugging
+  - 22 unit tests covering forward/reverse geocoding, validation, rate limiting, and error handling
 - **Properties module (api)** — PropertyPhotoService fully implemented (Task 8)
   - `PropertyPhotoService` with MinIO upload, AES-256 server-side encryption, sharp image resize
   - `uploadPhoto(propertyId, file, mimeType, idempotencyKey?)` validates format, size, max count; resizes; uploads; saves entity with mime_type and file_size_bytes from resized buffer

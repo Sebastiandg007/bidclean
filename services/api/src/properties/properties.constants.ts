@@ -67,5 +67,12 @@ export const SUPPORTED_COUNTRIES = [
 /** Location source values */
 export const LOCATION_SOURCES = ['GEOCODED', 'MANUAL'] as const;
 
+/** Mapbox Geocoding API v5 base URL */
+export const MAPBOX_GEOCODING_BASE_URL =
+  'https://api.mapbox.com/geocoding/v5/mapbox.places';
+
+/** Rate limit sliding window duration in milliseconds (1 minute) */
+export const RATE_LIMIT_WINDOW_MS = 60_000;
+
 /** Allowed sort fields for property listing */
 export const ALLOWED_SORT_FIELDS = ['updated_at', 'created_at', 'name'] as const;

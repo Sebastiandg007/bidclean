@@ -7,7 +7,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource } from 'typeorm';
+import { Repository, DataSource, EntityManager } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import * as Minio from 'minio';
 import sharp from 'sharp';
@@ -402,7 +402,7 @@ export class PropertyPhotoService implements OnModuleInit {
 
   /** Renumber photos contiguously starting from 0. */
   private async renumberPhotos(
-    manager: import('typeorm').EntityManager,
+    manager: EntityManager,
     photos: PropertyPhoto[],
   ): Promise<void> {
     for (let i = 0; i < photos.length; i++) {
