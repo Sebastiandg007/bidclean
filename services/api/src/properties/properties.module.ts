@@ -14,6 +14,7 @@ import {
   OFFER_EDITABILITY_CHECK,
   DefaultOfferEditabilityCheck,
 } from './contracts/offer-editability.interface';
+import { RolesModule } from '../roles/roles.module';
 
 /**
  * Properties module.
@@ -32,6 +33,7 @@ import {
   imports: [
     ConfigModule,
     TypeOrmModule.forFeature([Property, PropertyPhoto, User]),
+    RolesModule,
   ],
   controllers: [PropertiesController],
   providers: [

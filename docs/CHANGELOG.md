@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Properties module (api)** — POST /properties endpoint fully implemented (Task 11)
+  - `PropertiesService.createProperty(userId, dto, idempotencyKey?)` orchestrates property creation
+  - Idempotency-Key header support: returns existing property (200) if key already used, creates new (201) otherwise
+  - PostGIS geography point stored via raw SQL `ST_MakePoint(lng, lat)::geography` (TypeORM cannot natively handle geography inserts)
+  - `locationSource` set from DTO value (GEOCODED or MANUAL) for traceability
+  - Controller: `@UseGuards(OnboardingGateGuard)` + `@RequireOnboarding(UserRole.HOST)` enforces Host role with completed onboarding
+  - Internal user ID resolved from JWT keycloakId via User repository lookup
+  - `property_idempotency_keys` table created via migration (`1700000009000`) with unique constraint on (user_id, idempotency_key)
+  - PropertiesModule imports RolesModule for OnboardingGateGuard access
+  - 9 unit tests covering service (happy path, idempotency, PostGIS, locationSource) and controller (201/200 status, NotFoundException, header passing)
 - **Properties module (api)** — PropertiesRepository fully implemented (Task 10)
   - `findOneByOwner(propertyId, userId)` — single property with `WHERE user_id AND deleted_at IS NULL` enforcement + photos relation
   - `findAllByOwner(userId, options)` — paginated list with search (ILIKE on name/street/city), type filter, configurable sort (updated_at/created_at/name DESC), page size capped at `PROPERTY_LIST_MAX_PAGE_SIZE`
