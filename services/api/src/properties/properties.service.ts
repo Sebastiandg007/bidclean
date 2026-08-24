@@ -120,6 +120,31 @@ export class PropertiesService {
   }
 
   /**
+   * Soft deletes a property after validating no active offers exist.
+   * Consults the offer-editability contract before deletion.
+   *
+   * @param propertyId - UUID of the property to delete
+   * @param userId - Owner's internal user UUID
+   * @returns true if the property was soft-deleted, false if not found/not owned
+   * @throws ConflictException if the property has active offers
+   */
+  async deleteProperty(propertyId: string, userId: string): Promise<boolean> {
+    const editability = await this._editabilityCheck.canModifyProperty(propertyId, ['delete']);
+
+    if (!editability.editable) {
+      throw new ConflictException('property.error.has_active_offer');
+    }
+
+    const deleted = await this._propertiesRepository.softDelete(propertyId, userId);
+
+    if (deleted) {
+      this.logger.log(`Property soft-deleted: ${propertyId} by user: ${userId}`);
+    }
+
+    return deleted;
+  }
+
+  /**
    * Checks whether a property can be modified for the given fields.
    * Delegates to the injected OfferEditabilityCheck contract.
    */

@@ -1,8 +1,10 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Headers,
+  HttpCode,
   HttpStatus,
   NotFoundException,
   Param,
@@ -115,6 +117,30 @@ export class PropertiesController {
     }
 
     return result;
+  }
+
+  /**
+   * DELETE /properties/:id — Soft delete a property.
+   * Requires Host role with ownership verification.
+   * PropertyOwnerGuard enforces ownership as secondary defense.
+   * Consults OfferEditabilityCheck to ensure no active offers block deletion.
+   * Returns 204 No Content on success.
+   * Returns 404 if property not found or not owned.
+   * Returns 409 Conflict if the property has active offers.
+   */
+  @Delete(':id')
+  @UseGuards(PropertyOwnerGuard)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async deleteProperty(
+    @Param('id') propertyId: string,
+    @Req() req: Request & { user: JwtUserPayload },
+  ): Promise<void> {
+    const userId = await this.resolveUserId(req.user.keycloakId);
+    const deleted = await this.propertiesService.deleteProperty(propertyId, userId);
+
+    if (!deleted) {
+      throw new NotFoundException('property.error.not_found');
+    }
   }
 
   /**

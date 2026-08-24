@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Properties module (api)** — DELETE /properties/:id soft delete endpoint (Task 15)
+  - `PropertiesService.deleteProperty(propertyId, userId)` orchestrates soft deletion
+  - Consults `OfferEditabilityCheck` contract before deletion — throws 409 ConflictException with `property.error.has_active_offer` if active offers block deletion
+  - Delegates to existing `PropertiesRepository.softDelete()` which sets `deleted_at` with ownership enforcement (WHERE user_id AND deleted_at IS NULL)
+  - Controller: `@Delete(':id')` with `@UseGuards(PropertyOwnerGuard)` for secondary ownership defense
+  - Returns HTTP 204 No Content on success, 404 if not found/not owned, 409 if active offers exist
+  - 7 unit tests covering service (happy path, conflict, not found) and controller (204, 404, 409 propagation, user not found)
 - **Properties module (api)** — PATCH /properties/:id endpoint fully implemented (Task 14)
   - `PropertiesService.updateProperty(propertyId, userId, dto)` orchestrates partial property updates
   - Consults `OfferEditabilityCheck` contract before applying changes — throws 409 ConflictException with blockedFields if not editable
