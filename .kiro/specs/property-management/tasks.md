@@ -36,7 +36,7 @@ Implementation tasks for the Property Management feature. Covers the NestJS back
 - [x] 28. Implement PropertyTypeSelector component (visual cards with icon and label for each type, single selection, accent border on selected)
 - [x] 29. Implement AddressInput component (structured fields: street, city, state, postal code, country selector, "Locate on Map" button that triggers geocoding, fallback message on geocoding failure)
 - [x] 30. Implement PropertyMap component (Mapbox MapView with draggable pin, tap-to-place pin, shows current property location, triggers reverse geocoding on pin move, works as fallback when geocoding fails)
-- [ ] 31. Implement PhotoUploader component (photo grid with upload button, reorder via move up/down, delete with confirmation, max count indicator, uses expo-image-picker, shows mime_type/size info)
+- [-] 31. Implement PhotoUploader component (photo grid with upload button, reorder via move up/down, delete with confirmation, max count indicator, uses expo-image-picker, shows mime_type/size info)
 - [ ] 32. Implement ChecklistEditor component (add/remove text items, max count validation from constants, reorder via drag or buttons, character limit per item)
 - [ ] 33. Implement RequirementsChips component (predefined chips from constants + custom text input, multi-select, max count from constants, visual distinction between predefined and custom)
 - [ ] 34. Implement PropertyDetailScreen (photo gallery horizontal scroll + full-screen modal, map section with pin, info cards for dimensions/rooms, checklist section, requirements chips, access instructions card, "Edit" and "Publish Offer" buttons, offer-readiness indicator)

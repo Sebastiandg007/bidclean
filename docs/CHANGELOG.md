@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Properties module (mobile)** — PhotoUploader component fully implemented (Task 31)
+  - Photo grid layout (2 columns) displaying thumbnails with signed URLs
+  - Upload button using expo-image-picker `launchImageLibraryAsync` with file size validation
+  - Move up/down reorder controls on each photo, calling `onReorder` with new ordered IDs
+  - Delete button with React Native Alert confirmation dialog
+  - Max count indicator showing "current/max photos" badge (e.g., "3/10 photos")
+  - Mime type and file size info displayed per photo (e.g., "image/jpeg • 1.2 MB")
+  - Cover badge on first photo (displayOrder=0)
+  - Empty state with camera icon and encouragement to upload
+  - Upload button disabled when max count reached with "Limit reached" text
+  - Dark theme styling with design tokens (COLORS, SPACING, FONT_SIZE)
+  - Full accessibility: accessibilityRole, accessibilityLabel, accessibilityState on all interactive elements
+  - testID attributes on all key elements for testing
+  - All UI text via i18n useTranslation() with defaultValue fallbacks
+  - No magic numbers: all layout values as named constants
 - **Properties module (mobile)** — PropertyMap component fully implemented (Task 30)
   - Mapbox MapView with dark style (`mapbox://styles/mapbox/dark-v11`) via `@rnmapbox/maps` v10.1.35
   - Draggable pin marker with custom accent-colored design (circle head + needle)
