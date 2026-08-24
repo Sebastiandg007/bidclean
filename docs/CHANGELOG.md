@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Properties module (mobile)** — PropertyCard component fully implemented (Task 26)
+  - Cover photo display with signed URL support and placeholder fallback (house icon + "No photo" text)
+  - Property name with bold primary text, single line, ellipsis overflow
+  - Type badge as colored chip with accent translucent background (uses i18n keys from PROPERTY_TYPES)
+  - City + Country secondary text display
+  - Bedroom and bathroom counts with Unicode icons (🛏️ / 🚿)
+  - Offer-ready indicator: green dot + "Ready" badge when isOfferReady is true
+  - Full card pressable with onPress callback passing property ID
+  - Complete accessibility support (accessibilityRole, accessibilityLabel, accessibilityHint, testIDs)
+  - All text via i18n t() with defaultValue fallbacks
+  - Dark theme card design following existing design tokens
 - **Properties module (mobile)** — PropertyListScreen fully implemented (Task 25)
   - Paginated FlatList with PropertyCard items and infinite scroll (load more on end reached)
   - Pull-to-refresh functionality

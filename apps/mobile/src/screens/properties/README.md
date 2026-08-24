@@ -35,7 +35,7 @@ Address / Map flow:
 
 | File | Responsibility |
 |------|---------------|
-| `components/PropertyCard.tsx` | List item card: cover photo, name, type badge, city + country, bedroom/bathroom counts, offer-ready indicator |
+| `components/PropertyCard.tsx` | **Implemented.** List item card: cover photo with signed URL (placeholder fallback), name, type badge (i18n chip), city + country, bedroom/bathroom counts (🛏️/🚿), offer-ready indicator (green dot + "Ready"). Full accessibility and pressable. |
 | `components/PropertyPhotoGallery.tsx` | Horizontal photo scroll with tap-to-fullscreen modal, swipe navigation, photo counter |
 | `components/PropertyMap.tsx` | Mapbox MapView with draggable pin, tap-to-place, triggers reverse geocoding on move |
 | `components/AddressInput.tsx` | Structured address form (street, city, state, postal code, country), "Locate on Map" geocode button, fallback message |
