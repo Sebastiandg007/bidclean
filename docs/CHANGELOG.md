@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Properties module (api)** — POST /properties/reverse-geocode endpoint (Task 20)
+  - `@Post('reverse-geocode')` with `@UseGuards(OnboardingGateGuard)` + `@RequireOnboarding(UserRole.HOST)` for Host role enforcement
+  - `@UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }))` for DTO validation
+  - Route placed BEFORE `@Get(':id')` to avoid NestJS param conflict (after forward geocode)
+  - Accepts `ReverseGeocodeDto` body: lat (number, ∈ [-90,90]), lng (number, ∈ [-180,180])
+  - Delegates to `GeocodingService.reverseGeocode()` with per-user rate limiting
+  - Returns `ReverseGeocodeResponse`: formattedAddress, street, city, state, country, postalCode
+  - Returns 422 UnprocessableEntityException with `property.error.geocoding_failed` when geocoding produces no results
+  - Propagates 429 from GeocodingService when per-user rate limit exceeded
+  - Imported `ReverseGeocodeDto` from dto and `ReverseGeocodeResponse` from geocoding types
 - **Properties module (api)** — POST /properties/geocode forward geocoding endpoint (Task 19)
   - `@Post('geocode')` with `@UseGuards(OnboardingGateGuard)` + `@RequireOnboarding(UserRole.HOST)` for Host role enforcement
   - `@UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }))` for DTO validation

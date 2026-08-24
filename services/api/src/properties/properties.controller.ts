@@ -37,10 +37,10 @@ import { CreatePropertyDto } from './dto/create-property.dto';
 import { UpdatePropertyDto } from './dto/update-property.dto';
 import { PropertyQueryDto } from './dto/property-query.dto';
 import { ReorderPhotosDto } from './dto/reorder-photos.dto';
-import { ForwardGeocodeDto } from './dto/geocode-request.dto';
+import { ForwardGeocodeDto, ReverseGeocodeDto } from './dto/geocode-request.dto';
 import { PropertyDetailResponse, PropertyListResponse } from './dto/property-response.dto';
 import { PhotoUploadResult } from './photo/property-photo.types';
-import { ForwardGeocodeResponse } from './geocoding/geocoding.types';
+import { ForwardGeocodeResponse, ReverseGeocodeResponse } from './geocoding/geocoding.types';
 import { User } from '../auth/entities/user.entity';
 
 /**
@@ -95,6 +95,36 @@ export class PropertiesController {
 
     const result = await this.geocodingService.forwardGeocode(
       { address: dto.address, country: dto.country },
+      userId,
+    );
+
+    if (!result) {
+      throw new UnprocessableEntityException('property.error.geocoding_failed');
+    }
+
+    return result;
+  }
+
+  /**
+   * POST /properties/reverse-geocode — Reverse geocode coordinates to address.
+   * Requires Host role with completed onboarding.
+   * Rate limited per user (configured via PROPERTY_GEOCODING_RATE_LIMIT).
+   * Validates lat ∈ [-90, 90] and lng ∈ [-180, 180].
+   * Returns structured address components (formattedAddress, street, city, state, country, postalCode).
+   * Returns 422 if reverse geocoding produces no results.
+   */
+  @Post('reverse-geocode')
+  @UseGuards(OnboardingGateGuard)
+  @RequireOnboarding(UserRole.HOST)
+  @UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }))
+  async reverseGeocodeCoordinates(
+    @Body() dto: ReverseGeocodeDto,
+    @Req() req: Request & { user: JwtUserPayload },
+  ): Promise<ReverseGeocodeResponse> {
+    const userId = await this.resolveUserId(req.user.keycloakId);
+
+    const result = await this.geocodingService.reverseGeocode(
+      { lat: dto.lat, lng: dto.lng },
       userId,
     );
 
