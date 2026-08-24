@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Properties module (api)** — PATCH /properties/:id endpoint fully implemented (Task 14)
+  - `PropertiesService.updateProperty(propertyId, userId, dto)` orchestrates partial property updates
+  - Consults `OfferEditabilityCheck` contract before applying changes — throws 409 ConflictException with blockedFields if not editable
+  - Address field changes (street, city, state, postalCode, country) trigger forward geocoding via Mapbox to refresh coordinates + set location_source=GEOCODED
+  - Direct lat/lng changes set location_source=MANUAL (manual map pin move)
+  - Geocoding failures are non-blocking — address updates proceed without coordinate refresh
+  - `PropertiesRepository.updatePropertyWithLocation()` handles PostGIS ST_MakePoint for spatial updates with ownership WHERE clause
+  - `UpdatePropertyDto` validates constraints: sqm > 0 and <= 10000, bedrooms >= 0 and <= 50, bathrooms >= 1 and <= 20, checklist <= 30 items, requirements <= 20 items
+  - Controller: `@Patch(':id')` with `@UseGuards(PropertyOwnerGuard)` for secondary ownership defense
+  - Added constants: PROPERTY_MAX_SQM, PROPERTY_MAX_BEDROOMS, PROPERTY_MAX_BATHROOMS, LOCATION_SOURCE_VALUE
+  - 8 unit tests covering editability conflict, simple update, geocoding trigger, MANUAL source, geocoding failure fallback, not found, empty DTO, partial coordinates
 - **Properties module (api)** — GET /properties/:id endpoint fully implemented (Task 13)
   - `PropertiesService.getPropertyDetail(propertyId, userId)` returns full owner view
   - `PropertiesRepository.findOneByOwnerWithCoordinates()` extracts lat/lng via ST_Y/ST_X from PostGIS geography

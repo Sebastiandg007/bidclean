@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { ConflictException, Inject, Injectable, Logger } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { PropertiesRepository } from './properties.repository';
 import { PropertyPhotoService } from './photo/property-photo.service';
@@ -9,9 +9,10 @@ import {
   OfferEditabilityResult,
 } from './contracts/offer-editability.interface';
 import { CreatePropertyDto } from './dto/create-property.dto';
+import { UpdatePropertyDto } from './dto/update-property.dto';
 import { PropertyQueryDto } from './dto/property-query.dto';
 import { Property } from './entities/property.entity';
-import { PROPERTY_LIST_DEFAULT_PAGE_SIZE } from './properties.constants';
+import { PROPERTY_LIST_DEFAULT_PAGE_SIZE, LOCATION_SOURCE_VALUE } from './properties.constants';
 import {
   LocationSource,
   OwnerPropertyView,
@@ -130,6 +131,300 @@ export class PropertiesService {
   }
 
   /**
+   * Updates an existing property with partial data.
+   * Orchestrates: editability check → address/coordinate change detection →
+   * geocoding triggers → repository update.
+   *
+   * - Address field changes trigger forward geocoding to refresh coordinates
+   *   (location_source → GEOCODED).
+   * - Direct lat/lng coordinate changes update location_source → MANUAL.
+   * - Geocoding failures are non-blocking (property still updates, coordinates may not refresh).
+   * - OfferEditabilityCheck contract consulted before any changes are applied.
+   *
+   * @param propertyId - UUID of the property to update
+   * @param userId - Owner's internal user UUID
+   * @param dto - Validated partial update data
+   * @returns Updated property view or null if not found/not owned
+   * @throws ConflictException if OfferEditabilityCheck returns editable=false
+   * @throws NotFoundException if property not found or not owned
+   */
+  async updateProperty(
+    propertyId: string,
+    userId: string,
+    dto: UpdatePropertyDto,
+  ): Promise<OwnerPropertyView | null> {
+    const changedFields = Object.keys(dto).filter(
+      (key) => (dto as Record<string, unknown>)[key] !== undefined,
+    );
+
+    if (changedFields.length === 0) {
+      return this.getPropertyDetail(propertyId, userId);
+    }
+
+    const editability = await this.checkEditability(propertyId, changedFields);
+    if (!editability.editable) {
+      throw new ConflictException({
+        message: 'property.error.cannot_edit',
+        blockedFields: editability.blockedFields,
+        reason: editability.reason,
+      });
+    }
+
+    const hasAddressChange = this.detectAddressChange(dto);
+    const hasCoordinateChange = this.detectCoordinateChange(dto);
+
+    if (hasCoordinateChange) {
+      return this.applyCoordinateUpdate(propertyId, userId, dto);
+    }
+
+    if (hasAddressChange) {
+      return this.applyAddressUpdateWithGeocoding(propertyId, userId, dto);
+    }
+
+    return this.applySimpleUpdate(propertyId, userId, dto);
+  }
+
+  /**
+   * Detects whether the DTO contains address field changes
+   * that should trigger forward geocoding.
+   */
+  private detectAddressChange(dto: UpdatePropertyDto): boolean {
+    return Boolean(
+      dto.addressStreet ||
+      dto.addressCity ||
+      dto.addressState !== undefined ||
+      dto.addressPostalCode !== undefined ||
+      dto.addressCountry,
+    );
+  }
+
+  /**
+   * Detects whether the DTO contains direct coordinate changes (lat/lng)
+   * indicating a manual map pin placement.
+   */
+  private detectCoordinateChange(dto: UpdatePropertyDto): boolean {
+    return dto.lat !== undefined || dto.lng !== undefined;
+  }
+
+  /**
+   * Applies a direct coordinate update (manual map pin move).
+   * Sets location_source to MANUAL. Coordinates come from the DTO.
+   * Requires both lat and lng to be present for a coordinate update.
+   */
+  private async applyCoordinateUpdate(
+    propertyId: string,
+    userId: string,
+    dto: UpdatePropertyDto,
+  ): Promise<OwnerPropertyView | null> {
+    const existing = await this._propertiesRepository.findOneByOwnerWithCoordinates(
+      propertyId,
+      userId,
+    );
+
+    if (!existing) {
+      return null;
+    }
+
+    const lat = dto.lat ?? existing.lat;
+    const lng = dto.lng ?? existing.lng;
+
+    const fields = this.buildUpdateFields(dto);
+    fields['locationSource'] = LOCATION_SOURCE_VALUE.MANUAL;
+
+    const updated = await this._propertiesRepository.updatePropertyWithLocation(
+      propertyId,
+      userId,
+      fields,
+      { lat, lng },
+    );
+
+    if (!updated) {
+      return null;
+    }
+
+    return this.getPropertyDetail(propertyId, userId);
+  }
+
+  /**
+   * Applies an address update with forward geocoding trigger.
+   * On successful geocoding: updates coordinates + formatted_address + location_source=GEOCODED.
+   * On geocoding failure: applies the address update without refreshing coordinates (non-blocking).
+   */
+  private async applyAddressUpdateWithGeocoding(
+    propertyId: string,
+    userId: string,
+    dto: UpdatePropertyDto,
+  ): Promise<OwnerPropertyView | null> {
+    const existing = await this._propertiesRepository.findOneByOwnerWithCoordinates(
+      propertyId,
+      userId,
+    );
+
+    if (!existing) {
+      return null;
+    }
+
+    const addressForGeocoding = this.buildGeocodeAddress(dto, existing);
+    const country = dto.addressCountry ?? existing.addressCountry;
+
+    const geocodeResult = await this.attemptForwardGeocode(
+      addressForGeocoding,
+      country,
+      userId,
+    );
+
+    const fields = this.buildUpdateFields(dto);
+
+    if (geocodeResult) {
+      fields['formattedAddress'] = geocodeResult.formattedAddress;
+      fields['locationSource'] = LOCATION_SOURCE_VALUE.GEOCODED;
+
+      const updated = await this._propertiesRepository.updatePropertyWithLocation(
+        propertyId,
+        userId,
+        fields,
+        { lat: geocodeResult.lat, lng: geocodeResult.lng },
+      );
+
+      if (!updated) {
+        return null;
+      }
+    } else {
+      this.logger.warn(
+        `Geocoding failed for property ${propertyId} address update — applying address without coordinate refresh`,
+      );
+
+      const entityFields = this.buildEntityPartial(fields);
+      const updated = await this._propertiesRepository.updateProperty(
+        propertyId,
+        userId,
+        entityFields,
+      );
+
+      if (!updated) {
+        return null;
+      }
+    }
+
+    return this.getPropertyDetail(propertyId, userId);
+  }
+
+  /**
+   * Applies a simple property update (no address or coordinate changes).
+   * Uses the standard TypeORM update path.
+   */
+  private async applySimpleUpdate(
+    propertyId: string,
+    userId: string,
+    dto: UpdatePropertyDto,
+  ): Promise<OwnerPropertyView | null> {
+    const fields = this.buildUpdateFields(dto);
+    const entityFields = this.buildEntityPartial(fields);
+
+    const updated = await this._propertiesRepository.updateProperty(
+      propertyId,
+      userId,
+      entityFields,
+    );
+
+    if (!updated) {
+      return null;
+    }
+
+    return this.getPropertyDetail(propertyId, userId);
+  }
+
+  /**
+   * Builds a plain object of changed fields from the DTO,
+   * excluding lat/lng (handled separately as coordinates).
+   */
+  private buildUpdateFields(dto: UpdatePropertyDto): Record<string, unknown> {
+    const fields: Record<string, unknown> = {};
+    const dtoRecord = dto as Record<string, unknown>;
+
+    const fieldKeys = [
+      'name', 'type', 'description',
+      'addressStreet', 'addressCity', 'addressState',
+      'addressPostalCode', 'addressCountry', 'formattedAddress',
+      'squareMeters', 'bedrooms', 'bathrooms', 'floorNumber',
+      'hasParking', 'hasElevator', 'specialRequirements',
+      'checklistItems', 'accessInstructions',
+    ];
+
+    for (const key of fieldKeys) {
+      if (dtoRecord[key] !== undefined) {
+        fields[key] = dtoRecord[key];
+      }
+    }
+
+    return fields;
+  }
+
+  /**
+   * Converts a Record<string, unknown> into a Partial<Property> for TypeORM update.
+   */
+  private buildEntityPartial(fields: Record<string, unknown>): Partial<Property> {
+    const partial: Partial<Property> = {};
+
+    for (const [key, value] of Object.entries(fields)) {
+      (partial as Record<string, unknown>)[key] = value;
+    }
+
+    return partial;
+  }
+
+  /**
+   * Constructs the full address string for geocoding from updated + existing fields.
+   */
+  private buildGeocodeAddress(
+    dto: UpdatePropertyDto,
+    existing: Property,
+  ): string {
+    const street = dto.addressStreet ?? existing.addressStreet;
+    const city = dto.addressCity ?? existing.addressCity;
+    const state = dto.addressState !== undefined
+      ? dto.addressState
+      : existing.addressState;
+    const postalCode = dto.addressPostalCode !== undefined
+      ? dto.addressPostalCode
+      : existing.addressPostalCode;
+
+    const parts = [street, city, state, postalCode].filter(Boolean);
+    return parts.join(', ');
+  }
+
+  /**
+   * Attempts forward geocoding. Returns null on failure (non-blocking).
+   */
+  private async attemptForwardGeocode(
+    address: string,
+    country: string,
+    userId: string,
+  ): Promise<{ lat: number; lng: number; formattedAddress: string } | null> {
+    try {
+      const result = await this._geocodingService.forwardGeocode(
+        { address, country },
+        userId,
+      );
+
+      if (!result) {
+        return null;
+      }
+
+      return {
+        lat: result.lat,
+        lng: result.lng,
+        formattedAddress: result.formattedAddress,
+      };
+    } catch (error) {
+      this.logger.warn(
+        `Forward geocoding attempt failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return null;
+    }
+  }
+
+  /**
    * Retrieves the full property detail for an owner, including coordinates,
    * photo signed URLs ordered by display_order, and offer-readiness status.
    *
@@ -157,9 +452,9 @@ export class PropertiesService {
     return this.mapToOwnerView(property, photoViews, photoCount);
   }
 
-  /** @internal Placeholder to satisfy noUnusedLocals until all methods are implemented */
+  /** @internal Dependencies are now actively used by update methods */
   protected get dependencies(): unknown[] {
-    return [this._geocodingService];
+    return [];
   }
 
   /**

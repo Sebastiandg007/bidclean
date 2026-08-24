@@ -268,6 +268,83 @@ export class PropertiesRepository {
   }
 
   /**
+   * Update a property including a PostGIS location column change.
+   * Uses raw SQL to handle ST_MakePoint for geography column updates.
+   * Enforces ownership: WHERE user_id AND deleted_at IS NULL.
+   *
+   * @param propertyId - UUID of the property to update
+   * @param userId - Owner's internal user UUID
+   * @param fields - Non-spatial fields to update (key-value pairs)
+   * @param coordinates - New lat/lng coordinates for ST_MakePoint
+   * @returns Updated property with coordinates or null if not found/not owned
+   */
+  async updatePropertyWithLocation(
+    propertyId: string,
+    userId: string,
+    fields: Record<string, unknown>,
+    coordinates: { lat: number; lng: number },
+  ): Promise<(Property & { lat: number; lng: number }) | null> {
+    const setClauses: string[] = ['location = ST_MakePoint($3, $4)::geography'];
+    const params: unknown[] = [propertyId, userId, coordinates.lng, coordinates.lat];
+    let paramIndex = 5;
+
+    const columnMap = this.getColumnMap();
+
+    for (const [key, value] of Object.entries(fields)) {
+      const columnName = columnMap[key];
+      if (!columnName) continue;
+
+      setClauses.push(`${columnName} = $${paramIndex}`);
+      params.push(value);
+      paramIndex++;
+    }
+
+    setClauses.push(`updated_at = NOW()`);
+
+    const sql = `
+      UPDATE properties
+      SET ${setClauses.join(', ')}
+      WHERE id = $1
+        AND user_id = $2
+        AND deleted_at IS NULL
+      RETURNING id
+    `;
+
+    const result = await this.dataSource.query(sql, params);
+
+    if (!result || result.length === 0) {
+      return null;
+    }
+
+    return this.findOneByOwnerWithCoordinates(propertyId, userId);
+  }
+
+  /** Maps entity property names to database column names for raw SQL updates. */
+  private getColumnMap(): Record<string, string> {
+    return {
+      name: 'name',
+      type: 'type',
+      description: 'description',
+      addressStreet: 'address_street',
+      addressCity: 'address_city',
+      addressState: 'address_state',
+      addressPostalCode: 'address_postal_code',
+      addressCountry: 'address_country',
+      formattedAddress: 'formatted_address',
+      locationSource: 'location_source',
+      squareMeters: 'square_meters',
+      bedrooms: 'bedrooms',
+      bathrooms: 'bathrooms',
+      floorNumber: 'floor_number',
+      hasParking: 'has_parking',
+      hasElevator: 'has_elevator',
+      specialRequirements: 'special_requirements',
+      checklistItems: 'checklist_items',
+      accessInstructions: 'access_instructions',
+    };
+  }
+
+  /**
    * Soft delete a property by setting deleted_at timestamp.
    * Enforces ownership: only the owning user can soft-delete.
    * Returns true if the property was soft-deleted, false if not found/not owned.

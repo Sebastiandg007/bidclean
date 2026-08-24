@@ -40,6 +40,15 @@ export const CHECKLIST_ITEM_MAX_LENGTH = 200;
 /** Maximum number of checklist items */
 export const CHECKLIST_ITEMS_MAX_COUNT = 30;
 
+/** Maximum square meters value */
+export const PROPERTY_MAX_SQM = 10_000;
+
+/** Maximum number of bedrooms */
+export const PROPERTY_MAX_BEDROOMS = 50;
+
+/** Maximum number of bathrooms */
+export const PROPERTY_MAX_BATHROOMS = 20;
+
 /** Maximum page size for property list pagination */
 export const PROPERTY_LIST_MAX_PAGE_SIZE = 50;
 
@@ -66,6 +75,12 @@ export const SUPPORTED_COUNTRIES = [
 
 /** Location source values */
 export const LOCATION_SOURCES = ['GEOCODED', 'MANUAL'] as const;
+
+/** Location source enum-like object for referencing specific values */
+export const LOCATION_SOURCE_VALUE = {
+  GEOCODED: 'GEOCODED' as const,
+  MANUAL: 'MANUAL' as const,
+};
 
 /** Mapbox Geocoding API v5 base URL */
 export const MAPBOX_GEOCODING_BASE_URL =

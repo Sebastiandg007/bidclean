@@ -6,6 +6,7 @@ import {
   HttpStatus,
   NotFoundException,
   Param,
+  Patch,
   Post,
   Query,
   Req,
@@ -26,6 +27,7 @@ import { PropertyOwnerGuard } from './guards/property-owner.guard';
 import { UserRole } from '../roles/roles.types';
 import { JwtUserPayload } from '../auth/guards/jwt.types';
 import { CreatePropertyDto } from './dto/create-property.dto';
+import { UpdatePropertyDto } from './dto/update-property.dto';
 import { PropertyQueryDto } from './dto/property-query.dto';
 import { PropertyDetailResponse, PropertyListResponse } from './dto/property-response.dto';
 import { User } from '../auth/entities/user.entity';
@@ -87,6 +89,32 @@ export class PropertiesController {
     }
 
     return detail;
+  }
+
+  /**
+   * PATCH /properties/:id — Update an existing property (partial update).
+   * Requires Host role with ownership verification.
+   * PropertyOwnerGuard enforces ownership as secondary defense.
+   * Address changes trigger re-geocoding (location_source → GEOCODED).
+   * Coordinate changes update location_source → MANUAL.
+   * Consults OfferEditabilityCheck before applying changes.
+   */
+  @Patch(':id')
+  @UseGuards(PropertyOwnerGuard)
+  @UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }))
+  async updateProperty(
+    @Param('id') propertyId: string,
+    @Body() dto: UpdatePropertyDto,
+    @Req() req: Request & { user: JwtUserPayload },
+  ): Promise<PropertyDetailResponse> {
+    const userId = await this.resolveUserId(req.user.keycloakId);
+    const result = await this.propertiesService.updateProperty(propertyId, userId, dto);
+
+    if (!result) {
+      throw new NotFoundException('property.error.not_found');
+    }
+
+    return result;
   }
 
   /**

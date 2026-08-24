@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { ConflictException } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { PropertiesService, CreatePropertyResult } from '../properties.service';
 import { PropertiesRepository } from '../properties.repository';
@@ -6,6 +7,7 @@ import { PropertyPhotoService } from '../photo/property-photo.service';
 import { GeocodingService } from '../geocoding/geocoding.service';
 import { OFFER_EDITABILITY_CHECK } from '../contracts/offer-editability.interface';
 import { CreatePropertyDto } from '../dto/create-property.dto';
+import { UpdatePropertyDto } from '../dto/update-property.dto';
 import { PropertyQueryDto } from '../dto/property-query.dto';
 import { Property } from '../entities/property.entity';
 import { PropertyPhoto } from '../entities/property-photo.entity';
@@ -380,6 +382,243 @@ describe('PropertiesService', () => {
         type: 'apartment',
         sortBy: 'name',
       });
+    });
+  });
+
+  describe('updateProperty', () => {
+    let editabilityCheck: { canModifyProperty: jest.Mock };
+    let geocodingService: { forwardGeocode: jest.Mock; reverseGeocode: jest.Mock };
+
+    const mockPropertyWithCoords = {
+      id: mockPropertyId,
+      userId: mockUserId,
+      name: 'Test Apartment',
+      type: 'apartment',
+      description: 'A cozy apartment',
+      addressStreet: '123 Main St',
+      addressCity: 'Bogota',
+      addressState: 'Cundinamarca',
+      addressPostalCode: '110111',
+      addressCountry: 'CO',
+      location: '0101000020E6100000',
+      formattedAddress: '123 Main St, Bogota, Colombia',
+      locationSource: 'GEOCODED',
+      squareMeters: 80,
+      bedrooms: 2,
+      bathrooms: 1,
+      floorNumber: 3,
+      hasParking: true,
+      hasElevator: true,
+      specialRequirements: ['pets'],
+      checklistItems: ['Clean kitchen'],
+      accessInstructions: 'Ring bell twice',
+      deletedAt: null,
+      createdAt: new Date('2024-01-01T00:00:00Z'),
+      updatedAt: new Date('2024-01-01T00:00:00Z'),
+      photos: [],
+      lat: 4.711,
+      lng: -74.0721,
+    } as unknown as Property & { lat: number; lng: number };
+
+    beforeEach(async () => {
+      editabilityCheck = { canModifyProperty: jest.fn() };
+      geocodingService = { forwardGeocode: jest.fn(), reverseGeocode: jest.fn() };
+
+      repository = {
+        findByIdempotencyKey: jest.fn(),
+        findAllByOwner: jest.fn(),
+        getCoverPhoto: jest.fn(),
+        findOneByOwner: jest.fn(),
+        findOneByOwnerWithCoordinates: jest.fn(),
+        updateProperty: jest.fn(),
+        updatePropertyWithLocation: jest.fn(),
+        countPhotos: jest.fn(),
+      };
+
+      photoService = {
+        getSignedUrl: jest.fn(),
+        getPhotosWithUrls: jest.fn(),
+      };
+
+      dataSource = {
+        query: jest.fn(),
+      };
+
+      const module: TestingModule = await Test.createTestingModule({
+        providers: [
+          PropertiesService,
+          { provide: PropertiesRepository, useValue: repository },
+          { provide: PropertyPhotoService, useValue: photoService },
+          { provide: GeocodingService, useValue: geocodingService },
+          { provide: OFFER_EDITABILITY_CHECK, useValue: editabilityCheck },
+          { provide: DataSource, useValue: dataSource },
+        ],
+      }).compile();
+
+      service = module.get<PropertiesService>(PropertiesService);
+    });
+
+    it('should throw ConflictException when editability check returns editable=false', async () => {
+      editabilityCheck.canModifyProperty.mockResolvedValueOnce({
+        editable: false,
+        blockedFields: ['name', 'type'],
+        reason: 'Active offer in progress',
+      });
+
+      const dto: UpdatePropertyDto = { name: 'New Name' };
+
+      await expect(
+        service.updateProperty(mockPropertyId, mockUserId, dto),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('should apply simple update when no address or coordinate change', async () => {
+      editabilityCheck.canModifyProperty.mockResolvedValueOnce({
+        editable: true,
+        blockedFields: [],
+      });
+
+      const updatedProperty = { ...mockPropertyWithCoords, name: 'Updated Name' };
+      (repository.updateProperty as jest.Mock).mockResolvedValueOnce(updatedProperty);
+      (repository.findOneByOwnerWithCoordinates as jest.Mock).mockResolvedValueOnce(updatedProperty);
+      (photoService.getPhotosWithUrls as jest.Mock).mockResolvedValueOnce([]);
+
+      const dto: UpdatePropertyDto = { name: 'Updated Name' };
+
+      const result = await service.updateProperty(mockPropertyId, mockUserId, dto);
+
+      expect(result).not.toBeNull();
+      expect(repository.updateProperty).toHaveBeenCalledWith(
+        mockPropertyId,
+        mockUserId,
+        expect.objectContaining({ name: 'Updated Name' }),
+      );
+    });
+
+    it('should trigger forward geocoding when address fields change', async () => {
+      editabilityCheck.canModifyProperty.mockResolvedValueOnce({
+        editable: true,
+        blockedFields: [],
+      });
+
+      (repository.findOneByOwnerWithCoordinates as jest.Mock).mockResolvedValue(mockPropertyWithCoords);
+      geocodingService.forwardGeocode.mockResolvedValueOnce({
+        lat: 4.72,
+        lng: -74.08,
+        formattedAddress: '456 New Street, Bogota, Colombia',
+        confidence: 0.95,
+      });
+      (repository.updatePropertyWithLocation as jest.Mock).mockResolvedValueOnce(mockPropertyWithCoords);
+      (photoService.getPhotosWithUrls as jest.Mock).mockResolvedValueOnce([]);
+
+      const dto: UpdatePropertyDto = { addressStreet: '456 New Street' };
+
+      await service.updateProperty(mockPropertyId, mockUserId, dto);
+
+      expect(geocodingService.forwardGeocode).toHaveBeenCalled();
+      expect(repository.updatePropertyWithLocation).toHaveBeenCalledWith(
+        mockPropertyId,
+        mockUserId,
+        expect.objectContaining({
+          addressStreet: '456 New Street',
+          locationSource: 'GEOCODED',
+          formattedAddress: '456 New Street, Bogota, Colombia',
+        }),
+        { lat: 4.72, lng: -74.08 },
+      );
+    });
+
+    it('should set location_source to MANUAL when coordinates change directly', async () => {
+      editabilityCheck.canModifyProperty.mockResolvedValueOnce({
+        editable: true,
+        blockedFields: [],
+      });
+
+      (repository.findOneByOwnerWithCoordinates as jest.Mock).mockResolvedValue(mockPropertyWithCoords);
+      (repository.updatePropertyWithLocation as jest.Mock).mockResolvedValueOnce(mockPropertyWithCoords);
+      (photoService.getPhotosWithUrls as jest.Mock).mockResolvedValueOnce([]);
+
+      const dto: UpdatePropertyDto = { lat: 5.0, lng: -75.0 };
+
+      await service.updateProperty(mockPropertyId, mockUserId, dto);
+
+      expect(repository.updatePropertyWithLocation).toHaveBeenCalledWith(
+        mockPropertyId,
+        mockUserId,
+        expect.objectContaining({ locationSource: 'MANUAL' }),
+        { lat: 5.0, lng: -75.0 },
+      );
+      expect(geocodingService.forwardGeocode).not.toHaveBeenCalled();
+    });
+
+    it('should apply address update without coordinates when geocoding fails (non-blocking)', async () => {
+      editabilityCheck.canModifyProperty.mockResolvedValueOnce({
+        editable: true,
+        blockedFields: [],
+      });
+
+      (repository.findOneByOwnerWithCoordinates as jest.Mock).mockResolvedValue(mockPropertyWithCoords);
+      geocodingService.forwardGeocode.mockResolvedValueOnce(null);
+      const updatedProperty = { ...mockPropertyWithCoords, addressCity: 'Medellin' };
+      (repository.updateProperty as jest.Mock).mockResolvedValueOnce(updatedProperty);
+      (photoService.getPhotosWithUrls as jest.Mock).mockResolvedValueOnce([]);
+
+      const dto: UpdatePropertyDto = { addressCity: 'Medellin' };
+
+      const result = await service.updateProperty(mockPropertyId, mockUserId, dto);
+
+      expect(result).not.toBeNull();
+      expect(repository.updateProperty).toHaveBeenCalled();
+      expect(repository.updatePropertyWithLocation).not.toHaveBeenCalled();
+    });
+
+    it('should return null when property not found during coordinate update', async () => {
+      editabilityCheck.canModifyProperty.mockResolvedValueOnce({
+        editable: true,
+        blockedFields: [],
+      });
+
+      (repository.findOneByOwnerWithCoordinates as jest.Mock).mockResolvedValueOnce(null);
+
+      const dto: UpdatePropertyDto = { lat: 5.0, lng: -75.0 };
+
+      const result = await service.updateProperty(mockPropertyId, mockUserId, dto);
+
+      expect(result).toBeNull();
+    });
+
+    it('should return current property detail when no fields are provided', async () => {
+      (repository.findOneByOwnerWithCoordinates as jest.Mock).mockResolvedValueOnce(mockPropertyWithCoords);
+      (photoService.getPhotosWithUrls as jest.Mock).mockResolvedValueOnce([]);
+
+      const dto: UpdatePropertyDto = {};
+
+      const result = await service.updateProperty(mockPropertyId, mockUserId, dto);
+
+      expect(editabilityCheck.canModifyProperty).not.toHaveBeenCalled();
+      expect(result).not.toBeNull();
+    });
+
+    it('should use existing coordinates when only lat is provided (fills lng from existing)', async () => {
+      editabilityCheck.canModifyProperty.mockResolvedValueOnce({
+        editable: true,
+        blockedFields: [],
+      });
+
+      (repository.findOneByOwnerWithCoordinates as jest.Mock).mockResolvedValue(mockPropertyWithCoords);
+      (repository.updatePropertyWithLocation as jest.Mock).mockResolvedValueOnce(mockPropertyWithCoords);
+      (photoService.getPhotosWithUrls as jest.Mock).mockResolvedValueOnce([]);
+
+      const dto: UpdatePropertyDto = { lat: 5.5 };
+
+      await service.updateProperty(mockPropertyId, mockUserId, dto);
+
+      expect(repository.updatePropertyWithLocation).toHaveBeenCalledWith(
+        mockPropertyId,
+        mockUserId,
+        expect.objectContaining({ locationSource: 'MANUAL' }),
+        { lat: 5.5, lng: mockPropertyWithCoords.lng },
+      );
     });
   });
 });

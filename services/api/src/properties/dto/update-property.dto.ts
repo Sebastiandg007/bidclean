@@ -27,13 +27,16 @@ import {
   CHECKLIST_ITEMS_MAX_COUNT,
   SUPPORTED_PROPERTY_TYPES,
   SUPPORTED_COUNTRIES,
-  LOCATION_SOURCES,
+  PROPERTY_MAX_SQM,
+  PROPERTY_MAX_BEDROOMS,
+  PROPERTY_MAX_BATHROOMS,
 } from '../properties.constants';
 
 /**
  * DTO for updating an existing property.
  * Used by PATCH /properties/:id.
  * All fields are optional (partial update).
+ * Validates constraints: sqm > 0 and <= 10000, bedrooms >= 0 and <= 50, bathrooms >= 1 and <= 20.
  */
 export class UpdatePropertyDto {
   @IsOptional()
@@ -85,20 +88,15 @@ export class UpdatePropertyDto {
 
   @IsOptional()
   @IsNumber()
-  @Min(-90)
-  @Max(90)
+  @Min(-90, { message: 'property.error.invalid_coordinates' })
+  @Max(90, { message: 'property.error.invalid_coordinates' })
   lat?: number;
 
   @IsOptional()
   @IsNumber()
-  @Min(-180)
-  @Max(180)
+  @Min(-180, { message: 'property.error.invalid_coordinates' })
+  @Max(180, { message: 'property.error.invalid_coordinates' })
   lng?: number;
-
-  @IsOptional()
-  @IsString()
-  @IsIn([...LOCATION_SOURCES])
-  locationSource?: string;
 
   @IsOptional()
   @IsString()
@@ -108,16 +106,19 @@ export class UpdatePropertyDto {
   @IsOptional()
   @IsNumber()
   @Min(1)
+  @Max(PROPERTY_MAX_SQM)
   squareMeters?: number;
 
   @IsOptional()
   @IsInt()
   @Min(0)
+  @Max(PROPERTY_MAX_BEDROOMS)
   bedrooms?: number;
 
   @IsOptional()
   @IsInt()
   @Min(1)
+  @Max(PROPERTY_MAX_BATHROOMS)
   bathrooms?: number;
 
   @IsOptional()
