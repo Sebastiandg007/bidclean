@@ -8,6 +8,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Properties module (mobile)** — ChecklistEditor component fully implemented (Task 32)
+  - Add/remove text items with validation (empty, character limit, max count)
+  - Character counter per item with warning (yellow at 80%) and error (red at 100%) color states
+  - Max count indicator showing "current/30 items" badge in header
+  - Move up/down reorder buttons per item (disabled at boundaries)
+  - Delete button (✕) per item to remove from list
+  - Empty state with clipboard icon and encouragement to add tasks
+  - "Maximum items reached" error text when count hits PROPERTY_MAX_CHECKLIST_ITEMS
+  - Add input with dashed accent border button (same pattern as PhotoUploader upload tile)
+  - Text input with maxLength enforcement from CHECKLIST_ITEM_MAX_LENGTH constant
+  - Dark theme styling with design tokens (COLORS, SPACING, FONT_SIZE)
+  - Full accessibility: accessibilityRole, accessibilityLabel, accessibilityState on all interactive elements
+  - testID attributes on all key elements for testing
+  - All UI text via i18n useTranslation() with defaultValue fallbacks
+  - No magic numbers: all layout values as named constants
+  - Follows PhotoUploader code organization: Types → Layout Constants → Helpers → Sub-Components → Main Component → Styles
 - **Properties module (mobile)** — PhotoUploader component fully implemented (Task 31)
   - Photo grid layout (2 columns) displaying thumbnails with signed URLs
   - Upload button using expo-image-picker `launchImageLibraryAsync` with file size validation
