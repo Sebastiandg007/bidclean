@@ -1,0 +1,214 @@
+{
+  "properties": {
+    "screens": {
+      "list": "My Properties",
+      "detail": "Property Detail",
+      "create": "Create Property",
+      "edit": "Edit Property"
+    },
+    "form": {
+      "name": "Property Name",
+      "namePlaceholder": "e.g., My apartment downtown",
+      "type": "Property Type",
+      "description": "Description",
+      "descriptionPlaceholder": "Describe your property...",
+      "address": {
+        "title": "Address",
+        "street": "Street",
+        "streetPlaceholder": "Street address",
+        "city": "City",
+        "cityPlaceholder": "City name",
+        "state": "State / Province",
+        "statePlaceholder": "State or province",
+        "postalCode": "Postal Code",
+        "postalCodePlaceholder": "ZIP / Postal code",
+        "country": "Country"
+      },
+      "squareMeters": "Square Meters",
+      "squareMetersPlaceholder": "Approximate area in m²",
+      "bedrooms": "Bedrooms",
+      "bathrooms": "Bathrooms",
+      "floorNumber": "Floor Number",
+      "floorNumberPlaceholder": "e.g., 3",
+      "hasParking": "Has Parking",
+      "hasElevator": "Has Elevator",
+      "accessInstructions": "Access Instructions",
+      "accessInstructionsPlaceholder": "How to access the property (only shown to confirmed cleaner)",
+      "locateOnMap": "Locate on Map"
+    },
+    "type": {
+      "apartment": "Apartment",
+      "house": "House",
+      "office": "Office",
+      "airbnb": "Airbnb",
+      "commercial_space": "Commercial Space",
+      "other": "Other"
+    },
+    "country": {
+      "CO": "Colombia",
+      "US": "United States",
+      "CA": "Canada",
+      "GB": "United Kingdom",
+      "DE": "Germany",
+      "FR": "France",
+      "IT": "Italy",
+      "ES": "Spain",
+      "PT": "Portugal",
+      "NL": "Netherlands"
+    },
+    "requirement": {
+      "pets": "Pets in Property",
+      "eco_products": "Eco-Friendly Products Only",
+      "heavy_cleaning": "Heavy Cleaning Needed",
+      "fragile_items": "Fragile Items Present",
+      "allergen_free": "Allergen-Free Products",
+      "specific_tools": "Specific Tools Required",
+      "deep_clean": "Deep Cleaning",
+      "move_in_out": "Move In/Out Cleaning"
+    },
+    "validation": {
+      "nameRequired": "Property name is required",
+      "nameTooLong": "Name cannot exceed {{max}} characters",
+      "descriptionTooLong": "Description cannot exceed {{max}} characters",
+      "invalidType": "Please select a valid property type",
+      "invalidCountry": "Please select a supported country",
+      "sqmMustBePositive": "Square meters must be greater than zero",
+      "sqmTooLarge": "Square meters cannot exceed {{max}}",
+      "bedroomsInvalid": "Bedrooms must be between 0 and {{max}}",
+      "bathroomsInvalid": "Bathrooms must be at least 1 (max {{max}})",
+      "coordinatesInvalid": "Invalid geographic coordinates",
+      "checklistItemTooLong": "Checklist item cannot exceed {{max}} characters",
+      "tooManyChecklistItems": "Maximum {{max}} checklist items allowed",
+      "tooManyRequirements": "Maximum {{max}} requirements allowed",
+      "addressFieldsRequired": "Street, city, postal code, and country are required"
+    },
+    "apiError": {
+      "notFound": "Property not found",
+      "notOwner": "You do not have permission to access this property",
+      "hasActiveOffer": "Cannot modify property with an active offer",
+      "maxPhotosReached": "Maximum number of photos reached",
+      "photoNotFound": "Photo not found",
+      "invalidPhotoFormat": "Unsupported photo format. Use JPEG, PNG, or WebP",
+      "photoTooLarge": "Photo exceeds maximum file size of {{max}} MB",
+      "geocodingFailed": "Could not find address. Try placing a pin manually",
+      "unsupportedCountry": "This country is not supported yet",
+      "invalidType": "Invalid property type",
+      "invalidCoordinates": "Coordinates are out of valid range",
+      "geocodeQueryTooLong": "Address text is too long (max {{max}} characters)"
+    },
+    "empty": {
+      "noProperties": "No properties yet",
+      "noPropertiesDescription": "Add your first property to start publishing offers",
+      "noPhotos": "No photos yet",
+      "noPhotosDescription": "Upload photos to help cleaners understand your space",
+      "noChecklistItems": "No checklist items",
+      "noChecklistDescription": "Add tasks you expect the cleaner to complete",
+      "noRequirements": "No special requirements",
+      "noRequirementsDescription": "Add any special conditions for your property"
+    },
+    "geocoding": {
+      "searchingAddress": "Searching address...",
+      "addressFound": "Address found",
+      "addressNotFound": "Address not found",
+      "geocodingFailed": "Geocoding failed",
+      "placePinManually": "Place pin manually on the map",
+      "reverseGeocodingInProgress": "Getting address from location...",
+      "manualPinPlaced": "Pin placed manually"
+    },
+    "photos": {
+      "upload": "Upload Photo",
+      "delete": "Delete Photo",
+      "reorder": "Reorder Photos",
+      "photoCount": "{{count}} of {{max}}",
+      "maxReached": "Maximum photos reached ({{max}})",
+      "uploading": "Uploading...",
+      "supportedFormats": "Supported: JPEG, PNG, WebP",
+      "fileTooLarge": "File exceeds {{max}} MB"
+    },
+    "steps": {
+      "basicInfo": "Basic Info",
+      "addressAndMap": "Address & Map",
+      "photosAndDetails": "Photos & Details",
+      "next": "Next",
+      "back": "Back",
+      "save": "Save",
+      "creating": "Creating property...",
+      "updating": "Updating property..."
+    },
+    "detail": {
+      "photos": "Photos",
+      "location": "Location",
+      "dimensions": "Dimensions",
+      "checklist": "Checklist",
+      "requirements": "Requirements",
+      "accessInstructions": "Access Instructions",
+      "offerReadiness": "Offer Readiness",
+      "squareMetersLabel": "{{value}} m²",
+      "bedroomsLabel": "{{count}} bedrooms",
+      "bathroomsLabel": "{{count}} bathrooms",
+      "floorLabel": "Floor {{number}}",
+      "parkingYes": "Parking available",
+      "parkingNo": "No parking",
+      "elevatorYes": "Elevator available",
+      "elevatorNo": "No elevator"
+    },
+    "offerReadiness": {
+      "ready": "Ready for offers",
+      "notReady": "Not ready for offers",
+      "missingPhotos": "At least one photo is required",
+      "missingRequiredFields": "Required fields are incomplete"
+    },
+    "deleteConfirmation": {
+      "title": "Delete Property",
+      "message": "Are you sure you want to delete this property? This action cannot be undone.",
+      "confirm": "Delete",
+      "cancel": "Cancel"
+    },
+    "searchAndFilter": {
+      "searchPlaceholder": "Search by name or address...",
+      "filterByType": "Filter by Type",
+      "allTypes": "All Types",
+      "noResults": "No properties match your search"
+    },
+    "actions": {
+      "edit": "Edit",
+      "delete": "Delete",
+      "publishOffer": "Publish Offer",
+      "addProperty": "Add Property",
+      "retry": "Retry",
+      "cancel": "Cancel"
+    },
+    "map": {
+      "tapToPlacePin": "Tap the map to place a pin",
+      "dragToAdjust": "Drag pin to adjust location",
+      "currentLocation": "Current Location"
+    },
+    "checklist": {
+      "addItem": "Add Item",
+      "removeItem": "Remove",
+      "itemPlaceholder": "Describe the task...",
+      "maxItemsReached": "Maximum items reached ({{max}})"
+    },
+    "requirements": {
+      "addCustom": "Add Custom",
+      "customPlaceholder": "Type a custom requirement...",
+      "maxReached": "Maximum requirements reached ({{max}})"
+    },
+    "card": {
+      "bedroomsCount": "{{count}} bd",
+      "bathroomsCount": "{{count}} ba",
+      "offerReadyBadge": "Offer Ready"
+    },
+    "a11y": {
+      "propertyCard": "Property: {{name}}, {{type}} in {{city}}",
+      "typeSelector": "Select property type",
+      "photoGallery": "Property photos, {{count}} of {{total}}",
+      "mapPin": "Property location pin, drag to adjust",
+      "deleteButton": "Delete property {{name}}",
+      "editButton": "Edit property {{name}}",
+      "uploadPhotoButton": "Upload a new photo",
+      "checklistItem": "Checklist item {{index}}: {{text}}",
+      "requirementChip": "Requirement: {{label}}"
+    }
+  }
+}

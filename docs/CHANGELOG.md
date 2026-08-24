@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Properties module (mobile)** — i18n translation files for properties (Task 37)
+  - English (`en/properties.json`) and Spanish (`es/properties.json`) translation files
+  - Covers all 20 content categories: screen titles, form fields, property types, countries, requirements, validation errors, API errors, empty states, geocoding messages, photo management, multi-step form, detail sections, offer readiness, delete confirmation, search/filter, common actions, map component, checklist editor, requirements chips, property card
+  - All keys referenced by `properties.constants.ts` (type.*, country.*, requirement.*) are present
+  - Uses {{variable}} interpolation for dynamic values (counts, limits, names)
+  - Includes accessibility labels (a11y.*) for screen readers
+  - Spanish translations use natural Latin American (Colombia-focus) language
+  - Follows existing i18n pattern: root "properties" key, nested sections, camelCase keys
 - **Properties module (mobile)** — PropertyPhotoGallery component fully implemented (Task 36)
   - Reusable self-contained horizontal photo gallery with built-in full-screen modal
   - ScrollView thumbnails with snap-to-item behavior (70% screen width cards)

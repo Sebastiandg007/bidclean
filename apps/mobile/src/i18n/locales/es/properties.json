@@ -1,0 +1,214 @@
+{
+  "properties": {
+    "screens": {
+      "list": "Mis Propiedades",
+      "detail": "Detalle de Propiedad",
+      "create": "Crear Propiedad",
+      "edit": "Editar Propiedad"
+    },
+    "form": {
+      "name": "Nombre de la Propiedad",
+      "namePlaceholder": "ej., Mi apartamento en el centro",
+      "type": "Tipo de Propiedad",
+      "description": "Descripción",
+      "descriptionPlaceholder": "Describe tu propiedad...",
+      "address": {
+        "title": "Dirección",
+        "street": "Dirección",
+        "streetPlaceholder": "Dirección de la calle",
+        "city": "Ciudad",
+        "cityPlaceholder": "Nombre de la ciudad",
+        "state": "Departamento / Estado",
+        "statePlaceholder": "Departamento o estado",
+        "postalCode": "Código Postal",
+        "postalCodePlaceholder": "Código postal",
+        "country": "País"
+      },
+      "squareMeters": "Metros Cuadrados",
+      "squareMetersPlaceholder": "Área aproximada en m²",
+      "bedrooms": "Habitaciones",
+      "bathrooms": "Baños",
+      "floorNumber": "Piso",
+      "floorNumberPlaceholder": "ej., 3",
+      "hasParking": "Tiene Parqueadero",
+      "hasElevator": "Tiene Ascensor",
+      "accessInstructions": "Instrucciones de Acceso",
+      "accessInstructionsPlaceholder": "Cómo acceder a la propiedad (solo se muestra al profesional confirmado)",
+      "locateOnMap": "Ubicar en el Mapa"
+    },
+    "type": {
+      "apartment": "Apartamento",
+      "house": "Casa",
+      "office": "Oficina",
+      "airbnb": "Airbnb",
+      "commercial_space": "Local Comercial",
+      "other": "Otro"
+    },
+    "country": {
+      "CO": "Colombia",
+      "US": "Estados Unidos",
+      "CA": "Canadá",
+      "GB": "Reino Unido",
+      "DE": "Alemania",
+      "FR": "Francia",
+      "IT": "Italia",
+      "ES": "España",
+      "PT": "Portugal",
+      "NL": "Países Bajos"
+    },
+    "requirement": {
+      "pets": "Mascotas en la Propiedad",
+      "eco_products": "Solo Productos Ecológicos",
+      "heavy_cleaning": "Limpieza Pesada Necesaria",
+      "fragile_items": "Objetos Frágiles Presentes",
+      "allergen_free": "Productos Hipoalergénicos",
+      "specific_tools": "Herramientas Específicas Requeridas",
+      "deep_clean": "Limpieza Profunda",
+      "move_in_out": "Limpieza de Mudanza"
+    },
+    "validation": {
+      "nameRequired": "El nombre de la propiedad es obligatorio",
+      "nameTooLong": "El nombre no puede exceder {{max}} caracteres",
+      "descriptionTooLong": "La descripción no puede exceder {{max}} caracteres",
+      "invalidType": "Selecciona un tipo de propiedad válido",
+      "invalidCountry": "Selecciona un país soportado",
+      "sqmMustBePositive": "Los metros cuadrados deben ser mayores a cero",
+      "sqmTooLarge": "Los metros cuadrados no pueden exceder {{max}}",
+      "bedroomsInvalid": "Las habitaciones deben estar entre 0 y {{max}}",
+      "bathroomsInvalid": "Los baños deben ser al menos 1 (máximo {{max}})",
+      "coordinatesInvalid": "Coordenadas geográficas inválidas",
+      "checklistItemTooLong": "El ítem del checklist no puede exceder {{max}} caracteres",
+      "tooManyChecklistItems": "Máximo {{max}} ítems de checklist permitidos",
+      "tooManyRequirements": "Máximo {{max}} requerimientos permitidos",
+      "addressFieldsRequired": "Dirección, ciudad, código postal y país son obligatorios"
+    },
+    "apiError": {
+      "notFound": "Propiedad no encontrada",
+      "notOwner": "No tienes permiso para acceder a esta propiedad",
+      "hasActiveOffer": "No se puede modificar una propiedad con una oferta activa",
+      "maxPhotosReached": "Número máximo de fotos alcanzado",
+      "photoNotFound": "Foto no encontrada",
+      "invalidPhotoFormat": "Formato de foto no soportado. Usa JPEG, PNG o WebP",
+      "photoTooLarge": "La foto excede el tamaño máximo de {{max}} MB",
+      "geocodingFailed": "No se pudo encontrar la dirección. Intenta colocar un pin manualmente",
+      "unsupportedCountry": "Este país no está soportado aún",
+      "invalidType": "Tipo de propiedad inválido",
+      "invalidCoordinates": "Las coordenadas están fuera del rango válido",
+      "geocodeQueryTooLong": "El texto de la dirección es muy largo (máximo {{max}} caracteres)"
+    },
+    "empty": {
+      "noProperties": "Sin propiedades aún",
+      "noPropertiesDescription": "Agrega tu primera propiedad para empezar a publicar ofertas",
+      "noPhotos": "Sin fotos aún",
+      "noPhotosDescription": "Sube fotos para que los profesionales conozcan tu espacio",
+      "noChecklistItems": "Sin ítems de checklist",
+      "noChecklistDescription": "Agrega las tareas que esperas que el profesional complete",
+      "noRequirements": "Sin requerimientos especiales",
+      "noRequirementsDescription": "Agrega condiciones especiales para tu propiedad"
+    },
+    "geocoding": {
+      "searchingAddress": "Buscando dirección...",
+      "addressFound": "Dirección encontrada",
+      "addressNotFound": "Dirección no encontrada",
+      "geocodingFailed": "La geocodificación falló",
+      "placePinManually": "Coloca el pin manualmente en el mapa",
+      "reverseGeocodingInProgress": "Obteniendo dirección de la ubicación...",
+      "manualPinPlaced": "Pin colocado manualmente"
+    },
+    "photos": {
+      "upload": "Subir Foto",
+      "delete": "Eliminar Foto",
+      "reorder": "Reordenar Fotos",
+      "photoCount": "{{count}} de {{max}}",
+      "maxReached": "Máximo de fotos alcanzado ({{max}})",
+      "uploading": "Subiendo...",
+      "supportedFormats": "Soportados: JPEG, PNG, WebP",
+      "fileTooLarge": "El archivo excede {{max}} MB"
+    },
+    "steps": {
+      "basicInfo": "Info Básica",
+      "addressAndMap": "Dirección y Mapa",
+      "photosAndDetails": "Fotos y Detalles",
+      "next": "Siguiente",
+      "back": "Atrás",
+      "save": "Guardar",
+      "creating": "Creando propiedad...",
+      "updating": "Actualizando propiedad..."
+    },
+    "detail": {
+      "photos": "Fotos",
+      "location": "Ubicación",
+      "dimensions": "Dimensiones",
+      "checklist": "Checklist",
+      "requirements": "Requerimientos",
+      "accessInstructions": "Instrucciones de Acceso",
+      "offerReadiness": "Estado para Ofertas",
+      "squareMetersLabel": "{{value}} m²",
+      "bedroomsLabel": "{{count}} habitaciones",
+      "bathroomsLabel": "{{count}} baños",
+      "floorLabel": "Piso {{number}}",
+      "parkingYes": "Parqueadero disponible",
+      "parkingNo": "Sin parqueadero",
+      "elevatorYes": "Ascensor disponible",
+      "elevatorNo": "Sin ascensor"
+    },
+    "offerReadiness": {
+      "ready": "Lista para ofertas",
+      "notReady": "No lista para ofertas",
+      "missingPhotos": "Se requiere al menos una foto",
+      "missingRequiredFields": "Campos obligatorios incompletos"
+    },
+    "deleteConfirmation": {
+      "title": "Eliminar Propiedad",
+      "message": "¿Estás seguro de que deseas eliminar esta propiedad? Esta acción no se puede deshacer.",
+      "confirm": "Eliminar",
+      "cancel": "Cancelar"
+    },
+    "searchAndFilter": {
+      "searchPlaceholder": "Buscar por nombre o dirección...",
+      "filterByType": "Filtrar por Tipo",
+      "allTypes": "Todos los Tipos",
+      "noResults": "No se encontraron propiedades"
+    },
+    "actions": {
+      "edit": "Editar",
+      "delete": "Eliminar",
+      "publishOffer": "Publicar Oferta",
+      "addProperty": "Agregar Propiedad",
+      "retry": "Reintentar",
+      "cancel": "Cancelar"
+    },
+    "map": {
+      "tapToPlacePin": "Toca el mapa para colocar un pin",
+      "dragToAdjust": "Arrastra el pin para ajustar la ubicación",
+      "currentLocation": "Ubicación Actual"
+    },
+    "checklist": {
+      "addItem": "Agregar Ítem",
+      "removeItem": "Eliminar",
+      "itemPlaceholder": "Describe la tarea...",
+      "maxItemsReached": "Máximo de ítems alcanzado ({{max}})"
+    },
+    "requirements": {
+      "addCustom": "Agregar Personalizado",
+      "customPlaceholder": "Escribe un requerimiento personalizado...",
+      "maxReached": "Máximo de requerimientos alcanzado ({{max}})"
+    },
+    "card": {
+      "bedroomsCount": "{{count}} hab",
+      "bathroomsCount": "{{count}} ba",
+      "offerReadyBadge": "Lista para Ofertas"
+    },
+    "a11y": {
+      "propertyCard": "Propiedad: {{name}}, {{type}} en {{city}}",
+      "typeSelector": "Seleccionar tipo de propiedad",
+      "photoGallery": "Fotos de la propiedad, {{count}} de {{total}}",
+      "mapPin": "Pin de ubicación de la propiedad, arrastra para ajustar",
+      "deleteButton": "Eliminar propiedad {{name}}",
+      "editButton": "Editar propiedad {{name}}",
+      "uploadPhotoButton": "Subir una nueva foto",
+      "checklistItem": "Ítem de checklist {{index}}: {{text}}",
+      "requirementChip": "Requerimiento: {{label}}"
+    }
+  }
+}

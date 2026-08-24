@@ -42,7 +42,7 @@ Implementation tasks for the Property Management feature. Covers the NestJS back
 - [x] 34. Implement PropertyDetailScreen (photo gallery horizontal scroll + full-screen modal, map section with pin, info cards for dimensions/rooms, checklist section, requirements chips, access instructions card, "Edit" and "Publish Offer" buttons, offer-readiness indicator)
 - [x] 35. Implement EditPropertyScreen (pre-populated form using property detail data, same multi-step structure as Create, save via PATCH endpoint, location_source updates on address/pin change)
 - [x] 36. Implement PropertyPhotoGallery component (horizontal ScrollView of photos, tap for full-screen ImageViewer modal with swipe navigation, photo counter indicator)
-- [ ] 37. Create i18n translation files for properties module (en/properties.json, es/properties.json — all screen labels, form fields, error messages, type labels, requirement labels, validation messages, empty states, geocoding fallback messages)
+- [-] 37. Create i18n translation files for properties module (en/properties.json, es/properties.json — all screen labels, form fields, error messages, type labels, requirement labels, validation messages, empty states, geocoding fallback messages)
 
 ## Task Dependency Graph
 

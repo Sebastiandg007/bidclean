@@ -251,7 +251,6 @@ function FullScreenViewer({
  * @param props.photos - Sorted array of PropertyPhoto objects to display
  */
 export const PropertyPhotoGallery: React.FC<PropertyPhotoGalleryProps> = ({ photos }) => {
-  const { t } = useTranslation();
   const [fullScreenVisible, setFullScreenVisible] = useState(false);
   const [fullScreenIndex, setFullScreenIndex] = useState(0);
 
