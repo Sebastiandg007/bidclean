@@ -41,7 +41,7 @@ Address / Map flow:
 | `components/AddressInput.tsx` | Structured address form (street, city, state, postal code, country), "Locate on Map" geocode button, fallback message |
 | `components/ChecklistEditor.tsx` | Add/remove/reorder checklist items with max count and character limit validation |
 | `components/RequirementsChips.tsx` | Predefined chips + custom text input, multi-select, max count validation, visual distinction |
-| `components/PropertyTypeSelector.tsx` | Visual type selection cards with icons, single selection, accent border on selected |
+| `components/PropertyTypeSelector.tsx` | **Implemented.** Visual type selection cards (3-column grid) with emoji icons and i18n labels. Single selection with accent border and subtle background on selected card. Full accessibility (role, state, label). Uses PROPERTY_TYPES constant and design tokens. |
 | `components/PhotoUploader.tsx` | Photo grid with upload button (expo-image-picker), reorder, delete with confirmation, max count indicator |
 
 ## Tests

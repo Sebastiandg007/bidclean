@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Properties module (mobile)** — PropertyTypeSelector component fully implemented (Task 28)
+  - Visual 3-column card grid with emoji icons and i18n labels for each property type
+  - Single selection with accent border (#00F5D4) and subtle background on selected card
+  - Cards: apartment (🏢), house (🏠), office (💼), airbnb (🏡), commercial_space (🏪), other (📍)
+  - Full accessibility: accessibilityRole="button", accessibilityState selected, accessibility labels
+  - Dark theme using design tokens (COLORS, SPACING, FONT_SIZE from properties.constants)
+  - Pressable cards with proper testID attributes for testing
+  - All text via i18n useTranslation() with PROPERTY_TYPES labelKey constants
+  - Follows PropertyCard code patterns: JSDoc, sub-components, StyleSheet at bottom
 - **Properties module (mobile)** — CreatePropertyScreen fully implemented (Task 27)
   - Multi-step form with 3 steps: Basic Info → Address + Map → Photos + Details
   - Step 1: Property name, PropertyTypeSelector, description (optional), square meters, bedrooms, bathrooms
