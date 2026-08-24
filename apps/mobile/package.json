@@ -30,6 +30,7 @@
     "react": "18.3.1",
     "react-i18next": "15.4.1",
     "react-native": "0.76.9",
+    "@rnmapbox/maps": "10.1.35",
     "react-native-reanimated": "3.16.7",
     "react-native-safe-area-context": "4.14.1",
     "react-native-screens": "4.4.0",

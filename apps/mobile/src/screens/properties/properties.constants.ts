@@ -137,6 +137,7 @@ export const COLORS = {
   textSecondary: 'rgba(255, 255, 255, 0.6)',
   border: 'rgba(255, 255, 255, 0.2)',
   error: '#FF6B6B',
+  errorSubtle: 'rgba(255, 107, 107, 0.1)',
   success: '#00F5D4',
   warning: '#FFD93D',
 } as const;

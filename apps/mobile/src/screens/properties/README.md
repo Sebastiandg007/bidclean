@@ -37,7 +37,7 @@ Address / Map flow:
 |------|---------------|
 | `components/PropertyCard.tsx` | **Implemented.** List item card: cover photo with signed URL (placeholder fallback), name, type badge (i18n chip), city + country, bedroom/bathroom counts (🛏️/🚿), offer-ready indicator (green dot + "Ready"). Full accessibility and pressable. |
 | `components/PropertyPhotoGallery.tsx` | Horizontal photo scroll with tap-to-fullscreen modal, swipe navigation, photo counter |
-| `components/PropertyMap.tsx` | Mapbox MapView with draggable pin, tap-to-place, triggers reverse geocoding on move |
+| `components/PropertyMap.tsx` | **Implemented.** Mapbox MapView with draggable pin, tap-to-place pin, shows current property location, triggers reverse geocoding on pin move (drag end), loading overlay while geocoding, fallback banner when geocoding fails prompting manual pin placement, view-only mode when editable=false, dark map style, accent-colored custom pin. Uses `@rnmapbox/maps` with `EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN`. |
 | `components/AddressInput.tsx` | **Implemented.** Structured address form (street, city, state, postal code, country selector via horizontal chips), "Locate on Map" geocode button with loading state, fallback error message on geocoding failure prompting manual pin placement. Full accessibility, testID attributes, all text via i18n. |
 | `components/ChecklistEditor.tsx` | Add/remove/reorder checklist items with max count and character limit validation |
 | `components/RequirementsChips.tsx` | Predefined chips + custom text input, multi-select, max count validation, visual distinction |
@@ -91,6 +91,7 @@ Address / Map flow:
 | `EXPO_PUBLIC_PROPERTY_MAX_BATHROOMS` | Max bathrooms | Yes |
 | `EXPO_PUBLIC_PROPERTY_MAX_CHECKLIST_ITEMS` | Max checklist items | Yes |
 | `EXPO_PUBLIC_PROPERTY_MAX_REQUIREMENTS` | Max special requirements | Yes |
+| `EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN` | Mapbox public token for map display | Yes |
 
 ## Design System
 

@@ -8,6 +8,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Properties module (mobile)** — PropertyMap component fully implemented (Task 30)
+  - Mapbox MapView with dark style (`mapbox://styles/mapbox/dark-v11`) via `@rnmapbox/maps` v10.1.35
+  - Draggable pin marker with custom accent-colored design (circle head + needle)
+  - Tap-to-place pin: user can tap anywhere on the map to place/move the pin (editable mode)
+  - Shows current property location when `coordinates` prop is provided
+  - Triggers reverse geocoding on pin move (drag end or tap-to-place) via store's `reverseGeocode()`
+  - Loading overlay with ActivityIndicator while reverse geocoding is in progress
+  - Fallback message banner ("Tap on the map to place the pin manually") when `showFallbackMessage` is true
+  - View-only mode when `editable=false` (no scroll, no zoom, no tap, no drag)
+  - Extended interface: `onReverseGeocodeResult` callback for parent to receive geocode results
+  - `showFallbackMessage` prop for geocoding failure fallback scenario
+  - Map centers on provided coordinates or defaults to Bogotá (from constants)
+  - Zoom level from `DEFAULT_MAP_ZOOM` constant
+  - Mapbox access token from `EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN` environment variable
+  - Full accessibility: accessibilityRole, accessibilityLabel on container and overlay
+  - testID attributes on all interactive elements for testing
+  - All UI text via i18n useTranslation() with defaultValue fallbacks
+  - No magic numbers: all layout values are named constants
+  - Design tokens from properties.constants (COLORS, SPACING, FONT_SIZE)
+  - Added `@rnmapbox/maps` v10.1.35 to mobile app dependencies
 - **Properties module (mobile)** — AddressInput component fully implemented (Task 29)
   - Structured address form: street, city, state/province, postal code fields with dark theme styling
   - Horizontal scrollable country selector chips (10 supported countries from SUPPORTED_COUNTRIES constant)

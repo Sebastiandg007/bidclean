@@ -370,7 +370,7 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   errorContainer: {
-    backgroundColor: 'rgba(255, 107, 107, 0.1)',
+    backgroundColor: COLORS.errorSubtle,
     borderRadius: INPUT_BORDER_RADIUS,
     borderWidth: 1,
     borderColor: COLORS.error,
