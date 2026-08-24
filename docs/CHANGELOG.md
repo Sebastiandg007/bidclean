@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Properties module (mobile)** — useProperties Zustand store fully implemented (Task 24)
+  - Complete Zustand store with paginated list fetching (search + type filter support)
+  - Full CRUD operations: createProperty, updateProperty, deleteProperty
+  - Photo management: uploadPhoto (multipart/form-data), deletePhoto, reorderPhotos
+  - Forward geocoding (address → coordinates) and reverse geocoding (coordinates → address)
+  - Idempotency-Key headers (UUID v4) on createProperty and uploadPhoto for retry safety
+  - Separate loading states: isListLoading, isDetailLoading, isMutating
+  - Error handling with i18n fallback keys (properties.error.*)
+  - After photo mutations, auto-refreshes selectedProperty detail
+  - After deleteProperty, auto-refreshes list at current page
+  - Exports both `usePropertiesStore` (raw zustand store) and `useProperties()` convenience hook
+  - Follows exact same pattern as useProfile store (lazy apiClient import, extractErrorMessage helper)
+  - All configurable values from constants (DEFAULT_PAGE_SIZE, PROPERTY_UPLOAD_TIMEOUT_MS)
 - **Properties module (mobile)** — Properties screens folder structure created with README (Task 23)
   - Complete scaffold for `apps/mobile/src/screens/properties/` with all placeholder files
   - 4 screen files: PropertyListScreen, PropertyDetailScreen, CreatePropertyScreen, EditPropertyScreen

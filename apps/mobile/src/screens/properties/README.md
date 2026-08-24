@@ -27,7 +27,7 @@ Address / Map flow:
 | `PropertyDetailScreen.tsx` | Full property detail: photo gallery (horizontal scroll + full-screen), map section with pin, dimensions/rooms cards, checklist, requirements chips, access instructions, Edit/Publish Offer buttons, offer-readiness indicator |
 | `CreatePropertyScreen.tsx` | Multi-step form: Step 1 (basic info + type) → Step 2 (address + map with geocoding/manual fallback) → Step 3 (photos + checklist + requirements). Saves with Idempotency-Key |
 | `EditPropertyScreen.tsx` | Pre-populated edit form using property detail data. Same multi-step structure as Create. Saves via PATCH endpoint with location_source updates |
-| `useProperties.ts` | Zustand store: list pagination, CRUD, photo ops, geocoding. All mutations use Idempotency-Key |
+| `useProperties.ts` | Zustand store (fully implemented): paginated list, CRUD, photo upload/delete/reorder, forward/reverse geocoding. All mutations use Idempotency-Key headers. Exports `usePropertiesStore` (raw) and `useProperties()` convenience hook |
 | `properties.types.ts` | Shared TypeScript types: Property, PropertyListItem, payloads, responses |
 | `properties.constants.ts` | Environment-derived config, validation limits, property types, countries, design tokens |
 
