@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Properties module (mobile)** — EditPropertyScreen fully implemented (Task 35)
+  - Multi-step form (3 steps) mirroring CreatePropertyScreen structure
+  - Pre-populates all fields from existing property data via fetchDetail
+  - Saves only changed fields via PATCH endpoint (diff computation against original)
+  - Sets locationSource to GEOCODED on address re-geocode
+  - Sets locationSource to MANUAL on map pin move with reverse geocoding
+  - Photos displayed as read-only thumbnails (managed from PropertyDetailScreen)
+  - Loading state, fetch error with retry, animated step transitions
+  - Full validation per step, same validation rules as Create
+  - All text via i18n, full accessibility, testID attributes
 - **Properties module (mobile)** — PropertyDetailScreen fully implemented (Task 34)
   - Inline photo gallery with horizontal ScrollView and tap-to-fullscreen Modal
   - Full-screen photo viewer with FlatList swipe navigation and photo counter

@@ -39,8 +39,8 @@ Implementation tasks for the Property Management feature. Covers the NestJS back
 - [x] 31. Implement PhotoUploader component (photo grid with upload button, reorder via move up/down, delete with confirmation, max count indicator, uses expo-image-picker, shows mime_type/size info)
 - [x] 32. Implement ChecklistEditor component (add/remove text items, max count validation from constants, reorder via drag or buttons, character limit per item)
 - [x] 33. Implement RequirementsChips component (predefined chips from constants + custom text input, multi-select, max count from constants, visual distinction between predefined and custom)
-- [-] 34. Implement PropertyDetailScreen (photo gallery horizontal scroll + full-screen modal, map section with pin, info cards for dimensions/rooms, checklist section, requirements chips, access instructions card, "Edit" and "Publish Offer" buttons, offer-readiness indicator)
-- [ ] 35. Implement EditPropertyScreen (pre-populated form using property detail data, same multi-step structure as Create, save via PATCH endpoint, location_source updates on address/pin change)
+- [x] 34. Implement PropertyDetailScreen (photo gallery horizontal scroll + full-screen modal, map section with pin, info cards for dimensions/rooms, checklist section, requirements chips, access instructions card, "Edit" and "Publish Offer" buttons, offer-readiness indicator)
+- [-] 35. Implement EditPropertyScreen (pre-populated form using property detail data, same multi-step structure as Create, save via PATCH endpoint, location_source updates on address/pin change)
 - [ ] 36. Implement PropertyPhotoGallery component (horizontal ScrollView of photos, tap for full-screen ImageViewer modal with swipe navigation, photo counter indicator)
 - [ ] 37. Create i18n translation files for properties module (en/properties.json, es/properties.json — all screen labels, form fields, error messages, type labels, requirement labels, validation messages, empty states, geocoding fallback messages)
 
