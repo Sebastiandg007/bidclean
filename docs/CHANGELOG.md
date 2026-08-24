@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Properties module (mobile)** — PropertyDetailScreen fully implemented (Task 34)
+  - Inline photo gallery with horizontal ScrollView and tap-to-fullscreen Modal
+  - Full-screen photo viewer with FlatList swipe navigation and photo counter
+  - PropertyMap component in view-only mode showing property location pin
+  - Info cards grid: area, bedrooms, bathrooms, floor number, parking, elevator
+  - Read-only checklist section displaying items as bulleted list
+  - Read-only requirements chips with accent styling and i18n labels
+  - Private access instructions card (visible to owner only)
+  - Offer-readiness indicator badge (green ready / yellow not ready)
+  - Edit button (placeholder) and Publish Offer CTA (placeholder)
+  - Loading state with ActivityIndicator, error state with retry button
+  - Empty state for properties with no photos
+  - All text via i18n, full accessibility, sub-components extracted for clean code
 - **Properties module (mobile)** — RequirementsChips component fully implemented (Task 33)
   - Predefined requirement chips from PREDEFINED_REQUIREMENTS constant (8 common requirements)
   - Custom text input for user-defined requirements with max length enforcement
