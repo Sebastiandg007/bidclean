@@ -9,7 +9,15 @@ import {
   OfferEditabilityResult,
 } from './contracts/offer-editability.interface';
 import { CreatePropertyDto } from './dto/create-property.dto';
+import { PropertyQueryDto } from './dto/property-query.dto';
 import { Property } from './entities/property.entity';
+import { PROPERTY_LIST_DEFAULT_PAGE_SIZE } from './properties.constants';
+import {
+  PaginatedResponse,
+  PropertyListItem,
+  PropertyType,
+  SupportedCountry,
+} from './properties.types';
 
 /** Result wrapper for createProperty to distinguish new vs idempotent */
 export interface CreatePropertyResult {
@@ -75,6 +83,39 @@ export class PropertiesService {
   }
 
   /**
+   * Lists properties owned by a user with pagination, search, and filters.
+   * Resolves cover photo URLs and calculates offer-readiness for each item.
+   *
+   * @param userId - Internal user UUID
+   * @param query - Validated query parameters (page, search, type, sort)
+   * @returns Paginated list of property summary items
+   */
+  async listProperties(
+    userId: string,
+    query: PropertyQueryDto,
+  ): Promise<PaginatedResponse<PropertyListItem>> {
+    const result = await this._propertiesRepository.findAllByOwner(userId, {
+      page: query.page ?? 1,
+      pageSize: query.pageSize ?? PROPERTY_LIST_DEFAULT_PAGE_SIZE,
+      search: query.search,
+      type: query.type,
+      sortBy: query.sortBy,
+    });
+
+    const items = await Promise.all(
+      result.items.map((property) => this.mapToListItem(property)),
+    );
+
+    return {
+      items,
+      total: result.total,
+      page: result.page,
+      pageSize: result.pageSize,
+      totalPages: result.totalPages,
+    };
+  }
+
+  /**
    * Checks whether a property can be modified for the given fields.
    * Delegates to the injected OfferEditabilityCheck contract.
    */
@@ -87,7 +128,62 @@ export class PropertiesService {
 
   /** @internal Placeholder to satisfy noUnusedLocals until all methods are implemented */
   protected get dependencies(): unknown[] {
-    return [this._propertyPhotoService, this._geocodingService];
+    return [this._geocodingService];
+  }
+
+  /**
+   * Maps a Property entity to a PropertyListItem with cover photo URL and offer-readiness.
+   */
+  private async mapToListItem(property: Property): Promise<PropertyListItem> {
+    const coverPhotoUrl = await this.resolveCoverPhotoUrl(property.id);
+    const photoCount = property.photos?.length ?? 0;
+
+    return {
+      id: property.id,
+      name: property.name,
+      type: property.type as PropertyType,
+      city: property.addressCity,
+      country: property.addressCountry as SupportedCountry,
+      bedrooms: property.bedrooms,
+      bathrooms: property.bathrooms,
+      coverPhotoUrl,
+      isOfferReady: this.isOfferReady(property, photoCount),
+    };
+  }
+
+  /** Resolves a signed URL for the cover photo (display_order = 0). Returns null if none. */
+  private async resolveCoverPhotoUrl(propertyId: string): Promise<string | null> {
+    const coverPhoto = await this._propertiesRepository.getCoverPhoto(propertyId);
+    if (!coverPhoto) {
+      return null;
+    }
+
+    const { url } = await this._propertyPhotoService.getSignedUrl(coverPhoto.storageKey);
+    return url;
+  }
+
+  /**
+   * Calculates offer-readiness: deleted_at IS NULL + required fields populated + at least 1 photo.
+   * Required: name, type, address (street, city, country), location, squareMeters, bathrooms >= 1.
+   */
+  private isOfferReady(property: Property, photoCount: number): boolean {
+    if (property.deletedAt !== null) {
+      return false;
+    }
+    if (photoCount < 1) {
+      return false;
+    }
+
+    return Boolean(
+      property.name &&
+      property.type &&
+      property.addressStreet &&
+      property.addressCity &&
+      property.addressCountry &&
+      property.location &&
+      property.squareMeters > 0 &&
+      property.bathrooms >= 1,
+    );
   }
 
   /**

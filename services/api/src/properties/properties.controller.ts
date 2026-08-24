@@ -1,10 +1,12 @@
 import {
   Body,
   Controller,
+  Get,
   Headers,
   HttpStatus,
   NotFoundException,
   Post,
+  Query,
   Req,
   Res,
   UseGuards,
@@ -22,6 +24,8 @@ import { OnboardingGateGuard, RequireOnboarding } from '../roles/guards';
 import { UserRole } from '../roles/roles.types';
 import { JwtUserPayload } from '../auth/guards/jwt.types';
 import { CreatePropertyDto } from './dto/create-property.dto';
+import { PropertyQueryDto } from './dto/property-query.dto';
+import { PropertyListResponse } from './dto/property-response.dto';
 import { User } from '../auth/entities/user.entity';
 
 /**
@@ -45,6 +49,20 @@ export class PropertiesController {
     // Reference to suppress noUnusedLocals until all endpoints are implemented.
     void this.propertyPhotoService;
     void this.geocodingService;
+  }
+
+  /**
+   * GET /properties — List the current user's properties (paginated).
+   * Supports search, type filter, and configurable sorting.
+   */
+  @Get()
+  @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
+  async listProperties(
+    @Query() query: PropertyQueryDto,
+    @Req() req: Request & { user: JwtUserPayload },
+  ): Promise<PropertyListResponse> {
+    const userId = await this.resolveUserId(req.user.keycloakId);
+    return this.propertiesService.listProperties(userId, query);
   }
 
   /**

@@ -6,11 +6,14 @@ import { PropertyPhotoService } from '../photo/property-photo.service';
 import { GeocodingService } from '../geocoding/geocoding.service';
 import { OFFER_EDITABILITY_CHECK } from '../contracts/offer-editability.interface';
 import { CreatePropertyDto } from '../dto/create-property.dto';
+import { PropertyQueryDto } from '../dto/property-query.dto';
 import { Property } from '../entities/property.entity';
+import { PropertyPhoto } from '../entities/property-photo.entity';
 
 describe('PropertiesService', () => {
   let service: PropertiesService;
   let repository: jest.Mocked<Partial<PropertiesRepository>>;
+  let photoService: jest.Mocked<Partial<PropertyPhotoService>>;
   let dataSource: jest.Mocked<Partial<DataSource>>;
 
   const mockUserId = 'user-uuid-1234';
@@ -71,6 +74,12 @@ describe('PropertiesService', () => {
   beforeEach(async () => {
     repository = {
       findByIdempotencyKey: jest.fn(),
+      findAllByOwner: jest.fn(),
+      getCoverPhoto: jest.fn(),
+    };
+
+    photoService = {
+      getSignedUrl: jest.fn(),
     };
 
     dataSource = {
@@ -81,7 +90,7 @@ describe('PropertiesService', () => {
       providers: [
         PropertiesService,
         { provide: PropertiesRepository, useValue: repository },
-        { provide: PropertyPhotoService, useValue: {} },
+        { provide: PropertyPhotoService, useValue: photoService },
         { provide: GeocodingService, useValue: {} },
         { provide: OFFER_EDITABILITY_CHECK, useValue: { canModifyProperty: jest.fn() } },
         { provide: DataSource, useValue: dataSource },
@@ -162,6 +171,215 @@ describe('PropertiesService', () => {
       const result = await service.createProperty(mockUserId, manualDto);
 
       expect(result.property.locationSource).toBe('MANUAL');
+    });
+  });
+
+  describe('listProperties', () => {
+    const createMockProperty = (overrides?: Partial<Property>): Property => {
+      const property = new Property();
+      property.id = mockPropertyId;
+      property.userId = mockUserId;
+      property.name = 'Test Apartment';
+      property.type = 'apartment';
+      property.description = 'A nice place';
+      property.addressStreet = '123 Main St';
+      property.addressCity = 'Bogota';
+      property.addressState = 'Cundinamarca';
+      property.addressPostalCode = '110111';
+      property.addressCountry = 'CO';
+      property.location = '0101000020E6100000';
+      property.formattedAddress = '123 Main St, Bogota';
+      property.locationSource = 'GEOCODED';
+      property.squareMeters = 80;
+      property.bedrooms = 2;
+      property.bathrooms = 1;
+      property.floorNumber = 3;
+      property.hasParking = true;
+      property.hasElevator = true;
+      property.specialRequirements = [];
+      property.checklistItems = [];
+      property.accessInstructions = null;
+      property.deletedAt = null;
+      property.createdAt = new Date('2024-01-01T00:00:00Z');
+      property.updatedAt = new Date('2024-01-01T00:00:00Z');
+      property.photos = [];
+      Object.assign(property, overrides);
+      return property;
+    };
+
+    const defaultQuery: PropertyQueryDto = {
+      page: 1,
+      pageSize: 20,
+      sortBy: 'updated_at',
+      sortOrder: 'DESC',
+    };
+
+    it('should return a paginated list of property items', async () => {
+      const mockProperty = createMockProperty({ photos: [{ id: 'photo-1' } as PropertyPhoto] });
+      (repository.findAllByOwner as jest.Mock).mockResolvedValueOnce({
+        items: [mockProperty],
+        total: 1,
+        page: 1,
+        pageSize: 20,
+        totalPages: 1,
+      });
+      (repository.getCoverPhoto as jest.Mock).mockResolvedValueOnce(null);
+
+      const result = await service.listProperties(mockUserId, defaultQuery);
+
+      expect(result.total).toBe(1);
+      expect(result.page).toBe(1);
+      expect(result.totalPages).toBe(1);
+      expect(result.items).toHaveLength(1);
+
+      const item = result.items[0]!;
+      expect(item.id).toBe(mockPropertyId);
+      expect(item.name).toBe('Test Apartment');
+      expect(item.type).toBe('apartment');
+      expect(item.city).toBe('Bogota');
+      expect(item.country).toBe('CO');
+    });
+
+    it('should resolve cover photo signed URL when a cover photo exists', async () => {
+      const mockPhoto = new PropertyPhoto();
+      mockPhoto.id = 'photo-1';
+      mockPhoto.storageKey = 'prop-1/photo-1.jpg';
+      mockPhoto.displayOrder = 0;
+
+      const mockProperty = createMockProperty({ photos: [mockPhoto] });
+      (repository.findAllByOwner as jest.Mock).mockResolvedValueOnce({
+        items: [mockProperty],
+        total: 1,
+        page: 1,
+        pageSize: 20,
+        totalPages: 1,
+      });
+      (repository.getCoverPhoto as jest.Mock).mockResolvedValueOnce(mockPhoto);
+      (photoService.getSignedUrl as jest.Mock).mockResolvedValueOnce({
+        url: 'https://storage.example.com/signed-url',
+        expiresAt: new Date(),
+      });
+
+      const result = await service.listProperties(mockUserId, defaultQuery);
+
+      const item = result.items[0]!;
+      expect(item.coverPhotoUrl).toBe('https://storage.example.com/signed-url');
+      expect(repository.getCoverPhoto).toHaveBeenCalledWith(mockPropertyId);
+      expect(photoService.getSignedUrl).toHaveBeenCalledWith('prop-1/photo-1.jpg');
+    });
+
+    it('should return null coverPhotoUrl when no cover photo exists', async () => {
+      const mockProperty = createMockProperty({ photos: [{ id: 'photo-1' } as PropertyPhoto] });
+      (repository.findAllByOwner as jest.Mock).mockResolvedValueOnce({
+        items: [mockProperty],
+        total: 1,
+        page: 1,
+        pageSize: 20,
+        totalPages: 1,
+      });
+      (repository.getCoverPhoto as jest.Mock).mockResolvedValueOnce(null);
+
+      const result = await service.listProperties(mockUserId, defaultQuery);
+
+      expect(result.items[0]!.coverPhotoUrl).toBeNull();
+    });
+
+    it('should calculate isOfferReady=true when all required fields present and has photos', async () => {
+      const mockPhoto = new PropertyPhoto();
+      mockPhoto.id = 'photo-1';
+      const mockProperty = createMockProperty({ photos: [mockPhoto] });
+      (repository.findAllByOwner as jest.Mock).mockResolvedValueOnce({
+        items: [mockProperty],
+        total: 1,
+        page: 1,
+        pageSize: 20,
+        totalPages: 1,
+      });
+      (repository.getCoverPhoto as jest.Mock).mockResolvedValueOnce(null);
+
+      const result = await service.listProperties(mockUserId, defaultQuery);
+
+      expect(result.items[0]!.isOfferReady).toBe(true);
+    });
+
+    it('should calculate isOfferReady=false when property has no photos', async () => {
+      const mockProperty = createMockProperty({ photos: [] });
+      (repository.findAllByOwner as jest.Mock).mockResolvedValueOnce({
+        items: [mockProperty],
+        total: 1,
+        page: 1,
+        pageSize: 20,
+        totalPages: 1,
+      });
+      (repository.getCoverPhoto as jest.Mock).mockResolvedValueOnce(null);
+
+      const result = await service.listProperties(mockUserId, defaultQuery);
+
+      expect(result.items[0]!.isOfferReady).toBe(false);
+    });
+
+    it('should calculate isOfferReady=false when required fields are missing', async () => {
+      const mockPhoto = new PropertyPhoto();
+      mockPhoto.id = 'photo-1';
+      const mockProperty = createMockProperty({
+        photos: [mockPhoto],
+        addressStreet: '',
+      });
+      (repository.findAllByOwner as jest.Mock).mockResolvedValueOnce({
+        items: [mockProperty],
+        total: 1,
+        page: 1,
+        pageSize: 20,
+        totalPages: 1,
+      });
+      (repository.getCoverPhoto as jest.Mock).mockResolvedValueOnce(null);
+
+      const result = await service.listProperties(mockUserId, defaultQuery);
+
+      expect(result.items[0]!.isOfferReady).toBe(false);
+    });
+
+    it('should return empty items when user has no properties', async () => {
+      (repository.findAllByOwner as jest.Mock).mockResolvedValueOnce({
+        items: [],
+        total: 0,
+        page: 1,
+        pageSize: 20,
+        totalPages: 0,
+      });
+
+      const result = await service.listProperties(mockUserId, defaultQuery);
+
+      expect(result.items).toHaveLength(0);
+      expect(result.total).toBe(0);
+    });
+
+    it('should pass search and type filter to repository', async () => {
+      const queryWithFilters: PropertyQueryDto = {
+        page: 2,
+        pageSize: 10,
+        search: 'Bogota',
+        type: 'apartment',
+        sortBy: 'name',
+        sortOrder: 'ASC',
+      };
+      (repository.findAllByOwner as jest.Mock).mockResolvedValueOnce({
+        items: [],
+        total: 0,
+        page: 2,
+        pageSize: 10,
+        totalPages: 0,
+      });
+
+      await service.listProperties(mockUserId, queryWithFilters);
+
+      expect(repository.findAllByOwner).toHaveBeenCalledWith(mockUserId, {
+        page: 2,
+        pageSize: 10,
+        search: 'Bogota',
+        type: 'apartment',
+        sortBy: 'name',
+      });
     });
   });
 });

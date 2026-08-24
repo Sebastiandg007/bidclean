@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Properties module (api)** — GET /properties endpoint fully implemented (Task 12)
+  - `PropertiesService.listProperties(userId, query)` orchestrates paginated property listing
+  - Returns `PaginatedResponse<PropertyListItem>` with id, name, type, city, country, bedrooms, bathrooms, coverPhotoUrl, isOfferReady
+  - Cover photo URL resolved via `PropertiesRepository.getCoverPhoto()` + `PropertyPhotoService.getSignedUrl()`
+  - Offer-readiness calculated per property: deleted_at IS NULL + required fields populated + at least 1 photo
+  - Controller: `@Get()` with `@Query()` parsing via `PropertyQueryDto` (page, pageSize, search, type, sortBy, sortOrder)
+  - Pagination metadata: total, page, pageSize, totalPages
+  - Ownership enforced at repository level (WHERE user_id = :userId AND deleted_at IS NULL)
+  - 8 unit tests covering pagination, cover photo resolution, isOfferReady calculation, empty state, and filter passing
 - **Properties module (api)** — POST /properties endpoint fully implemented (Task 11)
   - `PropertiesService.createProperty(userId, dto, idempotencyKey?)` orchestrates property creation
   - Idempotency-Key header support: returns existing property (200) if key already used, creates new (201) otherwise
