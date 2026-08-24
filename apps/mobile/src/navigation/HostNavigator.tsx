@@ -17,6 +17,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
 import RoleSwitchButton from '../screens/roles/RoleSwitchButton';
+import { PropertyListScreen } from '../screens/properties/PropertyListScreen';
 
 // ─── Design Tokens ───────────────────────────────────────────────────────────
 
@@ -108,12 +109,16 @@ const DEFAULT_TAB_INDEX = 0;
 // ─── Tab Screen Placeholders ─────────────────────────────────────────────────
 
 /**
- * Placeholder screen for each Host tab.
- * Will be replaced with real screen implementations in future tasks.
+ * Renders the active screen for the current tab.
+ * Properties tab uses PropertyListScreen; others show placeholder.
  * Profile tab includes the RoleSwitchButton (REQ-5).
  */
 function TabScreen({ tabKey, label }: { tabKey: string; label: string }) {
   const { t } = useTranslation();
+
+  if (tabKey === 'properties') {
+    return <PropertyListScreen />;
+  }
 
   return (
     <View style={styles.screenContainer} testID={`host-screen-${tabKey}`}>

@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Properties module (mobile)** — PropertyListScreen fully implemented (Task 25)
+  - Paginated FlatList with PropertyCard items and infinite scroll (load more on end reached)
+  - Pull-to-refresh functionality
+  - Debounced search input (300ms) for filtering by name/address
+  - Horizontal scrollable type filter chips (All, apartment, house, office, airbnb, commercial_space, other)
+  - Empty state with "Add your first property" CTA button
+  - Error state with retry option
+  - Loading indicator during initial fetch
+  - FAB (Floating Action Button) positioned bottom-right with accent color for creating new properties
+  - Navigation callbacks for PropertyDetailScreen and CreatePropertyScreen
+  - Performance optimized with useCallback, useMemo, and selector-based store access
+  - Full accessibility support (accessibilityRole, accessibilityLabel, testID on all interactive elements)
+  - All UI text via i18n `t()` function with defaultValue fallbacks
+  - Dark theme using design tokens from properties.constants.ts
+  - HostNavigator updated to render PropertyListScreen on "properties" tab
 - **Properties module (mobile)** — useProperties Zustand store fully implemented (Task 24)
   - Complete Zustand store with paginated list fetching (search + type filter support)
   - Full CRUD operations: createProperty, updateProperty, deleteProperty

@@ -23,7 +23,7 @@ Address / Map flow:
 
 | File | Responsibility |
 |------|---------------|
-| `PropertyListScreen.tsx` | Paginated FlatList of PropertyCard items with search, type filter chips, empty state CTA, and FAB for creating new properties |
+| `PropertyListScreen.tsx` | **Implemented.** Paginated FlatList of PropertyCard items with debounced search (300ms), horizontal type filter chips, empty state CTA, error state with retry, pull-to-refresh, infinite scroll pagination, and FAB for creating new properties. Uses `usePropertiesStore` for state. |
 | `PropertyDetailScreen.tsx` | Full property detail: photo gallery (horizontal scroll + full-screen), map section with pin, dimensions/rooms cards, checklist, requirements chips, access instructions, Edit/Publish Offer buttons, offer-readiness indicator |
 | `CreatePropertyScreen.tsx` | Multi-step form: Step 1 (basic info + type) → Step 2 (address + map with geocoding/manual fallback) → Step 3 (photos + checklist + requirements). Saves with Idempotency-Key |
 | `EditPropertyScreen.tsx` | Pre-populated edit form using property detail data. Same multi-step structure as Create. Saves via PATCH endpoint with location_source updates |
