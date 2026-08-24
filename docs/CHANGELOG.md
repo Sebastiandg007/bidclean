@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Properties module (mobile)** — AddressInput component fully implemented (Task 29)
+  - Structured address form: street, city, state/province, postal code fields with dark theme styling
+  - Horizontal scrollable country selector chips (10 supported countries from SUPPORTED_COUNTRIES constant)
+  - "Locate on Map" button with accent color, disabled when street or city are empty
+  - Loading indicator (ActivityIndicator) while geocoding is in progress
+  - Error fallback container with red border showing geocoding failure message and manual pin hint
+  - Full accessibility: accessibilityRole, accessibilityState, accessibilityLabel on all interactive elements
+  - testID attributes on all fields and interactive elements for testing
+  - All UI text via i18n useTranslation() with defaultValue fallbacks
+  - Follows PropertyTypeSelector patterns: useCallback, sub-components, JSDoc, StyleSheet
+  - Design tokens from properties.constants (COLORS, SPACING, FONT_SIZE)
 - **Properties module (mobile)** — PropertyTypeSelector component fully implemented (Task 28)
   - Visual 3-column card grid with emoji icons and i18n labels for each property type
   - Single selection with accent border (#00F5D4) and subtle background on selected card

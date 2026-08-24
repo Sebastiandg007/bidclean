@@ -38,7 +38,7 @@ Address / Map flow:
 | `components/PropertyCard.tsx` | **Implemented.** List item card: cover photo with signed URL (placeholder fallback), name, type badge (i18n chip), city + country, bedroom/bathroom counts (🛏️/🚿), offer-ready indicator (green dot + "Ready"). Full accessibility and pressable. |
 | `components/PropertyPhotoGallery.tsx` | Horizontal photo scroll with tap-to-fullscreen modal, swipe navigation, photo counter |
 | `components/PropertyMap.tsx` | Mapbox MapView with draggable pin, tap-to-place, triggers reverse geocoding on move |
-| `components/AddressInput.tsx` | Structured address form (street, city, state, postal code, country), "Locate on Map" geocode button, fallback message |
+| `components/AddressInput.tsx` | **Implemented.** Structured address form (street, city, state, postal code, country selector via horizontal chips), "Locate on Map" geocode button with loading state, fallback error message on geocoding failure prompting manual pin placement. Full accessibility, testID attributes, all text via i18n. |
 | `components/ChecklistEditor.tsx` | Add/remove/reorder checklist items with max count and character limit validation |
 | `components/RequirementsChips.tsx` | Predefined chips + custom text input, multi-select, max count validation, visual distinction |
 | `components/PropertyTypeSelector.tsx` | **Implemented.** Visual type selection cards (3-column grid) with emoji icons and i18n labels. Single selection with accent border and subtle background on selected card. Full accessibility (role, state, label). Uses PROPERTY_TYPES constant and design tokens. |
