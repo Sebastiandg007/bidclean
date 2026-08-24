@@ -20,6 +20,7 @@ import {
   PropertyListItem,
   PropertyPhotoView,
   PropertyType,
+  PublicPropertyView,
   SupportedCountry,
 } from './properties.types';
 
@@ -475,6 +476,60 @@ export class PropertiesService {
     const photoCount = photoViews.length;
 
     return this.mapToOwnerView(property, photoViews, photoCount);
+  }
+
+  /**
+   * Retrieves the public property view for any authenticated user (Cleaners).
+   * Uses the dedicated repository SELECT that structurally cannot return private fields.
+   * Generates signed URLs for all property photos.
+   *
+   * @param propertyId - The property UUID
+   * @returns Public property view, or null if not found/deleted
+   */
+  async getPublicProperty(propertyId: string): Promise<PublicPropertyView | null> {
+    const raw = await this._propertiesRepository.findPublicProperty(propertyId);
+
+    if (!raw) {
+      return null;
+    }
+
+    const rawPhotos = (raw['photos'] as Array<Record<string, unknown>>) ?? [];
+    const photos: PropertyPhotoView[] = await Promise.all(
+      rawPhotos.map(async (photo) => {
+        const { url } = await this._propertyPhotoService.getSignedUrl(
+          photo['storageKey'] as string,
+        );
+        return {
+          id: photo['id'] as string,
+          url,
+          mimeType: photo['mimeType'] as string,
+          fileSizeBytes: photo['fileSizeBytes'] as number,
+          displayOrder: photo['displayOrder'] as number,
+        };
+      }),
+    );
+
+    return {
+      id: raw['id'] as string,
+      name: raw['name'] as string,
+      type: raw['type'] as PropertyType,
+      description: (raw['description'] as string) ?? null,
+      city: raw['addressCity'] as string,
+      country: raw['addressCountry'] as SupportedCountry,
+      dimensions: {
+        squareMeters: Number(raw['squareMeters']),
+        bedrooms: Number(raw['bedrooms']),
+        bathrooms: Number(raw['bathrooms']),
+        floorNumber: raw['floorNumber'] != null ? Number(raw['floorNumber']) : null,
+      },
+      amenities: {
+        hasParking: raw['hasParking'] as boolean,
+        hasElevator: raw['hasElevator'] as boolean,
+        specialRequirements: (raw['specialRequirements'] as string[]) ?? [],
+      },
+      checklistItems: (raw['checklistItems'] as string[]) ?? [],
+      photos,
+    };
   }
 
   /** @internal Dependencies are now actively used by update methods */

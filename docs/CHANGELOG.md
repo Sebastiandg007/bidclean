@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Properties module (api)** — GET /properties/:id/public endpoint for Cleaner property view (Task 21)
+  - `PropertiesService.getPublicProperty(propertyId)` retrieves public-safe property data
+  - Uses dedicated `PropertiesRepository.findPublicProperty()` raw SQL SELECT that structurally cannot return private fields
+  - Generates signed URLs for all property photos via `PropertyPhotoService.getSignedUrl()`
+  - Maps raw data to `PublicPropertyView` interface: id, name, type, description, city, country, dimensions, amenities, checklistItems, photos
+  - NEVER returns: address_street, address_state, address_postal_code, formatted_address, location, location_source, access_instructions
+  - Controller: `@Get(':id/public')` placed BEFORE `@Get(':id')` to avoid NestJS route param conflict
+  - No `PropertyOwnerGuard` — any authenticated user can access (Cleaners viewing offers)
+  - No `OnboardingGateGuard` — viewing only, not creating/mutating
+  - Returns 404 `property.error.not_found` when property does not exist or is soft-deleted
+  - Returns `PublicPropertyResponse` (alias for `PublicPropertyView`)
+  - 9 unit tests covering: full view return, 404, private field exclusion, signed URL generation, empty photos, null fields, controller delegation
 - **Properties module (api)** — POST /properties/reverse-geocode endpoint (Task 20)
   - `@Post('reverse-geocode')` with `@UseGuards(OnboardingGateGuard)` + `@RequireOnboarding(UserRole.HOST)` for Host role enforcement
   - `@UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }))` for DTO validation

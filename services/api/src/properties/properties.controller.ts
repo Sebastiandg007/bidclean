@@ -38,7 +38,7 @@ import { UpdatePropertyDto } from './dto/update-property.dto';
 import { PropertyQueryDto } from './dto/property-query.dto';
 import { ReorderPhotosDto } from './dto/reorder-photos.dto';
 import { ForwardGeocodeDto, ReverseGeocodeDto } from './dto/geocode-request.dto';
-import { PropertyDetailResponse, PropertyListResponse } from './dto/property-response.dto';
+import { PropertyDetailResponse, PropertyListResponse, PublicPropertyResponse } from './dto/property-response.dto';
 import { PhotoUploadResult } from './photo/property-photo.types';
 import { ForwardGeocodeResponse, ReverseGeocodeResponse } from './geocoding/geocoding.types';
 import { User } from '../auth/entities/user.entity';
@@ -133,6 +133,27 @@ export class PropertiesController {
     }
 
     return result;
+  }
+
+  /**
+   * GET /properties/:id/public — Get public property view (Cleaner view).
+   * Returns only non-private fields: name, type, description, city, country,
+   * dimensions, amenities, checklist, photos (signed URLs).
+   * Any authenticated user can access (Cleaners viewing offer property details).
+   * NO PropertyOwnerGuard — not restricted to the owner.
+   * NO OnboardingGateGuard — viewing only.
+   */
+  @Get(':id/public')
+  async getPublicProperty(
+    @Param('id') propertyId: string,
+  ): Promise<PublicPropertyResponse> {
+    const publicView = await this.propertiesService.getPublicProperty(propertyId);
+
+    if (!publicView) {
+      throw new NotFoundException('property.error.not_found');
+    }
+
+    return publicView;
   }
 
   /**
