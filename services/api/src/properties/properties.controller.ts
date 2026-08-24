@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -13,10 +14,13 @@ import {
   Query,
   Req,
   Res,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
   UsePipes,
   ValidationPipe,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Request, Response } from 'express';
@@ -32,6 +36,7 @@ import { CreatePropertyDto } from './dto/create-property.dto';
 import { UpdatePropertyDto } from './dto/update-property.dto';
 import { PropertyQueryDto } from './dto/property-query.dto';
 import { PropertyDetailResponse, PropertyListResponse } from './dto/property-response.dto';
+import { PhotoUploadResult } from './photo/property-photo.types';
 import { User } from '../auth/entities/user.entity';
 
 /**
@@ -52,8 +57,7 @@ export class PropertiesController {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
   ) {
-    // Reference to suppress noUnusedLocals until all endpoints are implemented.
-    void this.propertyPhotoService;
+    // Reference to suppress noUnusedLocals until geocoding endpoints are implemented.
     void this.geocodingService;
   }
 
@@ -174,6 +178,47 @@ export class PropertiesController {
     }
 
     return { id: result.property.id, property: result.property as unknown as Record<string, unknown> };
+  }
+
+  /**
+   * POST /properties/:id/photos — Upload a photo for a property.
+   * Requires Host role with ownership verification (PropertyOwnerGuard).
+   * Accepts file via multipart form-data with field name "file".
+   * Supports Idempotency-Key header for duplicate prevention.
+   * Returns 201 for new upload, 200 for idempotent duplicate.
+   * Returns 400 for invalid format or max photos reached, 413 for file too large.
+   */
+  @Post(':id/photos')
+  @UseGuards(PropertyOwnerGuard)
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadPhoto(
+    @Param('id') propertyId: string,
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @Headers('idempotency-key') idempotencyKey: string | undefined,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<PhotoUploadResult> {
+    if (!file) {
+      throw new BadRequestException('property.error.file_required');
+    }
+
+    const result = await this.propertyPhotoService.uploadPhoto(
+      propertyId,
+      file.buffer,
+      file.mimetype,
+      idempotencyKey,
+    );
+
+    const isIdempotentDuplicate =
+      idempotencyKey !== undefined &&
+      result.storageKey === `${propertyId}/${idempotencyKey}`;
+
+    if (isIdempotentDuplicate) {
+      res.status(HttpStatus.OK);
+    } else {
+      res.status(HttpStatus.CREATED);
+    }
+
+    return result;
   }
 
   /** Resolves the internal user UUID from the Keycloak subject ID. */

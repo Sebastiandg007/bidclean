@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Properties module (api)** — POST /properties/:id/photos endpoint (Task 16)
+  - Upload property photo with multipart form-data (field name: "file")
+  - `@UseGuards(PropertyOwnerGuard)` for ownership verification
+  - `@UseInterceptors(FileInterceptor('file'))` for multipart file handling via multer
+  - Supports `Idempotency-Key` header — returns 200 for duplicate uploads, 201 for new
+  - Validates file presence (400 BadRequestException if missing)
+  - Delegates to `PropertyPhotoService.uploadPhoto()` which handles: MIME type validation (JPEG/PNG/WebP), file size validation, max count validation from env, sharp resize, MinIO upload with AES-256 encryption, mime_type + file_size_bytes storage, next contiguous display_order assignment
+  - 9 unit tests covering new upload, idempotent duplicate, missing file, invalid format, oversized file, max photos reached, buffer/mimetype passing, idempotency key forwarding
 - **Properties module (api)** — DELETE /properties/:id soft delete endpoint (Task 15)
   - `PropertiesService.deleteProperty(propertyId, userId)` orchestrates soft deletion
   - Consults `OfferEditabilityCheck` contract before deletion — throws 409 ConflictException with `property.error.has_active_offer` if active offers block deletion
