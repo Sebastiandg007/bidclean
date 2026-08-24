@@ -8,6 +8,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Properties module (api)** — Complete property management backend (Spec 5 — Sprint 2)
+  - NestJS module with CRUD endpoints, PostGIS spatial storage, Mapbox geocoding proxy
+  - `location_source` tracking (GEOCODED/MANUAL) for coordinate traceability
+  - PropertyOwnerGuard + query-level ownership enforcement (defense-in-depth)
+  - Property photo service: MinIO AES-256 encryption, sharp resize, transactional ordering (SELECT FOR UPDATE)
+  - Geocoding service: forward/reverse with max 300 char validation, lat/lng validation, per-user rate limiting
+  - Idempotency-Key support on POST /properties and POST /photos (dedicated lookup table)
+  - Public property endpoint with dedicated SELECT (NEVER exposes street/state/postal/formatted_address/location)
+  - Offer-readiness contract (calculated state: required fields + photos >= 1)
+  - Offer-editability contract (DI token, default allows all edits until offer-publishing spec)
+  - Soft delete with partial index, 3 database migrations (properties, property_photos, idempotency_keys)
+  - 14 backend test files covering all services, controller, repository, guards, contracts
+- **Properties module (mobile)** — Complete property management screens
+  - PropertyListScreen: paginated FlatList, debounced search, type filter chips, empty/error states, FAB
+  - PropertyDetailScreen: inline photo gallery with full-screen modal, map, info cards grid, checklist, requirements, access instructions, offer-readiness indicator
+  - CreatePropertyScreen: multi-step form (info → address + map → photos + details), geocoding with manual pin fallback, Idempotency-Key on save
+  - EditPropertyScreen: pre-populated form, saves only changed fields via PATCH, location_source updates
+  - PropertyMap: Mapbox MapView with draggable pin, tap-to-place, reverse geocoding on pin move, dark style
+  - AddressInput: structured fields + country chips + "Locate on Map" button + fallback error
+  - PropertyTypeSelector: 3-column visual card grid with emoji icons
+  - ChecklistEditor: add/remove/reorder with max count + character limit
+  - RequirementsChips: predefined (solid) + custom (dashed) with max count
+  - PhotoUploader: 2-column grid with cover badge, reorder buttons, delete confirmation
+  - PropertyPhotoGallery: horizontal scroll with snap, full-screen modal with swipe navigation
+  - PropertyCard: cover photo, type badge, room counts, offer-ready indicator
+  - useProperties Zustand store with full CRUD, photo management, geocoding, Idempotency-Key
 - **Properties module (mobile)** — i18n translation files for properties (Task 37)
   - English (`en/properties.json`) and Spanish (`es/properties.json`) translation files
   - Covers all 20 content categories: screen titles, form fields, property types, countries, requirements, validation errors, API errors, empty states, geocoding messages, photo management, multi-step form, detail sections, offer readiness, delete confirmation, search/filter, common actions, map component, checklist editor, requirements chips, property card

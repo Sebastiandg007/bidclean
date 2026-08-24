@@ -17,7 +17,7 @@
 ### Sprint 2 — Core Marketplace
 | # | Spec | Status | Dependencies |
 |---|------|--------|-------------|
-| 5 | `property-management` | 🔄 In Progress | Spec 1, 2 |
+| 5 | `property-management` | ✅ Completed | Spec 1, 2 |
 | 6 | `offer-publishing` | ⬜ Pending | Spec 5 |
 | 7 | `offer-radar` | ⬜ Pending | Spec 5, 6 |
 | 8 | `offer-negotiation` | ⬜ Pending | Spec 6, 7 |
