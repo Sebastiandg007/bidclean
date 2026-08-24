@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Properties module (mobile)** — Properties screens folder structure created with README (Task 23)
+  - Complete scaffold for `apps/mobile/src/screens/properties/` with all placeholder files
+  - 4 screen files: PropertyListScreen, PropertyDetailScreen, CreatePropertyScreen, EditPropertyScreen
+  - 1 hook: useProperties (Zustand store placeholder with full typed interface)
+  - 8 components: PropertyCard, PropertyPhotoGallery, PropertyMap, AddressInput, ChecklistEditor, RequirementsChips, PropertyTypeSelector, PhotoUploader
+  - 4 test files with `it.todo()` placeholders for each screen
+  - `properties.types.ts` with full TypeScript type definitions (Property, PropertyListItem, payloads, geocoding)
+  - `properties.constants.ts` with env-derived configuration (no hardcoded values)
+  - Comprehensive README following existing module documentation pattern (profile, kyc)
 - **Properties module (api)** — PropertyReadinessCheck contract implementation (Task 22)
   - `DefaultPropertyReadinessCheck` injectable service implementing the `PropertyReadinessCheck` interface
   - `PROPERTY_READINESS_CHECK` DI token for swappable injection by other modules (e.g., offer-publishing)
