@@ -46,7 +46,7 @@ export class PropertyOwnerGuard implements CanActivate {
 
   /** Extract the property ID from route params. */
   private extractPropertyId(request: Request): string {
-    return request.params.id;
+    return request.params['id'] as string;
   }
 
   /** Look up the internal user by Keycloak ID. */

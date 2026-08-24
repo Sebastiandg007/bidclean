@@ -5,6 +5,7 @@ import {
   Headers,
   HttpStatus,
   NotFoundException,
+  Param,
   Post,
   Query,
   Req,
@@ -21,11 +22,12 @@ import { PropertyPhotoService } from './photo/property-photo.service';
 import { GeocodingService } from './geocoding/geocoding.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { OnboardingGateGuard, RequireOnboarding } from '../roles/guards';
+import { PropertyOwnerGuard } from './guards/property-owner.guard';
 import { UserRole } from '../roles/roles.types';
 import { JwtUserPayload } from '../auth/guards/jwt.types';
 import { CreatePropertyDto } from './dto/create-property.dto';
 import { PropertyQueryDto } from './dto/property-query.dto';
-import { PropertyListResponse } from './dto/property-response.dto';
+import { PropertyDetailResponse, PropertyListResponse } from './dto/property-response.dto';
 import { User } from '../auth/entities/user.entity';
 
 /**
@@ -63,6 +65,28 @@ export class PropertiesController {
   ): Promise<PropertyListResponse> {
     const userId = await this.resolveUserId(req.user.keycloakId);
     return this.propertiesService.listProperties(userId, query);
+  }
+
+  /**
+   * GET /properties/:id — Get full property detail (owner view).
+   * Returns all fields including private data, photo signed URLs
+   * ordered by display_order ASC, and offer-readiness status.
+   * Ownership enforced at both guard and query level.
+   */
+  @Get(':id')
+  @UseGuards(PropertyOwnerGuard)
+  async getPropertyDetail(
+    @Param('id') propertyId: string,
+    @Req() req: Request & { user: JwtUserPayload },
+  ): Promise<PropertyDetailResponse> {
+    const userId = await this.resolveUserId(req.user.keycloakId);
+    const detail = await this.propertiesService.getPropertyDetail(propertyId, userId);
+
+    if (!detail) {
+      throw new NotFoundException('property.error.not_found');
+    }
+
+    return detail;
   }
 
   /**

@@ -13,8 +13,11 @@ import { PropertyQueryDto } from './dto/property-query.dto';
 import { Property } from './entities/property.entity';
 import { PROPERTY_LIST_DEFAULT_PAGE_SIZE } from './properties.constants';
 import {
+  LocationSource,
+  OwnerPropertyView,
   PaginatedResponse,
   PropertyListItem,
+  PropertyPhotoView,
   PropertyType,
   SupportedCountry,
 } from './properties.types';
@@ -124,6 +127,34 @@ export class PropertiesService {
     fields: string[],
   ): Promise<OfferEditabilityResult> {
     return this._editabilityCheck.canModifyProperty(propertyId, fields);
+  }
+
+  /**
+   * Retrieves the full property detail for an owner, including coordinates,
+   * photo signed URLs ordered by display_order, and offer-readiness status.
+   *
+   * @param propertyId - The property UUID
+   * @param userId - The owner's internal user UUID
+   * @returns Full owner property view, or null if not found/not owned
+   */
+  async getPropertyDetail(
+    propertyId: string,
+    userId: string,
+  ): Promise<OwnerPropertyView | null> {
+    const property = await this._propertiesRepository.findOneByOwnerWithCoordinates(
+      propertyId,
+      userId,
+    );
+
+    if (!property) {
+      return null;
+    }
+
+    const photos = await this._propertyPhotoService.getPhotosWithUrls(propertyId);
+    const photoViews = this.mapPhotosToViews(photos);
+    const photoCount = photoViews.length;
+
+    return this.mapToOwnerView(property, photoViews, photoCount);
   }
 
   /** @internal Placeholder to satisfy noUnusedLocals until all methods are implemented */
@@ -283,5 +314,60 @@ export class PropertiesService {
     property.createdAt = row['created_at'] as Date;
     property.updatedAt = row['updated_at'] as Date;
     return property;
+  }
+
+  /** Maps photo upload results to the PropertyPhotoView shape. */
+  private mapPhotosToViews(
+    photos: { id: string; mimeType: string; fileSizeBytes: number; displayOrder: number; signedUrl: string }[],
+  ): PropertyPhotoView[] {
+    return photos.map((photo) => ({
+      id: photo.id,
+      url: photo.signedUrl,
+      mimeType: photo.mimeType,
+      fileSizeBytes: photo.fileSizeBytes,
+      displayOrder: photo.displayOrder,
+    }));
+  }
+
+  /** Maps a Property entity (with extracted coordinates) to the full OwnerPropertyView. */
+  private mapToOwnerView(
+    property: Property & { lat: number; lng: number },
+    photos: PropertyPhotoView[],
+    photoCount: number,
+  ): OwnerPropertyView {
+    return {
+      id: property.id,
+      userId: property.userId,
+      name: property.name,
+      type: property.type as PropertyType,
+      description: property.description,
+      address: {
+        street: property.addressStreet,
+        city: property.addressCity,
+        state: property.addressState,
+        postalCode: property.addressPostalCode,
+        country: property.addressCountry as SupportedCountry,
+      },
+      formattedAddress: property.formattedAddress,
+      location: { lat: property.lat, lng: property.lng },
+      locationSource: property.locationSource as LocationSource,
+      dimensions: {
+        squareMeters: property.squareMeters,
+        bedrooms: property.bedrooms,
+        bathrooms: property.bathrooms,
+        floorNumber: property.floorNumber,
+      },
+      amenities: {
+        hasParking: property.hasParking,
+        hasElevator: property.hasElevator,
+        specialRequirements: property.specialRequirements,
+      },
+      checklistItems: property.checklistItems,
+      accessInstructions: property.accessInstructions,
+      photos,
+      isOfferReady: this.isOfferReady(property, photoCount),
+      createdAt: property.createdAt,
+      updatedAt: property.updatedAt,
+    };
   }
 }

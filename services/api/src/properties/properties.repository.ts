@@ -58,6 +58,72 @@ export class PropertiesRepository {
   }
 
   /**
+   * Find a single property by ID with ownership enforcement and PostGIS coordinate extraction.
+   * Uses raw SQL with ST_Y/ST_X to extract lat/lng from the geography column.
+   * Returns null if property does not exist, is deleted, or belongs to another user.
+   */
+  async findOneByOwnerWithCoordinates(
+    propertyId: string,
+    userId: string,
+  ): Promise<(Property & { lat: number; lng: number }) | null> {
+    const rows = await this.dataSource.query(
+      `SELECT
+        p.*,
+        ST_Y(p.location::geometry) AS lat,
+        ST_X(p.location::geometry) AS lng
+      FROM properties p
+      WHERE p.id = $1
+        AND p.user_id = $2
+        AND p.deleted_at IS NULL
+      LIMIT 1`,
+      [propertyId, userId],
+    );
+
+    if (!rows || rows.length === 0) {
+      return null;
+    }
+
+    const row = rows[0] as Record<string, unknown>;
+    const property = this.mapRawRowToProperty(row);
+
+    return Object.assign(property, {
+      lat: Number(row['lat']),
+      lng: Number(row['lng']),
+    });
+  }
+
+  /** Maps a raw database row to a Property entity shape. */
+  private mapRawRowToProperty(row: Record<string, unknown>): Property {
+    const property = new Property();
+    property.id = row['id'] as string;
+    property.userId = row['user_id'] as string;
+    property.name = row['name'] as string;
+    property.type = row['type'] as string;
+    property.description = (row['description'] as string) ?? null;
+    property.addressStreet = row['address_street'] as string;
+    property.addressCity = row['address_city'] as string;
+    property.addressState = (row['address_state'] as string) ?? null;
+    property.addressPostalCode = (row['address_postal_code'] as string) ?? null;
+    property.addressCountry = row['address_country'] as string;
+    property.location = row['location'] as string;
+    property.formattedAddress = (row['formatted_address'] as string) ?? null;
+    property.locationSource = row['location_source'] as string;
+    property.squareMeters = Number(row['square_meters']);
+    property.bedrooms = Number(row['bedrooms']);
+    property.bathrooms = Number(row['bathrooms']);
+    property.floorNumber = row['floor_number'] != null ? Number(row['floor_number']) : null;
+    property.hasParking = row['has_parking'] as boolean;
+    property.hasElevator = row['has_elevator'] as boolean;
+    property.specialRequirements = (row['special_requirements'] as string[]) ?? [];
+    property.checklistItems = (row['checklist_items'] as string[]) ?? [];
+    property.accessInstructions = (row['access_instructions'] as string) ?? null;
+    property.deletedAt = (row['deleted_at'] as Date) ?? null;
+    property.createdAt = row['created_at'] as Date;
+    property.updatedAt = row['updated_at'] as Date;
+    return property;
+  }
+
+  /**
    * Find all properties owned by a user with pagination, search, and filters.
    * Enforces WHERE user_id = :userId AND deleted_at IS NULL.
    * Supports text search by name/address (ILIKE), filter by property type,

@@ -5,11 +5,16 @@ import { PropertiesController } from '../properties.controller';
 import { PropertiesService, CreatePropertyResult } from '../properties.service';
 import { PropertyPhotoService } from '../photo/property-photo.service';
 import { GeocodingService } from '../geocoding/geocoding.service';
+import { PropertyOwnerGuard } from '../guards/property-owner.guard';
 import { User } from '../../auth/entities/user.entity';
 import { Property } from '../entities/property.entity';
 import { CreatePropertyDto } from '../dto/create-property.dto';
 import { JwtUserPayload } from '../../auth/guards/jwt.types';
+import { OwnerPropertyView } from '../properties.types';
 import { Request, Response } from 'express';
+
+/** Mock guard that always allows access (unit tests isolate controller logic) */
+const mockPropertyOwnerGuard = { canActivate: () => true };
 
 describe('PropertiesController', () => {
   let controller: PropertiesController;
@@ -59,9 +64,60 @@ describe('PropertiesController', () => {
     bathrooms: 1,
   };
 
+  const mockOwnerView: OwnerPropertyView = {
+    id: mockPropertyId,
+    userId: mockUserId,
+    name: 'Test Apartment',
+    type: 'apartment',
+    description: 'A nice apartment',
+    address: {
+      street: '123 Main St',
+      city: 'Bogota',
+      state: null,
+      postalCode: null,
+      country: 'CO',
+    },
+    formattedAddress: '123 Main St, Bogota, Colombia',
+    location: { lat: 4.711, lng: -74.0721 },
+    locationSource: 'GEOCODED',
+    dimensions: {
+      squareMeters: 80,
+      bedrooms: 2,
+      bathrooms: 1,
+      floorNumber: null,
+    },
+    amenities: {
+      hasParking: true,
+      hasElevator: false,
+      specialRequirements: [],
+    },
+    checklistItems: ['Clean kitchen', 'Vacuum floors'],
+    accessInstructions: 'Ring bell twice',
+    photos: [
+      {
+        id: 'photo-1',
+        url: 'https://minio.local/photo1.jpg?signed=abc',
+        mimeType: 'image/jpeg',
+        fileSizeBytes: 245000,
+        displayOrder: 0,
+      },
+      {
+        id: 'photo-2',
+        url: 'https://minio.local/photo2.png?signed=def',
+        mimeType: 'image/png',
+        fileSizeBytes: 180000,
+        displayOrder: 1,
+      },
+    ],
+    isOfferReady: true,
+    createdAt: new Date('2024-01-15T10:00:00Z'),
+    updatedAt: new Date('2024-01-20T14:30:00Z'),
+  };
+
   beforeEach(async () => {
     propertiesService = {
       createProperty: jest.fn(),
+      getPropertyDetail: jest.fn(),
     };
 
     userRepository = {
@@ -80,7 +136,10 @@ describe('PropertiesController', () => {
         { provide: GeocodingService, useValue: {} },
         { provide: getRepositoryToken(User), useValue: userRepository },
       ],
-    }).compile();
+    })
+      .overrideGuard(PropertyOwnerGuard)
+      .useValue(mockPropertyOwnerGuard)
+      .compile();
 
     controller = module.get<PropertiesController>(PropertiesController);
   });
@@ -159,6 +218,73 @@ describe('PropertiesController', () => {
         validDto,
         'unique-key-789',
       );
+    });
+  });
+
+  describe('GET /properties/:id', () => {
+    it('should return full property detail for the owner', async () => {
+      userRepository.findOne.mockResolvedValueOnce({ id: mockUserId, keycloakId: mockKeycloakId });
+      (propertiesService.getPropertyDetail as jest.Mock).mockResolvedValueOnce(mockOwnerView);
+
+      const result = await controller.getPropertyDetail(mockPropertyId, mockRequest);
+
+      expect(result).toEqual(mockOwnerView);
+      expect(propertiesService.getPropertyDetail).toHaveBeenCalledWith(
+        mockPropertyId,
+        mockUserId,
+      );
+    });
+
+    it('should throw NotFoundException when property is not found', async () => {
+      userRepository.findOne.mockResolvedValueOnce({ id: mockUserId, keycloakId: mockKeycloakId });
+      (propertiesService.getPropertyDetail as jest.Mock).mockResolvedValueOnce(null);
+
+      await expect(
+        controller.getPropertyDetail(mockPropertyId, mockRequest),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should throw NotFoundException when user is not found', async () => {
+      userRepository.findOne.mockResolvedValueOnce(null);
+
+      await expect(
+        controller.getPropertyDetail(mockPropertyId, mockRequest),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should return photos with signed URLs ordered by display_order', async () => {
+      userRepository.findOne.mockResolvedValueOnce({ id: mockUserId, keycloakId: mockKeycloakId });
+      (propertiesService.getPropertyDetail as jest.Mock).mockResolvedValueOnce(mockOwnerView);
+
+      const result = await controller.getPropertyDetail(mockPropertyId, mockRequest);
+
+      expect(result.photos).toHaveLength(2);
+      expect(result.photos[0]!.displayOrder).toBe(0);
+      expect(result.photos[1]!.displayOrder).toBe(1);
+      expect(result.photos[0]!.url).toContain('signed');
+      expect(result.photos[1]!.url).toContain('signed');
+    });
+
+    it('should return correct offer-readiness status', async () => {
+      userRepository.findOne.mockResolvedValueOnce({ id: mockUserId, keycloakId: mockKeycloakId });
+      (propertiesService.getPropertyDetail as jest.Mock).mockResolvedValueOnce(mockOwnerView);
+
+      const result = await controller.getPropertyDetail(mockPropertyId, mockRequest);
+
+      expect(result.isOfferReady).toBe(true);
+    });
+
+    it('should return all private fields (street, state, access_instructions)', async () => {
+      userRepository.findOne.mockResolvedValueOnce({ id: mockUserId, keycloakId: mockKeycloakId });
+      (propertiesService.getPropertyDetail as jest.Mock).mockResolvedValueOnce(mockOwnerView);
+
+      const result = await controller.getPropertyDetail(mockPropertyId, mockRequest);
+
+      expect(result.address.street).toBe('123 Main St');
+      expect(result.formattedAddress).toBe('123 Main St, Bogota, Colombia');
+      expect(result.accessInstructions).toBe('Ring bell twice');
+      expect(result.location).toEqual({ lat: 4.711, lng: -74.0721 });
+      expect(result.locationSource).toBe('GEOCODED');
     });
   });
 });

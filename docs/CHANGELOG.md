@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Properties module (api)** — GET /properties/:id endpoint fully implemented (Task 13)
+  - `PropertiesService.getPropertyDetail(propertyId, userId)` returns full owner view
+  - `PropertiesRepository.findOneByOwnerWithCoordinates()` extracts lat/lng via ST_Y/ST_X from PostGIS geography
+  - Returns `OwnerPropertyView`: all fields including private (street, state, postalCode, formattedAddress, accessInstructions, location coordinates)
+  - Photos returned with signed URLs ordered by display_order ASC via `PropertyPhotoService.getPhotosWithUrls()`
+  - Offer-readiness calculated: not deleted + required fields + at least 1 photo
+  - Controller: `@Get(':id')` with `@UseGuards(PropertyOwnerGuard)` for secondary ownership defense
+  - Ownership enforced at BOTH guard level (PropertyOwnerGuard) AND query level (findOneByOwnerWithCoordinates)
+  - 404 thrown when property not found (guard handles 403 for unauthorized access)
+  - 6 unit tests covering full detail return, 404 cases, photo ordering, offer-readiness, and private field inclusion
 - **Properties module (api)** — GET /properties endpoint fully implemented (Task 12)
   - `PropertiesService.listProperties(userId, query)` orchestrates paginated property listing
   - Returns `PaginatedResponse<PropertyListItem>` with id, name, type, city, country, bedrooms, bathrooms, coverPhotoUrl, isOfferReady
