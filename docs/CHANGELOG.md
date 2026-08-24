@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Properties module (mobile)** — RequirementsChips component fully implemented (Task 33)
+  - Predefined requirement chips from PREDEFINED_REQUIREMENTS constant (8 common requirements)
+  - Custom text input for user-defined requirements with max length enforcement
+  - Multi-select toggle: tap predefined chips to select/deselect
+  - Visual distinction: predefined chips use solid border, custom items use dashed border
+  - Max count enforcement from PROPERTY_MAX_REQUIREMENTS constant (default 20)
+  - Count indicator badge showing "current/max requirements"
+  - Empty state with clipboard icon when no requirements selected
+  - "Maximum requirements reached" error text when limit hit
+  - Duplicate prevention for custom requirements
+  - Remove button on each custom item
+  - Dark theme styling with design tokens (COLORS, SPACING, FONT_SIZE)
+  - Full accessibility: accessibilityRole, accessibilityLabel, accessibilityState on all elements
+  - testID attributes on all key elements for testing
+  - All UI text via i18n useTranslation() with defaultValue fallbacks
 - **Properties module (mobile)** — ChecklistEditor component fully implemented (Task 32)
   - Add/remove text items with validation (empty, character limit, max count)
   - Character counter per item with warning (yellow at 80%) and error (red at 100%) color states
