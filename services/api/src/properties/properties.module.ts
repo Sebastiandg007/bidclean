@@ -13,7 +13,9 @@ import { User } from '../auth/entities/user.entity';
 import {
   OFFER_EDITABILITY_CHECK,
   DefaultOfferEditabilityCheck,
+  PROPERTY_READINESS_CHECK,
 } from './contracts/offer-editability.interface';
+import { DefaultPropertyReadinessCheck } from './contracts/property-readiness.service';
 import { RolesModule } from '../roles/roles.module';
 
 /**
@@ -46,7 +48,16 @@ import { RolesModule } from '../roles/roles.module';
       provide: OFFER_EDITABILITY_CHECK,
       useClass: DefaultOfferEditabilityCheck,
     },
+    {
+      provide: PROPERTY_READINESS_CHECK,
+      useClass: DefaultPropertyReadinessCheck,
+    },
   ],
-  exports: [PropertiesService, PropertiesRepository, OFFER_EDITABILITY_CHECK],
+  exports: [
+    PropertiesService,
+    PropertiesRepository,
+    OFFER_EDITABILITY_CHECK,
+    PROPERTY_READINESS_CHECK,
+  ],
 })
 export class PropertiesModule {}

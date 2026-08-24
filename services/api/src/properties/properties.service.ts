@@ -7,6 +7,9 @@ import {
   OFFER_EDITABILITY_CHECK,
   OfferEditabilityCheck,
   OfferEditabilityResult,
+  PROPERTY_READINESS_CHECK,
+  PropertyReadinessCheck,
+  PropertyReadinessResult,
 } from './contracts/offer-editability.interface';
 import { CreatePropertyDto } from './dto/create-property.dto';
 import { UpdatePropertyDto } from './dto/update-property.dto';
@@ -49,6 +52,8 @@ export class PropertiesService {
     private readonly _geocodingService: GeocodingService,
     @Inject(OFFER_EDITABILITY_CHECK)
     private readonly _editabilityCheck: OfferEditabilityCheck,
+    @Inject(PROPERTY_READINESS_CHECK)
+    private readonly _readinessCheck: PropertyReadinessCheck,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -154,6 +159,22 @@ export class PropertiesService {
     fields: string[],
   ): Promise<OfferEditabilityResult> {
     return this._editabilityCheck.canModifyProperty(propertyId, fields);
+  }
+
+  /**
+   * Checks whether a property is ready to be used in an offer.
+   * Delegates to the injected PropertyReadinessCheck contract.
+   *
+   * A property is offer-ready when:
+   * 1. deleted_at IS NULL
+   * 2. All required fields are populated
+   * 3. At least 1 photo exists
+   *
+   * @param propertyId - UUID of the property to check
+   * @returns Readiness result with granular reasons
+   */
+  async checkOfferReadiness(propertyId: string): Promise<PropertyReadinessResult> {
+    return this._readinessCheck.isOfferReady(propertyId);
   }
 
   /**

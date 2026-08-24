@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Properties module (api)** — PropertyReadinessCheck contract implementation (Task 22)
+  - `DefaultPropertyReadinessCheck` injectable service implementing the `PropertyReadinessCheck` interface
+  - `PROPERTY_READINESS_CHECK` DI token for swappable injection by other modules (e.g., offer-publishing)
+  - Calculates offer-readiness from current data (not stored): deleted_at IS NULL + required fields + photoCount >= 1
+  - Returns granular `{ ready: boolean, reasons: string[] }` with specific reason constants for each failure
+  - Reason constants: property_deleted, property_not_found, missing_name, missing_type, missing_address_street, missing_address_city, missing_address_country, missing_location, invalid_square_meters, insufficient_bathrooms, missing_photos
+  - `PropertiesRepository.findOneIncludingDeleted(propertyId)` added for readiness check (no ownership/soft-delete filter)
+  - `PropertiesService.checkOfferReadiness(propertyId)` public method delegating to injected contract
+  - Registered in `PropertiesModule` via `useClass` provider and exported for cross-module injection
+  - 18 unit tests covering: ready property, not found, deleted, missing photos, all required field validations, multiple issues, interface conformance
 - **Properties module (api)** — GET /properties/:id/public endpoint for Cleaner property view (Task 21)
   - `PropertiesService.getPublicProperty(propertyId)` retrieves public-safe property data
   - Uses dedicated `PropertiesRepository.findPublicProperty()` raw SQL SELECT that structurally cannot return private fields

@@ -54,6 +54,9 @@ export class DefaultOfferEditabilityCheck implements OfferEditabilityCheck {
   }
 }
 
+/** DI token for the property-readiness contract */
+export const PROPERTY_READINESS_CHECK = 'PROPERTY_READINESS_CHECK';
+
 /**
  * Property-readiness contract interface.
  *

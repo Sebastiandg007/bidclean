@@ -5,7 +5,7 @@ import { PropertiesService, CreatePropertyResult } from '../properties.service';
 import { PropertiesRepository } from '../properties.repository';
 import { PropertyPhotoService } from '../photo/property-photo.service';
 import { GeocodingService } from '../geocoding/geocoding.service';
-import { OFFER_EDITABILITY_CHECK } from '../contracts/offer-editability.interface';
+import { OFFER_EDITABILITY_CHECK, PROPERTY_READINESS_CHECK } from '../contracts/offer-editability.interface';
 import { CreatePropertyDto } from '../dto/create-property.dto';
 import { UpdatePropertyDto } from '../dto/update-property.dto';
 import { PropertyQueryDto } from '../dto/property-query.dto';
@@ -95,6 +95,7 @@ describe('PropertiesService', () => {
         { provide: PropertyPhotoService, useValue: photoService },
         { provide: GeocodingService, useValue: {} },
         { provide: OFFER_EDITABILITY_CHECK, useValue: { canModifyProperty: jest.fn() } },
+        { provide: PROPERTY_READINESS_CHECK, useValue: { isOfferReady: jest.fn().mockResolvedValue({ ready: true, reasons: [] }) } },
         { provide: DataSource, useValue: dataSource },
       ],
     }).compile();
@@ -451,6 +452,7 @@ describe('PropertiesService', () => {
           { provide: PropertyPhotoService, useValue: photoService },
           { provide: GeocodingService, useValue: geocodingService },
           { provide: OFFER_EDITABILITY_CHECK, useValue: editabilityCheck },
+          { provide: PROPERTY_READINESS_CHECK, useValue: { isOfferReady: jest.fn().mockResolvedValue({ ready: true, reasons: [] }) } },
           { provide: DataSource, useValue: dataSource },
         ],
       }).compile();

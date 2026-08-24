@@ -19,7 +19,8 @@ Manages property CRUD for Hosts: creation with idempotency, photo management (Mi
 | `photo/property-photo.service.ts` | Photo upload/delete/reorder with MinIO, sharp resize, AES-256 encryption |
 | `geocoding/geocoding.service.ts` | Mapbox forward/reverse geocoding proxy with rate limiting |
 | `guards/property-owner.guard.ts` | CanActivate guard verifying property ownership |
-| `contracts/offer-editability.interface.ts` | OfferEditabilityCheck contract with default provider |
+| `contracts/offer-editability.interface.ts` | OfferEditabilityCheck + PropertyReadinessCheck contracts with DI tokens |
+| `contracts/property-readiness.service.ts` | DefaultPropertyReadinessCheck implementation (calculated offer-readiness) |
 | `dto/` | Request/response DTOs with class-validator decorators |
 
 ## Dependencies
@@ -71,3 +72,4 @@ Manages property CRUD for Hosts: creation with idempotency, photo management (Mi
 - **Parameterized queries**: All raw SQL uses positional parameters ($1, $2) — never string concatenation.
 - **Soft delete**: Properties use `deleted_at` timestamp. Partial index ensures only active properties are queried efficiently.
 - **Location source tracking**: The `location_source` column records whether coordinates came from geocoding or manual pin placement.
+- **Offer-readiness as calculated state**: The `PropertyReadinessCheck` contract (`PROPERTY_READINESS_CHECK` DI token) calculates readiness from current data (not stored). Checks: not deleted, required fields populated, at least 1 photo. Returns granular reasons array for UI feedback. Exported for injection by other modules (e.g., offer-publishing).

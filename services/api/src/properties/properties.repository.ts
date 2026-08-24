@@ -386,6 +386,17 @@ export class PropertiesRepository {
   }
 
   /**
+   * Find a single property by ID without ownership or soft-delete filtering.
+   * Used by the readiness check contract to report deletion status explicitly.
+   * Returns null if property does not exist at all.
+   */
+  async findOneIncludingDeleted(propertyId: string): Promise<Property | null> {
+    return this.propertyRepo.findOne({
+      where: { id: propertyId },
+    });
+  }
+
+  /**
    * Count the number of photos for a given property.
    */
   async countPhotos(propertyId: string): Promise<number> {

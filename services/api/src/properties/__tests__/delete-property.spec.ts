@@ -8,7 +8,7 @@ import { PropertiesRepository } from '../properties.repository';
 import { PropertyPhotoService } from '../photo/property-photo.service';
 import { GeocodingService } from '../geocoding/geocoding.service';
 import { PropertyOwnerGuard } from '../guards/property-owner.guard';
-import { OFFER_EDITABILITY_CHECK } from '../contracts/offer-editability.interface';
+import { OFFER_EDITABILITY_CHECK, PROPERTY_READINESS_CHECK } from '../contracts/offer-editability.interface';
 import { User } from '../../auth/entities/user.entity';
 import { JwtUserPayload } from '../../auth/guards/jwt.types';
 import { Request } from 'express';
@@ -41,6 +41,7 @@ describe('DELETE /properties/:id', () => {
           { provide: PropertyPhotoService, useValue: {} },
           { provide: GeocodingService, useValue: {} },
           { provide: OFFER_EDITABILITY_CHECK, useValue: editabilityCheck },
+          { provide: PROPERTY_READINESS_CHECK, useValue: { isOfferReady: jest.fn().mockResolvedValue({ ready: true, reasons: [] }) } },
           { provide: DataSource, useValue: { query: jest.fn() } },
         ],
       }).compile();
