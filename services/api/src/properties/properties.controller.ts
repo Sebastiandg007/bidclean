@@ -14,6 +14,7 @@ import {
   Query,
   Req,
   Res,
+  UnprocessableEntityException,
   UploadedFile,
   UseGuards,
   UseInterceptors,
@@ -36,8 +37,10 @@ import { CreatePropertyDto } from './dto/create-property.dto';
 import { UpdatePropertyDto } from './dto/update-property.dto';
 import { PropertyQueryDto } from './dto/property-query.dto';
 import { ReorderPhotosDto } from './dto/reorder-photos.dto';
+import { ForwardGeocodeDto } from './dto/geocode-request.dto';
 import { PropertyDetailResponse, PropertyListResponse } from './dto/property-response.dto';
 import { PhotoUploadResult } from './photo/property-photo.types';
+import { ForwardGeocodeResponse } from './geocoding/geocoding.types';
 import { User } from '../auth/entities/user.entity';
 
 /**
@@ -57,10 +60,7 @@ export class PropertiesController {
     private readonly geocodingService: GeocodingService,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
-  ) {
-    // Reference to suppress noUnusedLocals until geocoding endpoints are implemented.
-    void this.geocodingService;
-  }
+  ) {}
 
   /**
    * GET /properties — List the current user's properties (paginated).
@@ -74,6 +74,35 @@ export class PropertiesController {
   ): Promise<PropertyListResponse> {
     const userId = await this.resolveUserId(req.user.keycloakId);
     return this.propertiesService.listProperties(userId, query);
+  }
+
+  /**
+   * POST /properties/geocode — Forward geocode an address to coordinates.
+   * Requires Host role with completed onboarding.
+   * Rate limited per user (configured via PROPERTY_GEOCODING_RATE_LIMIT).
+   * Returns lat/lng, formattedAddress, and confidence score.
+   * Returns 422 if geocoding produces no results.
+   */
+  @Post('geocode')
+  @UseGuards(OnboardingGateGuard)
+  @RequireOnboarding(UserRole.HOST)
+  @UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }))
+  async geocodeAddress(
+    @Body() dto: ForwardGeocodeDto,
+    @Req() req: Request & { user: JwtUserPayload },
+  ): Promise<ForwardGeocodeResponse> {
+    const userId = await this.resolveUserId(req.user.keycloakId);
+
+    const result = await this.geocodingService.forwardGeocode(
+      { address: dto.address, country: dto.country },
+      userId,
+    );
+
+    if (!result) {
+      throw new UnprocessableEntityException('property.error.geocoding_failed');
+    }
+
+    return result;
   }
 
   /**

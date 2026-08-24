@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Properties module (api)** — POST /properties/geocode forward geocoding endpoint (Task 19)
+  - `@Post('geocode')` with `@UseGuards(OnboardingGateGuard)` + `@RequireOnboarding(UserRole.HOST)` for Host role enforcement
+  - `@UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }))` for DTO validation
+  - Route placed BEFORE `@Get(':id')` to avoid NestJS param conflict
+  - Accepts `ForwardGeocodeDto` body: address (string, max 300 chars), country (ISO alpha-2, supported list)
+  - Delegates to `GeocodingService.forwardGeocode()` with per-user rate limiting
+  - Returns `ForwardGeocodeResponse`: lat, lng, formattedAddress, confidence score
+  - Returns 422 UnprocessableEntityException with `property.error.geocoding_failed` when geocoding produces no results
+  - Propagates 429 from GeocodingService when per-user rate limit exceeded
+  - Removed `void this.geocodingService` placeholder from constructor
+  - 5 unit tests covering success, 422 failure, 429 rate limit, user not found, userId resolution
 - **Properties module (api)** — PATCH /properties/:id/photos/order endpoint (Task 18)
   - `@Patch(':id/photos/order')` with `@UseGuards(PropertyOwnerGuard)` for ownership verification
   - `@UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }))` for DTO validation
