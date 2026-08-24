@@ -8,6 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Properties module (mobile)** — PropertyPhotoGallery component fully implemented (Task 36)
+  - Reusable self-contained horizontal photo gallery with built-in full-screen modal
+  - ScrollView thumbnails with snap-to-item behavior (70% screen width cards)
+  - Tap any thumbnail to open full-screen ImageViewer modal
+  - Full-screen swipe navigation via FlatList with pagingEnabled and initialScrollIndex
+  - Photo counter in inline view ("3 photos") and full-screen ("2 / 5")
+  - Close button in top-right of modal
+  - Empty state with camera icon when no photos provided
+  - Manages its own modal state — no external state needed
+  - Full accessibility: accessibilityRole, accessibilityLabel on all interactive elements
+  - testID attributes on all key elements for testing
+  - All UI text via i18n useTranslation() with defaultValue fallbacks
+  - No magic numbers: all layout values as named constants
+  - Design tokens from properties.constants (COLORS, SPACING, FONT_SIZE)
 - **Properties module (mobile)** — EditPropertyScreen fully implemented (Task 35)
   - Multi-step form (3 steps) mirroring CreatePropertyScreen structure
   - Pre-populates all fields from existing property data via fetchDetail

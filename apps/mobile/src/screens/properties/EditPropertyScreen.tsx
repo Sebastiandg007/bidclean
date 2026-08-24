@@ -10,7 +10,7 @@
  * Updates location_source on address re-geocoding or pin move.
  */
 
-import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -724,7 +724,8 @@ function EditStepIndicator({ currentStep, totalSteps }: EditStepIndicatorProps) 
             <Text
               style={[
                 styles.stepDotText,
-                (isCompleted || isCurrent) && styles.stepDotTextActive,
+                isCompleted && styles.stepDotTextCompleted,
+                isCurrent && styles.stepDotTextCurrent,
               ]}
             >
               {stepNum}
@@ -1152,8 +1153,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: COLORS.textSecondary,
   },
-  stepDotTextActive: {
+  stepDotTextCompleted: {
     color: COLORS.background,
+  },
+  stepDotTextCurrent: {
+    color: COLORS.accent,
   },
   stepLine: {
     position: 'absolute',
