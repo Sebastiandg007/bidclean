@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Properties module (api)** — DELETE /properties/:id/photos/:photoId endpoint (Task 17)
+  - `@Delete(':id/photos/:photoId')` with `@UseGuards(PropertyOwnerGuard)` for ownership verification
+  - `@HttpCode(HttpStatus.NO_CONTENT)` returns 204 on success
+  - Delegates to `PropertyPhotoService.deletePhoto(propertyId, photoId)` which handles: TRANSACTION with SELECT FOR UPDATE lock, MinIO object removal (idempotent), DB deletion, contiguous display_order renumbering
+  - Returns 404 NotFoundException if photo not found (propagated from service)
 - **Properties module (api)** — POST /properties/:id/photos endpoint (Task 16)
   - Upload property photo with multipart form-data (field name: "file")
   - `@UseGuards(PropertyOwnerGuard)` for ownership verification

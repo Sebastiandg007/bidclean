@@ -24,7 +24,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Request, Response } from 'express';
-import { PropertiesService } from './properties.service';
+import { PropertiesService, CreatePropertyResult } from './properties.service';
 import { PropertyPhotoService } from './photo/property-photo.service';
 import { GeocodingService } from './geocoding/geocoding.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -162,7 +162,7 @@ export class PropertiesController {
     @Headers('idempotency-key') idempotencyKey: string | undefined,
     @Req() req: Request & { user: JwtUserPayload },
     @Res({ passthrough: true }) res: Response,
-  ): Promise<{ id: string; property: Record<string, unknown> }> {
+  ): Promise<{ id: string; property: CreatePropertyResult['property'] }> {
     const userId = await this.resolveUserId(req.user.keycloakId);
 
     const result = await this.propertiesService.createProperty(
@@ -177,7 +177,7 @@ export class PropertiesController {
       res.status(HttpStatus.OK);
     }
 
-    return { id: result.property.id, property: result.property as unknown as Record<string, unknown> };
+    return { id: result.property.id, property: result.property };
   }
 
   /**
@@ -221,11 +221,29 @@ export class PropertiesController {
     return result;
   }
 
+  /**
+   * DELETE /properties/:id/photos/:photoId — Delete a property photo.
+   * Requires Host role with ownership verification (PropertyOwnerGuard).
+   * Removes photo from MinIO and DB within a transaction with SELECT FOR UPDATE.
+   * Renumbers remaining photos to maintain contiguous display_order (0, 1, 2, ...).
+   * Returns 204 No Content on success.
+   * Returns 404 if photo not found.
+   */
+  @Delete(':id/photos/:photoId')
+  @UseGuards(PropertyOwnerGuard)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async deletePhoto(
+    @Param('id') propertyId: string,
+    @Param('photoId') photoId: string,
+  ): Promise<void> {
+    await this.propertyPhotoService.deletePhoto(propertyId, photoId);
+  }
+
   /** Resolves the internal user UUID from the Keycloak subject ID. */
   private async resolveUserId(keycloakId: string): Promise<string> {
     const user = await this.userRepository.findOne({ where: { keycloakId } });
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException('auth.error.user_not_found');
     }
     return user.id;
   }
