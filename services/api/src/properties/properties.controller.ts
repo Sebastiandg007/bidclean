@@ -35,6 +35,7 @@ import { JwtUserPayload } from '../auth/guards/jwt.types';
 import { CreatePropertyDto } from './dto/create-property.dto';
 import { UpdatePropertyDto } from './dto/update-property.dto';
 import { PropertyQueryDto } from './dto/property-query.dto';
+import { ReorderPhotosDto } from './dto/reorder-photos.dto';
 import { PropertyDetailResponse, PropertyListResponse } from './dto/property-response.dto';
 import { PhotoUploadResult } from './photo/property-photo.types';
 import { User } from '../auth/entities/user.entity';
@@ -237,6 +238,25 @@ export class PropertiesController {
     @Param('photoId') photoId: string,
   ): Promise<void> {
     await this.propertyPhotoService.deletePhoto(propertyId, photoId);
+  }
+
+  /**
+   * PATCH /properties/:id/photos/order — Reorder property photos.
+   * Requires Host role with ownership verification (PropertyOwnerGuard).
+   * Accepts an array of photo IDs in desired display order.
+   * Executes within a TRANSACTION with SELECT FOR UPDATE to prevent concurrent corruption.
+   * Validates all photo IDs belong to the property.
+   * Returns 200 OK with success confirmation.
+   */
+  @Patch(':id/photos/order')
+  @UseGuards(PropertyOwnerGuard)
+  @UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }))
+  async reorderPhotos(
+    @Param('id') propertyId: string,
+    @Body() dto: ReorderPhotosDto,
+  ): Promise<{ message: string }> {
+    await this.propertyPhotoService.reorderPhotos(propertyId, dto.photoIds);
+    return { message: 'property.photos.reordered' };
   }
 
   /** Resolves the internal user UUID from the Keycloak subject ID. */

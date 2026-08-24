@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Properties module (api)** — PATCH /properties/:id/photos/order endpoint (Task 18)
+  - `@Patch(':id/photos/order')` with `@UseGuards(PropertyOwnerGuard)` for ownership verification
+  - `@UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }))` for DTO validation
+  - Accepts `ReorderPhotosDto` body with array of photo UUIDs in desired display order
+  - Delegates to `PropertyPhotoService.reorderPhotos(propertyId, dto.photoIds)` which handles: TRANSACTION with SELECT FOR UPDATE lock, validates all IDs belong to property, updates display_order values
+  - Returns 200 OK with `{ message: 'property.photos.reordered' }` on success
+  - 7 unit tests covering service delegation, error propagation, argument passing, single/multiple photo handling
 - **Properties module (api)** — DELETE /properties/:id/photos/:photoId endpoint (Task 17)
   - `@Delete(':id/photos/:photoId')` with `@UseGuards(PropertyOwnerGuard)` for ownership verification
   - `@HttpCode(HttpStatus.NO_CONTENT)` returns 204 on success
