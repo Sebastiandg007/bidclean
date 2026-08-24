@@ -131,6 +131,8 @@ export const COLORS = {
   background: '#0B0C10',
   card: '#1F2833',
   accent: '#00F5D4',
+  accentSubtle: 'rgba(0, 245, 212, 0.12)',
+  accentMuted: 'rgba(0, 245, 212, 0.1)',
   textPrimary: '#FFFFFF',
   textSecondary: 'rgba(255, 255, 255, 0.6)',
   border: 'rgba(255, 255, 255, 0.2)',
@@ -155,6 +157,7 @@ export const FONT_SIZE = {
   button: 17,
   label: 13,
   caption: 11,
+  icon: 32,
 } as const;
 
 // ─── Animation Config ────────────────────────────────────────────────────────

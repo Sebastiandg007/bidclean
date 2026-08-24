@@ -217,7 +217,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   placeholderIcon: {
-    fontSize: 32,
+    fontSize: FONT_SIZE.icon,
     marginBottom: SPACING.xs,
   },
   placeholderText: {
@@ -246,7 +246,7 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.sm,
   },
   typeBadge: {
-    backgroundColor: 'rgba(0, 245, 212, 0.12)',
+    backgroundColor: COLORS.accentSubtle,
     borderRadius: BADGE_BORDER_RADIUS,
     paddingHorizontal: SPACING.sm,
     paddingVertical: SPACING.xs - 1,
@@ -275,7 +275,7 @@ const styles = StyleSheet.create({
   offerReadyBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 245, 212, 0.1)',
+    backgroundColor: COLORS.accentMuted,
     borderRadius: BADGE_BORDER_RADIUS,
     paddingHorizontal: SPACING.sm,
     paddingVertical: SPACING.xs - 1,

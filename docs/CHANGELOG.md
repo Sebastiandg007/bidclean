@@ -8,6 +8,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Properties module (mobile)** — CreatePropertyScreen fully implemented (Task 27)
+  - Multi-step form with 3 steps: Basic Info → Address + Map → Photos + Details
+  - Step 1: Property name, PropertyTypeSelector, description (optional), square meters, bedrooms, bathrooms
+  - Step 2: AddressInput with geocode button, PropertyMap with draggable pin, geocoding with manual pin fallback on failure, reverse geocoding on pin move
+  - Step 3: PhotoUploader placeholder (photos added after creation), ChecklistEditor, RequirementsChips, access instructions, floor number, has_parking toggle, has_elevator toggle
+  - Visual step indicator (1/3, 2/3, 3/3) with accent color for completed/current steps
+  - Per-step validation: Step 1 requires name + type + valid sqm/bedrooms/bathrooms, Step 2 requires street + city + country + map location, Step 3 all optional
+  - Next/Back navigation between steps, "Create Property" button on final step
+  - Geocoding flow: geocode() from store on success places pin (GEOCODED), on failure shows manual pin hint (MANUAL)
+  - Reverse geocoding on pin move updates address fields
+  - Form state managed with useReducer across all steps
+  - Builds CreatePropertyPayload and calls createProperty() from store (Idempotency-Key handled by store)
+  - Spring animations for step transitions via react-native-reanimated
+  - All UI text via i18n t() with defaultValue fallbacks
+  - Full accessibility: accessibilityRole, accessibilityLabel, testID on all interactive elements
+  - Dark theme using COLORS/SPACING/FONT_SIZE design tokens
 - **Properties module (mobile)** — PropertyCard component fully implemented (Task 26)
   - Cover photo display with signed URL support and placeholder fallback (house icon + "No photo" text)
   - Property name with bold primary text, single line, ellipsis overflow
