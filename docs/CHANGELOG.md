@@ -8,6 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **OffersService create flow (api)** — Full offer creation with validation, commission calculation, and event emission (Spec 6 — Task 16)
+  - Validates required fields (propertyId, serviceType, offeredPriceCents, scheduledAt, timezone, estimatedDurationMinutes, currency)
+  - Validates service type against ServiceType enum
+  - Validates offeredPriceCents is positive integer
+  - Validates estimatedDurationMinutes within configured bounds (MIN/MAX from constants)
+  - Validates scheduledAt is at least OFFER_MIN_LEAD_MINUTES in the future
+  - Checks property readiness via PropertyReadinessCheck contract (DI injected)
+  - Idempotency key support: returns existing offer if duplicate (hostId, key) found
+  - Calculates full commission breakdown via CommissionService.getFullBreakdown()
+  - Persists DRAFT offer with all computed values and OFFER_INITIAL_RADIUS_M
+  - Inserts initial state transition (null → DRAFT, triggeredBy: host)
+  - Emits OfferCreated domain event via OfferEventEmitterService
+  - 6 property-based tests (fast-check, 100 runs each): price validation, duration bounds, scheduled time, idempotency, duplicate prevention, required fields
+  - OffersModule updated with PROPERTY_READINESS DI token registration
 - **OfferEventEmitterService (api)** — Domain events emission via NestJS EventEmitter2 (Spec 6 — Task 15)
   - `@nestjs/event-emitter` package installed (wraps eventemitter2 for NestJS DI)
   - `OFFER_EVENT_NAMES` constant object with dot-notated event names (offer.created, offer.published, etc.)

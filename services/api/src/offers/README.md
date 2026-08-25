@@ -35,6 +35,9 @@ Manages the full offer lifecycle for cleaning services: creation, publishing, pr
 | `events/offer-event-emitter.service.ts` | EventEmitter2-based domain event emission with typed methods |
 | `state-machine/offer-state-machine.ts` | Pure state transition validation function |
 | `state-machine/offer-state-machine.spec.ts` | Unit tests for state machine |
+| `state-machine/offer-state-machine.property.spec.ts` | Property-based tests for state machine transitions |
+| `__tests__/offers.service.property.spec.ts` | Property-based tests for create flow (price, duration, scheduling, idempotency, duplicates, required fields) |
+| `__tests__/commission.service.spec.ts` | Unit tests for commission calculations |
 | `dto/create-offer.dto.ts` | Create offer request validation |
 | `dto/publish-offer.dto.ts` | Publish offer request validation |
 | `dto/offer-query.dto.ts` | Query/pagination parameters |

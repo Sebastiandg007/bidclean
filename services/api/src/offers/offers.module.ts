@@ -10,6 +10,8 @@ import { DeliverySchedulerService } from './delivery/delivery-scheduler.service'
 import { OfferNotificationService } from './notification/offer-notification.service';
 import { OfferEventEmitterService } from './events/offer-event-emitter.service';
 import { OfferOwnerGuard } from './guards/offer-owner.guard';
+import { PropertyReadinessService } from './contracts/property-readiness.service';
+import { PROPERTY_READINESS } from './contracts/property-readiness.interface';
 import { Offer } from './entities/offer.entity';
 import { OfferStateTransition } from './entities/offer-state-transition.entity';
 import { OfferDelivery } from './entities/offer-delivery.entity';
@@ -44,6 +46,10 @@ import { OfferDelivery } from './entities/offer-delivery.entity';
     OfferNotificationService,
     OfferEventEmitterService,
     OfferOwnerGuard,
+    {
+      provide: PROPERTY_READINESS,
+      useClass: PropertyReadinessService,
+    },
   ],
   exports: [OffersService, CommissionService],
 })
