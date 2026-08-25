@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Offer environment variables (api)** — All offer-publishing configuration added to `.env.example` (Spec 6 — Task 5)
+  - Commission rates in basis points: OFFER_HOST_FEE_RATE (10%), OFFER_CLEANER_RATE (3%)
+  - Radius expansion: OFFER_INITIAL_RADIUS, OFFER_EXPANSION_STEP, OFFER_MAX_RADIUS, OFFER_EXPANSION_INTERVAL_MS, OFFER_FINAL_WAIT_MS
+  - Tier delivery timing: OFFER_FAVORITES_WINDOW_MS, OFFER_PRO_FREE_DELAY_MS
+  - Validation bounds: OFFER_MIN_LEAD_MINUTES, OFFER_MIN_DURATION_MINUTES, OFFER_MAX_DURATION_MINUTES
+  - BullMQ job config: OFFER_MAX_RETRIES, OFFER_BACKOFF_DELAY_MS
+  - External services: CENTRIFUGO_API_URL added to existing Centrifugo section
 - **Offer deliveries migration (api)** — Database migration for offer_deliveries table (Spec 6 — Task 4)
   - UUID PK with gen_random_uuid(), offer_id FK CASCADE referencing offers.id
   - cleaner_id FK SET NULL referencing users.id (preserves audit history on Cleaner deletion)
