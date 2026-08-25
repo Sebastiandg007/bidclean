@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Offers module (api)** — Scaffold module structure with all subfolders (Spec 6 — Task 1)
+  - NestJS module with controller, service, repository, types, constants
+  - Commission service for integer-only fee calculation (basis points)
+  - Delivery scheduler service with Centrifugo client for real-time WebSocket delivery
+  - Cleaner discovery contract interface with stub implementation
+  - Radius expansion BullMQ processor with stale-job guard
+  - Offer notification service with OneSignal client
+  - Cross-module contracts: PropertyReadinessInterface, OfferMatchInterface
+  - Domain events system (OfferCreated, Published, Activated, Matched, Cancelled, Expired, Completed)
+  - Pure state machine with transition validation (7 states, optimistic locking design)
+  - DTOs for create, publish, query, response
+  - TypeORM entity placeholders (Offer, OfferStateTransition, OfferDelivery)
+  - OfferOwnerGuard for route-level ownership enforcement
+  - 8 test placeholder files in __tests__/
+  - Comprehensive README with file structure, API, env vars, state machine diagram
 - **Properties module (api)** — Complete property management backend (Spec 5 — Sprint 2)
   - NestJS module with CRUD endpoints, PostGIS spatial storage, Mapbox geocoding proxy
   - `location_source` tracking (GEOCODED/MANUAL) for coordinate traceability

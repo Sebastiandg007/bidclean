@@ -199,6 +199,7 @@ graph TB
     Offers --> Cache
     Offers --> Queue
     Offers --> Events
+    Offers --> Events
     Payments --> DB
     Payments --> |"Stripe SDK"| Stripe["Stripe Connect"]
     Chat --> Cache
