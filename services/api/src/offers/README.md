@@ -49,6 +49,14 @@ Manages the full offer lifecycle for cleaning services: creation, publishing, pr
 |-------|-----------|-------------|
 | `offers` | `1700000010000-CreateOffersTable` | Core offers table with pricing (cents), state machine, property snapshots, radius tracking, idempotency |
 | `offer_state_transitions` | `1700000011000-CreateOfferStateTransitionsTable` | Audit log tracking every lifecycle state change (from_state → to_state, triggered_by, metadata JSONB) |
+| `offer_deliveries` | `1700000012000-CreateOfferDeliveriesTable` | Tracks each delivery attempt to a Cleaner: tier (FAVORITE/PRO/FREE), status (PENDING/SENT/FAILED), channel (WEBSOCKET/PUSH), radius step |
+
+### Entities
+| Entity | File | Description |
+|--------|------|-------------|
+| `Offer` | `entities/offer.entity.ts` | Full TypeORM entity with all columns, CHECK constraints, indexes, and relations to User/Property/Transitions/Deliveries |
+| `OfferStateTransition` | `entities/offer-state-transition.entity.ts` | Audit trail entity recording from_state, to_state, triggered_by, and JSONB metadata per transition |
+| `OfferDelivery` | `entities/offer-delivery.entity.ts` | Delivery tracking entity with tier, status, channel, radius_step, and unique constraint per (offer, cleaner) |
 
 ### Key Constraints
 - `chk_state` — Allowed states: DRAFT, PUBLISHED, ACTIVE, MATCHED, COMPLETED, CANCELLED, EXPIRED
