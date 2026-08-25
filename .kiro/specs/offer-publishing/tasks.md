@@ -30,7 +30,7 @@ Implementation tasks for the Offer Publishing feature. Covers the NestJS backend
   - [x] 16.3. Write property test: Scheduled Time Validation — generate random timestamps around now() +/- lead time, assert only future times with sufficient lead pass
   - [x] 16.4. Write property test: Idempotency Round Trip — generate random valid payloads + random keys, assert two calls with same (hostId, key) return same offer ID
   - [x] 16.5. Write property test: Duplicate Active Offer Prevention — generate random states for existing offers, assert only terminal states allow new creation
-  - [ ] 16.6. Write property test: Required Fields Validation — generate payloads with random missing fields, assert creation rejected with validation error
+  - [x] 16.6. Write property test: Required Fields Validation — generate payloads with random missing fields, assert creation rejected with validation error
 - [ ] 17. Implement OffersService — publish offer flow (validate DRAFT state, snapshot property data to offer record, transition to PUBLISHED, enqueue initial-delivery job delay:0, enqueue first expansion job with delay:EXPANSION_INTERVAL_MS, set published_at, emit OfferPublished event)
 - [ ] 18. Implement OffersService — cancel offer flow (validate state is DRAFT/PUBLISHED/ACTIVE, transition to CANCELLED via state machine, cancel pending BullMQ jobs, if was ACTIVE: publish cancellation to delivered Cleaners via Centrifugo personal channels, set cancelled_at, emit OfferCancelled event)
 - [ ] 19. Implement CentrifugoClient (HTTP client for Centrifugo server API: publish to single channel, broadcast to multiple channels; uses CENTRIFUGO_API_URL + CENTRIFUGO_API_KEY from env; error handling with retry)
