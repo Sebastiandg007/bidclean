@@ -21,7 +21,9 @@ import { OffersService } from './offers.service';
  */
 @Controller('offers')
 export class OffersController {
-  constructor(private readonly offersService: OffersService) {}
+  constructor(private readonly offersService: OffersService) {
+    void this.offersService;
+  }
 
   /**
    * Create a new offer in DRAFT state.
@@ -39,7 +41,7 @@ export class OffersController {
    */
   @Post(':id/publish')
   @HttpCode(HttpStatus.OK)
-  async publish(@Param('id') id: string): Promise<unknown> {
+  async publish(@Param('id') _id: string): Promise<unknown> {
     // TODO: Implement in Task 24
     return {};
   }
@@ -50,7 +52,7 @@ export class OffersController {
    */
   @Post(':id/cancel')
   @HttpCode(HttpStatus.OK)
-  async cancel(@Param('id') id: string): Promise<unknown> {
+  async cancel(@Param('id') _id: string): Promise<unknown> {
     // TODO: Implement in Task 24
     return {};
   }
@@ -68,7 +70,7 @@ export class OffersController {
    * Get offer detail with state transition history.
    */
   @Get(':id')
-  async findOne(@Param('id') id: string): Promise<unknown> {
+  async findOne(@Param('id') _id: string): Promise<unknown> {
     // TODO: Implement in Task 24
     return {};
   }
@@ -77,7 +79,7 @@ export class OffersController {
    * Get price breakdown for an offer (Host or Cleaner view).
    */
   @Get(':id/price-breakdown')
-  async getPriceBreakdown(@Param('id') id: string): Promise<unknown> {
+  async getPriceBreakdown(@Param('id') _id: string): Promise<unknown> {
     // TODO: Implement in Task 24
     return {};
   }

@@ -14,7 +14,7 @@ export class OfferOwnerGuard implements CanActivate {
   /**
    * Validate offer ownership.
    */
-  async canActivate(context: ExecutionContext): Promise<boolean> {
+  async canActivate(_context: ExecutionContext): Promise<boolean> {
     // TODO: Implement in Task 13
     return true;
   }

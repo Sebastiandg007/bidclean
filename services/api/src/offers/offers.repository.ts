@@ -16,13 +16,14 @@ export class OffersRepository {
    */
   async create(): Promise<unknown> {
     // TODO: Implement in Task 14
+    void this.logger;
     return {};
   }
 
   /**
    * Find an offer by ID.
    */
-  async findById(offerId: string): Promise<unknown> {
+  async findById(_offerId: string): Promise<unknown> {
     // TODO: Implement in Task 14
     return null;
   }
@@ -30,7 +31,7 @@ export class OffersRepository {
   /**
    * Find offers by host ID with pagination and state filtering.
    */
-  async findByHostId(hostId: string): Promise<unknown> {
+  async findByHostId(_hostId: string): Promise<unknown> {
     // TODO: Implement in Task 14
     return [];
   }
@@ -40,9 +41,9 @@ export class OffersRepository {
    * Returns true if transition succeeded, false if lost race.
    */
   async updateState(
-    offerId: string,
-    expectedState: string,
-    newState: string,
+    _offerId: string,
+    _expectedState: string,
+    _newState: string,
   ): Promise<boolean> {
     // TODO: Implement in Task 14
     return false;
@@ -51,7 +52,7 @@ export class OffersRepository {
   /**
    * Update radius expansion tracking fields.
    */
-  async updateRadiusExpansion(offerId: string): Promise<void> {
+  async updateRadiusExpansion(_offerId: string): Promise<void> {
     // TODO: Implement in Task 14
   }
 
@@ -79,7 +80,7 @@ export class OffersRepository {
   /**
    * Find all deliveries for an offer.
    */
-  async findDeliveriesByOffer(offerId: string): Promise<unknown[]> {
+  async findDeliveriesByOffer(_offerId: string): Promise<unknown[]> {
     // TODO: Implement in Task 14
     return [];
   }
@@ -87,7 +88,7 @@ export class OffersRepository {
   /**
    * Find IDs of Cleaners already delivered to (for exclusion in expansion).
    */
-  async findDeliveredCleanerIds(offerId: string): Promise<string[]> {
+  async findDeliveredCleanerIds(_offerId: string): Promise<string[]> {
     // TODO: Implement in Task 14
     return [];
   }

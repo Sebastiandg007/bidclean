@@ -20,5 +20,6 @@ export class RadiusExpansionProcessor {
    */
   async process(): Promise<void> {
     // TODO: Implement in Task 22
+    void this.logger;
   }
 }

@@ -21,6 +21,7 @@ export class DeliverySchedulerService {
    */
   async deliverToCleaners(): Promise<void> {
     // TODO: Implement in Task 20
+    void this.logger;
   }
 
   /**

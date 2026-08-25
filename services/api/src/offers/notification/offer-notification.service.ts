@@ -15,10 +15,11 @@ export class OfferNotificationService {
    * Send a push notification to a Cleaner about a new offer.
    */
   async sendOfferNotification(
-    cleanerId: string,
-    offerId: string,
+    _cleanerId: string,
+    _offerId: string,
   ): Promise<boolean> {
     // TODO: Implement in Task 21
+    void this.logger;
     return false;
   }
 }

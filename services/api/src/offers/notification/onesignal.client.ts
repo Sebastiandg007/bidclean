@@ -19,10 +19,11 @@ export class OneSignalClient {
    * Send a push notification to a specific external user ID.
    */
   async sendToUser(
-    externalUserId: string,
-    payload: unknown,
+    _externalUserId: string,
+    _payload: unknown,
   ): Promise<boolean> {
     // TODO: Implement in Task 21
+    void this.logger;
     return false;
   }
 }

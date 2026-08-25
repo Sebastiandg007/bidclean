@@ -20,15 +20,16 @@ export class CentrifugoClient {
   /**
    * Publish a message to a single Centrifugo channel.
    */
-  async publish(channel: string, data: unknown): Promise<boolean> {
+  async publish(_channel: string, _data: unknown): Promise<boolean> {
     // TODO: Implement in Task 19
+    void this.logger;
     return false;
   }
 
   /**
    * Broadcast a message to multiple channels.
    */
-  async broadcast(channels: string[], data: unknown): Promise<boolean> {
+  async broadcast(_channels: string[], _data: unknown): Promise<boolean> {
     // TODO: Implement in Task 19
     return false;
   }
