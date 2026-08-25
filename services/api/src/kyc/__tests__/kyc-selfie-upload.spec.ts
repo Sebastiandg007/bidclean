@@ -13,6 +13,7 @@ import { KycVerification } from '../entities/kyc-verification.entity';
 import { KycAuditLog } from '../entities/kyc-audit-log.entity';
 import { KycStorageService } from '../storage/kyc-storage.service';
 import { KycStateTransitionService } from '../state-machine/kyc-state-transition.service';
+import { KycAuditService } from '../kyc-audit.service';
 import { KycProcessJob } from '../jobs/kyc-process.job';
 import { KycStatus } from '../kyc.types';
 import { User } from '../../auth/entities/user.entity';
@@ -47,6 +48,13 @@ describe('KycService — uploadSelfie', () => {
 
   const mockQueue = {
     add: jest.fn(),
+  };
+
+  const mockKycAuditService = {
+    logStateTransition: jest.fn().mockResolvedValue(undefined),
+    logDataAccess: jest.fn().mockResolvedValue(undefined),
+    logAdminDecision: jest.fn().mockResolvedValue(undefined),
+    logDeletion: jest.fn().mockResolvedValue(undefined),
   };
 
   const mockConfigService = {
@@ -97,6 +105,10 @@ describe('KycService — uploadSelfie', () => {
         { provide: ConfigService, useValue: mockConfigService },
         { provide: KycStorageService, useValue: mockStorageService },
         { provide: KycStateTransitionService, useValue: mockStateTransitionService },
+        {
+          provide: KycAuditService,
+          useValue: mockKycAuditService,
+        },
         { provide: KycProcessJob, useValue: { maxRetries: 3, backoffMs: 5000 } },
         { provide: getQueueToken('kyc-processing'), useValue: mockQueue },
       ],
@@ -156,7 +168,7 @@ describe('KycService — uploadSelfie', () => {
         'verification-uuid-123',
         { selfieStorageKey: 'kyc/user-uuid-123/selfie/file-id.jpg' },
       );
-      expect(mockAuditLogRepository.save).toHaveBeenCalled();
+      expect(mockKycAuditService.logStateTransition).toHaveBeenCalled();
     });
   });
 

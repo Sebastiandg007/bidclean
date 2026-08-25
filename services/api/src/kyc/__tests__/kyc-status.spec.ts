@@ -8,6 +8,7 @@ import { KycVerification } from '../entities/kyc-verification.entity';
 import { KycAuditLog } from '../entities/kyc-audit-log.entity';
 import { KycStorageService } from '../storage/kyc-storage.service';
 import { KycStateTransitionService } from '../state-machine/kyc-state-transition.service';
+import { KycAuditService } from '../kyc-audit.service';
 import { KycProcessJob } from '../jobs/kyc-process.job';
 import { KycStatus } from '../kyc.types';
 import { User } from '../../auth/entities/user.entity';
@@ -82,6 +83,15 @@ describe('KycService — getStatus', () => {
         { provide: ConfigService, useValue: mockConfigService },
         { provide: KycStorageService, useValue: mockStorageService },
         { provide: KycStateTransitionService, useValue: mockStateTransitionService },
+        {
+          provide: KycAuditService,
+          useValue: {
+            logStateTransition: jest.fn().mockResolvedValue(undefined),
+            logDataAccess: jest.fn().mockResolvedValue(undefined),
+            logAdminDecision: jest.fn().mockResolvedValue(undefined),
+            logDeletion: jest.fn().mockResolvedValue(undefined),
+          },
+        },
         { provide: KycProcessJob, useValue: { maxRetries: 3, backoffMs: 5000 } },
         { provide: getQueueToken('kyc-processing'), useValue: mockQueue },
       ],

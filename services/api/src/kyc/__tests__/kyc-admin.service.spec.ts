@@ -11,6 +11,7 @@ import { KycAuditLog } from '../entities/kyc-audit-log.entity';
 import { KycStateTransitionService } from '../state-machine/kyc-state-transition.service';
 import { KycAuditService } from '../kyc-audit.service';
 import { KycNotificationService } from '../kyc-notification.service';
+import { KycStorageService } from '../storage/kyc-storage.service';
 import { AdminDecision } from '../dto/admin-decision.dto';
 import { KycStatus, DocumentType } from '../kyc.types';
 
@@ -76,6 +77,12 @@ describe('KycAdminService', () => {
         {
           provide: KycNotificationService,
           useValue: mockKycNotificationService,
+        },
+        {
+          provide: KycStorageService,
+          useValue: {
+            getPresignedUrl: jest.fn().mockResolvedValue('https://storage.example.com/presigned'),
+          },
         },
       ],
     }).compile();

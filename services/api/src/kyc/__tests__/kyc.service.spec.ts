@@ -13,6 +13,7 @@ import { KycVerification } from '../entities/kyc-verification.entity';
 import { KycAuditLog } from '../entities/kyc-audit-log.entity';
 import { KycStorageService } from '../storage/kyc-storage.service';
 import { KycStateTransitionService } from '../state-machine/kyc-state-transition.service';
+import { KycAuditService } from '../kyc-audit.service';
 import { KycProcessJob } from '../jobs/kyc-process.job';
 import { KycStatus, DocumentType } from '../kyc.types';
 import { User } from '../../auth/entities/user.entity';
@@ -61,6 +62,13 @@ describe('KycService', () => {
     add: jest.fn(),
   };
 
+  const mockKycAuditService = {
+    logStateTransition: jest.fn().mockResolvedValue(undefined),
+    logDataAccess: jest.fn().mockResolvedValue(undefined),
+    logAdminDecision: jest.fn().mockResolvedValue(undefined),
+    logDeletion: jest.fn().mockResolvedValue(undefined),
+  };
+
   const mockUser: Partial<User> = {
     id: 'user-uuid-123',
     keycloakId: 'keycloak-id-123',
@@ -101,6 +109,10 @@ describe('KycService', () => {
         { provide: ConfigService, useValue: mockConfigService },
         { provide: KycStorageService, useValue: mockStorageService },
         { provide: KycStateTransitionService, useValue: mockStateTransitionService },
+        {
+          provide: KycAuditService,
+          useValue: mockKycAuditService,
+        },
         { provide: KycProcessJob, useValue: { maxRetries: 3, backoffMs: 5000 } },
         { provide: getQueueToken('kyc-processing'), useValue: mockQueue },
       ],
@@ -158,7 +170,7 @@ describe('KycService', () => {
         category: 'document',
       });
       expect(mockStateTransitionService.transition).toHaveBeenCalled();
-      expect(mockAuditLogRepository.save).toHaveBeenCalled();
+      expect(mockKycAuditService.logStateTransition).toHaveBeenCalled();
     });
 
     it('should throw ForbiddenException when user has no cleaner role', async () => {

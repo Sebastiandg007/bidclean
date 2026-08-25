@@ -1,6 +1,7 @@
 import { ExecutionContext, ForbiddenException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
+import { IsNull } from 'typeorm';
 import { PropertyOwnerGuard } from '../guards/property-owner.guard';
 import { Property } from '../entities/property.entity';
 import { User } from '../../auth/entities/user.entity';
@@ -107,7 +108,7 @@ describe('PropertyOwnerGuard', () => {
         where: {
           id: PROPERTY_ID,
           userId: USER_ID,
-          deletedAt: null,
+          deletedAt: IsNull(),
         },
       });
     });
@@ -205,7 +206,7 @@ describe('PropertyOwnerGuard', () => {
       const propertyQueryCall = mockPropertyRepository.findOne.mock.calls[0][0];
       expect(propertyQueryCall.where).toHaveProperty('id', PROPERTY_ID);
       expect(propertyQueryCall.where).toHaveProperty('userId', USER_ID);
-      expect(propertyQueryCall.where).toHaveProperty('deletedAt', null);
+      expect(propertyQueryCall.where.deletedAt).toEqual(IsNull());
     });
   });
 });

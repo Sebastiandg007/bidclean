@@ -13,6 +13,7 @@ import { KycVerification } from '../entities/kyc-verification.entity';
 import { KycAuditLog } from '../entities/kyc-audit-log.entity';
 import { KycStorageService } from '../storage/kyc-storage.service';
 import { KycStateTransitionService } from '../state-machine/kyc-state-transition.service';
+import { KycAuditService } from '../kyc-audit.service';
 import { KycProcessJob } from '../jobs/kyc-process.job';
 import { KycStatus } from '../kyc.types';
 import { User } from '../../auth/entities/user.entity';
@@ -61,6 +62,13 @@ describe('KycService — retry', () => {
     add: jest.fn(),
   };
 
+  const mockKycAuditService = {
+    logStateTransition: jest.fn().mockResolvedValue(undefined),
+    logDataAccess: jest.fn().mockResolvedValue(undefined),
+    logAdminDecision: jest.fn().mockResolvedValue(undefined),
+    logDeletion: jest.fn().mockResolvedValue(undefined),
+  };
+
   const mockCleanerUser: Partial<User> = {
     id: 'user-uuid-cleaner',
     keycloakId: 'kc-cleaner-retry',
@@ -87,6 +95,10 @@ describe('KycService — retry', () => {
         { provide: ConfigService, useValue: mockConfigService },
         { provide: KycStorageService, useValue: mockStorageService },
         { provide: KycStateTransitionService, useValue: mockStateTransitionService },
+        {
+          provide: KycAuditService,
+          useValue: mockKycAuditService,
+        },
         { provide: KycProcessJob, useValue: { maxRetries: 3, backoffMs: 5000 } },
         { provide: getQueueToken('kyc-processing'), useValue: mockQueue },
       ],
@@ -301,15 +313,12 @@ describe('KycService — retry', () => {
 
     await service.retry('kc-cleaner-retry');
 
-    expect(mockAuditLogRepository.create).toHaveBeenCalledWith({
+    expect(mockKycAuditService.logStateTransition).toHaveBeenCalledWith({
       verificationId: 'ver-uuid-audit-new',
-      action: 'STATE_TRANSITION',
       actorId: 'user-uuid-cleaner',
       oldStatus: KycStatus.REJECTED,
       newStatus: KycStatus.NOT_STARTED,
-      metadata: null,
     });
-    expect(mockAuditLogRepository.save).toHaveBeenCalled();
   });
 
   it('should throw ConflictException when no verification exists', async () => {

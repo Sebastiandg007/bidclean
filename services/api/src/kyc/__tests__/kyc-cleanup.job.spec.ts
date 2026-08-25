@@ -5,6 +5,7 @@ import { KycCleanupJob } from '../jobs/kyc-cleanup.job';
 import { KycVerification } from '../entities/kyc-verification.entity';
 import { KycAuditLog } from '../entities/kyc-audit-log.entity';
 import { KycStorageService } from '../storage/kyc-storage.service';
+import { KycAuditService } from '../kyc-audit.service';
 import { KycStatus } from '../kyc.types';
 
 /**
@@ -18,6 +19,7 @@ describe('KycCleanupJob', () => {
   let mockAuditCreate: jest.Mock;
   let mockAuditSave: jest.Mock;
   let mockGetMany: jest.Mock;
+  let mockLogDeletion: jest.Mock;
 
   const MOCK_RETENTION_DAYS = '90';
 
@@ -60,6 +62,7 @@ describe('KycCleanupJob', () => {
     mockAuditCreate = jest.fn((data: Record<string, unknown>) => data);
     mockAuditSave = jest.fn().mockResolvedValue(undefined);
     mockGetMany = jest.fn().mockResolvedValue([]);
+    mockLogDeletion = jest.fn().mockResolvedValue(undefined);
 
     const mockQueryBuilder = {
       where: jest.fn().mockReturnThis(),
@@ -77,6 +80,10 @@ describe('KycCleanupJob', () => {
             getOrThrow: jest.fn((key: string) => {
               if (key === 'KYC_RETENTION_DAYS') return MOCK_RETENTION_DAYS;
               throw new Error(`Missing env: ${key}`);
+            }),
+            get: jest.fn((key: string, defaultValue?: string) => {
+              if (key === 'KYC_CLEANUP_BATCH_SIZE') return defaultValue ?? '50';
+              return defaultValue;
             }),
           },
         },
@@ -98,6 +105,15 @@ describe('KycCleanupJob', () => {
           provide: KycStorageService,
           useValue: {
             delete: mockStorageDelete,
+          },
+        },
+        {
+          provide: KycAuditService,
+          useValue: {
+            logStateTransition: jest.fn().mockResolvedValue(undefined),
+            logDataAccess: jest.fn().mockResolvedValue(undefined),
+            logAdminDecision: jest.fn().mockResolvedValue(undefined),
+            logDeletion: mockLogDeletion,
           },
         },
       ],
@@ -190,19 +206,15 @@ describe('KycCleanupJob', () => {
 
       await job.run();
 
-      expect(mockAuditCreate).toHaveBeenCalledWith({
+      expect(mockLogDeletion).toHaveBeenCalledWith({
         verificationId: verification.id,
         action: 'DOCUMENT_DELETED',
-        actorId: null,
-        oldStatus: null,
-        newStatus: null,
         metadata: {
           triggeredBy: 'kyc-cleanup-job',
           storageKey: 'kyc/user-1/document/doc.jpg',
           retentionDays: 90,
         },
       });
-      expect(mockAuditSave).toHaveBeenCalled();
     });
 
     it('should create audit log entry for selfie deletion', async () => {
@@ -215,19 +227,15 @@ describe('KycCleanupJob', () => {
 
       await job.run();
 
-      expect(mockAuditCreate).toHaveBeenCalledWith({
+      expect(mockLogDeletion).toHaveBeenCalledWith({
         verificationId: verification.id,
         action: 'SELFIE_DELETED',
-        actorId: null,
-        oldStatus: null,
-        newStatus: null,
         metadata: {
           triggeredBy: 'kyc-cleanup-job',
           storageKey: 'kyc/user-1/selfie/selfie.jpg',
           retentionDays: 90,
         },
       });
-      expect(mockAuditSave).toHaveBeenCalled();
     });
 
     it('should continue processing other verifications when one fails', async () => {
@@ -334,8 +342,10 @@ describe('KycCleanupJob', () => {
 
       await job.run();
 
-      expect(mockAuditCreate).toHaveBeenCalledWith(
-        expect.objectContaining({ actorId: null }),
+      expect(mockLogDeletion).toHaveBeenCalledWith(
+        expect.objectContaining({
+          verificationId: verification.id,
+        }),
       );
     });
   });
