@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **OffersRepository (api)** — Full database repository for offers, state transitions, and deliveries (Spec 6 — Task 14)
+  - `create`: Persist new offer record, returns created Offer entity
+  - `findById`: Find offer by ID with optional relations (stateTransitions, deliveries)
+  - `findByHostId`: Paginated listing with state filter and sort (DESC by created_at default)
+  - `updateState`: Optimistic locking state update (WHERE id AND state = expectedState)
+  - `updateRadiusExpansion`: Update radius tracking fields (current_radius_meters, expansion_step_count)
+  - `insertStateTransition`: Append-only audit record for lifecycle changes
+  - `insertDelivery`: Create PENDING delivery record for a Cleaner
+  - `updateDeliveryStatus`: PENDING → SENT (with delivered_at) or FAILED (with failure_reason)
+  - `findDeliveriesByOffer`: All deliveries for an offer ordered by creation time
+  - `findDeliveredCleanerIds`: Distinct cleaner IDs for expansion exclusion
+  - `findByIdempotencyKey`: Duplicate detection by host_id + idempotency_key
+  - TypeOrmModule.forFeature registered in OffersModule for all three entities
 - **OfferOwnerGuard (api)** — CanActivate guard for offer ownership verification (Spec 6 — Task 13)
   - Extracts offerId from route params (`:id`), resolves internal user by keycloakId
   - Queries offers table WHERE `id = offerId AND host_id = user.id`

@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { OffersController } from './offers.controller';
 import { OffersService } from './offers.service';
 import { OffersRepository } from './offers.repository';
@@ -8,6 +9,9 @@ import { DeliverySchedulerService } from './delivery/delivery-scheduler.service'
 import { OfferNotificationService } from './notification/offer-notification.service';
 import { OfferEventEmitterService } from './events/offer-event-emitter.service';
 import { OfferOwnerGuard } from './guards/offer-owner.guard';
+import { Offer } from './entities/offer.entity';
+import { OfferStateTransition } from './entities/offer-state-transition.entity';
+import { OfferDelivery } from './entities/offer-delivery.entity';
 
 /**
  * Offers module.
@@ -25,7 +29,10 @@ import { OfferOwnerGuard } from './guards/offer-owner.guard';
  * - Stripe Connect for escrow (downstream via domain events)
  */
 @Module({
-  imports: [ConfigModule],
+  imports: [
+    ConfigModule,
+    TypeOrmModule.forFeature([Offer, OfferStateTransition, OfferDelivery]),
+  ],
   controllers: [OffersController],
   providers: [
     OffersService,
