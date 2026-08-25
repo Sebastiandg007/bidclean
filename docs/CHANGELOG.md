@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Offer deliveries migration (api)** — Database migration for offer_deliveries table (Spec 6 — Task 4)
+  - UUID PK with gen_random_uuid(), offer_id FK CASCADE referencing offers.id
+  - cleaner_id FK SET NULL referencing users.id (preserves audit history on Cleaner deletion)
+  - tier VARCHAR(10) NOT NULL with CHECK constraint (FAVORITE, PRO, FREE)
+  - delivery_status VARCHAR(10) NOT NULL DEFAULT 'PENDING' with CHECK (PENDING, SENT, FAILED)
+  - delivery_channel VARCHAR(20) nullable with CHECK (NULL OR WEBSOCKET, PUSH)
+  - failure_reason TEXT nullable, radius_step INTEGER NOT NULL
+  - created_at TIMESTAMPTZ, delivered_at TIMESTAMPTZ nullable
+  - UNIQUE constraint uq_offer_delivery on (offer_id, cleaner_id) prevents duplicate deliveries
+  - Indexes: idx_offer_deliveries_offer, idx_offer_deliveries_cleaner, idx_offer_deliveries_offer_status
 - **Offer state transitions migration (api)** — Database migration for offer_state_transitions audit log table (Spec 6 — Task 3)
   - UUID PK with gen_random_uuid(), offer_id FK CASCADE referencing offers.id
   - from_state nullable VARCHAR(20) with CHECK constraint (valid states or NULL for initial creation)
