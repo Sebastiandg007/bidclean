@@ -48,6 +48,7 @@ Manages the full offer lifecycle for cleaning services: creation, publishing, pr
 | Table | Migration | Description |
 |-------|-----------|-------------|
 | `offers` | `1700000010000-CreateOffersTable` | Core offers table with pricing (cents), state machine, property snapshots, radius tracking, idempotency |
+| `offer_state_transitions` | `1700000011000-CreateOfferStateTransitionsTable` | Audit log tracking every lifecycle state change (from_state → to_state, triggered_by, metadata JSONB) |
 
 ### Key Constraints
 - `chk_state` — Allowed states: DRAFT, PUBLISHED, ACTIVE, MATCHED, COMPLETED, CANCELLED, EXPIRED

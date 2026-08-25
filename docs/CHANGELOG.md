@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Offer state transitions migration (api)** — Database migration for offer_state_transitions audit log table (Spec 6 — Task 3)
+  - UUID PK with gen_random_uuid(), offer_id FK CASCADE referencing offers.id
+  - from_state nullable VARCHAR(20) with CHECK constraint (valid states or NULL for initial creation)
+  - to_state VARCHAR(20) NOT NULL with CHECK constraint (valid lifecycle states)
+  - triggered_by VARCHAR(50) NOT NULL, metadata JSONB nullable, created_at TIMESTAMPTZ
+  - Composite index idx_offer_transitions_offer_time on (offer_id, created_at) for chronological queries
+  - Simple index idx_offer_transitions_offer on offer_id for FK lookups
 - **Offers table migration (api)** — Database migration for offers table (Spec 6 — Task 2)
   - UUID PK with gen_random_uuid() default, host_id and property_id FK RESTRICT
   - Service details: service_type with CHECK constraint, scheduled_at, timezone, estimated_duration_minutes
