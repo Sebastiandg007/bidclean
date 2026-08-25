@@ -36,6 +36,7 @@ Manages the full offer lifecycle for cleaning services: creation, publishing, pr
 | `state-machine/offer-state-machine.ts` | Pure state transition validation function |
 | `state-machine/offer-state-machine.spec.ts` | Unit tests for state machine |
 | `state-machine/offer-state-machine.property.spec.ts` | Property-based tests for state machine transitions |
+| `__tests__/offers-cancel.service.spec.ts` | Unit tests for cancel flow (10 tests: state validation, ownership, jobs, notifications, race conditions) |
 | `__tests__/offers.service.property.spec.ts` | Property-based tests for create flow (price, duration, scheduling, idempotency, duplicates, required fields) |
 | `__tests__/commission.service.spec.ts` | Unit tests for commission calculations |
 | `dto/create-offer.dto.ts` | Create offer request validation |
@@ -128,6 +129,26 @@ CANCELLED  CANCELLED  CANCELLED
             ↓          ↓
           EXPIRED    EXPIRED
 ```
+
+## Cancellation Flow
+
+The cancel flow (`OffersService.cancel()`) handles three states with different side effects:
+
+| Previous State | Cancel Pending Jobs | Notify Cleaners |
+|----------------|--------------------|-----------------| 
+| DRAFT | No (no jobs exist) | No |
+| PUBLISHED | Yes (delayed + waiting) | No |
+| ACTIVE | Yes (delayed + waiting) | Yes (Centrifugo broadcast) |
+
+**Steps:**
+1. Validate ownership and cancellable state (DRAFT, PUBLISHED, ACTIVE)
+2. Transition to CANCELLED via state machine (optimistic locking)
+3. Set `cancelled_at` timestamp
+4. Cancel BullMQ jobs matching offerId (if PUBLISHED or ACTIVE)
+5. Broadcast `offer_cancelled` to delivered Cleaners' channels (if ACTIVE)
+6. Emit `OfferCancelled` domain event with `previousState`
+
+Non-cancellable states (MATCHED, COMPLETED, CANCELLED, EXPIRED) return `422 Unprocessable Entity`.
 
 ## Commission Model
 

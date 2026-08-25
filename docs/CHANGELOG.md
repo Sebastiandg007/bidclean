@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **OffersService cancel flow (api)** — Full offer cancellation with job cleanup and cleaner notification (Spec 6 — Task 18)
+  - Validates offer exists, belongs to host, and is in cancellable state (DRAFT, PUBLISHED, ACTIVE)
+  - Rejects cancellation for terminal states (MATCHED, COMPLETED, CANCELLED, EXPIRED) with UnprocessableEntityException
+  - Transitions state to CANCELLED via OfferStateMachineService with optimistic locking
+  - Sets cancelled_at timestamp on the offer record
+  - Cancels pending BullMQ jobs (delayed + waiting) for offers in PUBLISHED or ACTIVE state
+  - Broadcasts cancellation to delivered Cleaners via CentrifugoClient for ACTIVE offers
+  - Emits OfferCancelled domain event with previousState for downstream consumers
+  - Handles race conditions with ConflictException
+  - CentrifugoClient injected as new constructor dependency
+  - 10 unit tests covering all cancellation scenarios, state validation, ownership, and race conditions
 - **OffersService publish flow (api)** — Offer publishing with property snapshot, state transition, and BullMQ job enqueueing (Spec 6 — Task 17)
   - Validates offer exists, belongs to host, and is in DRAFT state
   - Snapshots property data (name, type, city, cover photo) to offer record at publish time

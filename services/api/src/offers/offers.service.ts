@@ -15,6 +15,7 @@ import { OffersRepository } from './offers.repository';
 import { CommissionService } from './commission/commission.service';
 import { OfferEventEmitterService } from './events/offer-event-emitter.service';
 import { OfferStateMachineService } from './state-machine/offer-state-machine';
+import { CentrifugoClient } from './delivery/centrifugo.client';
 import {
   PROPERTY_READINESS,
   PropertyReadinessInterface,
@@ -71,6 +72,7 @@ export class OffersService {
     private readonly eventEmitter: OfferEventEmitterService,
     private readonly stateMachine: OfferStateMachineService,
     private readonly dataSource: DataSource,
+    private readonly centrifugoClient: CentrifugoClient,
     @Inject(PROPERTY_READINESS)
     private readonly propertyReadiness: PropertyReadinessInterface,
     @InjectQueue(QUEUE_NAMES.RADIUS_EXPANSION)
@@ -275,11 +277,114 @@ export class OffersService {
 
   /**
    * Cancel an offer (DRAFT/PUBLISHED/ACTIVE → CANCELLED).
-   * Cancels pending jobs and notifies delivered Cleaners.
+   * Cancels pending BullMQ jobs and notifies delivered Cleaners if was ACTIVE.
    */
-  async cancel(_offerId: string, _hostId: string): Promise<void> {
-    // TODO(offer-publishing/Task-18): implement cancel offer flow
-    this.logger.debug('cancel() stub called');
+  async cancel(offerId: string, hostId: string): Promise<void> {
+    const offer = await this.findAndValidateForCancel(offerId, hostId);
+    const previousState = offer.state as OfferState;
+
+    const transitioned = await this.stateMachine.transitionState(
+      offerId,
+      previousState,
+      OfferState.CANCELLED,
+      'host',
+    );
+
+    if (!transitioned) {
+      throw new ConflictException(
+        'Offer state changed concurrently — cancellation failed. Please retry.',
+      );
+    }
+
+    await this.setCancelledTimestamp(offerId);
+
+    if (previousState === OfferState.PUBLISHED || previousState === OfferState.ACTIVE) {
+      await this.cancelPendingJobs(offerId);
+    }
+
+    if (previousState === OfferState.ACTIVE) {
+      await this.notifyDeliveredCleaners(offerId);
+    }
+
+    this.eventEmitter.emitCancelled({ offerId, hostId, previousState });
+
+    this.logger.debug(`Cancelled offer ${offerId} (was ${previousState}) by host ${hostId}`);
+  }
+
+  /** Validate offer exists, belongs to host, and is in a cancellable state. */
+  private async findAndValidateForCancel(offerId: string, hostId: string): Promise<Offer> {
+    const offer = await this.offersRepository.findById(offerId);
+
+    if (!offer) {
+      throw new NotFoundException(`Offer ${offerId} not found`);
+    }
+
+    if (offer.hostId !== hostId) {
+      throw new ForbiddenException('You do not own this offer');
+    }
+
+    const cancellableStates: OfferState[] = [
+      OfferState.DRAFT,
+      OfferState.PUBLISHED,
+      OfferState.ACTIVE,
+    ];
+
+    if (!cancellableStates.includes(offer.state as OfferState)) {
+      throw new UnprocessableEntityException(
+        `Cannot cancel offer in ${offer.state} state. Only DRAFT, PUBLISHED, or ACTIVE offers can be cancelled.`,
+      );
+    }
+
+    return offer;
+  }
+
+  /** Set cancelled_at timestamp on the offer record. */
+  private async setCancelledTimestamp(offerId: string): Promise<void> {
+    await this.dataSource.query(
+      `UPDATE offers SET cancelled_at = NOW() WHERE id = $1`,
+      [offerId],
+    );
+  }
+
+  /** Cancel all pending BullMQ jobs for this offer from the radius expansion queue. */
+  private async cancelPendingJobs(offerId: string): Promise<void> {
+    const [delayedJobs, waitingJobs] = await Promise.all([
+      this.radiusExpansionQueue.getDelayed(),
+      this.radiusExpansionQueue.getWaiting(),
+    ]);
+
+    const allJobs = [...delayedJobs, ...waitingJobs];
+    const offerJobs = allJobs.filter(
+      (job) => job.data?.offerId === offerId,
+    );
+
+    await Promise.all(offerJobs.map((job) => job.remove()));
+
+    if (offerJobs.length > 0) {
+      this.logger.debug(
+        `Removed ${offerJobs.length} pending job(s) for offer ${offerId}`,
+      );
+    }
+  }
+
+  /** Notify delivered Cleaners about the cancellation via Centrifugo broadcast. */
+  private async notifyDeliveredCleaners(offerId: string): Promise<void> {
+    const cleanerIds = await this.offersRepository.findDeliveredCleanerIds(offerId);
+
+    if (cleanerIds.length === 0) {
+      return;
+    }
+
+    const channels = cleanerIds.map((id) => `offers:cleaner:${id}`);
+
+    await this.centrifugoClient.broadcast(channels, {
+      type: 'offer_cancelled',
+      offerId,
+    });
+
+    this.logger.debug(
+      `Broadcast cancellation for offer ${offerId} to ${cleanerIds.length} cleaner(s)`,
+    );
   }
 
   /**
