@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **OffersService publish flow (api)** — Offer publishing with property snapshot, state transition, and BullMQ job enqueueing (Spec 6 — Task 17)
+  - Validates offer exists, belongs to host, and is in DRAFT state
+  - Snapshots property data (name, type, city, cover photo) to offer record at publish time
+  - Transitions state DRAFT → PUBLISHED via OfferStateMachineService with optimistic locking
+  - Sets published_at timestamp and favoritesFirst flag
+  - Enqueues initial-delivery BullMQ job (delay: 0) for immediate Cleaner discovery
+  - Enqueues first radius expansion job (delay: OFFER_EXPANSION_INTERVAL_MS)
+  - Emits OfferPublished domain event
+  - Handles race conditions with ConflictException
+  - 12 unit tests covering all publish scenarios
+  - OffersModule registers OfferStateMachineService and BullMQ radius expansion queue
 - **OffersService create flow (api)** — Full offer creation with validation, commission calculation, and event emission (Spec 6 — Task 16)
   - Validates required fields (propertyId, serviceType, offeredPriceCents, scheduledAt, timezone, estimatedDurationMinutes, currency)
   - Validates service type against ServiceType enum
