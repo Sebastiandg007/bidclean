@@ -67,7 +67,8 @@ export class OffersService {
     this.validateServiceType(dto.serviceType);
     this.validatePricePositive(dto.offeredPriceCents);
     this.validateDurationBounds(dto.estimatedDurationMinutes);
-    this.validateScheduledAt(dto.scheduledAt);
+
+    const scheduledAt = this.parseAndValidateScheduledAt(dto.scheduledAt);
 
     const readinessResult = await this.propertyReadiness.check(dto.propertyId, hostId);
     if (!readinessResult.ready) {
@@ -88,9 +89,6 @@ export class OffersService {
     }
 
     const breakdown = this.commissionService.getFullBreakdown(dto.offeredPriceCents);
-
-    const scheduledAt =
-      typeof dto.scheduledAt === 'string' ? new Date(dto.scheduledAt) : dto.scheduledAt;
 
     const offer = await this.offersRepository.create({
       hostId,
@@ -229,8 +227,8 @@ export class OffersService {
     }
   }
 
-  /** Validate that scheduledAt is far enough in the future */
-  private validateScheduledAt(scheduledAt: Date | string): void {
+  /** Parse scheduledAt and validate it is far enough in the future. Returns the parsed Date. */
+  private parseAndValidateScheduledAt(scheduledAt: Date | string): Date {
     const scheduledDate =
       typeof scheduledAt === 'string' ? new Date(scheduledAt) : scheduledAt;
 
@@ -243,5 +241,7 @@ export class OffersService {
         `scheduledAt must be at least ${OFFER_MIN_LEAD_MINUTES} minutes in the future`,
       );
     }
+
+    return scheduledDate;
   }
 }

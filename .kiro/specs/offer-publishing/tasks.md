@@ -28,7 +28,7 @@ Implementation tasks for the Offer Publishing feature. Covers the NestJS backend
   - [x] 16.1. Write property test: Price Validation — Positive Only — generate random integers -1_000_000 to 1_000_000, assert only positive values pass
   - [x] 16.2. Write property test: Duration Bounds Validation — generate random integers 0 to 1000, assert only values in [MIN, MAX] pass
   - [x] 16.3. Write property test: Scheduled Time Validation — generate random timestamps around now() +/- lead time, assert only future times with sufficient lead pass
-  - [ ] 16.4. Write property test: Idempotency Round Trip — generate random valid payloads + random keys, assert two calls with same (hostId, key) return same offer ID
+  - [x] 16.4. Write property test: Idempotency Round Trip — generate random valid payloads + random keys, assert two calls with same (hostId, key) return same offer ID
   - [ ] 16.5. Write property test: Duplicate Active Offer Prevention — generate random states for existing offers, assert only terminal states allow new creation
   - [ ] 16.6. Write property test: Required Fields Validation — generate payloads with random missing fields, assert creation rejected with validation error
 - [ ] 17. Implement OffersService — publish offer flow (validate DRAFT state, snapshot property data to offer record, transition to PUBLISHED, enqueue initial-delivery job delay:0, enqueue first expansion job with delay:EXPANSION_INTERVAL_MS, set published_at, emit OfferPublished event)
