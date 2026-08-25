@@ -42,6 +42,22 @@ Manages the full offer lifecycle for cleaning services: creation, publishing, pr
 | `entities/offer-delivery.entity.ts` | TypeORM entity for delivery tracking |
 | `guards/offer-owner.guard.ts` | NestJS guard enforcing offer ownership |
 
+## Database
+
+### Tables
+| Table | Migration | Description |
+|-------|-----------|-------------|
+| `offers` | `1700000010000-CreateOffersTable` | Core offers table with pricing (cents), state machine, property snapshots, radius tracking, idempotency |
+
+### Key Constraints
+- `chk_state` — Allowed states: DRAFT, PUBLISHED, ACTIVE, MATCHED, COMPLETED, CANCELLED, EXPIRED
+- `chk_service_type` — Allowed types: standard, deep, move_in_out, post_construction, post_event, recurring
+- `chk_price_positive` — offered_price_cents > 0
+- `chk_host_total` — host_total_cents = offered_price_cents + host_service_fee_cents
+- `chk_cleaner_payout` — cleaner_payout_cents = offered_price_cents - cleaner_commission_cents
+- `uq_one_active_offer_per_property` — Only one DRAFT/PUBLISHED/ACTIVE offer per property
+- `uq_offers_idempotency` — Prevents duplicate offer creation on retry
+
 ## Dependencies
 
 ### Internal Modules

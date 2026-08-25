@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Offers table migration (api)** — Database migration for offers table (Spec 6 — Task 2)
+  - UUID PK with gen_random_uuid() default, host_id and property_id FK RESTRICT
+  - Service details: service_type with CHECK constraint, scheduled_at, timezone, estimated_duration_minutes
+  - Integer pricing columns (cents): offered_price_cents, currency, host_service_fee_cents, host_total_cents, cleaner_commission_cents, cleaner_payout_cents
+  - Rate snapshot in basis points: host_service_fee_rate_bps, cleaner_commission_rate_bps
+  - Property snapshot fields for immutable offer history
+  - State machine with CHECK constraint (7 states), delivery config, radius tracking
+  - Idempotency key support, lifecycle timestamps
+  - CHECK constraints: chk_price_positive, chk_duration_bounds, chk_host_total, chk_cleaner_payout
+  - Partial indexes: idx_offers_host, idx_offers_host_active, idx_offers_state, idx_offers_created
+  - UNIQUE partial index uq_one_active_offer_per_property (one active offer per property)
+  - UNIQUE partial index uq_offers_idempotency (duplicate creation prevention)
 - **Offers module (api)** — Scaffold module structure with all subfolders (Spec 6 — Task 1)
   - NestJS module with controller, service, repository, types, constants
   - Commission service for integer-only fee calculation (basis points)
