@@ -31,8 +31,8 @@ Manages the full offer lifecycle for cleaning services: creation, publishing, pr
 | `contracts/property-readiness.service.ts` | Default implementation using DataSource for cross-table validation |
 | `contracts/offer-match.interface.ts` | Cross-module contract for offer matching (ACTIVE → MATCHED) |
 | `contracts/offer-match.service.ts` | Concrete implementation of OfferMatchContract (validates ACTIVE, transitions to MATCHED, sets matched_at) |
-| `events/offer-domain-events.ts` | Domain event type definitions |
-| `events/offer-event-emitter.service.ts` | EventEmitter2-based domain event emission |
+| `events/offer-domain-events.ts` | Domain event type definitions and event name constants |
+| `events/offer-event-emitter.service.ts` | EventEmitter2-based domain event emission with typed methods |
 | `state-machine/offer-state-machine.ts` | Pure state transition validation function |
 | `state-machine/offer-state-machine.spec.ts` | Unit tests for state machine |
 | `dto/create-offer.dto.ts` | Create offer request validation |
@@ -132,3 +132,40 @@ CANCELLED  CANCELLED  CANCELLED
 - **Cleaner commission**: 3% (300 bps) deducted FROM offered price
 - **All arithmetic**: Integer-only with Math.trunc — no floating-point
 - **Storage**: Cents (integers) for amounts, basis points for rates
+
+## Domain Events
+
+Domain events are emitted on every offer state transition via NestJS `EventEmitter2`
+(`@nestjs/event-emitter`). Downstream consumers (Stripe escrow, chat, notifications,
+tracking) subscribe via `@OnEvent` decorators in their own modules — no coupling to the
+offers module. `EventEmitterModule.forRoot()` is registered in `OffersModule`.
+
+Event names are dot-notated constants defined in `OFFER_EVENT_NAMES`
+(`events/offer-domain-events.ts`) — never use raw strings.
+
+| Event Name | Constant | Emit Method | Payload (beyond base) | When |
+|------------|----------|-------------|-----------------------|------|
+| `offer.created` | `OFFER_EVENT_NAMES.CREATED` | `emitCreated()` | `propertyId` | Offer enters DRAFT |
+| `offer.published` | `OFFER_EVENT_NAMES.PUBLISHED` | `emitPublished()` | `propertyId` | DRAFT → PUBLISHED |
+| `offer.activated` | `OFFER_EVENT_NAMES.ACTIVATED` | `emitActivated()` | — | PUBLISHED → ACTIVE (first delivery) |
+| `offer.matched` | `OFFER_EVENT_NAMES.MATCHED` | `emitMatched()` | `cleanerId`, `matchSource` | ACTIVE → MATCHED |
+| `offer.cancelled` | `OFFER_EVENT_NAMES.CANCELLED` | `emitCancelled()` | `previousState` | Any → CANCELLED |
+| `offer.expired` | `OFFER_EVENT_NAMES.EXPIRED` | `emitExpired()` | `finalRadius` | Radius exhausted → EXPIRED |
+| `offer.completed` | `OFFER_EVENT_NAMES.COMPLETED` | `emitCompleted()` | `cleanerId` | MATCHED → COMPLETED |
+
+**Base payload** (all events): `offerId`, `hostId`, `timestamp`.
+
+Every emission is logged at `debug` level. The `EventEmitter2` instance is injected into
+`OfferEventEmitterService`, making the service fully unit-testable without a live bus.
+
+### Consuming events (example)
+
+```typescript
+import { OnEvent } from '@nestjs/event-emitter';
+import { OFFER_EVENT_NAMES, OfferMatchedEvent } from '../offers/events/offer-domain-events';
+
+@OnEvent(OFFER_EVENT_NAMES.MATCHED)
+handleOfferMatched(event: OfferMatchedEvent): void {
+  // e.g. open Stripe escrow, create chat thread
+}
+```

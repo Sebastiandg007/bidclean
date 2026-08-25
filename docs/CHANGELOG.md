@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **OfferEventEmitterService (api)** — Domain events emission via NestJS EventEmitter2 (Spec 6 — Task 15)
+  - `@nestjs/event-emitter` package installed (wraps eventemitter2 for NestJS DI)
+  - `OFFER_EVENT_NAMES` constant object with dot-notated event names (offer.created, offer.published, etc.)
+  - `OfferEventName` type union for type-safe event name references
+  - `OfferEventEmitterService` with typed emit methods: emitCreated, emitPublished, emitActivated, emitMatched, emitCancelled, emitExpired, emitCompleted
+  - Each method constructs full typed payload and delegates to EventEmitter2.emit()
+  - Debug-level logging on every event emission
+  - `EventEmitterModule.forRoot()` registered in OffersModule imports
+  - `OfferExpiredEvent` extended with `finalRadius` field per design doc
+  - 9 unit tests covering all 7 emit methods, timestamp generation, and event name consistency
 - **OffersRepository (api)** — Full database repository for offers, state transitions, and deliveries (Spec 6 — Task 14)
   - `create`: Persist new offer record, returns created Offer entity
   - `findById`: Find offer by ID with optional relations (stateTransitions, deliveries)

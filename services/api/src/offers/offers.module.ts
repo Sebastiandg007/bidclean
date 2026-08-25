@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { OffersController } from './offers.controller';
 import { OffersService } from './offers.service';
@@ -31,6 +32,7 @@ import { OfferDelivery } from './entities/offer-delivery.entity';
 @Module({
   imports: [
     ConfigModule,
+    EventEmitterModule.forRoot(),
     TypeOrmModule.forFeature([Offer, OfferStateTransition, OfferDelivery]),
   ],
   controllers: [OffersController],
