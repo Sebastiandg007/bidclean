@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Offer state machine service (api)** — OfferStateMachineService with optimistic locking and audit trail (Spec 6 — Task 8)
+  - `transitionState()` injectable service method: validates transition → UPDATE WHERE state = expectedState → insert audit trail
+  - Optimistic locking: returns false when affected rows = 0 (race condition lost)
+  - Audit trail: inserts `offer_state_transitions` record with from_state, to_state, triggered_by, metadata
+  - Invalid transitions rejected before any DB call (uses existing `validateTransition` pure function)
+  - 4 unit tests: valid transition, invalid transition, race condition, metadata propagation
 - **Offer TypeORM entities (api)** — Full TypeORM entity implementations for offer module (Spec 6 — Task 6)
   - `Offer` entity: all 30+ columns with proper types, 6 CHECK constraints (state, service_type, price_positive, duration_bounds, host_total, cleaner_payout), indexes (host, state), ManyToOne relations to User/Property with RESTRICT, OneToMany to StateTransitions/Deliveries, JSDoc on every column
   - `OfferStateTransition` entity: audit trail with from_state (nullable), to_state, triggered_by, JSONB metadata, CHECK constraints on valid states, composite index (offer_id, created_at), ManyToOne to Offer with CASCADE
