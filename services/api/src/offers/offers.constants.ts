@@ -43,21 +43,21 @@ export const OFFER_EXPANSION_INTERVAL_MS = parseInt(
   10,
 );
 
-/** Final wait time after max radius before expiration in ms (default: 900000 = 15min) */
+/** Final wait time after max radius before expiration in ms (default: 600000 = 10min) */
 export const OFFER_FINAL_WAIT_MS = parseInt(
-  process.env.OFFER_FINAL_WAIT_MS ?? '900000',
+  process.env.OFFER_FINAL_WAIT_MS ?? '600000',
   10,
 );
 
-/** Time window for favorites-first delivery in ms (default: 120000 = 2min) */
+/** Time window for favorites-first delivery in ms (default: 180000 = 3min) */
 export const OFFER_FAVORITES_WINDOW_MS = parseInt(
-  process.env.OFFER_FAVORITES_WINDOW_MS ?? '120000',
+  process.env.OFFER_FAVORITES_WINDOW_MS ?? '180000',
   10,
 );
 
-/** Delay between PRO and FREE tier delivery in ms (default: 60000 = 1min) */
+/** Delay between PRO and FREE tier delivery in ms (default: 120000 = 2min) */
 export const OFFER_PRO_FREE_DELAY_MS = parseInt(
-  process.env.OFFER_PRO_FREE_DELAY_MS ?? '60000',
+  process.env.OFFER_PRO_FREE_DELAY_MS ?? '120000',
   10,
 );
 
@@ -67,9 +67,9 @@ export const OFFER_MIN_LEAD_MINUTES = parseInt(
   10,
 );
 
-/** Minimum offer duration in minutes (default: 60) */
+/** Minimum offer duration in minutes (default: 30) */
 export const OFFER_MIN_DURATION_MINUTES = parseInt(
-  process.env.OFFER_MIN_DURATION_MINUTES ?? '60',
+  process.env.OFFER_MIN_DURATION_MINUTES ?? '30',
   10,
 );
 
@@ -124,4 +124,27 @@ export const QUEUE_NAMES = {
   TIER_DELIVERY: 'offer-tier-delivery',
   FAVORITES_WINDOW: 'offer-favorites-window',
   PUSH_NOTIFICATION: 'offer-push-notification',
+} as const;
+
+/**
+ * Aggregated offer configuration object.
+ * Provides a single import point for all offer config values.
+ * Mirrors the OFFER_CONFIG structure from the design doc.
+ */
+export const OFFER_CONFIG = {
+  HOST_SERVICE_FEE_RATE: OFFER_HOST_FEE_RATE_BPS,
+  CLEANER_COMMISSION_RATE: OFFER_CLEANER_RATE_BPS,
+  INITIAL_RADIUS_METERS: OFFER_INITIAL_RADIUS_M,
+  EXPANSION_STEP_METERS: OFFER_EXPANSION_STEP_M,
+  MAX_RADIUS_METERS: OFFER_MAX_RADIUS_M,
+  EXPANSION_INTERVAL_MS: OFFER_EXPANSION_INTERVAL_MS,
+  FINAL_WAIT_INTERVAL_MS: OFFER_FINAL_WAIT_MS,
+  FAVORITES_WINDOW_MS: OFFER_FAVORITES_WINDOW_MS,
+  PRO_TO_FREE_DELAY_MS: OFFER_PRO_FREE_DELAY_MS,
+  MIN_LEAD_TIME_MINUTES: OFFER_MIN_LEAD_MINUTES,
+  MIN_DURATION_MINUTES: OFFER_MIN_DURATION_MINUTES,
+  MAX_DURATION_MINUTES: OFFER_MAX_DURATION_MINUTES,
+  MAX_JOB_RETRIES: OFFER_MAX_RETRIES,
+  BACKOFF_TYPE: 'exponential' as const,
+  BACKOFF_DELAY_MS: OFFER_BACKOFF_DELAY_MS,
 } as const;
