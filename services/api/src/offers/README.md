@@ -30,6 +30,7 @@ Manages the full offer lifecycle for cleaning services: creation, publishing, pr
 | `contracts/property-readiness.interface.ts` | Cross-module contract interface with PropertyReadinessFailure type |
 | `contracts/property-readiness.service.ts` | Default implementation using DataSource for cross-table validation |
 | `contracts/offer-match.interface.ts` | Cross-module contract for offer matching (ACTIVE → MATCHED) |
+| `contracts/offer-match.service.ts` | Concrete implementation of OfferMatchContract (validates ACTIVE, transitions to MATCHED, sets matched_at) |
 | `events/offer-domain-events.ts` | Domain event type definitions |
 | `events/offer-event-emitter.service.ts` | EventEmitter2-based domain event emission |
 | `state-machine/offer-state-machine.ts` | Pure state transition validation function |

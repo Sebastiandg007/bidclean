@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **OfferMatchContract service (api)** — Concrete implementation of OfferMatchInterface for ACTIVE→MATCHED transition (Spec 6 — Task 12)
+  - `OfferMatchService` injectable class implementing `OfferMatchInterface` contract
+  - Validates offer exists, validates ACTIVE state before transition attempt
+  - Delegates state transition to `OfferStateMachineService` with optimistic locking
+  - Sets `matched_at` timestamp on successful match
+  - Returns typed `MatchResult` with specific failure reasons (not found, wrong state, race condition)
+  - Exposed for external modules (offer-negotiation, offer-radar) — only authorized path for ACTIVE→MATCHED
 - **PropertyReadinessCheck contract (api)** — Offers module PropertyReadinessInterface with typed failure reasons and default implementation (Spec 6 — Task 10)
   - `PropertyReadinessFailure` type-safe union: NOT_FOUND, NOT_OWNED, DELETED, NO_PHOTOS, INVALID_LOCATION, MISSING_REQUIRED_FIELDS, HAS_ACTIVE_OFFER
   - `PropertyReadinessResult` with `ready: boolean` and `reasons: PropertyReadinessFailure[]`
