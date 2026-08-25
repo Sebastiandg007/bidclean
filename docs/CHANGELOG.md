@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **OfferOwnerGuard (api)** — CanActivate guard for offer ownership verification (Spec 6 — Task 13)
+  - Extracts offerId from route params (`:id`), resolves internal user by keycloakId
+  - Queries offers table WHERE `id = offerId AND host_id = user.id`
+  - Throws ForbiddenException with descriptive message if not owner or offer not found
+  - Must be used AFTER JwtAuthGuard so that `request.user` is available
+  - Secondary defense layer — primary enforcement at repository query level
+  - 7 unit tests covering ownership, non-existence, non-owner, missing user, HTTP 403, query correctness
 - **OfferMatchContract service (api)** — Concrete implementation of OfferMatchInterface for ACTIVE→MATCHED transition (Spec 6 — Task 12)
   - `OfferMatchService` injectable class implementing `OfferMatchInterface` contract
   - Validates offer exists, validates ACTIVE state before transition attempt
