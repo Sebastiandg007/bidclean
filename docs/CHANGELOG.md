@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **CommissionService (api)** — Full implementation with integer-only arithmetic and property-based tests (Spec 6 — Task 9)
+  - `calculateHostFee()`: fee = Math.trunc(priceCents * rateBps / 10000), supports custom rate override
+  - `calculateCleanerCommission()`: commission = Math.trunc(priceCents * rateBps / 10000), supports custom rate override
+  - `getFullBreakdown()`: complete commission breakdown for both Host and Cleaner views
+  - Input validation: throws on non-positive-integer priceCents or invalid rateBps
+  - All rates from environment-derived constants (OFFER_HOST_FEE_RATE_BPS, OFFER_CLEANER_RATE_BPS)
+  - BPS_DIVISOR named constant for the basis points → percentage conversion
+  - 16 unit tests covering arithmetic, truncation, custom rates, and input validation
+  - Property 9.1: Host Commission Calculation Invariant (200 runs, random prices 1–100M, random rates 1–10000 bps)
+  - Property 9.2: Cleaner Commission Calculation Invariant (200 runs, random prices 1–100M, random rates 1–9999 bps)
 - **Offer state machine service (api)** — OfferStateMachineService with optimistic locking and audit trail (Spec 6 — Task 8)
   - `transitionState()` injectable service method: validates transition → UPDATE WHERE state = expectedState → insert audit trail
   - Optimistic locking: returns false when affected rows = 0 (race condition lost)
