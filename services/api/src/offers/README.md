@@ -101,11 +101,11 @@ Manages the full offer lifecycle for cleaning services: creation, publishing, pr
 | `OFFER_EXPANSION_STEP` | Radius expansion step in meters (default: 2000) | No |
 | `OFFER_MAX_RADIUS` | Maximum search radius in meters (default: 25000) | No |
 | `OFFER_EXPANSION_INTERVAL_MS` | Interval between expansions in ms (default: 300000) | No |
-| `OFFER_FINAL_WAIT_MS` | Final wait before expiration in ms (default: 900000) | No |
-| `OFFER_FAVORITES_WINDOW_MS` | Favorites-first window in ms (default: 120000) | No |
-| `OFFER_PRO_FREE_DELAY_MS` | Delay between PRO and FREE delivery in ms (default: 60000) | No |
+| `OFFER_FINAL_WAIT_MS` | Final wait before expiration in ms (default: 600000) | No |
+| `OFFER_FAVORITES_WINDOW_MS` | Favorites-first window in ms (default: 180000) | No |
+| `OFFER_PRO_FREE_DELAY_MS` | Delay between PRO and FREE delivery in ms (default: 120000) | No |
 | `OFFER_MIN_LEAD_MINUTES` | Minimum lead time for scheduling (default: 60) | No |
-| `OFFER_MIN_DURATION_MINUTES` | Minimum offer duration (default: 60) | No |
+| `OFFER_MIN_DURATION_MINUTES` | Minimum offer duration (default: 30) | No |
 | `OFFER_MAX_DURATION_MINUTES` | Maximum offer duration (default: 480) | No |
 | `OFFER_MAX_RETRIES` | Max BullMQ job retries (default: 3) | No |
 | `OFFER_BACKOFF_DELAY_MS` | Backoff delay for retries in ms (default: 5000) | No |
