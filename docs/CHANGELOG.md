@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **PropertyReadinessCheck contract (api)** — Offers module PropertyReadinessInterface with typed failure reasons and default implementation (Spec 6 — Task 10)
+  - `PropertyReadinessFailure` type-safe union: NOT_FOUND, NOT_OWNED, DELETED, NO_PHOTOS, INVALID_LOCATION, MISSING_REQUIRED_FIELDS, HAS_ACTIVE_OFFER
+  - `PropertyReadinessResult` with `ready: boolean` and `reasons: PropertyReadinessFailure[]`
+  - `PropertyReadinessService` injectable implementation using DataSource for cross-table access
+  - Validates in priority order: existence → ownership → soft-delete → photos → location → required fields → active offer
+  - NOT_FOUND and NOT_OWNED are early-return (stop all further checks)
+  - DELETED through HAS_ACTIVE_OFFER accumulate (report all issues at once)
+  - Uses raw SQL queries (properties, property_photos, offers) — no dependency on other module repositories
+  - Active offer check uses same states as DB partial index: DRAFT, PUBLISHED, ACTIVE
+  - 27 unit tests covering all 7 failure reasons, early returns, accumulation, and ordering
 - **CommissionService (api)** — Full implementation with integer-only arithmetic and property-based tests (Spec 6 — Task 9)
   - `calculateHostFee()`: fee = Math.trunc(priceCents * rateBps / 10000), supports custom rate override
   - `calculateCleanerCommission()`: commission = Math.trunc(priceCents * rateBps / 10000), supports custom rate override

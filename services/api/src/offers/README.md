@@ -27,7 +27,8 @@ Manages the full offer lifecycle for cleaning services: creation, publishing, pr
 | `expansion/stale-job.guard.ts` | Utility to detect and skip stale BullMQ jobs |
 | `notification/offer-notification.service.ts` | Push notification fallback for offline Cleaners |
 | `notification/onesignal.client.ts` | OneSignal REST API client |
-| `contracts/property-readiness.interface.ts` | Cross-module contract for property readiness checks |
+| `contracts/property-readiness.interface.ts` | Cross-module contract interface with PropertyReadinessFailure type |
+| `contracts/property-readiness.service.ts` | Default implementation using DataSource for cross-table validation |
 | `contracts/offer-match.interface.ts` | Cross-module contract for offer matching (ACTIVE → MATCHED) |
 | `events/offer-domain-events.ts` | Domain event type definitions |
 | `events/offer-event-emitter.service.ts` | EventEmitter2-based domain event emission |
