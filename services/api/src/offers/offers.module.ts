@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { BullModule } from '@nestjs/bullmq';
 import { OffersController } from './offers.controller';
 import { OffersService } from './offers.service';
 import { OffersRepository } from './offers.repository';
@@ -9,9 +10,11 @@ import { CommissionService } from './commission/commission.service';
 import { DeliverySchedulerService } from './delivery/delivery-scheduler.service';
 import { OfferNotificationService } from './notification/offer-notification.service';
 import { OfferEventEmitterService } from './events/offer-event-emitter.service';
+import { OfferStateMachineService } from './state-machine/offer-state-machine';
 import { OfferOwnerGuard } from './guards/offer-owner.guard';
 import { PropertyReadinessService } from './contracts/property-readiness.service';
 import { PROPERTY_READINESS } from './contracts/property-readiness.interface';
+import { QUEUE_NAMES } from './offers.constants';
 import { Offer } from './entities/offer.entity';
 import { OfferStateTransition } from './entities/offer-state-transition.entity';
 import { OfferDelivery } from './entities/offer-delivery.entity';
@@ -36,6 +39,7 @@ import { OfferDelivery } from './entities/offer-delivery.entity';
     ConfigModule,
     EventEmitterModule.forRoot(),
     TypeOrmModule.forFeature([Offer, OfferStateTransition, OfferDelivery]),
+    BullModule.registerQueue({ name: QUEUE_NAMES.RADIUS_EXPANSION }),
   ],
   controllers: [OffersController],
   providers: [
@@ -45,6 +49,7 @@ import { OfferDelivery } from './entities/offer-delivery.entity';
     DeliverySchedulerService,
     OfferNotificationService,
     OfferEventEmitterService,
+    OfferStateMachineService,
     OfferOwnerGuard,
     {
       provide: PROPERTY_READINESS,

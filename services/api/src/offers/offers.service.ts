@@ -4,22 +4,37 @@ import {
   Inject,
   BadRequestException,
   UnprocessableEntityException,
+  ForbiddenException,
+  NotFoundException,
+  ConflictException,
 } from '@nestjs/common';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
+import { DataSource } from 'typeorm';
 import { OffersRepository } from './offers.repository';
 import { CommissionService } from './commission/commission.service';
 import { OfferEventEmitterService } from './events/offer-event-emitter.service';
+import { OfferStateMachineService } from './state-machine/offer-state-machine';
 import {
   PROPERTY_READINESS,
   PropertyReadinessInterface,
 } from './contracts/property-readiness.interface';
 import { OfferState, ServiceType, OfferQueryFilters, PaginatedResponse } from './offers.types';
+import { Offer } from './entities/offer.entity';
 import {
   OFFER_MIN_LEAD_MINUTES,
   OFFER_MIN_DURATION_MINUTES,
   OFFER_MAX_DURATION_MINUTES,
   OFFER_INITIAL_RADIUS_M,
   OFFER_LIST_DEFAULT_PAGE_SIZE,
+  OFFER_EXPANSION_INTERVAL_MS,
+  QUEUE_NAMES,
 } from './offers.constants';
+
+/** Input shape for publishing an offer */
+interface PublishOfferInput {
+  favoritesFirst?: boolean;
+}
 
 /** Input shape for creating an offer */
 interface CreateOfferInput {
@@ -54,8 +69,12 @@ export class OffersService {
     private readonly offersRepository: OffersRepository,
     private readonly commissionService: CommissionService,
     private readonly eventEmitter: OfferEventEmitterService,
+    private readonly stateMachine: OfferStateMachineService,
+    private readonly dataSource: DataSource,
     @Inject(PROPERTY_READINESS)
     private readonly propertyReadiness: PropertyReadinessInterface,
+    @InjectQueue(QUEUE_NAMES.RADIUS_EXPANSION)
+    private readonly radiusExpansionQueue: Queue,
   ) {}
 
   /**
@@ -131,11 +150,127 @@ export class OffersService {
 
   /**
    * Publish an offer (DRAFT → PUBLISHED).
-   * Snapshots property data and enqueues radius expansion.
+   * Snapshots property data, transitions state, enqueues radius expansion jobs.
    */
-  async publish(_offerId: string, _hostId: string): Promise<void> {
-    // TODO(offer-publishing/Task-17): implement publish offer flow
-    this.logger.debug('publish() stub called');
+  async publish(offerId: string, hostId: string, input?: PublishOfferInput): Promise<void> {
+    const offer = await this.findAndValidateForPublish(offerId, hostId);
+
+    const snapshot = await this.snapshotPropertyData(offer.propertyId);
+
+    await this.persistPublishFields(offerId, snapshot, input?.favoritesFirst ?? false);
+
+    const transitioned = await this.stateMachine.transitionState(
+      offerId,
+      OfferState.DRAFT,
+      OfferState.PUBLISHED,
+      'host',
+    );
+
+    if (!transitioned) {
+      throw new ConflictException(
+        'Offer state changed concurrently — publish failed. Please retry.',
+      );
+    }
+
+    await this.enqueueRadiusExpansionJobs(offerId);
+
+    this.eventEmitter.emitPublished({
+      offerId,
+      hostId,
+      propertyId: offer.propertyId,
+    });
+
+    this.logger.debug(`Published offer ${offerId} for host ${hostId}`);
+  }
+
+  /** Validate offer exists, belongs to host, and is in DRAFT state. */
+  private async findAndValidateForPublish(offerId: string, hostId: string): Promise<Offer> {
+    const offer = await this.offersRepository.findById(offerId);
+
+    if (!offer) {
+      throw new NotFoundException(`Offer ${offerId} not found`);
+    }
+
+    if (offer.hostId !== hostId) {
+      throw new ForbiddenException('You do not own this offer');
+    }
+
+    if (offer.state !== OfferState.DRAFT) {
+      throw new UnprocessableEntityException(
+        `Offer must be in DRAFT state to publish (current: ${offer.state})`,
+      );
+    }
+
+    return offer;
+  }
+
+  /** Query property name, type, city, and cover photo for the snapshot. */
+  private async snapshotPropertyData(propertyId: string): Promise<PropertySnapshot> {
+    const rows = await this.dataSource.query<PropertySnapshotRow[]>(
+      `SELECT p.name, p.type, p.address_city
+       FROM properties p
+       WHERE p.id = $1`,
+      [propertyId],
+    );
+
+    const property = rows[0];
+
+    const photoRows = await this.dataSource.query<{ storage_key: string }[]>(
+      `SELECT storage_key
+       FROM property_photos
+       WHERE property_id = $1
+       ORDER BY display_order ASC
+       LIMIT 1`,
+      [propertyId],
+    );
+
+    return {
+      propertyNameSnapshot: property?.name ?? null,
+      propertyTypeSnapshot: property?.type ?? null,
+      propertyCitySnapshot: property?.address_city ?? null,
+      propertyCoverPhotoSnapshot: photoRows[0]?.storage_key ?? null,
+    };
+  }
+
+  /** Persist snapshot fields, published_at, and favoritesFirst on the offer record. */
+  private async persistPublishFields(
+    offerId: string,
+    snapshot: PropertySnapshot,
+    favoritesFirst: boolean,
+  ): Promise<void> {
+    await this.dataSource.query(
+      `UPDATE offers
+       SET property_name_snapshot = $1,
+           property_type_snapshot = $2,
+           property_city_snapshot = $3,
+           property_cover_photo_snapshot = $4,
+           favorites_first = $5,
+           published_at = NOW()
+       WHERE id = $6`,
+      [
+        snapshot.propertyNameSnapshot,
+        snapshot.propertyTypeSnapshot,
+        snapshot.propertyCitySnapshot,
+        snapshot.propertyCoverPhotoSnapshot,
+        favoritesFirst,
+        offerId,
+      ],
+    );
+  }
+
+  /** Enqueue the initial delivery job (delay:0) and first expansion job. */
+  private async enqueueRadiusExpansionJobs(offerId: string): Promise<void> {
+    await this.radiusExpansionQueue.add(
+      'expand-radius',
+      { offerId, expectedState: OfferState.PUBLISHED, expectedStep: 0 },
+      { delay: 0 },
+    );
+
+    await this.radiusExpansionQueue.add(
+      'expand-radius',
+      { offerId, expectedState: OfferState.PUBLISHED, expectedStep: 1 },
+      { delay: OFFER_EXPANSION_INTERVAL_MS },
+    );
   }
 
   /**
@@ -244,4 +379,19 @@ export class OffersService {
 
     return scheduledDate;
   }
+}
+
+/** Raw row shape from property snapshot query */
+interface PropertySnapshotRow {
+  readonly name: string | null;
+  readonly type: string | null;
+  readonly address_city: string | null;
+}
+
+/** Typed property snapshot fields for the offer record */
+interface PropertySnapshot {
+  readonly propertyNameSnapshot: string | null;
+  readonly propertyTypeSnapshot: string | null;
+  readonly propertyCitySnapshot: string | null;
+  readonly propertyCoverPhotoSnapshot: string | null;
 }

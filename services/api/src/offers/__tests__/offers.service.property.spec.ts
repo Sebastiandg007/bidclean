@@ -1,16 +1,20 @@
 import * as fc from 'fast-check';
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException, UnprocessableEntityException } from '@nestjs/common';
+import { getQueueToken } from '@nestjs/bullmq';
+import { DataSource } from 'typeorm';
 import { OffersService } from '../offers.service';
 import { OffersRepository } from '../offers.repository';
 import { CommissionService } from '../commission/commission.service';
 import { OfferEventEmitterService } from '../events/offer-event-emitter.service';
+import { OfferStateMachineService } from '../state-machine/offer-state-machine';
 import { PROPERTY_READINESS } from '../contracts/property-readiness.interface';
 import { OfferState, ServiceType } from '../offers.types';
 import {
   OFFER_MIN_LEAD_MINUTES,
   OFFER_MIN_DURATION_MINUTES,
   OFFER_MAX_DURATION_MINUTES,
+  QUEUE_NAMES,
 } from '../offers.constants';
 
 /**
@@ -22,8 +26,11 @@ import {
  */
 describe('OffersService — Create Flow Property-Based Tests', () => {
   let service: OffersService;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let mockRepository: any;
+  let mockRepository: {
+    create: jest.Mock;
+    insertStateTransition: jest.Mock;
+    findByIdempotencyKey: jest.Mock;
+  };
   let mockEventEmitter: Record<string, jest.Mock>;
   let mockPropertyReadiness: { check: jest.Mock };
 
@@ -60,7 +67,10 @@ describe('OffersService — Create Flow Property-Based Tests', () => {
         { provide: OffersRepository, useValue: mockRepository },
         { provide: CommissionService, useValue: new CommissionService() },
         { provide: OfferEventEmitterService, useValue: mockEventEmitter },
+        { provide: OfferStateMachineService, useValue: { transitionState: jest.fn() } },
+        { provide: DataSource, useValue: { query: jest.fn() } },
         { provide: PROPERTY_READINESS, useValue: mockPropertyReadiness },
+        { provide: getQueueToken(QUEUE_NAMES.RADIUS_EXPANSION), useValue: { add: jest.fn() } },
       ],
     }).compile();
 
