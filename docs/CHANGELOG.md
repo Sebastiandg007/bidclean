@@ -18,6 +18,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - GPS NEVER persisted by backend — memory only for display
   - i18n keys for permission explanation text (EN + ES) with privacy note
   - Added `expo-location` dependency to mobile package.json
+- **AdSlot component + useAdVisibility hook (mobile/radar)** — Ad slot placeholder and entitlement-based visibility for Offer Radar list view (Spec 7 — Task 9.2)
+  - `AdSlot.tsx` placeholder component with "Sponsored" label and placeholder creative area
+  - Styled to match BidClean dark design system (card bg #1F2833, subtle border, muted text)
+  - `useAdVisibility` hook abstracts ad entitlement check via `ad_free` entitlement ID
+  - Does NOT check `cleaner_pro` directly — uses abstracted entitlement layer for decoupling
+  - Returns `{ adsEnabled: boolean, isLoading: boolean }` for conditional rendering
+  - Placeholder implementation defaults to `adsEnabled: true` (free-tier behavior)
+  - Error fallback: shows ads on entitlement check failure (safe for monetization)
+  - i18n keys added for EN + ES locales (`radar.adSlot.*`)
+  - Ready for RevenueCat SDK integration (TODO marker with entitlement ID reference)
 - **OfferCard component (mobile/radar)** — Radar list item for available offers (Spec 7 — Task 9.1)
   - Property cover photo thumbnail with placeholder fallback
   - Property name, type, and city display
