@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **useCentrifugoChannel hook (mobile)** — Real-time WebSocket subscription for Offer Radar (Spec 7 — Task 4.1)
+  - Subscribes to Centrifugo personal channel `offers:cleaner:{cleanerId}` on mount
+  - Parses `offer_new` events → dispatches to store `handleOfferNew` (upsert)
+  - Parses `offer_status_changed` events → dispatches to store `handleOfferStatusChanged` (remove)
+  - Exponential backoff reconnection: 1s, 2s, 4s, 8s, 16s, 30s (capped at WS_MAX_BACKOFF_MS)
+  - After 3 failed reconnection attempts: emits fallback signal for periodic REST polling
+  - On successful reconnect: triggers full reconciliation via REST /snapshot
+  - Tracks connection status transitions: connected → disconnected → reconnecting → connected
+  - Mutual exclusivity enforcement: controlled overlap window (max 5s) during WS ↔ polling transition
+  - Token-based auth: fetches JWT from backend before connecting to Centrifugo
+  - Validates event payloads defensively (malformed messages skipped silently)
+  - Clean lifecycle: subscribe on mount, unsubscribe on unmount (useEffect cleanup)
 - **Offers tab in HostNavigator (mobile)** — Replaced Activity tab with Offers (Spec 6 — Task 43)
   - Renamed Activity tab to Offers (key: 'offers', icon: '📋', i18n: 'navigation.host.tabs.offers')
   - Implemented lightweight local stack navigator within the Offers tab
