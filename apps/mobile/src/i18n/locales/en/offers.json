@@ -28,6 +28,11 @@
     "decrease": "Decrease duration",
     "increase": "Increase duration"
   },
+  "favorites": {
+    "toggle_label": "Send to favorites first",
+    "info_tooltip": "Your favorite Cleaners will receive this offer first. If none accept within the favorites window, it will be sent to PRO and then FREE Cleaners.",
+    "no_favorites": "No favorites yet — add Cleaners to favorites to enable this option"
+  },
   "priceBreakdown": {
     "offeredPrice": "Offered price",
     "serviceFee": "Service fee (10%)",

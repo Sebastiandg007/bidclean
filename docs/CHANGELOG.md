@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **RadiusProgress component (mobile)** — Real-time radius expansion progress display (Spec 6 — Task 39)
+  - Current radius formatted as km (1 decimal) with accent color highlight
+  - Horizontal progress bar showing current/max radius ratio with accent gradient fill
+  - Min/max labels ("0 km" / "{max} km") flanking the progress bar
+  - Countdown timer "Next expansion in M:SS" using useEffect + setInterval (ticks every 1s)
+  - Timer calculates remaining time from lastExpandedAt + expansionIntervalMs
+  - Timer only visible when isActive is true
+  - "Maximum radius reached" message when currentRadius >= maxRadius
+  - accessibilityRole="progressbar" with accessibilityValue (min/max/now)
+  - Cleans up interval on unmount
+  - i18n keys added (en + es) for all labels
 - **CreateOfferScreen (mobile)** — Multi-step form for creating cleaning service offers (Spec 6 — Task 35)
   - 3-step flow: Step 1 (PropertySelector), Step 2 (ServiceType + Duration + DateTime + Price), Step 3 (Description + Review)
   - Step indicator with progress dots showing current/completed steps
