@@ -8,6 +8,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **OfferListScreen (mobile)** — Tab-filtered offer list with infinite scroll and FAB (Spec 6 — Task 40)
+  - Tab bar with state filters: Active, Completed, Expired, Cancelled
+  - Active tab highlighted with accent underline indicator
+  - FlatList rendering OfferCard items with pull-to-refresh (reloads page 1)
+  - Infinite scroll via onEndReached loading next page when hasMore is true
+  - Loading footer indicator (ActivityIndicator) while fetching more items
+  - Per-tab empty states with custom icon and i18n message per state filter
+  - FAB (Floating Action Button) bottom-right: accent circle with "+" navigating to CreateOffer
+  - Tapping OfferCard navigates to OfferDetail with offerId param
+  - SafeAreaView wrapper with dark mode design system
+  - Full accessibility: tab roles (tablist/tab), list role, FAB button label
+  - All text via i18n keys (offers.list.*), translations added for EN + ES
+- **OfferDetailScreen (mobile)** — Full offer detail screen with all sections (Spec 6 — Task 41)
+  - Header with back button + offer state badge (color-coded per STATE_COLORS)
+  - Property snapshot card: cover photo, property name, city, property type badge
+  - Service details section: service type with icon/label, scheduled date/time, duration
+  - Full price breakdown (Host view) using PriceBreakdown component
+  - State timeline using StateTimeline component with transition history
+  - Radius progress (only visible when state === ACTIVE) using RadiusProgress component
+  - Cancel button: visible for DRAFT/PUBLISHED/ACTIVE, destructive styling, confirmation Alert dialog
+  - Delivery count indicator (from state transitions metadata)
+  - Loading state with ActivityIndicator, empty state for not-found
+  - ScrollView with SafeAreaView, dark mode design
+  - All text via i18n keys (offers.detail.*), no hardcoded strings
+  - Full accessibility: roles, labels, states on all interactive elements
 - **OfferConfirmationScreen (mobile)** — Full offer summary screen before publishing (Spec 6 — Task 36)
   - Property card with cover photo, name, and city from snapshot
   - Service type badge with icon and i18n label

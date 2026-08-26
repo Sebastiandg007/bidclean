@@ -104,6 +104,27 @@
     "post_event": "Post Event",
     "recurring": "Recurring"
   },
+  "list": {
+    "title": "My Offers",
+    "tabs": {
+      "active": "Active",
+      "completed": "Completed",
+      "expired": "Expired",
+      "cancelled": "Cancelled"
+    },
+    "empty": {
+      "active": "No active offers right now. Create one to get started!",
+      "completed": "No completed offers yet.",
+      "expired": "No expired offers.",
+      "cancelled": "No cancelled offers.",
+      "draft": "No draft offers.",
+      "published": "No published offers.",
+      "matched": "No matched offers."
+    },
+    "fab": {
+      "createOffer": "Create Offer"
+    }
+  },
   "confirmation": {
     "title": "Confirm Offer",
     "back": "Go back",

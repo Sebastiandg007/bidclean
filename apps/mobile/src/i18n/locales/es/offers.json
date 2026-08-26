@@ -51,6 +51,27 @@
     "maxReached": "Radio máximo alcanzado",
     "a11yProgressLabel": "Progreso del radio de búsqueda"
   },
+  "list": {
+    "title": "Mis Ofertas",
+    "tabs": {
+      "active": "Activas",
+      "completed": "Completadas",
+      "expired": "Expiradas",
+      "cancelled": "Canceladas"
+    },
+    "empty": {
+      "active": "No tienes ofertas activas. ¡Crea una para empezar!",
+      "completed": "Aún no tienes ofertas completadas.",
+      "expired": "No tienes ofertas expiradas.",
+      "cancelled": "No tienes ofertas canceladas.",
+      "draft": "No tienes borradores.",
+      "published": "No tienes ofertas publicadas.",
+      "matched": "No tienes ofertas asignadas."
+    },
+    "fab": {
+      "createOffer": "Crear Oferta"
+    }
+  },
   "confirmation": {
     "title": "Confirmar Oferta",
     "back": "Volver",
