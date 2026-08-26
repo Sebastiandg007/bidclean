@@ -1,0 +1,253 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "1.1 Create DTO classes for available offers query parameters and response": [
+      {
+        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
+        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
+        "timestamp": 1787766322465
+      },
+      {
+        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
+        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
+        "timestamp": 1787766339802
+      }
+    ],
+    "1.2 Implement available offers repository with PostGIS query": [
+      {
+        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
+        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
+        "timestamp": 1787766322605
+      }
+    ],
+    "1.3 Implement available offers service (business logic layer)": [
+      {
+        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
+        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
+        "timestamp": 1787766322776
+      }
+    ],
+    "1.4 Implement available offers controller with auth guard": [
+      {
+        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
+        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
+        "timestamp": 1787766322858
+      }
+    ],
+    "2. Checkpoint — Backend endpoint tests pass": [
+      {
+        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
+        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
+        "timestamp": 1787766322935
+      }
+    ],
+    "3.1 Create radar types and constants": [
+      {
+        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
+        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
+        "timestamp": 1787766323025
+      },
+      {
+        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
+        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
+        "timestamp": 1787766342576
+      }
+    ],
+    "3.2 Implement useRadarStore with Zustand": [
+      {
+        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
+        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
+        "timestamp": 1787766323126
+      }
+    ],
+    "4.1 Implement useCentrifugoChannel hook": [
+      {
+        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
+        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
+        "timestamp": 1787766323232
+      }
+    ],
+    "5.1 Implement useRadarReconciliation hook": [
+      {
+        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
+        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
+        "timestamp": 1787766323328
+      }
+    ],
+    "6. Checkpoint — Store and WebSocket logic complete": [
+      {
+        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
+        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
+        "timestamp": 1787766323407
+      }
+    ],
+    "7.1 Implement RadarMapView (main map container)": [
+      {
+        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
+        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
+        "timestamp": 1787766323575
+      }
+    ],
+    "7.2 Implement OfferPinsLayer with native Mapbox SymbolLayer": [
+      {
+        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
+        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
+        "timestamp": 1787766323658
+      }
+    ],
+    "7.3 Implement ClusterLayer": [
+      {
+        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
+        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
+        "timestamp": 1787766323735
+      }
+    ],
+    "7.4 Implement CleanerMarker (animated self-position)": [
+      {
+        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
+        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
+        "timestamp": 1787766323820
+      }
+    ],
+    "7.5 Implement WorkZoneCircle": [
+      {
+        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
+        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
+        "timestamp": 1787766323911
+      }
+    ],
+    "7.6 Implement map styles configuration": [
+      {
+        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
+        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
+        "timestamp": 1787766323985
+      }
+    ],
+    "8.1 Implement useOfferAnimations hook": [
+      {
+        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
+        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
+        "timestamp": 1787766324138
+      }
+    ],
+    "9.1 Implement OfferCard component": [
+      {
+        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
+        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
+        "timestamp": 1787766324224
+      }
+    ],
+    "9.2 Implement AdSlot component": [
+      {
+        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
+        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
+        "timestamp": 1787766324301
+      }
+    ],
+    "9.3 Implement OfferListView with infinite scroll and ads": [
+      {
+        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
+        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
+        "timestamp": 1787766324383
+      }
+    ],
+    "10.1 Implement FilterPanel container": [
+      {
+        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
+        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
+        "timestamp": 1787766324470
+      }
+    ],
+    "10.2 Implement ServiceTypeChips": [
+      {
+        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
+        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
+        "timestamp": 1787766324551
+      }
+    ],
+    "10.3 Implement PriceRangeSlider": [
+      {
+        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
+        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
+        "timestamp": 1787766324645
+      }
+    ],
+    "10.4 Implement DistanceSlider": [
+      {
+        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
+        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
+        "timestamp": 1787766324727
+      }
+    ],
+    "10.5 Implement DateRangeFilter": [
+      {
+        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
+        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
+        "timestamp": 1787766324813
+      }
+    ],
+    "11.1 Implement OfferPreviewSheet": [
+      {
+        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
+        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
+        "timestamp": 1787766324900
+      }
+    ],
+    "12.1 Implement EmptyState component": [
+      {
+        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
+        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
+        "timestamp": 1787766325073
+      }
+    ],
+    "12.2 Implement OfflineBanner and ConnectivityIndicator": [
+      {
+        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
+        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
+        "timestamp": 1787766325161
+      }
+    ],
+    "12.3 Implement ViewToggle (map ↔ list)": [
+      {
+        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
+        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
+        "timestamp": 1787766325243
+      }
+    ],
+    "13.1 Implement useLocationPermission hook": [
+      {
+        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
+        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
+        "timestamp": 1787766325325
+      }
+    ],
+    "14.1 Implement client-side urgency timer": [
+      {
+        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
+        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
+        "timestamp": 1787766325406
+      }
+    ],
+    "15.1 Assemble RadarScreen with all components": [
+      {
+        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
+        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
+        "timestamp": 1787766325483
+      }
+    ],
+    "16. Checkpoint — Full UI integration working": [
+      {
+        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
+        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
+        "timestamp": 1787766325570
+      }
+    ],
+    "19. Final Checkpoint — All tests pass": [
+      {
+        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
+        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
+        "timestamp": 1787766325650
+      }
+    ]
+  }
+}
