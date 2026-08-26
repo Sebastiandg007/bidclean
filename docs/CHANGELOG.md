@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Integration tests for Offer Radar available offers endpoint (api/offers/available)** — Tasks 18.1–18.5 (Spec 7 — Offer Radar)
+  - 18.1: Full radar flow — validates visibility contract (ACTIVE + SENT + not expired), response shape, privacy fields exclusion, role enforcement
+  - 18.2: Filter combinations — serviceType (comma-separated), price range, maxDistance (ST_DWithin), date range, simultaneous multi-filter
+  - 18.3: Sort verification — all 4 sort options (distance_asc, price_desc, scheduled_asc, published_desc), ordering invariant assertions
+  - 18.4: Pagination uniqueness — no duplicate offerIds across pages, correct totalPages calculation, LIMIT/OFFSET verification
+  - 18.5: Distance calculation — ST_Distance with geography cast, work zone center (not GPS), ST_DWithin for spatial filter, join path verification
+  - Snapshot endpoint: unpaginated reconciliation response, rate limiting (429 on rapid requests)
 - **RadarScreen main container (mobile/radar)** — Top-level screen assembling all Offer Radar sub-components (Spec 7 — Offer Radar)
   - Manages location permission lifecycle (request → denied fallback → granted flow)
   - Initial REST data fetch on permission grant, profile load for work zone display
