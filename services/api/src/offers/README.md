@@ -22,8 +22,9 @@ Manages the full offer lifecycle for cleaning services: creation, publishing, pr
 | `discovery/cleaner-discovery.interface.ts` | Contract interface for Cleaner geospatial discovery |
 | `discovery/cleaner-discovery.service.ts` | Stub implementation (returns empty until cleaner module exists) |
 | `discovery/cleaner-discovery.types.ts` | Discovery parameter and result types |
-| `expansion/radius-expansion.processor.ts` | BullMQ worker for progressive radius expansion |
-| `expansion/radius-expansion.types.ts` | Job payload and result types for expansion |
+| `expansion/radius-expansion.processor.ts` | BullMQ worker for progressive radius expansion (stale-job guard, cleaner discovery, delivery, expiration) |
+| `expansion/radius-expansion.types.ts` | Job payload (with isFinalWait) and result types for expansion |
+| `expansion/radius-expansion.property.spec.ts` | Property-based tests: monotonicity (capped) + stale job idempotency |
 | `expansion/stale-job.guard.ts` | Utility to detect and skip stale BullMQ jobs |
 | `notification/offer-notification.service.ts` | Push notification fallback for offline Cleaners (delegates to OneSignalClient) |
 | `notification/onesignal.client.ts` | OneSignal REST API client (HTTP POST to /notifications endpoint) |
@@ -38,6 +39,7 @@ Manages the full offer lifecycle for cleaning services: creation, publishing, pr
 | `state-machine/offer-state-machine.spec.ts` | Unit tests for state machine |
 | `state-machine/offer-state-machine.property.spec.ts` | Property-based tests for state machine transitions |
 | `__tests__/offers-cancel.service.spec.ts` | Unit tests for cancel flow (10 tests: state validation, ownership, jobs, notifications, race conditions) |
+| `__tests__/radius-expansion.processor.spec.ts` | Unit tests for RadiusExpansionProcessor (8 tests: stale jobs, expansion, discovery, scheduling, expiration) |
 | `__tests__/centrifugo.client.spec.ts` | Unit tests for CentrifugoClient (14 tests: publish, broadcast, retry, exponential backoff, error handling) |
 | `__tests__/onesignal.client.spec.ts` | Unit tests for OneSignalClient (12 tests: delivery, config validation, HTTP errors, network errors) |
 | `__tests__/offer-notification.service.spec.ts` | Unit tests for OfferNotificationService (8 tests: payload building, success/failure, error handling) |
@@ -181,6 +183,26 @@ The `OfferNotificationService` + `OneSignalClient` provide push notification del
   contents: { en: '...', es: '...' },
   data: { type: 'offer_new', offerId: '<uuid>' }
 }
+```
+
+## Radius Expansion Processor
+
+The `RadiusExpansionProcessor` is a BullMQ worker that progressively expands the search radius for an offer, discovering new Cleaners at each step.
+
+### Flow
+
+1. **Stale Job Guard**: Validates `offer.state` matches `expectedState` and `offer.expansionStepCount` matches `expectedStep`. Stale jobs complete silently.
+2. **Radius Calculation**: `newRadius = Math.min(currentRadius + EXPANSION_STEP_M, MAX_RADIUS_M)` via pure `calculateExpandedRadius()` function.
+3. **Cleaner Discovery**: Calls `CleanerDiscoveryInterface.findEligibleCleaners()` with expanded radius, excluding already-delivered cleaner IDs.
+4. **Delivery**: Triggers `DeliverySchedulerService.deliverToCleaners()` with discovered Cleaners.
+5. **Update**: Persists new radius + incremented step count via `OffersRepository.updateRadiusExpansion()`.
+6. **Next Job**: If `newRadius < MAX_RADIUS_M` → enqueue next expansion (delay: `EXPANSION_INTERVAL_MS`). If `newRadius >= MAX_RADIUS_M` → enqueue final-wait (delay: `FINAL_WAIT_MS`) with `isFinalWait: true`.
+7. **Final Wait Expiration**: If `isFinalWait` is true and offer is still PUBLISHED/ACTIVE → transition to EXPIRED, set `expired_at`, emit `OfferExpired` event.
+
+### Pure Function (Exported for Testing)
+
+```typescript
+calculateExpandedRadius(initialRadius, step, stepSize, maxRadius): number
 ```
 
 ## Delivery Scheduler

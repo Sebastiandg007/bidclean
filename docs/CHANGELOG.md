@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **RadiusExpansionProcessor implementation (api)** — Full BullMQ worker for progressive radius expansion (Spec 6 — Task 22)
+  - `@Processor(QUEUE_NAMES.RADIUS_EXPANSION)` extending `WorkerHost` from `@nestjs/bullmq`
+  - Stale job guard: validates offer state + expansion step count before processing (idempotent skip)
+  - `calculateExpandedRadius()` pure function: `Math.min(currentRadius + step * stepSize, maxRadius)`
+  - Expansion step flow: find offer → validate staleness → expand radius → get property location (PostGIS) → discover new Cleaners (excluding already-delivered) → deliver via DeliverySchedulerService → update offer radius + step count → schedule next job
+  - Final wait handling: `isFinalWait` flag in job payload triggers expiration flow
+  - Expiration: transitions to EXPIRED via OfferStateMachineService, sets expired_at, emits OfferExpired event
+  - Next job scheduling: enqueues expansion job (OFFER_EXPANSION_INTERVAL_MS) or final-wait job (OFFER_FINAL_WAIT_MS) based on whether max radius reached
+  - Property location via PostGIS: `ST_Y(location::geometry)` / `ST_X(location::geometry)`
+  - `isFinalWait` field added to `RadiusExpansionJobPayload` interface
+  - 8 unit tests covering stale jobs, expansion, discovery, exclusion, scheduling, and expiration
+  - Property 22.1: Radius Expansion Monotonicity (200 runs) — radius = min(initial + step * size, max), never exceeds max, monotonically non-decreasing
+  - Property 22.2: Stale Job Idempotency (200 runs) — mismatched state/step detected, processor skips without side effects
 - **OfferNotificationService + OneSignalClient implementation (api)** — OneSignal push notification service for offer delivery to offline Cleaners (Spec 6 — Task 21)
   - `OneSignalClient`: Injectable NestJS service wrapping OneSignal REST API
   - Sends push via HTTP POST to `/notifications` endpoint targeting by external user ID

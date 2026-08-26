@@ -10,6 +10,8 @@ export interface RadiusExpansionJobPayload {
   readonly expectedState: string;
   /** Expected expansion step index (stale job guard) */
   readonly expectedStep: number;
+  /** Whether this is the final wait job (triggers expiration if still active) */
+  readonly isFinalWait?: boolean;
 }
 
 /** Result of processing an expansion step */
