@@ -44,26 +44,26 @@ Implementation tasks for the Offer Publishing feature. Covers the NestJS backend
   - [x] 24.1. Write property test: Ownership Isolation — generate random (userId, offerId) pairs where host_id != userId, assert all mutations rejected with forbidden
   - [x] 24.2. Write property test: Offer List Filtering Correctness — generate random state filters + random offer sets, assert all returned items match filter and sorted DESC
   - [x] 24.3. Write property test: State Transition Audit Completeness — generate random valid transitions, assert offer_state_transitions record exists with correct from_state, to_state, triggered_by, non-null created_at
-- [ ] 25. Implement DTO files (CreateOfferDto with class-validator decorators, PublishOfferDto with favoritesFirst flag, OfferQueryDto with state filter + pagination, OfferResponseDto with price breakdown + state history, PriceBreakdownResponseDto for Host and Cleaner views)
-- [ ] 26. Implement OffersModule registration (register all providers, controllers, BullMQ queues, imports from shared modules, exports for cross-module contracts)
-  - [ ] 26.1. Write property test: State Transition Atomicity (Concurrency Safety) — simulate N concurrent transitions on same offer, assert exactly 1 succeeds and N-1 fail
-- [ ] 27. Create mobile offers screens folder structure with README (screens/, components/, types, constants, hooks, __tests__/)
-- [ ] 28. Implement offers.types.ts and offers.constants.ts for mobile (Offer interface, OfferState type, ServiceType type, CreateOfferDto, PriceBreakdown interface, screen route params)
-- [ ] 29. Implement useOffers Zustand store (createOffer with idempotency key, publishOffer with favoritesFirst, cancelOffer, fetchOffers with pagination + filter, fetchOfferDetail, getPriceBreakdown computed, handleOfferCancelled for real-time, optimistic updates)
-- [ ] 30. Implement PropertySelector component (fetches only offer-ready properties from API, displays property card with cover photo + name + city, single selection, empty state when no properties ready, links to create property)
-- [ ] 31. Implement ServiceTypePicker component (visual cards for each service type: standard, deep, move_in_out, post_construction, post_event, recurring — with icon and i18n label, single selection, accent border on selected)
-- [ ] 32. Implement DurationSelector component (numeric input or stepper with configurable min/max bounds from constants, shows hours:minutes format, validates on change)
-- [ ] 33. Implement PriceBreakdown component (accepts priceCents + role, shows offered price + fee/commission + total/payout, formats currency with locale, updates live as price input changes)
-- [ ] 34. Implement FavoritesToggle component (switch with i18n label, info tooltip explaining favorites-first delivery, disabled state when Host has no favorites)
-- [ ] 35. Implement CreateOfferScreen (multi-step form: Step 1 — PropertySelector; Step 2 — ServiceTypePicker + DurationSelector + date/time pickers + price input with live PriceBreakdown; Step 3 — optional description + review summary; step indicator, per-step validation, back navigation between steps)
-- [ ] 36. Implement OfferConfirmationScreen (full offer summary: property card, service details, date/time, price breakdown for Host, FavoritesToggle, "Publish Offer" CTA, "Save as Draft" secondary action, navigates back on cancel)
-- [ ] 37. Implement OfferCard component (property cover photo + name, service type badge, offered price + total cost, scheduled date/time, state badge with color coding per state, tap navigates to detail)
-- [ ] 38. Implement StateTimeline component (vertical timeline showing state transitions with timestamps, current state highlighted with accent color, uses state transition history from API)
-- [ ] 39. Implement RadiusProgress component (current radius display in km, next expansion countdown timer, visual progress bar showing current/max radius ratio, updates in real-time while ACTIVE)
-- [ ] 40. Implement OfferListScreen (tab-filtered list: Active, Completed, Expired, Cancelled; FlatList with OfferCard items, pull-to-refresh, pagination with infinite scroll, empty states per tab, FAB for "Create Offer")
-- [ ] 41. Implement OfferDetailScreen (property snapshot card, service details section, full price breakdown, state timeline, radius progress if ACTIVE, cancel button if DRAFT/PUBLISHED/ACTIVE with confirmation dialog, delivery count indicator)
-- [ ] 42. Create i18n translation files for offers module (en/offers.json, es/offers.json — all screen labels, form fields, service type names, state labels, error messages, validation messages, confirmation dialogs, empty states, price formatting, timer labels)
-- [ ] 43. Register offers screens in HostNavigator (add Offers tab or stack screens: OfferList, CreateOffer, OfferConfirmation, OfferDetail)
+- [x] 25. Implement DTO files (CreateOfferDto with class-validator decorators, PublishOfferDto with favoritesFirst flag, OfferQueryDto with state filter + pagination, OfferResponseDto with price breakdown + state history, PriceBreakdownResponseDto for Host and Cleaner views)
+- [x] 26. Implement OffersModule registration (register all providers, controllers, BullMQ queues, imports from shared modules, exports for cross-module contracts)
+  - [x] 26.1. Write property test: State Transition Atomicity (Concurrency Safety) — simulate N concurrent transitions on same offer, assert exactly 1 succeeds and N-1 fail
+- [x] 27. Create mobile offers screens folder structure with README (screens/, components/, types, constants, hooks, __tests__/)
+- [x] 28. Implement offers.types.ts and offers.constants.ts for mobile (Offer interface, OfferState type, ServiceType type, CreateOfferDto, PriceBreakdown interface, screen route params)
+- [x] 29. Implement useOffers Zustand store (createOffer with idempotency key, publishOffer with favoritesFirst, cancelOffer, fetchOffers with pagination + filter, fetchOfferDetail, getPriceBreakdown computed, handleOfferCancelled for real-time, optimistic updates)
+- [x] 30. Implement PropertySelector component (fetches only offer-ready properties from API, displays property card with cover photo + name + city, single selection, empty state when no properties ready, links to create property)
+- [x] 31. Implement ServiceTypePicker component (visual cards for each service type: standard, deep, move_in_out, post_construction, post_event, recurring — with icon and i18n label, single selection, accent border on selected)
+- [x] 32. Implement DurationSelector component (numeric input or stepper with configurable min/max bounds from constants, shows hours:minutes format, validates on change)
+- [x] 33. Implement PriceBreakdown component (accepts priceCents + role, shows offered price + fee/commission + total/payout, formats currency with locale, updates live as price input changes)
+- [x] 34. Implement FavoritesToggle component (switch with i18n label, info tooltip explaining favorites-first delivery, disabled state when Host has no favorites)
+- [x] 35. Implement CreateOfferScreen (multi-step form: Step 1 — PropertySelector; Step 2 — ServiceTypePicker + DurationSelector + date/time pickers + price input with live PriceBreakdown; Step 3 — optional description + review summary; step indicator, per-step validation, back navigation between steps)
+- [x] 36. Implement OfferConfirmationScreen (full offer summary: property card, service details, date/time, price breakdown for Host, FavoritesToggle, "Publish Offer" CTA, "Save as Draft" secondary action, navigates back on cancel)
+- [x] 37. Implement OfferCard component (property cover photo + name, service type badge, offered price + total cost, scheduled date/time, state badge with color coding per state, tap navigates to detail)
+- [x] 38. Implement StateTimeline component (vertical timeline showing state transitions with timestamps, current state highlighted with accent color, uses state transition history from API)
+- [x] 39. Implement RadiusProgress component (current radius display in km, next expansion countdown timer, visual progress bar showing current/max radius ratio, updates in real-time while ACTIVE)
+- [x] 40. Implement OfferListScreen (tab-filtered list: Active, Completed, Expired, Cancelled; FlatList with OfferCard items, pull-to-refresh, pagination with infinite scroll, empty states per tab, FAB for "Create Offer")
+- [x] 41. Implement OfferDetailScreen (property snapshot card, service details section, full price breakdown, state timeline, radius progress if ACTIVE, cancel button if DRAFT/PUBLISHED/ACTIVE with confirmation dialog, delivery count indicator)
+- [x] 42. Create i18n translation files for offers module (en/offers.json, es/offers.json — all screen labels, form fields, service type names, state labels, error messages, validation messages, confirmation dialogs, empty states, price formatting, timer labels)
+- [x] 43. Register offers screens in HostNavigator (add Offers tab or stack screens: OfferList, CreateOffer, OfferConfirmation, OfferDetail)
 
 ## Task Dependency Graph
 
