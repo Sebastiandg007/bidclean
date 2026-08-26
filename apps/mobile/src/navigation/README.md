@@ -9,7 +9,7 @@ Role-based navigation layer for BidClean. After authentication and onboarding, t
 | File | Responsibility |
 |------|---------------|
 | `RoleBasedNavigator.tsx` | Root router — reads active role from store and renders the correct navigator |
-| `HostNavigator.tsx` | Host custom tab navigator: Home, Properties, Activity, Profile (fully implemented) |
+| `HostNavigator.tsx` | Host custom tab navigator: Home, Properties, Offers, Profile (fully implemented) |
 | `CleanerNavigator.tsx` | Cleaner custom tab navigator: Radar, Active, Profile (fully implemented) |
 
 ## Architecture
@@ -27,13 +27,17 @@ RoleBasedNavigator
 HostNavigator
 ├── Screen Area (renders active tab's screen content)
 │   ├── HomeScreen (placeholder)
-│   ├── PropertiesScreen (placeholder)
-│   ├── ActivityScreen (placeholder)
+│   ├── PropertiesScreen (PropertyListScreen)
+│   ├── OffersScreen (OffersStackNavigator — local stack)
+│   │   ├── OfferListScreen (default/root)
+│   │   ├── CreateOfferScreen (push)
+│   │   ├── OfferConfirmationScreen (push)
+│   │   └── OfferDetailScreen (push)
 │   └── ProfileScreen (placeholder + RoleSwitchButton)
 └── HostTabBar (custom bottom tab bar)
     ├── Home tab
     ├── Properties tab
-    ├── Activity tab
+    ├── Offers tab
     └── Profile tab
 ```
 
@@ -82,7 +86,7 @@ CleanerNavigator
 ### HostNavigator
 - `host-navigator` — Root container
 - `host-tab-bar` — Bottom tab bar
-- `host-tab-{key}` — Individual tab buttons (home, properties, activity, profile)
+- `host-tab-{key}` — Individual tab buttons (home, properties, offers, profile)
 - `host-screen-{key}` — Tab screen containers
 
 ### CleanerNavigator

@@ -117,7 +117,7 @@ describe('RoleBasedNavigator', () => {
       expect(screen.getByTestId('host-tab-bar')).toBeTruthy();
       expect(screen.getByTestId('host-tab-home')).toBeTruthy();
       expect(screen.getByTestId('host-tab-properties')).toBeTruthy();
-      expect(screen.getByTestId('host-tab-activity')).toBeTruthy();
+      expect(screen.getByTestId('host-tab-offers')).toBeTruthy();
       expect(screen.getByTestId('host-tab-profile')).toBeTruthy();
     });
 
@@ -162,7 +162,7 @@ describe('RoleBasedNavigator', () => {
       expect(screen.queryByTestId('host-tab-bar')).toBeNull();
       expect(screen.queryByTestId('host-tab-home')).toBeNull();
       expect(screen.queryByTestId('host-tab-properties')).toBeNull();
-      expect(screen.queryByTestId('host-tab-activity')).toBeNull();
+      expect(screen.queryByTestId('host-tab-offers')).toBeNull();
       expect(screen.queryByTestId('host-tab-profile')).toBeNull();
     });
   });
@@ -267,7 +267,7 @@ describe('RoleBasedNavigator', () => {
       // Host tabs are present
       expect(screen.getByTestId('host-tab-home')).toBeTruthy();
       expect(screen.getByTestId('host-tab-properties')).toBeTruthy();
-      expect(screen.getByTestId('host-tab-activity')).toBeTruthy();
+      expect(screen.getByTestId('host-tab-offers')).toBeTruthy();
       expect(screen.getByTestId('host-tab-profile')).toBeTruthy();
 
       // Cleaner tabs are never visible
@@ -293,7 +293,7 @@ describe('RoleBasedNavigator', () => {
       // Host tabs are never visible
       expect(screen.queryByTestId('host-tab-home')).toBeNull();
       expect(screen.queryByTestId('host-tab-properties')).toBeNull();
-      expect(screen.queryByTestId('host-tab-activity')).toBeNull();
+      expect(screen.queryByTestId('host-tab-offers')).toBeNull();
       expect(screen.queryByTestId('host-tab-profile')).toBeNull();
     });
   });

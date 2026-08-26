@@ -1,14 +1,15 @@
 /**
  * HostNavigator — Custom bottom tab navigation for the Host experience.
  *
- * Provides 4 tabs: Home, Properties, Activity, Profile.
+ * Provides 4 tabs: Home, Properties, Offers, Profile.
  * Built with React Native primitives and react-native-reanimated for animations.
+ * The Offers tab uses a local stack navigator for screen transitions.
  *
  * REQ-4: Host mode shows ONLY Host functionality.
  * REQ-5: Profile tab contains the role switch option.
  */
 
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
@@ -18,6 +19,11 @@ import Animated, {
 import { useTranslation } from 'react-i18next';
 import RoleSwitchButton from '../screens/roles/RoleSwitchButton';
 import { PropertyListScreen } from '../screens/properties/PropertyListScreen';
+import { OfferListScreen } from '../screens/offers/OfferListScreen';
+import { CreateOfferScreen } from '../screens/offers/CreateOfferScreen';
+import { OfferConfirmationScreen } from '../screens/offers/OfferConfirmationScreen';
+import { OfferDetailScreen } from '../screens/offers/OfferDetailScreen';
+import { OFFER_ROUTES } from '../screens/offers/offers.constants';
 
 // ─── Design Tokens ───────────────────────────────────────────────────────────
 
@@ -51,6 +57,22 @@ const SPRING_CONFIG = {
   stiffness: 150,
   mass: 0.5,
 } as const;
+
+// ─── Local Stack Navigator Types ─────────────────────────────────────────────
+
+interface StackEntry {
+  screen: string;
+  params?: Record<string, unknown>;
+}
+
+interface StackNavigation {
+  navigate: (screen: string, params?: Record<string, unknown>) => void;
+  goBack: () => void;
+}
+
+interface StackRoute {
+  params?: Record<string, unknown>;
+}
 
 // ─── Tab Definitions ─────────────────────────────────────────────────────────
 
@@ -87,12 +109,12 @@ const HOST_TABS: TabDefinition[] = [
     a11yDefault: 'Properties tab',
   },
   {
-    key: 'activity',
-    labelKey: 'navigation.host.tabs.activity',
-    defaultLabel: 'Activity',
+    key: 'offers',
+    labelKey: 'navigation.host.tabs.offers',
+    defaultLabel: 'Offers',
     icon: '📋',
-    a11yKey: 'navigation.host.tabs.activity.a11y',
-    a11yDefault: 'Activity tab',
+    a11yKey: 'navigation.host.tabs.offers.a11y',
+    a11yDefault: 'Offers tab',
   },
   {
     key: 'profile',
@@ -106,11 +128,62 @@ const HOST_TABS: TabDefinition[] = [
 
 const DEFAULT_TAB_INDEX = 0;
 
+// ─── Offers Stack Navigator ──────────────────────────────────────────────────
+
+/**
+ * Lightweight local stack navigator for the Offers tab.
+ *
+ * Tracks a stack of screens + params. Provides navigate/goBack
+ * to child screens without React Navigation dependency.
+ */
+function OffersStackNavigator() {
+  const [stack, setStack] = useState<StackEntry[]>([
+    { screen: OFFER_ROUTES.OfferList },
+  ]);
+
+  const navigation: StackNavigation = useMemo(
+    () => ({
+      navigate: (screen: string, params?: Record<string, unknown>) => {
+        setStack((prev) => [...prev, { screen, params }]);
+      },
+      goBack: () => {
+        setStack((prev) => (prev.length > 1 ? prev.slice(0, -1) : prev));
+      },
+    }),
+    [],
+  );
+
+  const currentEntry = stack[stack.length - 1] as StackEntry;
+  const route: StackRoute = { params: currentEntry.params };
+
+  switch (currentEntry.screen) {
+    case OFFER_ROUTES.OfferList:
+      return <OfferListScreen navigation={navigation} />;
+
+    case OFFER_ROUTES.CreateOffer:
+      return <CreateOfferScreen navigation={navigation} />;
+
+    case OFFER_ROUTES.OfferConfirmation:
+      return (
+        <OfferConfirmationScreen navigation={navigation} route={route as { params: { offerId: string } }} />
+      );
+
+    case OFFER_ROUTES.OfferDetail:
+      return (
+        <OfferDetailScreen navigation={navigation} route={route as { params: { offerId: string } }} />
+      );
+
+    default:
+      return <OfferListScreen navigation={navigation} />;
+  }
+}
+
 // ─── Tab Screen Placeholders ─────────────────────────────────────────────────
 
 /**
  * Renders the active screen for the current tab.
- * Properties tab uses PropertyListScreen; others show placeholder.
+ * Properties tab uses PropertyListScreen.
+ * Offers tab uses the local stack navigator.
  * Profile tab includes the RoleSwitchButton (REQ-5).
  */
 function TabScreen({ tabKey, label }: { tabKey: string; label: string }) {
@@ -118,6 +191,10 @@ function TabScreen({ tabKey, label }: { tabKey: string; label: string }) {
 
   if (tabKey === 'properties') {
     return <PropertyListScreen />;
+  }
+
+  if (tabKey === 'offers') {
+    return <OffersStackNavigator />;
   }
 
   return (
@@ -218,10 +295,11 @@ function HostTabBar({ activeIndex, onTabPress }: TabBarProps) {
 // ─── Main Component ──────────────────────────────────────────────────────────
 
 /**
- * Host tab navigator with 4 tabs: Home, Properties, Activity, Profile.
+ * Host tab navigator with 4 tabs: Home, Properties, Offers, Profile.
  *
  * Uses a custom bottom tab bar built with React Native primitives.
  * Tab switching is animated with react-native-reanimated spring physics.
+ * The Offers tab contains a local stack navigator for offer screens.
  */
 export default function HostNavigator() {
   const [activeIndex, setActiveIndex] = useState(DEFAULT_TAB_INDEX);

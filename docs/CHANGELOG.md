@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Offers tab in HostNavigator (mobile)** — Replaced Activity tab with Offers (Spec 6 — Task 43)
+  - Renamed Activity tab to Offers (key: 'offers', icon: '📋', i18n: 'navigation.host.tabs.offers')
+  - Implemented lightweight local stack navigator within the Offers tab
+  - Stack handles OfferList (root), CreateOffer, OfferConfirmation, OfferDetail screens
+  - Provides navigation.navigate(screen, params) and navigation.goBack() to child screens
+  - Matches project's custom navigation pattern — no React Navigation dependency
+  - Updated existing RoleBasedNavigator tests to reference new tab key
 - **OfferListScreen (mobile)** — Tab-filtered offer list with infinite scroll and FAB (Spec 6 — Task 40)
   - Tab bar with state filters: Active, Completed, Expired, Cancelled
   - Active tab highlighted with accent underline indicator
