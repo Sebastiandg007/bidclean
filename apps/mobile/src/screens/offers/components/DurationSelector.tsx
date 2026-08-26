@@ -12,9 +12,9 @@ import { useTranslation } from 'react-i18next';
 import {
   COLORS,
   FONT_SIZE,
-  MIN_DURATION_MINUTES,
-  MAX_DURATION_MINUTES,
-  DURATION_STEP_MINUTES,
+  OFFER_MIN_DURATION_MINUTES,
+  OFFER_MAX_DURATION_MINUTES,
+  OFFER_DURATION_STEP_MINUTES,
   SPACING,
 } from '../offers.constants';
 
@@ -57,9 +57,9 @@ function clamp(value: number, min: number, max: number): number {
 export function DurationSelector({
   value,
   onChange,
-  min = MIN_DURATION_MINUTES,
-  max = MAX_DURATION_MINUTES,
-  step = DURATION_STEP_MINUTES,
+  min = OFFER_MIN_DURATION_MINUTES,
+  max = OFFER_MAX_DURATION_MINUTES,
+  step = OFFER_DURATION_STEP_MINUTES,
 }: DurationSelectorProps) {
   const { t } = useTranslation('offers');
 

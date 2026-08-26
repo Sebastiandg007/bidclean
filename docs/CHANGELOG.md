@@ -28,6 +28,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Accessible: cards have `accessibilityRole="button"`, `accessibilityState={{ selected }}`, and translated labels
   - BidClean design system: dark card background, border highlight on selection, accent text on selected
   - Also populated `offers.constants.ts` with SERVICE_TYPES config, design tokens, state colors, validation limits
+- **DurationSelector component (mobile)** — Numeric stepper for selecting offer duration with hours:minutes format (Spec 6 — Task 32)
+  - Stepper UI with decrement (−) / value display / increment (+) buttons
+  - Displays duration in "Xh Ym" format (e.g., "2h 30m")
+  - Configurable min/max/step from environment-backed constants (default: 30 min to 480 min, step 30)
+  - Validates on change: clamps to min/max bounds
+  - Disables − button at minimum, + button at maximum
+  - Props: `value`, `onChange(minutes)`, optional `min`, `max`, `step`
+  - Accessible: buttons have accessibilityLabel, accessibilityRole, accessibilityState
+  - BidClean design system: dark card background, accent-colored stepper buttons
+  - All text via i18n keys (`offers.duration.*`)
+  - Added `OFFER_DURATION_STEP_MINUTES` constant to offers.constants.ts
 - **useOffers Zustand store (mobile)** — Full state management for offers CRUD, pagination, real-time sync (Spec 6 — Task 29)
   - `useOffersStore` with Zustand `create`: offers array, selectedOffer, priceBreakdown, loading flags, error, pagination (page, totalPages, hasMore), filter state
   - `createOffer(payload)`: POST /offers with auto-generated Idempotency-Key header via expo-crypto, returns offer ID or null on error

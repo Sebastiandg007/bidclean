@@ -60,6 +60,11 @@ export const OFFER_MAX_DURATION_MINUTES = Number(
   process.env.EXPO_PUBLIC_OFFER_MAX_DURATION_MINUTES ?? '480',
 );
 
+/** Default step increment for duration selector in minutes (from env, default 30) */
+export const OFFER_DURATION_STEP_MINUTES = Number(
+  process.env.EXPO_PUBLIC_OFFER_DURATION_STEP_MINUTES ?? '30',
+);
+
 // ─── Pagination ──────────────────────────────────────────────────────────────
 
 export const OFFERS_PAGE_SIZE = Number(
