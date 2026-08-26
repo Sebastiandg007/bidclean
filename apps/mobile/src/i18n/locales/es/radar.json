@@ -1,0 +1,71 @@
+{
+  "location": {
+    "permissionTitle": "Ubicación Requerida",
+    "permissionExplanation": "BidClean usa tu ubicación para centrar el mapa, mostrar ofertas cercanas y mostrar tu posición. Tu GPS nunca se usa para decidir qué ofertas ves — eso se basa en tu zona de trabajo.",
+    "permissionDeniedTitle": "Acceso a Ubicación Denegado",
+    "permissionDeniedMessage": "Sin acceso a ubicación, el mapa no puede mostrar tu posición ni calcular distancias a las ofertas. Tu GPS solo se usa para la visualización — nunca afecta qué ofertas recibes.",
+    "openSettingsButton": "Abrir Ajustes",
+    "requestButton": "Permitir Ubicación",
+    "privacyNote": "Tu ubicación GPS nunca se almacena ni se comparte con otros usuarios."
+  },
+  "filter": {
+    "title": "Filtros",
+    "clearAll": "Limpiar todo",
+    "apply": "Aplicar",
+    "serviceType": {
+      "label": "Tipo de Servicio",
+      "standard": "Estándar",
+      "deep": "Limpieza Profunda",
+      "moveInOut": "Entrada/Salida",
+      "postConstruction": "Post Construcción",
+      "postEvent": "Post Evento",
+      "recurring": "Recurrente"
+    },
+    "priceRange": {
+      "label": "Rango de Precio",
+      "min": "Mín",
+      "max": "Máx"
+    },
+    "distance": {
+      "label": "Distancia Máxima",
+      "km": "{{value}} km",
+      "miles": "{{value}} mi"
+    },
+    "dateRange": {
+      "label": "Fecha Programada",
+      "today": "Hoy",
+      "tomorrow": "Mañana",
+      "thisWeek": "Esta Semana",
+      "custom": "Personalizado"
+    }
+  },
+  "empty": {
+    "noOffers": "No hay ofertas disponibles ahora",
+    "noOffersSuggestion": "Intenta expandir tu zona de trabajo para ver más ofertas.",
+    "expandWorkZone": "Expandir Zona de Trabajo",
+    "noMatchingOffers": "Ninguna oferta coincide con tus filtros",
+    "clearFilters": "Limpiar Filtros"
+  },
+  "connectivity": {
+    "offline": "Sin conexión — datos pueden estar desactualizados",
+    "reconnecting": "Reconectando...",
+    "liveUpdatesPaused": "Actualizaciones en vivo pausadas"
+  },
+  "viewToggle": {
+    "map": "Mapa",
+    "list": "Lista"
+  },
+  "adSlot": {
+    "sponsored": "Patrocinado",
+    "placeholder": "Contenido publicitario",
+    "a11yLabel": "Anuncio patrocinado"
+  },
+  "preview": {
+    "viewDetails": "Ver Detalles Completos",
+    "quickAccept": "Aceptar Rápido",
+    "quickAcceptDisabled": "Conéctate para aceptar ofertas",
+    "distance": "a {{value}}",
+    "duration": "{{value}} min",
+    "scheduledAt": "Programado para {{date}}"
+  }
+}

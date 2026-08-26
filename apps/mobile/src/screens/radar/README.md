@@ -22,6 +22,7 @@ Cleaner Navigator — Radar Tab
 | `radar.api.ts` | HTTP client for `/offers/available` (paginated + filtered) and `/offers/available/snapshot` (full reconciliation) |
 | `useRadarStore.ts` | Zustand store — offers Map, filters, sort, view mode, pagination, WebSocket handlers (idempotent), REST reconciliation, computed GeoJSON selectors |
 | `useCentrifugoChannel.ts` | WebSocket hook — Centrifugo channel subscription, event parsing, exponential backoff reconnection, fallback signaling, and reconciliation trigger |
+| `hooks/useAdVisibility.ts` | Entitlement hook for ad slot visibility — checks RevenueCat `ad_free` entitlement to determine if ads should be shown (free-tier users see ads, PRO users don't) |
 | `hooks/useRadarReconciliation.ts` | Orchestrates reconciliation lifecycle — wires Centrifugo callbacks to Zustand store, starts REST polling fallback after 3+ WS failures, stops polling on WS recovery, enforces mutual exclusivity (max 5s overlap) |
 | `components/map/mapStyles.ts` | Mapbox GL expression-based styles for offer pins (icon, color, opacity, price label), cluster circles (radius, color, count), work zone ring, and filter/source configuration |
 
@@ -30,13 +31,15 @@ Cleaner Navigator — Radar Tab
 | File | Responsibility |
 |------|---------------|
 | `components/map/mapStyles.ts` | Mapbox GL expressions for pin styling (icon mapping, color, opacity, price labels, cluster sizing/color, work zone, filter expressions) |
+| `components/list/OfferCard.tsx` | Radar list item: property photo thumbnail, name, type, city, service type badge, Cleaner payout (locale-formatted), distance (km), scheduled date/time (offer timezone), urgency dot indicator, accessible labels |
+| `components/list/AdSlot.tsx` | Placeholder component for sponsored ad content in the offer list — renders "Sponsored" label + placeholder area for free-tier Cleaners; visibility controlled via RevenueCat `ad_free` entitlement |
+| `useLocationPermission.ts` | Location permission request (expo-location), GPS tracking with battery-aware accuracy (high fg / balanced bg), AppState transitions, open settings fallback, i18n explanation text |
 
 ## Planned Files (from spec)
 
 | File | Responsibility |
 |------|---------------|
 | `RadarScreen.tsx` | Main container — map + list toggle, connection status |
-| `useLocationPermission.ts` | Permission request + fallback |
 | `components/map/RadarMapView.tsx` | Mapbox MapView + layers + gesture handling |
 | `components/map/OfferPinsLayer.tsx` | SymbolLayer + GeoJSON source for offers |
 | `components/map/ClusterLayer.tsx` | Cluster circle + count badge |
@@ -44,7 +47,6 @@ Cleaner Navigator — Radar Tab
 | `components/map/WorkZoneCircle.tsx` | Semi-transparent radius ring |
 | `components/list/OfferListView.tsx` | FlatList with infinite scroll + pull-refresh |
 | `components/list/OfferCard.tsx` | List item: photo, price, distance, badge |
-| `components/list/AdSlot.tsx` | Ad placeholder for free-tier Cleaners |
 | `components/filters/FilterPanel.tsx` | Bottom sheet container |
 | `components/OfferPreviewSheet.tsx` | Bottom sheet on pin tap |
 | `components/EmptyState.tsx` | No offers / no matching filters |
@@ -58,6 +60,7 @@ Cleaner Navigator — Radar Tab
 - `zustand` — Radar state management (useRadarStore)
 - `centrifuge-js` — Centrifugo WebSocket client
 - `expo-location` — Location permission + coordinates
+- `react-native-purchases` (RevenueCat) — Entitlement checks for ad visibility
 - Offers types (`../offers/offers.types.ts`) — ServiceType reused
 
 ## API Endpoints Used

@@ -8,6 +8,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **useLocationPermission hook (mobile/radar)** — Location permission and GPS tracking for Offer Radar (Spec 7 — Task 13.1)
+  - Foreground location permission request via expo-location (`requestForegroundPermissionsAsync`)
+  - Battery-aware GPS tracking: Accuracy.High when foregrounded, Accuracy.Balanced when backgrounded
+  - AppState listener for automatic accuracy switching on foreground/background transitions
+  - Permission status tracking: granted / denied / undetermined
+  - Fallback state: `openSettings()` function for users who denied permission
+  - GPS used ONLY for map centering, distance display, and position marker (never for offer eligibility)
+  - GPS NEVER persisted by backend — memory only for display
+  - i18n keys for permission explanation text (EN + ES) with privacy note
+  - Added `expo-location` dependency to mobile package.json
+- **OfferCard component (mobile/radar)** — Radar list item for available offers (Spec 7 — Task 9.1)
+  - Property cover photo thumbnail with placeholder fallback
+  - Property name, type, and city display
+  - Service type badge with accent styling
+  - Cleaner payout price (locale-formatted via Intl.NumberFormat)
+  - Distance display in km (meters → km conversion)
+  - Scheduled date/time converted to offer timezone
+  - Urgency dot indicator for offers within 2 hours
+  - Tap handler navigates to OfferDetail screen with offerId
+  - Accessible labels (price + service type + distance)
+  - i18n keys added for EN + ES (radar namespace)
 - **mapStyles.ts (mobile)** — Mapbox GL expression configuration for Offer Radar map layers (Spec 7 — Task 7.6)
   - Icon image mapping: `match` expression mapping `serviceType` to custom pin icon asset names
   - Pin color expressions: data-driven color (urgent = accent #00F5D4, normal = white)
