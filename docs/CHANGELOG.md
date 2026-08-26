@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **OffersModule registration verified (api)** — Confirmed complete NestJS module registration with all providers, controllers, BullMQ queues, imports, and cross-module exports (Spec 6 — Task 26)
+  - Property test: State Transition Atomicity (Concurrency Safety) — verifies exactly 1 of N concurrent transitions succeeds
 - **PropertySelector component (mobile)** — Fetches offer-ready properties and displays selectable cards in offer creation flow (Spec 6 — Task 30)
   - Fetches only offer-ready properties from API (GET /properties?offerReady=true placeholder)
   - Each property card shows: cover photo (Image), property name (Text), city (Text)

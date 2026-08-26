@@ -3,5 +3,69 @@
     "label": "Duration",
     "decrease": "Decrease duration",
     "increase": "Increase duration"
+  },
+  "priceBreakdown": {
+    "offeredPrice": "Offered price",
+    "serviceFee": "Service fee (10%)",
+    "commission": "Commission (3%)",
+    "totalToPay": "Total to pay",
+    "netPayout": "Net payout",
+    "a11y": {
+      "hostBreakdown": "Price breakdown: offered price {{price}}, plus service fee {{fee}}, total to pay {{total}}",
+      "cleanerBreakdown": "Price breakdown: offered price {{price}}, minus commission {{commission}}, net payout {{payout}}"
+    }
+  },
+  "createOffer": {
+    "title": "Create Offer",
+    "stepIndicator": "Step {{current}} of {{total}}",
+    "step1": {
+      "title": "Select Property",
+      "subtitle": "Choose a property for your cleaning offer"
+    },
+    "step2": {
+      "title": "Service Details",
+      "subtitle": "Configure service type, schedule, and price",
+      "serviceTypeLabel": "Service Type",
+      "scheduledDateLabel": "Date",
+      "scheduledTimeLabel": "Time",
+      "priceLabel": "Price (cents)",
+      "pricePlaceholder": "e.g. 5000 = $50.00",
+      "priceHelper": "Enter price in cents"
+    },
+    "step3": {
+      "title": "Review & Description",
+      "subtitle": "Add an optional description and review your offer",
+      "descriptionLabel": "Description (optional)",
+      "descriptionPlaceholder": "Any special instructions or notes for the cleaner...",
+      "reviewTitle": "Offer Summary",
+      "propertyLabel": "Property",
+      "serviceTypeLabel": "Service Type",
+      "durationLabel": "Duration",
+      "dateLabel": "Scheduled Date",
+      "timeLabel": "Scheduled Time",
+      "priceLabel": "Offered Price"
+    },
+    "next": "Next",
+    "back": "Back",
+    "submit": "Create Offer",
+    "submitting": "Creating...",
+    "validation": {
+      "propertyRequired": "Please select a property",
+      "serviceTypeRequired": "Please select a service type",
+      "durationRequired": "Please set a duration",
+      "dateRequired": "Please select a date",
+      "timeRequired": "Please select a time",
+      "priceRequired": "Please enter a price",
+      "pricePositive": "Price must be greater than 0"
+    }
+  },
+  "serviceType": {
+    "picker_a11y": "Service type selection",
+    "standard": "Standard",
+    "deep": "Deep Clean",
+    "move_in_out": "Move In/Out",
+    "post_construction": "Post Construction",
+    "post_event": "Post Event",
+    "recurring": "Recurring"
   }
 }

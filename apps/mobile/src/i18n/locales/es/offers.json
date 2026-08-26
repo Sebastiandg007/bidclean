@@ -3,5 +3,21 @@
     "label": "Duración",
     "decrease": "Disminuir duración",
     "increase": "Aumentar duración"
+  },
+  "favorites": {
+    "toggle_label": "Enviar a favoritos primero",
+    "info_tooltip": "Tus Cleaners favoritos recibirán esta oferta primero. Si ninguno acepta dentro de la ventana de favoritos, se enviará a Cleaners PRO y luego FREE.",
+    "no_favorites": "Sin favoritos aún — agrega Cleaners a favoritos para habilitar esta opción"
+  },
+  "priceBreakdown": {
+    "offeredPrice": "Precio ofrecido",
+    "serviceFee": "Tarifa de servicio (10%)",
+    "commission": "Comisión (3%)",
+    "totalToPay": "Total a pagar",
+    "netPayout": "Pago neto",
+    "a11y": {
+      "hostBreakdown": "Desglose de precio: precio ofrecido {{price}}, más tarifa de servicio {{fee}}, total a pagar {{total}}",
+      "cleanerBreakdown": "Desglose de precio: precio ofrecido {{price}}, menos comisión {{commission}}, pago neto {{payout}}"
+    }
   }
 }
