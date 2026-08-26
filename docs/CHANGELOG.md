@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **PropertySelector component (mobile)** — Fetches offer-ready properties and displays selectable cards in offer creation flow (Spec 6 — Task 30)
+  - Fetches only offer-ready properties from API (GET /properties?offerReady=true placeholder)
+  - Each property card shows: cover photo (Image), property name (Text), city (Text)
+  - Single selection with accent border (#00F5D4) highlight and checkmark indicator
+  - Loading state with ActivityIndicator while fetching
+  - Empty state: "No properties ready for offers" message + "Create Property" link/button
+  - Props: `onSelect(propertyId: string)`, `selectedPropertyId?`, `onCreateProperty?`
+  - Uses React Native core components (View, Text, Image, FlatList, TouchableOpacity, ActivityIndicator)
+  - BidClean design system: dark background, card background, accent highlight
+  - All text via i18n keys (`offers.propertySelector.*`)
+  - Full TypeScript types for props and OfferReadyProperty data interface
+  - Accessible: accessibilityRole, accessibilityState, accessibilityLabel on cards
 - **ServiceTypePicker component (mobile)** — Visual card grid for service type selection in offer creation flow (Spec 6 — Task 31)
   - 6 service types displayed in a 2-column grid: standard, deep, move_in_out, post_construction, post_event, recurring
   - Each card shows emoji icon + i18n-translated label from `offers.serviceType.*` keys

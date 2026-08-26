@@ -8,7 +8,7 @@ Reusable UI components for the offers screens module. Each component encapsulate
 
 | File | Responsibility | Status |
 |------|---------------|--------|
-| `PropertySelector.tsx` | Fetches offer-ready properties, displays property cards with cover photo + name + city, single selection, empty state when no properties ready | Planned |
+| `PropertySelector.tsx` | Fetches offer-ready properties, displays property cards with cover photo + name + city, single selection, empty state when no properties ready | ✅ Implemented |
 | `ServiceTypePicker.tsx` | Visual cards for each service type (standard, deep, move_in_out, post_construction, post_event, recurring) with icon and i18n label, single selection, accent border on selected | ✅ Implemented |
 | `DurationSelector.tsx` | Numeric stepper with configurable min/max bounds, displays hours:minutes format, validates on change | Planned |
 | `PriceBreakdown.tsx` | Accepts priceCents + role, shows offered price + fee/commission + total/payout, formats currency with locale, updates live | Planned |
