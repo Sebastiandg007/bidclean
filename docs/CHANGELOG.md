@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **OfferConfirmationScreen (mobile)** — Full offer summary screen before publishing (Spec 6 — Task 36)
+  - Property card with cover photo, name, and city from snapshot
+  - Service type badge with icon and i18n label
+  - Scheduled date/time formatted for locale via Intl.DateTimeFormat
+  - Duration display in hours:minutes format
+  - Price breakdown for Host (offered price + fee + total) via PriceBreakdown component
+  - FavoritesToggle component for favorites-first delivery option
+  - "Publish Offer" CTA button (accent color, calls publishOffer with loading state)
+  - "Save as Draft" secondary text button (navigates back to OfferList)
+  - Back button for cancel navigation
+  - Loading state with ActivityIndicator while fetching offer detail
+  - Error handling with Alert dialog on publish failure
+  - Full accessibility: roles, labels, states on all interactive elements
+  - All text via i18n keys (offers.confirmation.*), translations added for EN + ES
+  - BidClean design system: dark background, card surfaces, accent CTA
 - **RadiusProgress component (mobile)** — Real-time radius expansion progress display (Spec 6 — Task 39)
   - Current radius formatted as km (1 decimal) with accent color highlight
   - Horizontal progress bar showing current/max radius ratio with accent gradient fill
