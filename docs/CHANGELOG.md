@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **AvailableOffersService (api)** — Business logic layer for Cleaner's available offers (Spec 7 — Task 1.3)
+  - Maps raw PostGIS query rows to privacy-safe AvailableOfferDto response shape
+  - Builds internal filter parameters from validated query DTO + authenticated Cleaner ID
+  - Computes `isUrgent` flag: `scheduledAt <= NOW() + 2 hours` at query time
+  - Computes pagination metadata (page, limit, total, totalPages)
+  - Snapshot endpoint: returns full unpaginated offer set with `syncedAt` server timestamp
+  - Rate limiting for snapshot: max 1 request per 30 seconds per Cleaner (in-memory tracker, 429 on violation)
+  - Privacy guarantee: no private fields (street, postal code, exact coordinates) leak into response
 - **useCentrifugoChannel hook (mobile)** — Real-time WebSocket subscription for Offer Radar (Spec 7 — Task 4.1)
   - Subscribes to Centrifugo personal channel `offers:cleaner:{cleanerId}` on mount
   - Parses `offer_new` events → dispatches to store `handleOfferNew` (upsert)
