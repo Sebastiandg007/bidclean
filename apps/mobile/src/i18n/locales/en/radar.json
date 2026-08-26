@@ -67,5 +67,17 @@
     "distance": "{{value}} away",
     "duration": "{{value}} min",
     "scheduledAt": "Scheduled for {{date}}"
+  },
+  "offerCard": {
+    "serviceType": {
+      "standard": "Standard",
+      "deep": "Deep Clean",
+      "move_in_out": "Move In/Out",
+      "post_construction": "Post Construction",
+      "post_event": "Post Event",
+      "recurring": "Recurring"
+    },
+    "urgentLabel": "Urgent offer",
+    "a11yLabel": "{{service}} offer for {{price}}, {{distance}} away"
   }
 }

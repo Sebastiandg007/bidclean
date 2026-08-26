@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **OfflineBanner component (mobile/radar)** — Persistent connectivity indicator that shows offline/reconnecting/polling-fallback status with animated slide-in/out transitions; reads connectionStatus from useRadarStore, hides automatically when connected; accessibility support with `alert` role and `polite` live region
 - **Radar Filter Panel components (mobile/radar)** — Full filter bottom sheet for the Offer Radar (Spec 7 — Tasks 10.1–10.5)
   - `FilterPanel.tsx` — Modal-based bottom sheet container with swipe-to-dismiss (PanResponder), header with "Clear all" action and active filter count badge, ScrollView rendering all filter sub-components
   - `ServiceTypeChips.tsx` — Multi-select chip UI for 6 service types (standard, deep, move_in_out, post_construction, post_event, recurring), toggle selection, accessibility roles/states, i18n labels

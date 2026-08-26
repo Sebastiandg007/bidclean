@@ -133,8 +133,8 @@ The Offer Radar is the Cleaner's primary interface for discovering cleaning offe
 - [~] 6. Checkpoint — Store and WebSocket logic complete
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 7. Mobile — Map Components
-  - [-] 7.1 Implement RadarMapView (main map container)
+- [x] 7. Mobile — Map Components
+  - [x] 7.1 Implement RadarMapView (main map container)
     - Create `components/map/RadarMapView.tsx` with Mapbox MapView using BidClean dark custom style
     - Configure map: initial center on Cleaner GPS, support all standard gestures (pinch-to-zoom, pan, rotate, double-tap)
     - Render layers in correct order: base map → WorkZoneCircle → OfferPinsLayer → ClusterLayer → CleanerMarker
@@ -143,7 +143,7 @@ The Offer Radar is the Cleaner's primary interface for discovering cleaning offe
     - Wire cluster tap handler → zoom to expand (flyTo with zoom + 2)
     - _Requirements: 1.1, 1.2, 1.5, 1.7, 1.8_
 
-  - [-] 7.2 Implement OfferPinsLayer with native Mapbox SymbolLayer
+  - [x] 7.2 Implement OfferPinsLayer with native Mapbox SymbolLayer
     - Create `components/map/OfferPinsLayer.tsx` using `ShapeSource` + `SymbolLayer` (NOT React Native Markers)
     - GeoJSON source derived reactively from store `getOffersAsGeoJSON()`
     - Configure clustering: `clusterRadius: 50`, `clusterMaxZoom: 14`
@@ -153,20 +153,20 @@ The Offer Radar is the Cleaner's primary interface for discovering cleaning offe
     - Pin stale state: reduced opacity (0.5) for offline-cached offers
     - _Requirements: 1.6, 2.1, 2.3, 2.4, 2.5, 2.8, 12.3_
 
-  - [-] 7.3 Implement ClusterLayer
+  - [x] 7.3 Implement ClusterLayer
     - Create `components/map/ClusterLayer.tsx` for cluster circle rendering
     - Show cluster count badge inside circle
     - Size circles proportionally to cluster point count
     - Track urgent count in cluster properties (`urgentCount` aggregation)
     - _Requirements: 1.6, 1.7_
 
-  - [-] 7.4 Implement CleanerMarker (animated self-position)
+  - [x] 7.4 Implement CleanerMarker (animated self-position)
     - Create `components/map/CleanerMarker.tsx` with pulsing ring animation (Reanimated 3)
     - Position updates from GPS (significant-change when backgrounded, high-accuracy when foregrounded)
     - Distinct visual styling from offer pins
     - _Requirements: 1.3, 9.4_
 
-  - [-] 7.5 Implement WorkZoneCircle
+  - [x] 7.5 Implement WorkZoneCircle
     - Create `components/map/WorkZoneCircle.tsx` with semi-transparent fill + border
     - Radius from `cleaner_profiles.work_radius_meters`
     - Center on Cleaner's configured work zone center (NOT GPS)
@@ -219,7 +219,7 @@ The Offer Radar is the Cleaner's primary interface for discovering cleaning offe
     - _Requirements: 6.2, 6.4, 6.5, 6.7_
 
 - [ ] 10. Mobile — Filter Panel
-  - [~] 10.1 Implement FilterPanel container
+  - [-] 10.1 Implement FilterPanel container
     - Create `components/filters/FilterPanel.tsx` as a bottom sheet
     - Contains all filter sub-components
     - "Clear all" button resets all filters via store `clearFilters()`
@@ -227,25 +227,25 @@ The Offer Radar is the Cleaner's primary interface for discovering cleaning offe
     - Filter changes trigger server-side re-fetch with new query params
     - _Requirements: 5.1, 5.2, 5.3, 5.5_
 
-  - [~] 10.2 Implement ServiceTypeChips
+  - [-] 10.2 Implement ServiceTypeChips
     - Create `components/filters/ServiceTypeChips.tsx` with multi-select chip UI
     - Service types: standard, deep, move_in_out, post_construction, post_event, recurring
     - All i18n keys for labels (no hardcoded text)
     - _Requirements: 5.1_
 
-  - [~] 10.3 Implement PriceRangeSlider
+  - [-] 10.3 Implement PriceRangeSlider
     - Create `components/filters/PriceRangeSlider.tsx` with dual-thumb slider
     - Min/max range in local currency display (formatted by locale)
     - Updates store `setFilters({ minPriceCents, maxPriceCents })`
     - _Requirements: 5.1_
 
-  - [~] 10.4 Implement DistanceSlider
+  - [-] 10.4 Implement DistanceSlider
     - Create `components/filters/DistanceSlider.tsx` with single-thumb slider
     - Display in km (metric) or miles (US/UK) based on user locale
     - Updates store `setFilters({ maxDistanceMeters })`
     - _Requirements: 5.1_
 
-  - [~] 10.5 Implement DateRangeFilter
+  - [-] 10.5 Implement DateRangeFilter
     - Create `components/filters/DateRangeFilter.tsx` with quick picks (today, tomorrow, this week) + custom date picker
     - Updates store `setFilters({ scheduledAfter, scheduledBefore })`
     - _Requirements: 5.1_

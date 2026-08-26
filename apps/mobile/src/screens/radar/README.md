@@ -24,6 +24,8 @@ Cleaner Navigator — Radar Tab
 | `useCentrifugoChannel.ts` | WebSocket hook — Centrifugo channel subscription, event parsing, exponential backoff reconnection, fallback signaling, and reconciliation trigger |
 | `hooks/useAdVisibility.ts` | Entitlement hook for ad slot visibility — checks RevenueCat `ad_free` entitlement to determine if ads should be shown (free-tier users see ads, PRO users don't) |
 | `hooks/useRadarReconciliation.ts` | Orchestrates reconciliation lifecycle — wires Centrifugo callbacks to Zustand store, starts REST polling fallback after 3+ WS failures, stops polling on WS recovery, enforces mutual exclusivity (max 5s overlap) |
+| `hooks/useOfferAnimations.ts` | Reanimated 3 spring configurations for radar pin animations — entrance (drop + bounce), exit (fade + scale down), urgency pulse ring, optional haptic feedback |
+| `hooks/useUrgencyTimer.ts` | 60-second interval timer that recalculates `isUrgent` for all offers in the store — an offer is urgent when (scheduledAt − now) ≤ 2 hours; auto-cleans up on unmount |
 | `components/map/mapStyles.ts` | Mapbox GL expression-based styles for offer pins (icon, color, opacity, price label), cluster circles (radius, color, count), work zone ring, and filter/source configuration |
 | `components/map/OfferPinsLayer.tsx` | Native SymbolLayer + ShapeSource for offer pins with clustering, pin/cluster tap handling |
 | `components/map/ClusterLayer.tsx` | CircleLayer + SymbolLayer for cluster aggregation display |
@@ -41,19 +43,19 @@ Cleaner Navigator — Radar Tab
 | `components/map/index.ts` | Barrel export for all map components and their prop types |
 | `components/list/OfferCard.tsx` | Radar list item: property photo thumbnail, name, type, city, service type badge, Cleaner payout (locale-formatted), distance (km), scheduled date/time (offer timezone), urgency dot indicator, accessible labels |
 | `components/list/AdSlot.tsx` | Placeholder component for sponsored ad content in the offer list — renders "Sponsored" label + placeholder area for free-tier Cleaners; visibility controlled via RevenueCat `ad_free` entitlement |
+| `components/filters/FilterPanel.tsx` | Bottom sheet container for all radar filter sub-components — renders ServiceTypeChips, PriceRangeSlider, DistanceSlider, and DateRangeFilter inside an animated bottom sheet with swipe-to-dismiss, "Clear all" action, and active filter count badge |
+| `components/list/OfferListView.tsx` | Alternative list-based view for the Offer Radar — vertical FlatList with OfferCard items sorted by store sort option, ad slot injection every 5th position for free-tier users, pull-to-refresh, infinite scroll pagination, skeleton loaders during initial fetch |
+| `components/OfferPreviewSheet.tsx` | Bottom sheet triggered by pin tap — shows property photo/name/type/city, service type badge, scheduled date/time, estimated duration, Cleaner payout (locale-formatted), distance, urgency indicator; "View Full Details" navigates to OfferDetail, "Quick Accept" disabled when offline; swipe-to-dismiss with Animated PanResponder |
 | `useLocationPermission.ts` | Location permission request (expo-location), GPS tracking with battery-aware accuracy (high fg / balanced bg), AppState transitions, open settings fallback, i18n explanation text |
+| `components/OfflineBanner.tsx` | Connectivity indicator — persistent banner showing offline/reconnecting/polling-fallback status with slide-in/out animation; auto-hides when connected; reads connectionStatus from useRadarStore |
+| `components/ViewToggle.tsx` | Segmented control for switching between Map and List views — pill-shaped container with animated selection indicator (Animated API), toggles `viewMode` in Zustand store, i18n labels, accessibility roles |
+| `components/EmptyState.tsx` | No offers / no matching filters state |
 
 ## Planned Files (from spec)
 
 | File | Responsibility |
 |------|---------------|
 | `RadarScreen.tsx` | Main container — map + list toggle, connection status |
-| `components/list/OfferListView.tsx` | FlatList with infinite scroll + pull-refresh |
-| `components/filters/FilterPanel.tsx` | Bottom sheet container |
-| `components/OfferPreviewSheet.tsx` | Bottom sheet on pin tap |
-| `components/EmptyState.tsx` | No offers / no matching filters |
-| `components/OfflineBanner.tsx` | Connectivity indicator |
-| `components/ViewToggle.tsx` | Map ↔ list segmented control |
 
 ## Dependencies
 
