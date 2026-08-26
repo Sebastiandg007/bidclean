@@ -25,12 +25,20 @@ Cleaner Navigator — Radar Tab
 | `hooks/useAdVisibility.ts` | Entitlement hook for ad slot visibility — checks RevenueCat `ad_free` entitlement to determine if ads should be shown (free-tier users see ads, PRO users don't) |
 | `hooks/useRadarReconciliation.ts` | Orchestrates reconciliation lifecycle — wires Centrifugo callbacks to Zustand store, starts REST polling fallback after 3+ WS failures, stops polling on WS recovery, enforces mutual exclusivity (max 5s overlap) |
 | `components/map/mapStyles.ts` | Mapbox GL expression-based styles for offer pins (icon, color, opacity, price label), cluster circles (radius, color, count), work zone ring, and filter/source configuration |
+| `components/map/OfferPinsLayer.tsx` | Native SymbolLayer + ShapeSource for offer pins with clustering, pin/cluster tap handling |
+| `components/map/ClusterLayer.tsx` | CircleLayer + SymbolLayer for cluster aggregation display |
 
 ## Implemented Files
 
 | File | Responsibility |
 |------|---------------|
 | `components/map/mapStyles.ts` | Mapbox GL expressions for pin styling (icon mapping, color, opacity, price labels, cluster sizing/color, work zone, filter expressions) |
+| `components/map/WorkZoneCircle.tsx` | Semi-transparent circle overlay for the Cleaner's work zone radius — renders GeoJSON polygon via FillLayer (translucent interior) + LineLayer (dashed border), memoized geometry generation with equirectangular projection |
+| `components/map/CleanerMarker.tsx` | Animated self-position marker for the Cleaner on the Radar map — pulsing ring animation (Reanimated 3) around a static accent-colored dot, rendered via MapboxGL.MarkerView at the Cleaner's GPS coordinates |
+| `components/map/OfferPinsLayer.tsx` | Native Mapbox SymbolLayer for rendering offer pins — uses ShapeSource with clustering, data-driven styling via expressions, handles pin tap (select offer) and cluster tap (zoom expand), 60fps with 200+ pins via native symbol layers |
+| `components/map/ClusterLayer.tsx` | Renders clustered offer points as circles with count badges — CircleLayer for backgrounds (size/color scale with point count), SymbolLayer for count text |
+| `components/map/RadarMapView.tsx` | Main map container — composes all layers (WorkZoneCircle → OfferPinsLayer → CleanerMarker), handles dark/light style switching, camera control for cluster zoom, pin tap → selectOffer dispatch |
+| `components/map/index.ts` | Barrel export for all map components and their prop types |
 | `components/list/OfferCard.tsx` | Radar list item: property photo thumbnail, name, type, city, service type badge, Cleaner payout (locale-formatted), distance (km), scheduled date/time (offer timezone), urgency dot indicator, accessible labels |
 | `components/list/AdSlot.tsx` | Placeholder component for sponsored ad content in the offer list — renders "Sponsored" label + placeholder area for free-tier Cleaners; visibility controlled via RevenueCat `ad_free` entitlement |
 | `useLocationPermission.ts` | Location permission request (expo-location), GPS tracking with battery-aware accuracy (high fg / balanced bg), AppState transitions, open settings fallback, i18n explanation text |
@@ -40,13 +48,7 @@ Cleaner Navigator — Radar Tab
 | File | Responsibility |
 |------|---------------|
 | `RadarScreen.tsx` | Main container — map + list toggle, connection status |
-| `components/map/RadarMapView.tsx` | Mapbox MapView + layers + gesture handling |
-| `components/map/OfferPinsLayer.tsx` | SymbolLayer + GeoJSON source for offers |
-| `components/map/ClusterLayer.tsx` | Cluster circle + count badge |
-| `components/map/CleanerMarker.tsx` | Pulsing animated self-position marker |
-| `components/map/WorkZoneCircle.tsx` | Semi-transparent radius ring |
 | `components/list/OfferListView.tsx` | FlatList with infinite scroll + pull-refresh |
-| `components/list/OfferCard.tsx` | List item: photo, price, distance, badge |
 | `components/filters/FilterPanel.tsx` | Bottom sheet container |
 | `components/OfferPreviewSheet.tsx` | Bottom sheet on pin tap |
 | `components/EmptyState.tsx` | No offers / no matching filters |

@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Radar Map Components batch (mobile/radar)** — Full map layer stack for the Offer Radar (Spec 7 — Tasks 7.1–7.5)
+  - `RadarMapView.tsx` — Main map container composing all layers, BidClean dark/light style switching, Camera with initial GPS center, pin tap → selectOffer, cluster tap → flyTo zoom expand
+  - `OfferPinsLayer.tsx` — Native Mapbox ShapeSource + SymbolLayer with clustering config, GeoJSON reactively derived from Zustand store, press handler distinguishes pin vs cluster taps
+  - `ClusterLayer.tsx` — CircleLayer (size/color scaled by point_count) + SymbolLayer (count badge), clusterFilter expression for clustered-only features
+  - `CleanerMarker.tsx` — Pulsing ring animation (Reanimated 3), MarkerView at Cleaner GPS, visually distinct from offer pins
+  - `WorkZoneCircle.tsx` — GeoJSON circle polygon generator (64 segments, equirectangular projection), FillLayer (translucent) + LineLayer (dashed border)
+  - `index.ts` barrel export for all map components and prop types
+- **CleanerMarker component (mobile/radar)** — Animated self-position marker for the Cleaner on the Radar map (Spec 7 — Offer Radar)
+  - Pulsing ring animation (scale + opacity) using Reanimated 3 with spring-like easing
+  - Static inner dot with accent color (#00F5D4) and white border for visibility on dark map
+  - Renders via MapboxGL.MarkerView positioned at Cleaner's current GPS coordinates
+  - Uses CLEANER_PULSE_CONFIG from radar.constants for timing configuration
+  - Memoized with React.memo to avoid re-renders on parent state changes
+  - Visually distinct from offer pins (ring vs icon) to avoid confusion
+  - testID props on all elements for integration testing
 - **useLocationPermission hook (mobile/radar)** — Location permission and GPS tracking for Offer Radar (Spec 7 — Task 13.1)
   - Foreground location permission request via expo-location (`requestForegroundPermissionsAsync`)
   - Battery-aware GPS tracking: Accuracy.High when foregrounded, Accuracy.Balanced when backgrounded

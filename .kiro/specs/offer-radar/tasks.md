@@ -134,7 +134,7 @@ The Offer Radar is the Cleaner's primary interface for discovering cleaning offe
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 7. Mobile — Map Components
-  - [~] 7.1 Implement RadarMapView (main map container)
+  - [-] 7.1 Implement RadarMapView (main map container)
     - Create `components/map/RadarMapView.tsx` with Mapbox MapView using BidClean dark custom style
     - Configure map: initial center on Cleaner GPS, support all standard gestures (pinch-to-zoom, pan, rotate, double-tap)
     - Render layers in correct order: base map → WorkZoneCircle → OfferPinsLayer → ClusterLayer → CleanerMarker
@@ -143,7 +143,7 @@ The Offer Radar is the Cleaner's primary interface for discovering cleaning offe
     - Wire cluster tap handler → zoom to expand (flyTo with zoom + 2)
     - _Requirements: 1.1, 1.2, 1.5, 1.7, 1.8_
 
-  - [~] 7.2 Implement OfferPinsLayer with native Mapbox SymbolLayer
+  - [-] 7.2 Implement OfferPinsLayer with native Mapbox SymbolLayer
     - Create `components/map/OfferPinsLayer.tsx` using `ShapeSource` + `SymbolLayer` (NOT React Native Markers)
     - GeoJSON source derived reactively from store `getOffersAsGeoJSON()`
     - Configure clustering: `clusterRadius: 50`, `clusterMaxZoom: 14`
@@ -153,26 +153,26 @@ The Offer Radar is the Cleaner's primary interface for discovering cleaning offe
     - Pin stale state: reduced opacity (0.5) for offline-cached offers
     - _Requirements: 1.6, 2.1, 2.3, 2.4, 2.5, 2.8, 12.3_
 
-  - [~] 7.3 Implement ClusterLayer
+  - [-] 7.3 Implement ClusterLayer
     - Create `components/map/ClusterLayer.tsx` for cluster circle rendering
     - Show cluster count badge inside circle
     - Size circles proportionally to cluster point count
     - Track urgent count in cluster properties (`urgentCount` aggregation)
     - _Requirements: 1.6, 1.7_
 
-  - [~] 7.4 Implement CleanerMarker (animated self-position)
+  - [-] 7.4 Implement CleanerMarker (animated self-position)
     - Create `components/map/CleanerMarker.tsx` with pulsing ring animation (Reanimated 3)
     - Position updates from GPS (significant-change when backgrounded, high-accuracy when foregrounded)
     - Distinct visual styling from offer pins
     - _Requirements: 1.3, 9.4_
 
-  - [~] 7.5 Implement WorkZoneCircle
+  - [-] 7.5 Implement WorkZoneCircle
     - Create `components/map/WorkZoneCircle.tsx` with semi-transparent fill + border
     - Radius from `cleaner_profiles.work_radius_meters`
     - Center on Cleaner's configured work zone center (NOT GPS)
     - _Requirements: 1.4, 10.1_
 
-  - [-] 7.6 Implement map styles configuration
+  - [x] 7.6 Implement map styles configuration
     - Create `components/map/mapStyles.ts` with Mapbox expressions for pin styling
     - Define icon image mapping (serviceType → asset name)
     - Define color expressions (urgency, viewed state, stale state)
@@ -190,13 +190,13 @@ The Offer Radar is the Cleaner's primary interface for discovering cleaning offe
     - _Requirements: 2.2, 2.5, 2.6, 2.7, 12.2_
 
 - [ ] 9. Mobile — List View
-  - [-] 9.1 Implement OfferCard component
+  - [x] 9.1 Implement OfferCard component
     - Create `components/list/OfferCard.tsx` with: property cover photo thumbnail, property name, property type, service type badge, price (Cleaner payout formatted by locale), distance (km or miles by locale), scheduled date/time (converted to offer timezone), urgency indicator
     - Tap handler navigates to Offer Detail screen
     - Accessible labels for screen readers (price + service type + distance)
     - _Requirements: 6.3, 6.6_
 
-  - [-] 9.2 Implement AdSlot component
+  - [x] 9.2 Implement AdSlot component
     - Create `components/list/AdSlot.tsx` placeholder for ad content
     - Implement `hooks/useAdVisibility.ts` — check RevenueCat entitlement for `adsEnabled` flag
     - Ad visibility controlled by abstracted entitlement layer (not by checking `cleaner_pro` directly)
@@ -292,8 +292,8 @@ The Offer Radar is the Cleaner's primary interface for discovering cleaning offe
     - Create `components/ViewToggle.tsx` — segmented control toggling `viewMode` in store
     - _Requirements: 6.1_
 
-- [ ] 13. Mobile — Location Permission Handling
-  - [-] 13.1 Implement useLocationPermission hook
+- [x] 13. Mobile — Location Permission Handling
+  - [x] 13.1 Implement useLocationPermission hook
     - Create `useLocationPermission.ts` with permission request flow
     - Clear i18n explanation text for why location is needed
     - Fallback state when denied: full-screen explanation + "Open Settings" button
