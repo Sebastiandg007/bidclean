@@ -8,6 +8,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Radar Filter Panel components (mobile/radar)** — Full filter bottom sheet for the Offer Radar (Spec 7 — Tasks 10.1–10.5)
+  - `FilterPanel.tsx` — Modal-based bottom sheet container with swipe-to-dismiss (PanResponder), header with "Clear all" action and active filter count badge, ScrollView rendering all filter sub-components
+  - `ServiceTypeChips.tsx` — Multi-select chip UI for 6 service types (standard, deep, move_in_out, post_construction, post_event, recurring), toggle selection, accessibility roles/states, i18n labels
+  - `PriceRangeSlider.tsx` — Custom dual-thumb PanResponder slider for min/max Cleaner payout ($0–$500, $5 step), locale-aware currency formatting via Intl.NumberFormat
+  - `DistanceSlider.tsx` — Single-thumb PanResponder slider for max distance (0–50km, 500m step), imperial/metric detection per device locale
+  - `DateRangeFilter.tsx` — Quick picks (Today, Tomorrow, This Week) + Custom date picker modal, tap-to-deselect, all via i18n keys
+  - `index.ts` barrel export for all filter components
+- **OfferPreviewSheet component (mobile/radar)** — Bottom sheet preview triggered by map pin tap (Spec 7 — Offer Radar)
+  - Displays property cover photo, name, type, city, service type badge
+  - Shows scheduled date/time (timezone-aware), estimated duration, Cleaner payout (locale-formatted currency), and distance
+  - Urgency dot indicator for offers within URGENCY_THRESHOLD_MS
+  - "View Full Details" navigates to OfferDetail screen
+  - "Quick Accept" button disabled when offline (connectionStatus === 'disconnected')
+  - Animated slide-in/out with Animated API, swipe-to-dismiss via PanResponder
+  - Overlay tap to dismiss, marks offer as viewed on open
+  - All text uses i18n keys (prefix: `radar.preview.*`)
 - **Radar Map Components batch (mobile/radar)** — Full map layer stack for the Offer Radar (Spec 7 — Tasks 7.1–7.5)
   - `RadarMapView.tsx` — Main map container composing all layers, BidClean dark/light style switching, Camera with initial GPS center, pin tap → selectOffer, cluster tap → flyTo zoom expand
   - `OfferPinsLayer.tsx` — Native Mapbox ShapeSource + SymbolLayer with clustering config, GeoJSON reactively derived from Zustand store, press handler distinguishes pin vs cluster taps
