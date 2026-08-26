@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Offer DTOs with class-validator decorators (api)** — Full DTO implementation for offer endpoints (Spec 6 — Task 25)
+  - `CreateOfferDto`: class-validator decorators — @IsUUID for propertyId, @IsEnum(ServiceType), @IsPositive @IsInt for offeredPriceCents, @IsDateString for scheduledAt, @Min/@Max from constants for estimatedDurationMinutes, optional description and idempotencyKey with @MaxLength
+  - `PublishOfferDto`: @IsOptional @IsBoolean for favoritesFirst flag with default false
+  - `OfferQueryDto`: @IsOptional @IsEnum(OfferState) for state filter, @Type(() => Number) @IsInt @Min(1) for page, @Max(OFFER_LIST_MAX_PAGE_SIZE) for pageSize with defaults from constants
+  - `OfferResponseDto`: full offer shape with @Expose and @Type decorators, embedded OfferPriceBreakdownDto and StateTransitionDto[] for state history
+  - `PriceBreakdownResponseDto`: role-based view (host or cleaner) — Host sees offeredPrice + fee = total, Cleaner sees offeredPrice - commission = payout
+  - Barrel index.ts for clean imports
 - **Offers screens folder structure (mobile)** — Mobile offers module scaffolding with documentation (Spec 6 — Task 27)
   - `screens/offers/` folder structure: components/, __tests__/, types, constants, hooks placeholders
   - Main README documenting purpose, flow, files, components, tests, dependencies, API endpoints, navigation, state management
