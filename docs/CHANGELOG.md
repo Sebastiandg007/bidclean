@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **ServiceTypePicker component (mobile)** — Visual card grid for service type selection in offer creation flow (Spec 6 — Task 31)
+  - 6 service types displayed in a 2-column grid: standard, deep, move_in_out, post_construction, post_event, recurring
+  - Each card shows emoji icon + i18n-translated label from `offers.serviceType.*` keys
+  - Single selection: tapped card gets accent border and subtle background tint
+  - Props: `onSelect(serviceType)`, `selectedType?` — controlled component pattern
+  - Accessible: cards have `accessibilityRole="button"`, `accessibilityState={{ selected }}`, and translated labels
+  - BidClean design system: dark card background, border highlight on selection, accent text on selected
+  - Also populated `offers.constants.ts` with SERVICE_TYPES config, design tokens, state colors, validation limits
 - **useOffers Zustand store (mobile)** — Full state management for offers CRUD, pagination, real-time sync (Spec 6 — Task 29)
   - `useOffersStore` with Zustand `create`: offers array, selectedOffer, priceBreakdown, loading flags, error, pagination (page, totalPages, hasMore), filter state
   - `createOffer(payload)`: POST /offers with auto-generated Idempotency-Key header via expo-crypto, returns offer ID or null on error
