@@ -8,6 +8,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **CreateOfferScreen (mobile)** — Multi-step form for creating cleaning service offers (Spec 6 — Task 35)
+  - 3-step flow: Step 1 (PropertySelector), Step 2 (ServiceType + Duration + DateTime + Price), Step 3 (Description + Review)
+  - Step indicator with progress dots showing current/completed steps
+  - Per-step validation: Step 1 requires property selection, Step 2 requires service type + valid price + future date
+  - Back navigation between steps, "Next" advances, "Create Offer" on final step creates DRAFT
+  - Live PriceBreakdown updates as price input changes (Host fee rate from environment)
+  - Date/time pickers via @react-native-community/datetimepicker with minimum lead time enforcement
+  - Review summary card with all selections before final submission
+  - After creation navigates to OfferConfirmation screen with offerId param
+  - SafeAreaView + KeyboardAvoidingView for proper layout on iOS/Android
+  - Full accessibility: roles, labels, states on all interactive elements
+  - All text via i18n keys (offers.create.*), all config from environment/constants
+  - BidClean design system: dark background, card surfaces, accent CTAs
+- **OfferCard component (mobile)** — List item component for offer list screen (Spec 6 — Task 37)
+  - Card layout: property cover photo (or placeholder) on left, offer details on right
+  - Property name (1 line, truncated), service type badge (pill with icon + label)
+  - Price display: offered price (accent) + total cost (secondary)
+  - Scheduled date/time formatted for locale via Intl.DateTimeFormat
+  - State badge with color coding per state from STATE_COLORS
+  - TouchableOpacity with onPress callback for navigation to detail
+  - Accessibility: role="button", descriptive label with offer summary
+  - Dark mode card: #1F2833 background, border-radius 12, shadow/elevation
+  - i18n keys added for card labels, state names (EN + ES)
 - **OffersModule registration verified (api)** — Confirmed complete NestJS module registration with all providers, controllers, BullMQ queues, imports, and cross-module exports (Spec 6 — Task 26)
   - Property test: State Transition Atomicity (Concurrency Safety) — verifies exactly 1 of N concurrent transitions succeeds
 - **PropertySelector component (mobile)** — Fetches offer-ready properties and displays selectable cards in offer creation flow (Spec 6 — Task 30)

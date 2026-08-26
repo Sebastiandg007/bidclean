@@ -1,4 +1,28 @@
 {
+  "card": {
+    "total": "Total:",
+    "unknownProperty": "Unknown property",
+    "a11yLabel": "Offer for {{property}}, {{service}}, {{price}}, {{state}}, scheduled {{date}}"
+  },
+  "state": {
+    "DRAFT": "Draft",
+    "PUBLISHED": "Published",
+    "ACTIVE": "Active",
+    "MATCHED": "Matched",
+    "COMPLETED": "Completed",
+    "CANCELLED": "Cancelled",
+    "EXPIRED": "Expired"
+  },
+  "stateTimeline": {
+    "title": "State History",
+    "a11yLabel": "Offer state progression timeline",
+    "entryA11y": "{{state}}, {{time}}",
+    "justNow": "just now",
+    "minutesAgo_one": "{{count}}m ago",
+    "minutesAgo_other": "{{count}}m ago",
+    "hoursAgo_one": "{{count}}h ago",
+    "hoursAgo_other": "{{count}}h ago"
+  },
   "duration": {
     "label": "Duration",
     "decrease": "Decrease duration",
@@ -59,6 +83,13 @@
       "pricePositive": "Price must be greater than 0"
     }
   },
+  "radiusProgress": {
+    "currentRadius": "Search Radius",
+    "radiusKm": "{{value}} km",
+    "nextExpansion": "Next expansion in {{time}}",
+    "maxReached": "Maximum radius reached",
+    "a11yProgressLabel": "Search radius progress"
+  },
   "serviceType": {
     "picker_a11y": "Service type selection",
     "standard": "Standard",
@@ -67,5 +98,27 @@
     "post_construction": "Post Construction",
     "post_event": "Post Event",
     "recurring": "Recurring"
+  },
+  "confirmation": {
+    "title": "Confirm Offer",
+    "back": "Go back",
+    "service_details": "Service Details",
+    "scheduled_date": "Date",
+    "scheduled_time": "Time",
+    "duration": "Duration",
+    "description": "Description",
+    "unknown_property": "Unknown property",
+    "property_photo_a11y": "Cover photo of {{name}}",
+    "publish_offer": "Publish Offer",
+    "save_as_draft": "Save as Draft",
+    "error_title": "Error",
+    "error_dismiss": "OK",
+    "priceBreakdown": {
+      "title": "Price Breakdown",
+      "a11yLabel": "Host price breakdown summary",
+      "offeredPrice": "Offered Price",
+      "serviceFee": "Service Fee",
+      "total": "Total to Pay"
+    }
   }
 }

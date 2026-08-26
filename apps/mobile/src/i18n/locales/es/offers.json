@@ -1,4 +1,28 @@
 {
+  "card": {
+    "total": "Total:",
+    "unknownProperty": "Propiedad desconocida",
+    "a11yLabel": "Oferta para {{property}}, {{service}}, {{price}}, {{state}}, programada {{date}}"
+  },
+  "state": {
+    "DRAFT": "Borrador",
+    "PUBLISHED": "Publicada",
+    "ACTIVE": "Activa",
+    "MATCHED": "Asignada",
+    "COMPLETED": "Completada",
+    "CANCELLED": "Cancelada",
+    "EXPIRED": "Expirada"
+  },
+  "stateTimeline": {
+    "title": "Historial de Estado",
+    "a11yLabel": "Línea de tiempo de la progresión del estado de la oferta",
+    "entryA11y": "{{state}}, {{time}}",
+    "justNow": "ahora mismo",
+    "minutesAgo_one": "hace {{count}}m",
+    "minutesAgo_other": "hace {{count}}m",
+    "hoursAgo_one": "hace {{count}}h",
+    "hoursAgo_other": "hace {{count}}h"
+  },
   "duration": {
     "label": "Duración",
     "decrease": "Disminuir duración",
@@ -18,6 +42,35 @@
     "a11y": {
       "hostBreakdown": "Desglose de precio: precio ofrecido {{price}}, más tarifa de servicio {{fee}}, total a pagar {{total}}",
       "cleanerBreakdown": "Desglose de precio: precio ofrecido {{price}}, menos comisión {{commission}}, pago neto {{payout}}"
+    }
+  },
+  "radiusProgress": {
+    "currentRadius": "Radio de búsqueda",
+    "radiusKm": "{{value}} km",
+    "nextExpansion": "Próxima expansión en {{time}}",
+    "maxReached": "Radio máximo alcanzado",
+    "a11yProgressLabel": "Progreso del radio de búsqueda"
+  },
+  "confirmation": {
+    "title": "Confirmar Oferta",
+    "back": "Volver",
+    "service_details": "Detalles del Servicio",
+    "scheduled_date": "Fecha",
+    "scheduled_time": "Hora",
+    "duration": "Duración",
+    "description": "Descripción",
+    "unknown_property": "Propiedad desconocida",
+    "property_photo_a11y": "Foto de portada de {{name}}",
+    "publish_offer": "Publicar Oferta",
+    "save_as_draft": "Guardar como Borrador",
+    "error_title": "Error",
+    "error_dismiss": "OK",
+    "priceBreakdown": {
+      "title": "Desglose de Precio",
+      "a11yLabel": "Resumen del desglose de precio para el Host",
+      "offeredPrice": "Precio Ofrecido",
+      "serviceFee": "Tarifa de Servicio",
+      "total": "Total a Pagar"
     }
   }
 }
