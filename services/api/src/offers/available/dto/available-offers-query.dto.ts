@@ -3,7 +3,6 @@ import {
   IsEnum,
   IsInt,
   IsArray,
-  IsString,
   IsDateString,
   Min,
   Max,
