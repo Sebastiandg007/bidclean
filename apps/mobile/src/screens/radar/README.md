@@ -18,16 +18,18 @@ Cleaner Navigator — Radar Tab
 | File | Responsibility |
 |------|---------------|
 | `radar.types.ts` | TypeScript interfaces for radar offers, filters, WebSocket events, GeoJSON features, pagination, and API response types |
+| `radar.constants.ts` | Animation configs, timing, layer IDs, polling intervals |
+| `radar.api.ts` | HTTP client for `/offers/available` (paginated + filtered) and `/offers/available/snapshot` (full reconciliation) |
+| `useRadarStore.ts` | Zustand store — offers Map, filters, sort, view mode, pagination, WebSocket handlers (idempotent), REST reconciliation, computed GeoJSON selectors |
+| `useCentrifugoChannel.ts` | WebSocket hook — Centrifugo channel subscription, event parsing, exponential backoff reconnection, fallback signaling, and reconciliation trigger |
+| `hooks/useRadarReconciliation.ts` | Orchestrates reconciliation lifecycle — wires Centrifugo callbacks to Zustand store, starts REST polling fallback after 3+ WS failures, stops polling on WS recovery, enforces mutual exclusivity (max 5s overlap) |
 
 ## Planned Files (from spec)
 
 | File | Responsibility |
 |------|---------------|
 | `RadarScreen.tsx` | Main container — map + list toggle, connection status |
-| `useRadarStore.ts` | Zustand store — offers map, filters, view mode, reconciliation |
-| `useCentrifugoChannel.ts` | WebSocket connection + event handling + reconnection |
 | `useLocationPermission.ts` | Permission request + fallback |
-| `radar.constants.ts` | Animation configs, timing, layer IDs, polling intervals |
 | `components/map/RadarMapView.tsx` | Mapbox MapView + layers + gesture handling |
 | `components/map/OfferPinsLayer.tsx` | SymbolLayer + GeoJSON source for offers |
 | `components/map/ClusterLayer.tsx` | Cluster circle + count badge |
@@ -63,6 +65,7 @@ Cleaner Navigator — Radar Tab
 1. **Initial load**: Screen mount → REST `GET /offers/available` → render pins
 2. **Real-time**: WebSocket `offers:cleaner:{id}` → `offer_new` (add pin) / `offer_status_changed` (remove pin)
 3. **Reconnection**: On WS reconnect → REST `/snapshot` → replace all local data (REST wins)
+4. **Polling fallback**: After 3+ WS failures → `useRadarReconciliation` starts 30s interval REST polling (max 5 min), stops immediately on WS recovery
 
 ## State Management
 

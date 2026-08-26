@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **useRadarReconciliation hook (mobile)** — Reconciliation lifecycle orchestrator for Offer Radar (Spec 7 — Task 5.1)
+  - Integrates `useCentrifugoChannel` internally, wiring all callbacks to the Zustand store
+  - On WebSocket reconnect: triggers `store.reconcile()` (fetches /snapshot, REST wins)
+  - Polling fallback: starts 30s interval REST polling after 3+ WebSocket failures
+  - Polling max duration: 5 minutes (`RADAR_MAX_POLLING_DURATION_MS`), then stops and shows permanent "reconnecting" state
+  - Stops polling immediately when WebSocket recovers (with controlled 5s overlap window)
+  - Mutual exclusivity: WebSocket and polling never run simultaneously beyond the transition window
+  - Marks all offers as stale when entering polling mode (`markAllStale()`)
+  - Returns `isConnected`, `isPolling`, `reconnectAttempts` for UI consumption
+  - Clean lifecycle: stops polling and disconnects WebSocket on unmount
 - **AvailableOffersService (api)** — Business logic layer for Cleaner's available offers (Spec 7 — Task 1.3)
   - Maps raw PostGIS query rows to privacy-safe AvailableOfferDto response shape
   - Builds internal filter parameters from validated query DTO + authenticated Cleaner ID
