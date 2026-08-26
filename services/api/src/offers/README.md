@@ -52,6 +52,9 @@ Manages the full offer lifecycle for cleaning services: creation, publishing, pr
 | `__tests__/offer-notification.service.spec.ts` | Unit tests for OfferNotificationService (8 tests: payload building, success/failure, error handling) |
 | `__tests__/offers.service.property.spec.ts` | Property-based tests for create flow (price, duration, scheduling, idempotency, duplicates, required fields) |
 | `__tests__/commission.service.spec.ts` | Unit tests for commission calculations |
+| `available/available-offers.controller.ts` | REST controller: GET /offers/available (paginated) + GET /offers/available/snapshot (reconciliation). JWT auth + Cleaner role enforcement |
+| `available/available-offers.module.ts` | NestJS sub-module for Cleaner-facing available offers endpoints; imported by parent OffersModule, exports AvailableOffersService |
+| `available/available-offers.service.ts` | Business logic layer for available offers: builds filters, maps rows to privacy-safe DTOs, computes urgency + pagination, enforces snapshot rate limiting |
 | `available/available-offers.repository.ts` | PostGIS-powered raw SQL queries for Cleaner's available offers (paginated + snapshot) |
 | `available/dto/available-offers-query.dto.ts` | Query params validation for available offers endpoint |
 | `available/dto/available-offer-response.dto.ts` | Response DTOs for available offers (paginated + snapshot) |
@@ -137,6 +140,7 @@ Manages the full offer lifecycle for cleaning services: creation, publishing, pr
 | `OFFER_MAX_DURATION_MINUTES` | Maximum offer duration (default: 480) | No |
 | `OFFER_MAX_RETRIES` | Max BullMQ job retries (default: 3) | No |
 | `OFFER_BACKOFF_DELAY_MS` | Backoff delay for retries in ms (default: 5000) | No |
+| `SNAPSHOT_RATE_LIMIT_MS` | Rate limit window for snapshot endpoint in ms (default: 30000) | No |
 | `CENTRIFUGO_API_URL` | Centrifugo server API base URL | Yes |
 | `CENTRIFUGO_API_KEY` | Centrifugo API authorization key | Yes |
 | `ONESIGNAL_APP_ID` | OneSignal application identifier | Yes |

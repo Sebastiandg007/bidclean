@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **AvailableOffersController + AvailableOffersModule (api)** — REST controller for Cleaner's offer radar endpoints (Spec 7 — Task 1.4)
+  - `GET /offers/available` — paginated, filtered, sorted available offers for authenticated Cleaner
+  - `GET /offers/available/snapshot` — full unpaginated set for WebSocket reconnection reconciliation
+  - JWT authentication via JwtAuthGuard (Keycloak token verification)
+  - Cleaner role enforcement: resolves internal user from keycloakId, verifies Cleaner role presence
+  - ValidationPipe with transform enabled for query parameter DTO validation
+  - HTTP status codes: 200 (success), 401 (unauthenticated), 403 (not Cleaner role), 429 (snapshot rate limit)
+  - AvailableOffersModule registered as sub-module of OffersModule (controller + service + repository)
+  - Follows existing project auth patterns (no Swagger — not installed in project)
 - **useRadarReconciliation hook (mobile)** — Reconciliation lifecycle orchestrator for Offer Radar (Spec 7 — Task 5.1)
   - Integrates `useCentrifugoChannel` internally, wiring all callbacks to the Zustand store
   - On WebSocket reconnect: triggers `store.reconcile()` (fetches /snapshot, REST wins)
