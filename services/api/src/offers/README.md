@@ -52,6 +52,11 @@ Manages the full offer lifecycle for cleaning services: creation, publishing, pr
 | `__tests__/offer-notification.service.spec.ts` | Unit tests for OfferNotificationService (8 tests: payload building, success/failure, error handling) |
 | `__tests__/offers.service.property.spec.ts` | Property-based tests for create flow (price, duration, scheduling, idempotency, duplicates, required fields) |
 | `__tests__/commission.service.spec.ts` | Unit tests for commission calculations |
+| `available/available-offers.repository.ts` | PostGIS-powered raw SQL queries for Cleaner's available offers (paginated + snapshot) |
+| `available/dto/available-offers-query.dto.ts` | Query params validation for available offers endpoint |
+| `available/dto/available-offer-response.dto.ts` | Response DTOs for available offers (paginated + snapshot) |
+| `available/dto/available-offers.types.ts` | Internal types: filters, raw DB row, query result interfaces |
+| `available/dto/index.ts` | Barrel exports for available offers DTOs and types |
 | `dto/create-offer.dto.ts` | Create offer request validation |
 | `dto/publish-offer.dto.ts` | Publish offer request validation |
 | `dto/offer-query.dto.ts` | Query/pagination parameters |
@@ -111,6 +116,8 @@ Manages the full offer lifecycle for cleaning services: creation, publishing, pr
 | GET | `/offers` | List own offers (paginated, state-filterable) |
 | GET | `/offers/:id` | Get offer detail with state history |
 | GET | `/offers/:id/price-breakdown` | Get price breakdown (Host or Cleaner view) |
+| GET | `/offers/available` | Available offers for authenticated Cleaner (paginated, filtered, sorted) |
+| GET | `/offers/available/snapshot` | Full unpaginated snapshot for WebSocket reconciliation (rate-limited) |
 
 ## Environment Variables
 
