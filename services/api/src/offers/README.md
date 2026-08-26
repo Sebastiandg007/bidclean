@@ -17,16 +17,23 @@ Manages the full offer lifecycle for cleaning services: creation, publishing, pr
 | `commission/commission.service.ts` | Integer-only commission calculation (Host fee + Cleaner commission) |
 | `commission/commission.types.ts` | Commission-specific type definitions |
 | `delivery/delivery-scheduler.service.ts` | Tiered delivery orchestration (Favorites → PRO → FREE) |
+| `delivery/tier-delivery.processor.ts` | BullMQ worker for delayed tier delivery (PRO/FREE) with stale-job guard |
+| `delivery/favorites-window.processor.ts` | BullMQ worker for favorites window expiration trigger |
 | `delivery/delivery.types.ts` | Delivery-specific types |
 | `delivery/centrifugo.client.ts` | Centrifugo HTTP API client for real-time WebSocket delivery |
 | `discovery/cleaner-discovery.interface.ts` | Contract interface for Cleaner geospatial discovery |
 | `discovery/cleaner-discovery.service.ts` | Stub implementation (returns empty until cleaner module exists) |
 | `discovery/cleaner-discovery.types.ts` | Discovery parameter and result types |
+| `queues/offer-queue.types.ts` | BullMQ job payload types for all 4 queues (TierDeliveryJobData, FavoritesWindowJobData, PushNotificationJobData) |
+| `queues/offer-queue.constants.ts` | Default job options (retry + exponential backoff), queue configs, job name constants |
+| `queues/offer-queues.module.ts` | NestJS module registering all 4 BullMQ queues with configurable retry/backoff |
+| `queues/index.ts` | Barrel export for queue types, constants, and module |
 | `expansion/radius-expansion.processor.ts` | BullMQ worker for progressive radius expansion (stale-job guard, cleaner discovery, delivery, expiration) |
 | `expansion/radius-expansion.types.ts` | Job payload (with isFinalWait) and result types for expansion |
 | `expansion/radius-expansion.property.spec.ts` | Property-based tests: monotonicity (capped) + stale job idempotency |
 | `expansion/stale-job.guard.ts` | Utility to detect and skip stale BullMQ jobs |
 | `notification/offer-notification.service.ts` | Push notification fallback for offline Cleaners (delegates to OneSignalClient) |
+| `notification/push-notification.processor.ts` | BullMQ worker for push notification delivery via OneSignal |
 | `notification/onesignal.client.ts` | OneSignal REST API client (HTTP POST to /notifications endpoint) |
 | `notification/notification.constants.ts` | Push notification content constants (headings, body, data type) |
 | `contracts/property-readiness.interface.ts` | Cross-module contract interface with PropertyReadinessFailure type |
@@ -125,6 +132,28 @@ Manages the full offer lifecycle for cleaning services: creation, publishing, pr
 | `CENTRIFUGO_API_KEY` | Centrifugo API authorization key | Yes |
 | `ONESIGNAL_APP_ID` | OneSignal application identifier | Yes |
 | `ONESIGNAL_API_KEY` | OneSignal REST API key | Yes |
+
+## BullMQ Queues
+
+All offer queues share configurable retry + exponential backoff from environment variables.
+
+| Queue | Job Name | Trigger | Purpose |
+|-------|----------|---------|---------|
+| `offer-radius-expansion` | `expand-radius` | Delayed (expansion interval) | Expands search radius, discovers new Cleaners |
+| `offer-tier-delivery` | `deliver-to-tier` | Delayed (tier delay) | Delivers offer to PRO or FREE tier |
+| `offer-favorites-window` | `favorites-expired` | Delayed (favorites window) | Triggers PRO delivery after favorites window |
+| `offer-push-notification` | `send-push` | Immediate | Sends push notification via OneSignal |
+
+### Default Job Options
+- **Max retries:** `OFFER_MAX_RETRIES` (default: 3)
+- **Backoff type:** Exponential
+- **Backoff delay:** `OFFER_BACKOFF_DELAY_MS` (default: 5000ms)
+- **Remove on complete:** Yes
+- **Remove on fail:** No (kept for debugging)
+
+### Stale Job Guard Pattern
+
+Every job payload includes `{ offerId, expectedState, expectedStep }`. Before processing, the processor validates all fields match the current database state. If stale, the job completes silently — no retry, no error.
 
 ## State Machine
 

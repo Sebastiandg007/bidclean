@@ -9,14 +9,17 @@ import { OffersRepository } from './offers.repository';
 import { CommissionService } from './commission/commission.service';
 import { CentrifugoClient } from './delivery/centrifugo.client';
 import { DeliverySchedulerService } from './delivery/delivery-scheduler.service';
+import { TierDeliveryProcessor } from './delivery/tier-delivery.processor';
+import { FavoritesWindowProcessor } from './delivery/favorites-window.processor';
 import { OfferNotificationService } from './notification/offer-notification.service';
 import { OneSignalClient } from './notification/onesignal.client';
+import { PushNotificationProcessor } from './notification/push-notification.processor';
 import { OfferEventEmitterService } from './events/offer-event-emitter.service';
 import { OfferStateMachineService } from './state-machine/offer-state-machine';
 import { OfferOwnerGuard } from './guards/offer-owner.guard';
 import { PropertyReadinessService } from './contracts/property-readiness.service';
 import { PROPERTY_READINESS } from './contracts/property-readiness.interface';
-import { QUEUE_NAMES } from './offers.constants';
+import { OFFER_QUEUE_CONFIGS } from './queues/offer-queue.constants';
 import { Offer } from './entities/offer.entity';
 import { OfferStateTransition } from './entities/offer-state-transition.entity';
 import { OfferDelivery } from './entities/offer-delivery.entity';
@@ -41,7 +44,12 @@ import { OfferDelivery } from './entities/offer-delivery.entity';
     ConfigModule,
     EventEmitterModule.forRoot(),
     TypeOrmModule.forFeature([Offer, OfferStateTransition, OfferDelivery]),
-    BullModule.registerQueue({ name: QUEUE_NAMES.RADIUS_EXPANSION }),
+    ...OFFER_QUEUE_CONFIGS.map((config) =>
+      BullModule.registerQueue({
+        name: config.name,
+        defaultJobOptions: config.defaultJobOptions,
+      }),
+    ),
   ],
   controllers: [OffersController],
   providers: [
@@ -50,8 +58,11 @@ import { OfferDelivery } from './entities/offer-delivery.entity';
     CommissionService,
     CentrifugoClient,
     DeliverySchedulerService,
+    TierDeliveryProcessor,
+    FavoritesWindowProcessor,
     OfferNotificationService,
     OneSignalClient,
+    PushNotificationProcessor,
     OfferEventEmitterService,
     OfferStateMachineService,
     OfferOwnerGuard,

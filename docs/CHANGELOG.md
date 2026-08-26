@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **BullMQ queue registrations and job types (api)** — All 4 offer queues with configurable retry + exponential backoff (Spec 6 — Task 23)
+  - `queues/offer-queue.types.ts`: Job payload types for all queues (TierDeliveryJobData, FavoritesWindowJobData, PushNotificationJobData, re-exported RadiusExpansionJobPayload)
+  - `queues/offer-queue.constants.ts`: DEFAULT_JOB_OPTIONS with configurable attempts (OFFER_MAX_RETRIES) and exponential backoff (OFFER_BACKOFF_DELAY_MS), OFFER_QUEUE_CONFIGS array, JOB_NAMES constants
+  - `queues/offer-queues.module.ts`: NestJS module registering all 4 BullMQ queues dynamically from OFFER_QUEUE_CONFIGS
+  - `delivery/tier-delivery.processor.ts`: BullMQ @Processor stub for offer-tier-delivery queue
+  - `delivery/favorites-window.processor.ts`: BullMQ @Processor stub for offer-favorites-window queue
+  - `notification/push-notification.processor.ts`: BullMQ @Processor stub for offer-push-notification queue
+  - `offers.module.ts`: Updated to register all 4 queues (previously only radius-expansion) and include all 3 new processors
+  - Stale-job guard pattern: all job payloads include expectedState/expectedStep for idempotent processing
 - **RadiusExpansionProcessor implementation (api)** — Full BullMQ worker for progressive radius expansion (Spec 6 — Task 22)
   - `@Processor(QUEUE_NAMES.RADIUS_EXPANSION)` extending `WorkerHost` from `@nestjs/bullmq`
   - Stale job guard: validates offer state + expansion step count before processing (idempotent skip)
