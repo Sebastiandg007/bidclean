@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Unit tests for useRadarStore (mobile/radar)** — Task 3.3 (Spec 7 — Offer Radar)
+  - 30 unit tests covering: handleOfferNew idempotency, handleOfferStatusChanged temporal ordering, reconcile REST-wins behavior, setFilters/clearFilters, getOffersAsGeoJSON transformation, markAllStale, getActiveFilterCount, getOffersList sorted output, markOfferViewed, setConnectionStatus, selectOffer, setViewMode
+- **Property-based tests for Offer Radar (mobile/radar)** — Tasks 17.1–17.11 (Spec 7 — Offer Radar)
+  - 11 property-based tests using fast-check (100 iterations each):
+    - P1: Visibility Contract Enforcement (ACTIVE + SENT + not-expired)
+    - P2: Filter Predicate Satisfaction (all filters applied simultaneously)
+    - P3: Sort Ordering Guarantee (consecutive pair invariant)
+    - P4: Privacy Field Exclusion (no forbidden fields in response)
+    - P5: Reconciliation Completeness (REST snapshot replaces all local state)
+    - P6: Ad Slot Positioning (positions 4,9,14... when enabled)
+    - P7: WebSocket Event Idempotency (one entry per unique offerId)
+    - P8: Event Temporal Ordering (latest changedAt wins)
+    - P9: Pagination Uniqueness (no duplicates across pages)
+    - P10: Public Location Privacy Displacement (distance in [200m, 500m], deterministic)
+    - P11: Offline Acceptance Safety (Quick Accept disabled when disconnected)
 - **Integration tests for Offer Radar available offers endpoint (api/offers/available)** — Tasks 18.1–18.5 (Spec 7 — Offer Radar)
   - 18.1: Full radar flow — validates visibility contract (ACTIVE + SENT + not expired), response shape, privacy fields exclusion, role enforcement
   - 18.2: Filter combinations — serviceType (comma-separated), price range, maxDistance (ST_DWithin), date range, simultaneous multi-filter
