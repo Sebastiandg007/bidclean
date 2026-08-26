@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **OffersModule registration complete (api)** — Full NestJS module wiring for offer-publishing (Spec 6 — Task 26)
+  - All providers registered: OffersService, CommissionService, DeliverySchedulerService, RadiusExpansionProcessor, OfferNotificationService, OfferEventEmitterService, CentrifugoClient, OneSignalClient, OfferStateMachineService, OfferOwnerGuard, TierDeliveryProcessor, FavoritesWindowProcessor, PushNotificationProcessor, OffersRepository
+  - Contract-based DI: CleanerDiscoveryService (stub) via CLEANER_DISCOVERY token, PropertyReadinessService via PROPERTY_READINESS token, OfferMatchService via OFFER_MATCH token
+  - BullMQ queues: offer-radius-expansion, offer-tier-delivery, offer-favorites-window, offer-push-notification
+  - TypeORM entities: Offer, OfferStateTransition, OfferDelivery, User
+  - Exports: OffersService, CommissionService, OFFER_MATCH (cross-module OfferMatchContract)
+  - Property-based test (26.1): State Transition Atomicity — simulates N concurrent transitions, asserts exactly 1 succeeds and N-1 fail via optimistic locking pattern
 - **Offer DTOs with class-validator decorators (api)** — Full DTO implementation for offer endpoints (Spec 6 — Task 25)
   - `CreateOfferDto`: class-validator decorators — @IsUUID for propertyId, @IsEnum(ServiceType), @IsPositive @IsInt for offeredPriceCents, @IsDateString for scheduledAt, @Min/@Max from constants for estimatedDurationMinutes, optional description and idempotencyKey with @MaxLength
   - `PublishOfferDto`: @IsOptional @IsBoolean for favoritesFirst flag with default false
