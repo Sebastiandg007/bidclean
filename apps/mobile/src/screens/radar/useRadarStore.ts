@@ -43,6 +43,8 @@ export interface RadarState {
   selectedOfferId: string | null;
   lastSuccessfulSyncAt: string | null;
   lastWebSocketEventAt: string | null;
+  /** Last error message from REST operations (cleared on next successful fetch) */
+  error: string | null;
 }
 
 export interface RadarActions {
@@ -70,6 +72,9 @@ export interface RadarActions {
   setConnectionStatus: (status: ConnectionStatus) => void;
   markAllStale: () => void;
 
+  // Error handling
+  clearError: () => void;
+
   // Computed selectors
   getOffersAsGeoJSON: () => OfferFeatureCollection;
   getOffersList: () => RadarOffer[];
@@ -93,6 +98,7 @@ const initialState: RadarState = {
   selectedOfferId: null,
   lastSuccessfulSyncAt: null,
   lastWebSocketEventAt: null,
+  error: null,
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -165,7 +171,7 @@ export const useRadarStore = create<RadarStore>((set, get) => ({
   fetchAvailableOffers: async (page = 1) => {
     const { filters, sort } = get();
 
-    set({ isLoading: true });
+    set({ isLoading: true, error: null });
 
     try {
       const response = await fetchAvailableOffers({
@@ -193,17 +199,19 @@ export const useRadarStore = create<RadarStore>((set, get) => ({
           total: response.pagination.total,
         },
         isLoading: false,
+        error: null,
         lastSuccessfulSyncAt: new Date().toISOString(),
       });
-    } catch {
-      set({ isLoading: false });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'radar.error.fetchFailed';
+      set({ isLoading: false, error: message });
     }
   },
 
   refreshOffers: async () => {
-    const { filters, sort } = get();
+    const { filters, sort, offers: existingOffers } = get();
 
-    set({ isRefreshing: true });
+    set({ isRefreshing: true, error: null });
 
     try {
       const response = await fetchAvailableOffers({
@@ -216,9 +224,11 @@ export const useRadarStore = create<RadarStore>((set, get) => ({
       const newOffers = new Map<string, RadarOffer>();
 
       for (const offer of response.items) {
+        // Preserve isViewed state from existing offers (don't reset on refresh)
+        const wasViewed = existingOffers.get(offer.offerId)?.isViewed ?? false;
         newOffers.set(offer.offerId, {
           ...offer,
-          isViewed: false,
+          isViewed: wasViewed,
           isStale: false,
         });
       }
@@ -231,10 +241,12 @@ export const useRadarStore = create<RadarStore>((set, get) => ({
           total: response.pagination.total,
         },
         isRefreshing: false,
+        error: null,
         lastSuccessfulSyncAt: new Date().toISOString(),
       });
-    } catch {
-      set({ isRefreshing: false });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'radar.error.refreshFailed';
+      set({ isRefreshing: false, error: message });
     }
   },
 
@@ -276,10 +288,12 @@ export const useRadarStore = create<RadarStore>((set, get) => ({
           total: response.pagination.total,
         },
         isLoading: false,
+        error: null,
         lastSuccessfulSyncAt: new Date().toISOString(),
       });
-    } catch {
-      set({ isLoading: false });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'radar.error.loadMoreFailed';
+      set({ isLoading: false, error: message });
     }
   },
 
@@ -418,6 +432,12 @@ export const useRadarStore = create<RadarStore>((set, get) => ({
     }
 
     set({ offers: staleOffers });
+  },
+
+  // ─── Error Handling ───────────────────────────────────────────────────
+
+  clearError: () => {
+    set({ error: null });
   },
 
   // ─── Computed Selectors ──────────────────────────────────────────────────

@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * AvailableOffersService unit tests.
  *
@@ -49,7 +48,7 @@ describe('AvailableOffersService', () => {
     mockRepository = {
       findAvailableOffers: jest.fn(),
       findAvailableOffersSnapshot: jest.fn(),
-    } as unknown as jest.Mocked<AvailableOffersRepository>;
+    } as jest.Mocked<Pick<AvailableOffersRepository, 'findAvailableOffers' | 'findAvailableOffersSnapshot'>> as jest.Mocked<AvailableOffersRepository>;
 
     service = new AvailableOffersService(mockRepository);
   });

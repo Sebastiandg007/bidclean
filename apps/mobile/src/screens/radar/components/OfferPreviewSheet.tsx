@@ -31,6 +31,22 @@ import type { RadarOffer } from '../radar.types';
 import { URGENCY_THRESHOLD_MS } from '../radar.constants';
 import { useRadarStore } from '../useRadarStore';
 
+// ─── Service Type i18n Key Mapping ───────────────────────────────────────────
+
+/** Maps service type identifiers to scoped i18n keys (relative to 'radar' namespace) */
+const SERVICE_TYPE_I18N_KEYS: Record<string, string> = {
+  standard: 'filter.serviceType.standard',
+  deep: 'filter.serviceType.deep',
+  move_in_out: 'filter.serviceType.moveInOut',
+  post_construction: 'filter.serviceType.postConstruction',
+  post_event: 'filter.serviceType.postEvent',
+  recurring: 'filter.serviceType.recurring',
+};
+
+function getServiceTypeI18nKey(serviceType: string): string {
+  return SERVICE_TYPE_I18N_KEYS[serviceType] ?? 'filter.serviceType.standard';
+}
+
 // ─── Design Tokens ───────────────────────────────────────────────────────────
 
 const COLORS = {
@@ -308,7 +324,7 @@ export function OfferPreviewSheet(): React.JSX.Element | null {
               {/* Service Type Badge */}
               <View style={styles.serviceTypeBadge}>
                 <Text style={styles.serviceTypeLabel}>
-                  {t(`filter.serviceType.${selectedOffer.serviceType === 'move_in_out' ? 'moveInOut' : selectedOffer.serviceType === 'post_construction' ? 'postConstruction' : selectedOffer.serviceType === 'post_event' ? 'postEvent' : selectedOffer.serviceType}`)}
+                  {t(getServiceTypeI18nKey(selectedOffer.serviceType))}
                 </Text>
               </View>
             </View>

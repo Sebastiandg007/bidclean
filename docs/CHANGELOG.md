@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Offer Radar audit corrections** — 5 post-audit quality improvements (Spec 7 — Offer Radar)
+  - Added `error: string | null` state to `useRadarStore` with `clearError()` action; all REST actions now capture and expose error messages instead of silently swallowing (Req 13.5 toast notifications)
+  - `refreshOffers()` now preserves `isViewed` state for existing offers instead of resetting all to unread on pull-to-refresh
+  - Refactored `OfferPreviewSheet` service type label: replaced inline ternary mapping with centralized `SERVICE_TYPE_I18N_KEYS` Record + `getServiceTypeI18nKey()` helper
+  - Added Swagger/OpenAPI decorators to `AvailableOffersController`: `@ApiTags`, `@ApiBearerAuth`, `@ApiOperation`, `@ApiResponse` on both endpoints
+  - Removed `// @ts-nocheck` from test files; replaced `as any` casts with properly typed mock interfaces (`MockAuthenticatedRequest`, `AvailableOffersQueryDto`, `jest.Mocked<Pick<...>>`)
+
 ### Added
 - **Unit tests for useRadarStore (mobile/radar)** — Task 3.3 (Spec 7 — Offer Radar)
   - 30 unit tests covering: handleOfferNew idempotency, handleOfferStatusChanged temporal ordering, reconcile REST-wins behavior, setFilters/clearFilters, getOffersAsGeoJSON transformation, markAllStale, getActiveFilterCount, getOffersList sorted output, markOfferViewed, setConnectionStatus, selectOffer, setViewMode

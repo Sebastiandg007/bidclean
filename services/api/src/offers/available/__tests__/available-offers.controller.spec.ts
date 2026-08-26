@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * AvailableOffersController unit tests.
  *
@@ -13,7 +12,7 @@ import { AvailableOffersController } from '../available-offers.controller';
 import { AvailableOffersService } from '../available-offers.service';
 import { User } from '../../../auth/entities/user.entity';
 import { UserRole } from '../../../roles/roles.types';
-import { AvailableOffersSortOption } from '../dto/available-offers-query.dto';
+import { AvailableOffersQueryDto, AvailableOffersSortOption } from '../dto/available-offers-query.dto';
 import {
   AvailableOfferDto,
   AvailableOffersResponseDto,
@@ -23,6 +22,13 @@ import {
   CleanerPriceBreakdownDto,
   PublicLocationDto,
 } from '../dto/available-offer-response.dto';
+import type { JwtUserPayload } from '../../../auth/guards/jwt.types';
+import type { Request } from 'express';
+
+/** Typed mock for the authenticated request object passed by the JWT guard */
+interface MockAuthenticatedRequest extends Partial<Request> {
+  user: JwtUserPayload;
+}
 
 describe('AvailableOffersController', () => {
   let controller: AvailableOffersController;
@@ -50,9 +56,24 @@ describe('AvailableOffersController', () => {
     activeRole: UserRole.HOST,
   };
 
+  const defaultJwtPayload: JwtUserPayload = {
+    keycloakId,
+    email: 'cleaner@test.com',
+    emailVerified: true,
+  };
+
   /** Create a mock authenticated request */
-  function createAuthRequest(payload = { keycloakId, email: 'cleaner@test.com', emailVerified: true }) {
-    return { user: payload } as any;
+  function createAuthRequest(payload: JwtUserPayload = defaultJwtPayload): MockAuthenticatedRequest {
+    return { user: payload } as MockAuthenticatedRequest;
+  }
+
+  /** Create a default query DTO for available offers */
+  function createDefaultQueryDto(): AvailableOffersQueryDto {
+    const dto = new AvailableOffersQueryDto();
+    dto.sort = AvailableOffersSortOption.DISTANCE_ASC;
+    dto.page = 1;
+    dto.limit = 20;
+    return dto;
   }
 
   /** Create a sample available offer DTO */
@@ -94,7 +115,7 @@ describe('AvailableOffersController', () => {
     mockService = {
       getAvailableOffers: jest.fn(),
       getAvailableOffersSnapshot: jest.fn(),
-    } as unknown as jest.Mocked<AvailableOffersService>;
+    } as jest.Mocked<Pick<AvailableOffersService, 'getAvailableOffers' | 'getAvailableOffersSnapshot'>> as jest.Mocked<AvailableOffersService>;
 
     mockUserRepository = {
       findOne: jest.fn(),
@@ -117,21 +138,22 @@ describe('AvailableOffersController', () => {
         mockUserRepository.findOne.mockResolvedValue(null);
 
         await expect(
-          controller.getAvailableOffers(createAuthRequest(), {
-            sort: AvailableOffersSortOption.DISTANCE_ASC,
-            page: 1,
-            limit: 20,
-          } as any),
+          controller.getAvailableOffers(createAuthRequest() as never, createDefaultQueryDto()),
         ).rejects.toThrow(ForbiddenException);
       });
 
       it('should throw ForbiddenException when user lacks Cleaner role', async () => {
         mockUserRepository.findOne.mockResolvedValue(mockHostUser);
+        const hostPayload: JwtUserPayload = {
+          keycloakId: 'keycloak-host-001',
+          email: 'host@test.com',
+          emailVerified: true,
+        };
 
         await expect(
           controller.getAvailableOffers(
-            createAuthRequest({ keycloakId: 'keycloak-host-001', email: 'host@test.com', emailVerified: true }),
-            { sort: AvailableOffersSortOption.DISTANCE_ASC, page: 1, limit: 20 } as any,
+            createAuthRequest(hostPayload) as never,
+            createDefaultQueryDto(),
           ),
         ).rejects.toThrow(ForbiddenException);
       });
@@ -148,8 +170,8 @@ describe('AvailableOffersController', () => {
         mockService.getAvailableOffers.mockResolvedValue(mockResponse);
 
         const result = await controller.getAvailableOffers(
-          createAuthRequest(),
-          { sort: AvailableOffersSortOption.DISTANCE_ASC, page: 1, limit: 20 } as any,
+          createAuthRequest() as never,
+          createDefaultQueryDto(),
         );
 
         expect(result).toBe(mockResponse);
@@ -167,8 +189,8 @@ describe('AvailableOffersController', () => {
         mockService.getAvailableOffers.mockResolvedValue(mockResponse);
 
         await controller.getAvailableOffers(
-          createAuthRequest(),
-          { sort: AvailableOffersSortOption.DISTANCE_ASC, page: 1, limit: 20 } as any,
+          createAuthRequest() as never,
+          createDefaultQueryDto(),
         );
 
         expect(mockService.getAvailableOffers).toHaveBeenCalledWith(
@@ -192,8 +214,8 @@ describe('AvailableOffersController', () => {
         mockService.getAvailableOffers.mockResolvedValue(mockResponse);
 
         const result = await controller.getAvailableOffers(
-          createAuthRequest(),
-          { sort: AvailableOffersSortOption.DISTANCE_ASC, page: 1, limit: 20 } as any,
+          createAuthRequest() as never,
+          createDefaultQueryDto(),
         );
 
         expect(result.items).toHaveLength(1);
@@ -217,8 +239,8 @@ describe('AvailableOffersController', () => {
         mockService.getAvailableOffers.mockResolvedValue(mockResponse);
 
         const result = await controller.getAvailableOffers(
-          createAuthRequest(),
-          { sort: AvailableOffersSortOption.DISTANCE_ASC, page: 1, limit: 20 } as any,
+          createAuthRequest() as never,
+          createDefaultQueryDto(),
         );
 
         const offer = result.items[0];
@@ -258,8 +280,8 @@ describe('AvailableOffersController', () => {
         mockService.getAvailableOffers.mockResolvedValue(mockResponse);
 
         const result = await controller.getAvailableOffers(
-          createAuthRequest(),
-          { sort: AvailableOffersSortOption.DISTANCE_ASC, page: 1, limit: 20 } as any,
+          createAuthRequest() as never,
+          createDefaultQueryDto(),
         );
 
         const serialized = JSON.stringify(result);
@@ -285,8 +307,8 @@ describe('AvailableOffersController', () => {
         mockService.getAvailableOffers.mockResolvedValue(mockResponse);
 
         await controller.getAvailableOffers(
-          createAuthRequest(),
-          { sort: AvailableOffersSortOption.DISTANCE_ASC, page: 1, limit: 20 } as any,
+          createAuthRequest() as never,
+          createDefaultQueryDto(),
         );
 
         expect(mockUserRepository.findOne).toHaveBeenCalledWith({
@@ -302,7 +324,7 @@ describe('AvailableOffersController', () => {
         mockUserRepository.findOne.mockResolvedValue(null);
 
         await expect(
-          controller.getAvailableOffersSnapshot(createAuthRequest()),
+          controller.getAvailableOffersSnapshot(createAuthRequest() as never),
         ).rejects.toThrow(ForbiddenException);
       });
 
@@ -311,7 +333,7 @@ describe('AvailableOffersController', () => {
 
         await expect(
           controller.getAvailableOffersSnapshot(
-            createAuthRequest({ keycloakId: 'keycloak-host-001', email: 'host@test.com', emailVerified: true }),
+            createAuthRequest({ keycloakId: 'keycloak-host-001', email: 'host@test.com', emailVerified: true }) as never,
           ),
         ).rejects.toThrow(ForbiddenException);
       });
@@ -323,7 +345,7 @@ describe('AvailableOffersController', () => {
         mockResponse.syncedAt = new Date().toISOString();
         mockService.getAvailableOffersSnapshot.mockResolvedValue(mockResponse);
 
-        const result = await controller.getAvailableOffersSnapshot(createAuthRequest());
+        const result = await controller.getAvailableOffersSnapshot(createAuthRequest() as never);
 
         expect(result).toBe(mockResponse);
       });
@@ -338,7 +360,7 @@ describe('AvailableOffersController', () => {
         mockResponse.syncedAt = '2024-06-15T12:00:00.000Z';
         mockService.getAvailableOffersSnapshot.mockResolvedValue(mockResponse);
 
-        const result = await controller.getAvailableOffersSnapshot(createAuthRequest());
+        const result = await controller.getAvailableOffersSnapshot(createAuthRequest() as never);
 
         expect(result.offers).toHaveLength(1);
         expect(result.syncedAt).toBe('2024-06-15T12:00:00.000Z');
@@ -351,9 +373,9 @@ describe('AvailableOffersController', () => {
         mockResponse.syncedAt = new Date().toISOString();
         mockService.getAvailableOffersSnapshot.mockResolvedValue(mockResponse);
 
-        const result = await controller.getAvailableOffersSnapshot(createAuthRequest());
+        const result = await controller.getAvailableOffersSnapshot(createAuthRequest() as never);
 
-        expect((result as any).pagination).toBeUndefined();
+        expect((result as Record<string, unknown>).pagination).toBeUndefined();
       });
     });
 
@@ -365,7 +387,7 @@ describe('AvailableOffersController', () => {
         mockResponse.syncedAt = new Date().toISOString();
         mockService.getAvailableOffersSnapshot.mockResolvedValue(mockResponse);
 
-        await controller.getAvailableOffersSnapshot(createAuthRequest());
+        await controller.getAvailableOffersSnapshot(createAuthRequest() as never);
 
         expect(mockService.getAvailableOffersSnapshot).toHaveBeenCalledWith(userId);
       });
