@@ -86,6 +86,7 @@ export const COLORS = {
   errorSubtle: 'rgba(255, 107, 107, 0.1)',
   success: '#00F5D4',
   warning: '#FFD93D',
+  disabled: 'rgba(255, 255, 255, 0.3)',
 } as const;
 
 export const SPACING = {
@@ -105,6 +106,7 @@ export const FONT_SIZE = {
   label: 13,
   caption: 11,
   icon: 32,
+  large: 28,
 } as const;
 
 // ─── Animation Config ────────────────────────────────────────────────────────
