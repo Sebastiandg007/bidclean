@@ -25,8 +25,9 @@ Manages the full offer lifecycle for cleaning services: creation, publishing, pr
 | `expansion/radius-expansion.processor.ts` | BullMQ worker for progressive radius expansion |
 | `expansion/radius-expansion.types.ts` | Job payload and result types for expansion |
 | `expansion/stale-job.guard.ts` | Utility to detect and skip stale BullMQ jobs |
-| `notification/offer-notification.service.ts` | Push notification fallback for offline Cleaners |
-| `notification/onesignal.client.ts` | OneSignal REST API client |
+| `notification/offer-notification.service.ts` | Push notification fallback for offline Cleaners (delegates to OneSignalClient) |
+| `notification/onesignal.client.ts` | OneSignal REST API client (HTTP POST to /notifications endpoint) |
+| `notification/notification.constants.ts` | Push notification content constants (headings, body, data type) |
 | `contracts/property-readiness.interface.ts` | Cross-module contract interface with PropertyReadinessFailure type |
 | `contracts/property-readiness.service.ts` | Default implementation using DataSource for cross-table validation |
 | `contracts/offer-match.interface.ts` | Cross-module contract for offer matching (ACTIVE → MATCHED) |
@@ -38,6 +39,8 @@ Manages the full offer lifecycle for cleaning services: creation, publishing, pr
 | `state-machine/offer-state-machine.property.spec.ts` | Property-based tests for state machine transitions |
 | `__tests__/offers-cancel.service.spec.ts` | Unit tests for cancel flow (10 tests: state validation, ownership, jobs, notifications, race conditions) |
 | `__tests__/centrifugo.client.spec.ts` | Unit tests for CentrifugoClient (14 tests: publish, broadcast, retry, exponential backoff, error handling) |
+| `__tests__/onesignal.client.spec.ts` | Unit tests for OneSignalClient (12 tests: delivery, config validation, HTTP errors, network errors) |
+| `__tests__/offer-notification.service.spec.ts` | Unit tests for OfferNotificationService (8 tests: payload building, success/failure, error handling) |
 | `__tests__/offers.service.property.spec.ts` | Property-based tests for create flow (price, duration, scheduling, idempotency, duplicates, required fields) |
 | `__tests__/commission.service.spec.ts` | Unit tests for commission calculations |
 | `dto/create-offer.dto.ts` | Create offer request validation |
@@ -150,6 +153,35 @@ The cancel flow (`OffersService.cancel()`) handles three states with different s
 6. Emit `OfferCancelled` domain event with `previousState`
 
 Non-cancellable states (MATCHED, COMPLETED, CANCELLED, EXPIRED) return `422 Unprocessable Entity`.
+
+## Notification Service (Push Fallback)
+
+The `OfferNotificationService` + `OneSignalClient` provide push notification delivery to offline Cleaners when WebSocket (Centrifugo) delivery fails.
+
+### Flow
+
+1. `DeliverySchedulerService.attemptPush()` calls `OfferNotificationService.sendOfferNotification(cleanerId, offerId)`
+2. `OfferNotificationService` builds a structured payload (headings, contents, deep-link data) from constants
+3. `OneSignalClient.sendToUser()` sends HTTP POST to OneSignal REST API (`/notifications`)
+4. Targets Cleaner by external user ID (`include_external_user_ids`)
+5. Returns `true` if OneSignal accepts, `false` on any error (never throws)
+6. On success, `DeliverySchedulerService` updates the delivery record channel to `PUSH`
+
+### Error Handling
+
+- **No retries in the client** — BullMQ handles retries at the queue level
+- **Never throws** — all errors caught internally, logged, return `false`
+- **Graceful degradation** — missing configuration disables push silently
+
+### Payload Structure
+
+```typescript
+{
+  headings: { en: '...', es: '...' },
+  contents: { en: '...', es: '...' },
+  data: { type: 'offer_new', offerId: '<uuid>' }
+}
+```
 
 ## Delivery Scheduler
 

@@ -10,6 +10,7 @@ import { CommissionService } from './commission/commission.service';
 import { CentrifugoClient } from './delivery/centrifugo.client';
 import { DeliverySchedulerService } from './delivery/delivery-scheduler.service';
 import { OfferNotificationService } from './notification/offer-notification.service';
+import { OneSignalClient } from './notification/onesignal.client';
 import { OfferEventEmitterService } from './events/offer-event-emitter.service';
 import { OfferStateMachineService } from './state-machine/offer-state-machine';
 import { OfferOwnerGuard } from './guards/offer-owner.guard';
@@ -50,6 +51,7 @@ import { OfferDelivery } from './entities/offer-delivery.entity';
     CentrifugoClient,
     DeliverySchedulerService,
     OfferNotificationService,
+    OneSignalClient,
     OfferEventEmitterService,
     OfferStateMachineService,
     OfferOwnerGuard,

@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **OfferNotificationService + OneSignalClient implementation (api)** — OneSignal push notification service for offer delivery to offline Cleaners (Spec 6 — Task 21)
+  - `OneSignalClient`: Injectable NestJS service wrapping OneSignal REST API
+  - Sends push via HTTP POST to `/notifications` endpoint targeting by external user ID
+  - Configuration from environment: `ONESIGNAL_APP_ID`, `ONESIGNAL_API_KEY`, `ONESIGNAL_API_URL` (optional), `ONESIGNAL_TIMEOUT_MS` (optional)
+  - `OfferNotificationService.sendOfferNotification(cleanerId, offerId)`: builds structured payload, delegates to OneSignalClient
+  - Notification payload includes EN/ES headings and contents from constants, plus deep-link data `{ type: 'offer_new', offerId }`
+  - Graceful error handling: never throws, catches all errors internally, logs with context, returns false
+  - No retry logic in client (BullMQ handles retries at queue level)
+  - Missing configuration disables push silently (returns false)
+  - `notification.constants.ts`: centralized notification content (no hardcoded strings)
+  - OneSignalClient registered as NestJS provider in OffersModule
+  - 12 unit tests for OneSignalClient (delivery, config, HTTP errors, network errors)
+  - 8 unit tests for OfferNotificationService (payload building, success/failure, error handling)
 - **DeliverySchedulerService implementation (api)** — Full tiered delivery orchestration for offers (Spec 6 — Task 20)
   - `deliverToCleaners(offerId, cleaners, radiusStep)`: partitions cleaners by tier, orchestrates delivery order
   - Favorites-first mode: delivers to FAVORITE tier immediately, schedules PRO after FAVORITES_WINDOW_MS, FREE after combined delay
