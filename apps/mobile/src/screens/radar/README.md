@@ -29,6 +29,9 @@ Cleaner Navigator — Radar Tab
 | `components/map/mapStyles.ts` | Mapbox GL expression-based styles for offer pins (icon, color, opacity, price label), cluster circles (radius, color, count), work zone ring, and filter/source configuration |
 | `components/map/OfferPinsLayer.tsx` | Native SymbolLayer + ShapeSource for offer pins with clustering, pin/cluster tap handling |
 | `components/map/ClusterLayer.tsx` | CircleLayer + SymbolLayer for cluster aggregation display |
+| `components/RadarHeader.tsx` | Top bar — screen title + filter button with active filter count badge |
+| `components/RadarSkeleton.tsx` | Animated shimmer skeleton for initial data fetch — mimics map, toggle, and card list |
+| `RadarScreen.tsx` | Main container — location permission → data fetch → WebSocket, view mode toggle, filter panel, offer preview sheet, offline/empty states, skeleton loaders |
 
 ## Implemented Files
 
@@ -49,15 +52,16 @@ Cleaner Navigator — Radar Tab
 | `useLocationPermission.ts` | Location permission request (expo-location), GPS tracking with battery-aware accuracy (high fg / balanced bg), AppState transitions, open settings fallback, i18n explanation text |
 | `components/OfflineBanner.tsx` | Connectivity indicator — persistent banner showing offline/reconnecting/polling-fallback status with slide-in/out animation; auto-hides when connected; reads connectionStatus from useRadarStore |
 | `components/ViewToggle.tsx` | Segmented control for switching between Map and List views — pill-shaped container with animated selection indicator (Animated API), toggles `viewMode` in Zustand store, i18n labels, accessibility roles |
+| `components/RadarHeader.tsx` | Top bar for the Radar screen — screen title + filter button with active filter count badge; uses i18n, accessibility labels |
+| `components/RadarSkeleton.tsx` | Animated shimmer skeleton for initial Radar data fetch — mimics map area, toggle, and card list with pulsing opacity animation; shown while offers are loading |
 | `components/EmptyState.tsx` | No offers / no matching filters state |
 | `hooks/useOfferAnimations.ts` | Reanimated 3 spring animations for radar pins — entrance drop+bounce, exit fade+scale, urgency pulse ring, optional haptic |
 | `hooks/useUrgencyTimer.ts` | 60-second interval recalculating `isUrgent` for all offers — urgent when (scheduledAt − now) ≤ 2h; cleans up on unmount |
+| `RadarScreen.tsx` | Main container — assembles radar sub-components (map/list toggle, filter panel, offer preview sheet, offline banner, connectivity indicator, empty states, skeleton loaders), manages location permission lifecycle, initial data fetch, WebSocket subscription coordination, and urgency timer |
 
 ## Planned Files (from spec)
 
-| File | Responsibility |
-|------|---------------|
-| `RadarScreen.tsx` | Main container — map + list toggle, connection status |
+*All planned files have been implemented.*
 
 ## Dependencies
 

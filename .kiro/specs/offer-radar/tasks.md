@@ -180,8 +180,8 @@ The Offer Radar is the Cleaner's primary interface for discovering cleaning offe
     - Define cluster styling expressions
     - _Requirements: 2.3, 2.4, 2.5_
 
-- [ ] 8. Mobile — Pin Animations
-  - [~] 8.1 Implement useOfferAnimations hook
+- [x] 8. Mobile — Pin Animations
+  - [x] 8.1 Implement useOfferAnimations hook
     - Create `hooks/useOfferAnimations.ts` with Reanimated 3 spring configs
     - Entrance animation: spring drop + bounce effect for new pins (within 300ms of event)
     - Exit animation: fade + scale down for removed pins (CANCELLED/EXPIRED/MATCHED)
@@ -189,7 +189,7 @@ The Offer Radar is the Cleaner's primary interface for discovering cleaning offe
     - Optional haptic feedback on new pin appearance (configurable)
     - _Requirements: 2.2, 2.5, 2.6, 2.7, 12.2_
 
-- [ ] 9. Mobile — List View
+- [x] 9. Mobile — List View
   - [x] 9.1 Implement OfferCard component
     - Create `components/list/OfferCard.tsx` with: property cover photo thumbnail, property name, property type, service type badge, price (Cleaner payout formatted by locale), distance (km or miles by locale), scheduled date/time (converted to offer timezone), urgency indicator
     - Tap handler navigates to Offer Detail screen
@@ -202,7 +202,7 @@ The Offer Radar is the Cleaner's primary interface for discovering cleaning offe
     - Ad visibility controlled by abstracted entitlement layer (not by checking `cleaner_pro` directly)
     - _Requirements: 6.7_
 
-  - [~] 9.3 Implement OfferListView with infinite scroll and ads
+  - [x] 9.3 Implement OfferListView with infinite scroll and ads
     - Create `components/list/OfferListView.tsx` with FlatList
     - Sorted by selected sort option (default: distance_asc)
     - Pull-to-refresh triggers `refreshOffers()`
@@ -257,8 +257,8 @@ The Offer Radar is the Cleaner's primary interface for discovering cleaning offe
     - Test filter changes trigger API re-fetch with correct params
     - _Requirements: 5.2, 5.3, 5.4, 5.5_
 
-- [ ] 11. Mobile — Bottom Sheet Preview
-  - [~] 11.1 Implement OfferPreviewSheet
+- [x] 11. Mobile — Bottom Sheet Preview
+  - [x] 11.1 Implement OfferPreviewSheet
     - Create `components/OfferPreviewSheet.tsx` as a bottom sheet triggered by pin tap
     - Display: property name, type, city, cover photo, service type, scheduled date/time, duration, Cleaner payout, distance
     - "View Full Details" button → navigate to full Offer Detail screen
@@ -274,21 +274,21 @@ The Offer Radar is the Cleaner's primary interface for discovering cleaning offe
     - Test markOfferViewed called on open
     - _Requirements: 7.4, 7.5, 7.6_
 
-- [ ] 12. Mobile — Empty States, Offline Banner, Connectivity, View Toggle
-  - [~] 12.1 Implement EmptyState component
+- [x] 12. Mobile — Empty States, Offline Banner, Connectivity, View Toggle
+  - [x] 12.1 Implement EmptyState component
     - Create `components/EmptyState.tsx` with two variants:
       - No offers available: friendly illustration + "Expand your work zone" CTA → navigate to settings
       - All filtered out: "No offers match your filters" message + "Clear filters" CTA
     - All text via i18n keys
     - _Requirements: 8.1, 8.2, 8.3_
 
-  - [~] 12.2 Implement OfflineBanner and ConnectivityIndicator
+  - [x] 12.2 Implement OfflineBanner and ConnectivityIndicator
     - Create `components/OfflineBanner.tsx` — banner when device offline: "Offline — data may be outdated"
     - Create `components/ConnectivityIndicator.tsx` — subtle dot/badge for WebSocket status
     - Show "Live updates paused" when in polling fallback mode
     - _Requirements: 3.5, 13.1, 13.6_
 
-  - [~] 12.3 Implement ViewToggle (map ↔ list)
+  - [x] 12.3 Implement ViewToggle (map ↔ list)
     - Create `components/ViewToggle.tsx` — segmented control toggling `viewMode` in store
     - _Requirements: 6.1_
 
@@ -302,8 +302,8 @@ The Offer Radar is the Cleaner's primary interface for discovering cleaning offe
     - Cleaner GPS NOT persisted by backend (memory only for display)
     - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.5_
 
-- [ ] 14. Mobile — Urgency Derivation
-  - [~] 14.1 Implement client-side urgency timer
+- [x] 14. Mobile — Urgency Derivation
+  - [x] 14.1 Implement client-side urgency timer
     - Add 60-second interval timer in RadarScreen that recalculates `isUrgent` for all offers
     - `isUrgent = (scheduledAt - now) <= 2 hours`
     - REST `isUrgent` field used as initial seed only
@@ -312,7 +312,7 @@ The Offer Radar is the Cleaner's primary interface for discovering cleaning offe
     - _Requirements: 2.5, Design: Urgency Derivation section_
 
 - [ ] 15. Mobile — RadarScreen Main Container
-  - [~] 15.1 Assemble RadarScreen with all components
+  - [-] 15.1 Assemble RadarScreen with all components
     - Create `RadarScreen.tsx` as the main container
     - Wire all sub-components: RadarMapView (or OfferListView based on viewMode), FilterPanel, OfferPreviewSheet, EmptyState, OfflineBanner, ConnectivityIndicator, ViewToggle
     - On mount: request location permission → fetch available offers → subscribe WebSocket

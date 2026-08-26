@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **RadarScreen main container (mobile/radar)** — Top-level screen assembling all Offer Radar sub-components (Spec 7 — Offer Radar)
+  - Manages location permission lifecycle (request → denied fallback → granted flow)
+  - Initial REST data fetch on permission grant, profile load for work zone display
+  - Coordinates WebSocket subscription via useRadarReconciliation hook
+  - View mode toggle (map ↔ list), filter panel (bottom sheet), offer preview sheet
+  - Offline banner + connectivity indicator for real-time connection status
+  - Empty states (no offers / all filtered out) with contextual actions
+  - Skeleton loaders during initial data fetch and permission check
+  - Urgency timer (60s recalculation) enabled when offers exist
+  - Work zone center/radius derived from Cleaner profile with sensible defaults
 - **useUrgencyTimer hook (mobile/radar)** — 60-second interval timer for urgency recalculation (Spec 7 — Offer Radar)
   - Recalculates `isUrgent` for all offers in the Zustand store purely from local clock
   - Offer is urgent when `(scheduledAt − now) ≤ URGENCY_THRESHOLD_MS` (2 hours)

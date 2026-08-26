@@ -1,4 +1,9 @@
 {
+  "header": {
+    "title": "Radar de Ofertas",
+    "filters": "Filtros",
+    "filterAccessibility": "Abrir filtros, {{count}} activos"
+  },
   "location": {
     "permissionTitle": "Ubicación Requerida",
     "permissionExplanation": "BidClean usa tu ubicación para centrar el mapa, mostrar ofertas cercanas y mostrar tu posición. Tu GPS nunca se usa para decidir qué ofertas ves — eso se basa en tu zona de trabajo.",
@@ -6,7 +11,11 @@
     "permissionDeniedMessage": "Sin acceso a ubicación, el mapa no puede mostrar tu posición ni calcular distancias a las ofertas. Tu GPS solo se usa para la visualización — nunca afecta qué ofertas recibes.",
     "openSettingsButton": "Abrir Ajustes",
     "requestButton": "Permitir Ubicación",
-    "privacyNote": "Tu ubicación GPS nunca se almacena ni se comparte con otros usuarios."
+    "privacyNote": "Tu ubicación GPS nunca se almacena ni se comparte con otros usuarios.",
+    "deniedTitle": "Se Necesita Acceso a Ubicación",
+    "deniedExplanation": "El Radar de Ofertas necesita tu ubicación para centrar el mapa, mostrar distancias a ofertas y mostrar tu posición. Tu GPS nunca se usa para decidir qué ofertas recibes.",
+    "allowButton": "Permitir Ubicación",
+    "openSettings": "Abrir Ajustes"
   },
   "filter": {
     "title": "Filtros",
