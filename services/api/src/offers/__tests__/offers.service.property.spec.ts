@@ -8,6 +8,7 @@ import { OffersRepository } from '../offers.repository';
 import { CommissionService } from '../commission/commission.service';
 import { OfferEventEmitterService } from '../events/offer-event-emitter.service';
 import { OfferStateMachineService } from '../state-machine/offer-state-machine';
+import { CentrifugoClient } from '../delivery/centrifugo.client';
 import { PROPERTY_READINESS } from '../contracts/property-readiness.interface';
 import { OfferState, ServiceType } from '../offers.types';
 import {
@@ -69,6 +70,7 @@ describe('OffersService — Create Flow Property-Based Tests', () => {
         { provide: OfferEventEmitterService, useValue: mockEventEmitter },
         { provide: OfferStateMachineService, useValue: { transitionState: jest.fn() } },
         { provide: DataSource, useValue: { query: jest.fn() } },
+        { provide: CentrifugoClient, useValue: { publish: jest.fn().mockResolvedValue(true), broadcast: jest.fn().mockResolvedValue(true) } },
         { provide: PROPERTY_READINESS, useValue: mockPropertyReadiness },
         { provide: getQueueToken(QUEUE_NAMES.RADIUS_EXPANSION), useValue: { add: jest.fn() } },
       ],

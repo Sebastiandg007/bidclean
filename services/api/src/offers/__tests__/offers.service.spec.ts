@@ -18,6 +18,7 @@ describe('OffersService', () => {
   let mockEventEmitter: any;
   let mockStateMachine: any;
   let mockDataSource: any;
+  let mockCentrifugoClient: any;
   let mockPropertyReadiness: any;
   let mockQueue: any;
 
@@ -64,6 +65,11 @@ describe('OffersService', () => {
       check: jest.fn(),
     };
 
+    mockCentrifugoClient = {
+      publish: jest.fn().mockResolvedValue(true),
+      broadcast: jest.fn().mockResolvedValue(true),
+    };
+
     mockQueue = {
       add: jest.fn().mockResolvedValue(undefined),
     };
@@ -74,6 +80,7 @@ describe('OffersService', () => {
       mockEventEmitter,
       mockStateMachine,
       mockDataSource,
+      mockCentrifugoClient,
       mockPropertyReadiness,
       mockQueue,
     );
