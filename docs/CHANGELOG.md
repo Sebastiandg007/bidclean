@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Offers mobile types and constants (mobile)** — Full type definitions and constants for offer screens (Spec 6 — Task 28)
+  - `offers.types.ts`: OfferState type (7 states), ServiceType type (6 types), Offer interface (all 30+ fields), CreateOfferPayload, PriceBreakdown, StateTransition, OfferDetail, OfferListItem, PaginatedOffers, OfferListQuery, screen route params (OfferDetailParams, OfferConfirmationParams, OfferStackParamList)
+  - `offers.constants.ts`: API_ENDPOINTS (base, detail, publish, cancel, price-breakdown), SERVICE_TYPE_LABELS (i18n keys), STATE_COLORS (BidClean design system), STATE_LABELS (i18n keys), MIN/MAX duration constants from environment, MIN_LEAD_TIME_MINUTES, design tokens (COLORS)
 - **OffersModule registration complete (api)** — Full NestJS module wiring for offer-publishing (Spec 6 — Task 26)
   - All providers registered: OffersService, CommissionService, DeliverySchedulerService, RadiusExpansionProcessor, OfferNotificationService, OfferEventEmitterService, CentrifugoClient, OneSignalClient, OfferStateMachineService, OfferOwnerGuard, TierDeliveryProcessor, FavoritesWindowProcessor, PushNotificationProcessor, OffersRepository
   - Contract-based DI: CleanerDiscoveryService (stub) via CLEANER_DISCOVERY token, PropertyReadinessService via PROPERTY_READINESS token, OfferMatchService via OFFER_MATCH token
