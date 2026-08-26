@@ -6,15 +6,15 @@ The Offer Radar is the Cleaner's primary interface for discovering cleaning offe
 
 ## Tasks
 
-- [ ] 1. Backend — Available Offers Endpoint (REST)
-  - [-] 1.1 Create DTO classes for available offers query parameters and response
+- [x] 1. Backend — Available Offers Endpoint (REST)
+  - [x] 1.1 Create DTO classes for available offers query parameters and response
     - Create `available-offers-query.dto.ts` with class-validator decorators for: `serviceType` (optional string array), `minPriceCents` (optional integer), `maxPriceCents` (optional integer), `maxDistanceMeters` (optional integer), `scheduledBefore` (optional ISO 8601), `scheduledAfter` (optional ISO 8601), `sort` (enum: distance_asc, price_desc, scheduled_asc, published_desc, default: distance_asc), `page` (integer, default: 1), `limit` (integer, default: 20, max: 50)
     - Create `available-offer-response.dto.ts` with the `AvailableOffer` interface and `AvailableOffersResponse` paginated wrapper
     - Create `available-offers.types.ts` with internal types used by service/repository
     - Directory: `services/api/src/offers/available/dto/`
     - _Requirements: 4.1, 4.3, 4.4, 4.7_
 
-  - [~] 1.2 Implement available offers repository with PostGIS query
+  - [x] 1.2 Implement available offers repository with PostGIS query
     - Create `available-offers.repository.ts` with raw SQL query joining `offers` + `offer_deliveries` + `cleaner_profiles`
     - Implement PostGIS `ST_Distance` for distance calculation from Cleaner's work zone center
     - Implement `ST_DWithin` for `maxDistanceMeters` filter (presentation-only, not eligibility)
@@ -26,7 +26,7 @@ The Offer Radar is the Cleaner's primary interface for discovering cleaning offe
     - Directory: `services/api/src/offers/available/`
     - _Requirements: 4.1, 4.2, 4.3, 4.7, 4.8, 4.9_
 
-  - [~] 1.3 Implement available offers service (business logic layer)
+  - [x] 1.3 Implement available offers service (business logic layer)
     - Create `available-offers.service.ts` that orchestrates repository calls
     - Extract authenticated Cleaner ID from request context
     - Map raw DB results to `AvailableOffer` response shape (propertySnapshot, priceBreakdown, publicLocation)
@@ -35,7 +35,7 @@ The Offer Radar is the Cleaner's primary interface for discovering cleaning offe
     - Implement rate limiting logic for snapshot endpoint (max 1 req/30s per Cleaner)
     - _Requirements: 4.4, 4.5, 4.6, 4.8_
 
-  - [~] 1.4 Implement available offers controller with auth guard
+  - [x] 1.4 Implement available offers controller with auth guard
     - Create `available-offers.controller.ts` with two endpoints:
       - `GET /offers/available` — paginated, filtered, sorted
       - `GET /offers/available/snapshot` — full unpaginated set for reconciliation
@@ -71,14 +71,14 @@ The Offer Radar is the Cleaner's primary interface for discovering cleaning offe
 - [~] 2. Checkpoint — Backend endpoint tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 3. Mobile — Zustand Store (useRadarStore)
+- [x] 3. Mobile — Zustand Store (useRadarStore)
   - [x] 3.1 Create radar types and constants
     - Create `radar.types.ts` with all TypeScript interfaces: `RadarOffer`, `RadarFilters`, `ViewMode`, `SortOption`, `ConnectionStatus`, `OfferFeature` (GeoJSON)
     - Create `radar.constants.ts` with all configurable values from env: `RADAR_POLLING_INTERVAL_MS`, `RADAR_MAX_POLLING_DURATION_MS`, `URGENCY_REFRESH_INTERVAL_MS`, `WS_MAX_BACKOFF_MS`, `WS_FALLBACK_THRESHOLD`, animation configs, layer IDs
     - Directory: `apps/mobile/src/screens/radar/`
     - _Requirements: 12.1, 12.2_
 
-  - [~] 3.2 Implement useRadarStore with Zustand
+  - [x] 3.2 Implement useRadarStore with Zustand
     - Create `useRadarStore.ts` with full store interface from design
     - State: `offers` (Map<string, RadarOffer>), `offerEventTimestamps` (Map<string, string>), `filters`, `sort`, `viewMode`, `connectionStatus`, `isLoading`, `isRefreshing`, `pagination`, `selectedOfferId`, `lastSuccessfulSyncAt`, `lastWebSocketEventAt`
     - REST actions: `fetchAvailableOffers` (paginated), `refreshOffers` (page 1 re-fetch), `loadMoreOffers` (next page append)
@@ -99,8 +99,8 @@ The Offer Radar is the Cleaner's primary interface for discovering cleaning offe
     - Test `markAllStale` sets isStale=true on all offers
     - _Requirements: 3.2, 3.3, 14.3, 14.4_
 
-- [ ] 4. Mobile — Centrifugo WebSocket Hook
-  - [~] 4.1 Implement useCentrifugoChannel hook
+- [x] 4. Mobile — Centrifugo WebSocket Hook
+  - [x] 4.1 Implement useCentrifugoChannel hook
     - Create `useCentrifugoChannel.ts` with subscription to `offers:cleaner:{cleanerId}`
     - Parse incoming events: `offer_new` → dispatch to store `handleOfferNew`, `offer_status_changed` → dispatch to store `handleOfferStatusChanged`
     - Implement exponential backoff reconnection: 1s, 2s, 4s, 8s, 16s, 30s (capped at WS_MAX_BACKOFF_MS)
@@ -120,8 +120,8 @@ The Offer Radar is the Cleaner's primary interface for discovering cleaning offe
     - Test cleanup on unmount (unsubscribe called)
     - _Requirements: 3.1, 3.5, 3.6, 13.6_
 
-- [ ] 5. Mobile — Reconciliation & Polling Fallback
-  - [~] 5.1 Implement useRadarReconciliation hook
+- [x] 5. Mobile — Reconciliation & Polling Fallback
+  - [x] 5.1 Implement useRadarReconciliation hook
     - Create `hooks/useRadarReconciliation.ts` that manages the reconciliation lifecycle
     - On WebSocket reconnect: call store.reconcile() which fetches /snapshot
     - Implement polling fallback: when WS fails 3+ times, start 30s interval REST polling
@@ -172,7 +172,7 @@ The Offer Radar is the Cleaner's primary interface for discovering cleaning offe
     - Center on Cleaner's configured work zone center (NOT GPS)
     - _Requirements: 1.4, 10.1_
 
-  - [~] 7.6 Implement map styles configuration
+  - [-] 7.6 Implement map styles configuration
     - Create `components/map/mapStyles.ts` with Mapbox expressions for pin styling
     - Define icon image mapping (serviceType → asset name)
     - Define color expressions (urgency, viewed state, stale state)
@@ -190,13 +190,13 @@ The Offer Radar is the Cleaner's primary interface for discovering cleaning offe
     - _Requirements: 2.2, 2.5, 2.6, 2.7, 12.2_
 
 - [ ] 9. Mobile — List View
-  - [~] 9.1 Implement OfferCard component
+  - [-] 9.1 Implement OfferCard component
     - Create `components/list/OfferCard.tsx` with: property cover photo thumbnail, property name, property type, service type badge, price (Cleaner payout formatted by locale), distance (km or miles by locale), scheduled date/time (converted to offer timezone), urgency indicator
     - Tap handler navigates to Offer Detail screen
     - Accessible labels for screen readers (price + service type + distance)
     - _Requirements: 6.3, 6.6_
 
-  - [~] 9.2 Implement AdSlot component
+  - [-] 9.2 Implement AdSlot component
     - Create `components/list/AdSlot.tsx` placeholder for ad content
     - Implement `hooks/useAdVisibility.ts` — check RevenueCat entitlement for `adsEnabled` flag
     - Ad visibility controlled by abstracted entitlement layer (not by checking `cleaner_pro` directly)
@@ -293,7 +293,7 @@ The Offer Radar is the Cleaner's primary interface for discovering cleaning offe
     - _Requirements: 6.1_
 
 - [ ] 13. Mobile — Location Permission Handling
-  - [~] 13.1 Implement useLocationPermission hook
+  - [-] 13.1 Implement useLocationPermission hook
     - Create `useLocationPermission.ts` with permission request flow
     - Clear i18n explanation text for why location is needed
     - Fallback state when denied: full-screen explanation + "Open Settings" button

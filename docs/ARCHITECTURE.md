@@ -115,6 +115,7 @@ graph TB
             AuthStore["useAuthStore"]
             RoleStore["useRoleStore"]
             OffersStore["useOffersStore"]
+            RadarStore["useRadarStore"]
             ServiceStore["useServiceStore"]
             ChatStore["useChatStore"]
             SettingsStore["useSettingsStore"]
@@ -347,5 +348,5 @@ sequenceDiagram
 
 ---
 
-*Last updated: August 16, 2026*
+*Last updated: August 26, 2026*
 *Update this document on EVERY structural change.*
