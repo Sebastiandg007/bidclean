@@ -23,6 +23,7 @@ import { OFFER_QUEUE_CONFIGS } from './queues/offer-queue.constants';
 import { Offer } from './entities/offer.entity';
 import { OfferStateTransition } from './entities/offer-state-transition.entity';
 import { OfferDelivery } from './entities/offer-delivery.entity';
+import { User } from '../auth/entities/user.entity';
 
 /**
  * Offers module.
@@ -43,7 +44,7 @@ import { OfferDelivery } from './entities/offer-delivery.entity';
   imports: [
     ConfigModule,
     EventEmitterModule.forRoot(),
-    TypeOrmModule.forFeature([Offer, OfferStateTransition, OfferDelivery]),
+    TypeOrmModule.forFeature([Offer, OfferStateTransition, OfferDelivery, User]),
     ...OFFER_QUEUE_CONFIGS.map((config) =>
       BullModule.registerQueue({
         name: config.name,

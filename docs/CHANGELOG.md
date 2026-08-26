@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Offers controller with auth guards and property tests (api)** — Full REST API for offer lifecycle (Spec 6 — Task 24)
+  - `offers.controller.ts`: 6 endpoints (create, publish, cancel, list, detail, price-breakdown) with JwtAuthGuard at controller level, Host role verification, OfferOwnerGuard on mutation endpoints, Idempotency-Key header support
+  - `offers.service.ts`: Implemented `findById` (with state transition history), `findByHostId` (paginated with state filter), `getPriceBreakdown` (role-based Host vs Cleaner view)
+  - `offers.module.ts`: Added User entity to TypeOrmModule.forFeature for controller's user resolution
+  - 3 property-based tests (fast-check, 100 iterations each):
+    - 24.1 Ownership Isolation: random (userId, offerId) pairs where host_id != userId, all mutations rejected
+    - 24.2 Offer List Filtering Correctness: random state filters + random offer sets, returned items match filter AND sorted DESC
+    - 24.3 State Transition Audit Completeness: random valid transitions, audit record has correct from_state, to_state, triggered_by, non-null created_at
 - **BullMQ queue registrations and job types (api)** — All 4 offer queues with configurable retry + exponential backoff (Spec 6 — Task 23)
   - `queues/offer-queue.types.ts`: Job payload types for all queues (TierDeliveryJobData, FavoritesWindowJobData, PushNotificationJobData, re-exported RadiusExpansionJobPayload)
   - `queues/offer-queue.constants.ts`: DEFAULT_JOB_OPTIONS with configurable attempts (OFFER_MAX_RETRIES) and exponential backoff (OFFER_BACKOFF_DELAY_MS), OFFER_QUEUE_CONFIGS array, JOB_NAMES constants

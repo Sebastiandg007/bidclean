@@ -60,6 +60,7 @@ Manages the full offer lifecycle for cleaning services: creation, publishing, pr
 | `entities/offer-state-transition.entity.ts` | TypeORM entity for audit trail |
 | `entities/offer-delivery.entity.ts` | TypeORM entity for delivery tracking |
 | `guards/offer-owner.guard.ts` | NestJS CanActivate guard: extracts offerId from route params, resolves internal user by keycloakId, queries offer WHERE id AND host_id, throws ForbiddenException if not owner or not found |
+| `__tests__/offers.controller.property.spec.ts` | Property-based tests for controller (ownership isolation, list filtering, audit completeness) |
 
 ## Database
 

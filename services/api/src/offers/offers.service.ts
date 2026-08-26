@@ -27,10 +27,13 @@ import {
   OFFER_MIN_DURATION_MINUTES,
   OFFER_MAX_DURATION_MINUTES,
   OFFER_INITIAL_RADIUS_M,
-  OFFER_LIST_DEFAULT_PAGE_SIZE,
   OFFER_EXPANSION_INTERVAL_MS,
   QUEUE_NAMES,
 } from './offers.constants';
+
+/** Role identifiers matching UserRole enum — avoids circular import with roles module */
+const HOST_ROLE = 'host';
+const CLEANER_ROLE = 'cleaner';
 
 /** Input shape for publishing an offer */
 interface PublishOfferInput {
@@ -389,26 +392,147 @@ export class OffersService {
 
   /**
    * Find a single offer by ID with state transition history.
+   * Validates that the offer belongs to the requesting host.
    */
-  async findById(_offerId: string, _hostId: string): Promise<Record<string, unknown> | null> {
-    // TODO(offer-publishing/Task-14): implement findById
-    return null;
+  async findById(offerId: string, hostId: string): Promise<Record<string, unknown> | null> {
+    const offer = await this.offersRepository.findById(offerId, ['stateTransitions']);
+
+    if (!offer) {
+      return null;
+    }
+
+    if (offer.hostId !== hostId) {
+      return null;
+    }
+
+    return this.formatOfferWithHistory(offer);
   }
 
   /**
    * Find all offers for a Host with pagination and state filtering.
+   * Delegates to repository's paginated query.
    */
   async findByHostId(
-    _hostId: string,
-    _filters: OfferQueryFilters,
+    hostId: string,
+    filters: OfferQueryFilters,
   ): Promise<PaginatedResponse<Record<string, unknown>>> {
-    // TODO(offer-publishing/Task-14): implement findByHostId
+    const result = await this.offersRepository.findByHostId(hostId, filters);
+
     return {
-      items: [],
-      total: 0,
-      page: 1,
-      pageSize: OFFER_LIST_DEFAULT_PAGE_SIZE,
-      totalPages: 0,
+      items: result.items.map((offer) => this.formatOfferSummary(offer)),
+      total: result.total,
+      page: result.page,
+      pageSize: result.pageSize,
+      totalPages: result.totalPages,
+    };
+  }
+
+  /**
+   * Get price breakdown for an offer based on the requesting user's role.
+   * Host view: offered price + service fee + total.
+   * Cleaner view: offered price - commission = payout.
+   */
+  async getPriceBreakdown(
+    offerId: string,
+    _userId: string,
+    role: string,
+  ): Promise<Record<string, unknown>> {
+    const offer = await this.offersRepository.findById(offerId);
+
+    if (!offer) {
+      throw new NotFoundException(`Offer ${offerId} not found`);
+    }
+
+    return this.buildPriceBreakdownForRole(offer, role);
+  }
+
+  /** Format a full offer with state transition history for detail view. */
+  private formatOfferWithHistory(offer: Offer): Record<string, unknown> {
+    const transitions = (offer.stateTransitions ?? [])
+      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+      .map((t) => ({
+        fromState: t.fromState,
+        toState: t.toState,
+        triggeredBy: t.triggeredBy,
+        createdAt: t.createdAt,
+        metadata: t.metadata,
+      }));
+
+    return {
+      id: offer.id,
+      hostId: offer.hostId,
+      propertyId: offer.propertyId,
+      serviceType: offer.serviceType,
+      description: offer.description,
+      scheduledAt: offer.scheduledAt,
+      timezone: offer.timezone,
+      estimatedDurationMinutes: offer.estimatedDurationMinutes,
+      offeredPriceCents: offer.offeredPriceCents,
+      currency: offer.currency,
+      hostServiceFeeCents: offer.hostServiceFeeCents,
+      hostTotalCents: offer.hostTotalCents,
+      cleanerCommissionCents: offer.cleanerCommissionCents,
+      cleanerPayoutCents: offer.cleanerPayoutCents,
+      hostServiceFeeRateBps: offer.hostServiceFeeRateBps,
+      cleanerCommissionRateBps: offer.cleanerCommissionRateBps,
+      propertyNameSnapshot: offer.propertyNameSnapshot,
+      propertyTypeSnapshot: offer.propertyTypeSnapshot,
+      propertyCitySnapshot: offer.propertyCitySnapshot,
+      propertyCoverPhotoSnapshot: offer.propertyCoverPhotoSnapshot,
+      state: offer.state,
+      favoritesFirst: offer.favoritesFirst,
+      currentRadiusMeters: offer.currentRadiusMeters,
+      expansionStepCount: offer.expansionStepCount,
+      publishedAt: offer.publishedAt,
+      cancelledAt: offer.cancelledAt,
+      expiredAt: offer.expiredAt,
+      matchedAt: offer.matchedAt,
+      completedAt: offer.completedAt,
+      createdAt: offer.createdAt,
+      updatedAt: offer.updatedAt,
+      stateTransitions: transitions,
+    };
+  }
+
+  /** Format an offer summary for list view. */
+  private formatOfferSummary(offer: Offer): Record<string, unknown> {
+    return {
+      id: offer.id,
+      propertyId: offer.propertyId,
+      propertyNameSnapshot: offer.propertyNameSnapshot,
+      serviceType: offer.serviceType,
+      offeredPriceCents: offer.offeredPriceCents,
+      hostTotalCents: offer.hostTotalCents,
+      currency: offer.currency,
+      scheduledAt: offer.scheduledAt,
+      state: offer.state,
+      createdAt: offer.createdAt,
+    };
+  }
+
+  /** Build price breakdown response based on role. */
+  private buildPriceBreakdownForRole(
+    offer: Offer,
+    role: string,
+  ): Record<string, unknown> {
+    if (role === CLEANER_ROLE) {
+      return {
+        offeredPriceCents: offer.offeredPriceCents,
+        cleanerCommissionCents: offer.cleanerCommissionCents,
+        cleanerPayoutCents: offer.cleanerPayoutCents,
+        cleanerCommissionRateBps: offer.cleanerCommissionRateBps,
+        currency: offer.currency,
+        view: CLEANER_ROLE,
+      };
+    }
+
+    return {
+      offeredPriceCents: offer.offeredPriceCents,
+      hostServiceFeeCents: offer.hostServiceFeeCents,
+      hostTotalCents: offer.hostTotalCents,
+      hostServiceFeeRateBps: offer.hostServiceFeeRateBps,
+      currency: offer.currency,
+      view: HOST_ROLE,
     };
   }
 
