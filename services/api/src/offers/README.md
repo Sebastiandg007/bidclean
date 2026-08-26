@@ -37,6 +37,7 @@ Manages the full offer lifecycle for cleaning services: creation, publishing, pr
 | `state-machine/offer-state-machine.spec.ts` | Unit tests for state machine |
 | `state-machine/offer-state-machine.property.spec.ts` | Property-based tests for state machine transitions |
 | `__tests__/offers-cancel.service.spec.ts` | Unit tests for cancel flow (10 tests: state validation, ownership, jobs, notifications, race conditions) |
+| `__tests__/centrifugo.client.spec.ts` | Unit tests for CentrifugoClient (14 tests: publish, broadcast, retry, exponential backoff, error handling) |
 | `__tests__/offers.service.property.spec.ts` | Property-based tests for create flow (price, duration, scheduling, idempotency, duplicates, required fields) |
 | `__tests__/commission.service.spec.ts` | Unit tests for commission calculations |
 | `dto/create-offer.dto.ts` | Create offer request validation |

@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **CentrifugoClient implementation (api)** — Full HTTP client for Centrifugo server API with retry logic (Spec 6 — Task 19)
+  - `publish(channel, data)`: sends message to single Centrifugo channel via POST /api/publish
+  - `broadcast(channels, data)`: sends message to multiple channels via POST /api/broadcast
+  - Exponential backoff retry on transient failures (network errors, 5xx responses)
+  - Configurable via CENTRIFUGO_API_URL, CENTRIFUGO_API_KEY, CENTRIFUGO_TIMEOUT_MS env vars
+  - Retry config from OFFER_MAX_RETRIES and OFFER_BACKOFF_DELAY_MS constants
+  - Guard clauses for empty channel/channels input
+  - NestJS Logger for error/warning context
+  - Centrifugo-specific types added to delivery.types.ts
+  - CentrifugoClient registered as provider in OffersModule
+  - 14 unit tests covering publish, broadcast, retry, backoff, and error scenarios
 - **OffersService cancel flow (api)** — Full offer cancellation with job cleanup and cleaner notification (Spec 6 — Task 18)
   - Validates offer exists, belongs to host, and is in cancellable state (DRAFT, PUBLISHED, ACTIVE)
   - Rejects cancellation for terminal states (MATCHED, COMPLETED, CANCELLED, EXPIRED) with UnprocessableEntityException
