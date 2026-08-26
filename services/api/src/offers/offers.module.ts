@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
+import { HttpModule } from '@nestjs/axios';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BullModule } from '@nestjs/bullmq';
 import { OffersController } from './offers.controller';
@@ -11,6 +12,7 @@ import { CentrifugoClient } from './delivery/centrifugo.client';
 import { DeliverySchedulerService } from './delivery/delivery-scheduler.service';
 import { TierDeliveryProcessor } from './delivery/tier-delivery.processor';
 import { FavoritesWindowProcessor } from './delivery/favorites-window.processor';
+import { RadiusExpansionProcessor } from './expansion/radius-expansion.processor';
 import { OfferNotificationService } from './notification/offer-notification.service';
 import { OneSignalClient } from './notification/onesignal.client';
 import { PushNotificationProcessor } from './notification/push-notification.processor';
@@ -19,6 +21,10 @@ import { OfferStateMachineService } from './state-machine/offer-state-machine';
 import { OfferOwnerGuard } from './guards/offer-owner.guard';
 import { PropertyReadinessService } from './contracts/property-readiness.service';
 import { PROPERTY_READINESS } from './contracts/property-readiness.interface';
+import { OfferMatchService } from './contracts/offer-match.service';
+import { OFFER_MATCH } from './contracts/offer-match.interface';
+import { CleanerDiscoveryService } from './discovery/cleaner-discovery.service';
+import { CLEANER_DISCOVERY } from './discovery/cleaner-discovery.interface';
 import { OFFER_QUEUE_CONFIGS } from './queues/offer-queue.constants';
 import { Offer } from './entities/offer.entity';
 import { OfferStateTransition } from './entities/offer-state-transition.entity';
@@ -43,6 +49,7 @@ import { User } from '../auth/entities/user.entity';
 @Module({
   imports: [
     ConfigModule,
+    HttpModule,
     EventEmitterModule.forRoot(),
     TypeOrmModule.forFeature([Offer, OfferStateTransition, OfferDelivery, User]),
     ...OFFER_QUEUE_CONFIGS.map((config) =>
@@ -61,6 +68,7 @@ import { User } from '../auth/entities/user.entity';
     DeliverySchedulerService,
     TierDeliveryProcessor,
     FavoritesWindowProcessor,
+    RadiusExpansionProcessor,
     OfferNotificationService,
     OneSignalClient,
     PushNotificationProcessor,
@@ -71,7 +79,15 @@ import { User } from '../auth/entities/user.entity';
       provide: PROPERTY_READINESS,
       useClass: PropertyReadinessService,
     },
+    {
+      provide: OFFER_MATCH,
+      useClass: OfferMatchService,
+    },
+    {
+      provide: CLEANER_DISCOVERY,
+      useClass: CleanerDiscoveryService,
+    },
   ],
-  exports: [OffersService, CommissionService],
+  exports: [OffersService, CommissionService, OFFER_MATCH],
 })
 export class OffersModule {}

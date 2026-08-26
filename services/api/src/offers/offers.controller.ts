@@ -25,12 +25,18 @@ import { OffersService } from './offers.service';
 import { OfferOwnerGuard } from './guards/offer-owner.guard';
 import { CreateOfferDto } from './dto/create-offer.dto';
 import { PublishOfferDto } from './dto/publish-offer.dto';
-import { OfferState } from './offers.types';
+import { OfferState, OfferQueryFilters, PaginatedResponse } from './offers.types';
 import { OFFER_LIST_DEFAULT_PAGE_SIZE } from './offers.constants';
 
 /** Extended request with typed user payload from JWT guard */
 interface AuthenticatedRequest extends Request {
   user: JwtUserPayload;
+}
+
+/** Resolved user with determined active role */
+interface ResolvedUserWithRole {
+  id: string;
+  activeRole: UserRole;
 }
 
 /**
@@ -72,9 +78,9 @@ export class OffersController {
     const user = await this.resolveHostUser(req.user.keycloakId);
 
     return this.offersService.create(user.id, {
-      ...(dto as Record<string, unknown>),
+      ...dto,
       idempotencyKey,
-    } as Parameters<OffersService['create']>[1]);
+    });
   }
 
   /**
@@ -94,7 +100,7 @@ export class OffersController {
     const user = await this.resolveHostUser(req.user.keycloakId);
 
     await this.offersService.publish(id, user.id, {
-      favoritesFirst: (dto as { favoritesFirst?: boolean }).favoritesFirst,
+      favoritesFirst: dto.favoritesFirst,
     });
   }
 
@@ -126,10 +132,10 @@ export class OffersController {
     @Query('state') state?: string,
     @Query('page') page?: string,
     @Query('pageSize') pageSize?: string,
-  ): Promise<unknown> {
+  ): Promise<PaginatedResponse<Record<string, unknown>>> {
     const user = await this.resolveHostUser(req.user.keycloakId);
 
-    const filters = {
+    const filters: OfferQueryFilters = {
       state: this.parseStateFilter(state),
       page: this.parsePositiveInt(page, 1),
       pageSize: this.parsePositiveInt(pageSize, OFFER_LIST_DEFAULT_PAGE_SIZE),
@@ -148,7 +154,7 @@ export class OffersController {
   async findOne(
     @Req() req: AuthenticatedRequest,
     @Param('id') id: string,
-  ): Promise<unknown> {
+  ): Promise<Record<string, unknown>> {
     const user = await this.resolveHostUser(req.user.keycloakId);
 
     const offer = await this.offersService.findById(id, user.id);
@@ -169,10 +175,10 @@ export class OffersController {
   async getPriceBreakdown(
     @Req() req: AuthenticatedRequest,
     @Param('id') id: string,
-  ): Promise<unknown> {
-    const user = await this.resolveUserWithRole(req.user.keycloakId);
+  ): Promise<Record<string, unknown>> {
+    const { id: userId, activeRole } = await this.resolveUserWithRole(req.user.keycloakId);
 
-    return this.offersService.getPriceBreakdown(id, user.id, user.activeRole);
+    return this.offersService.getPriceBreakdown(id, userId, activeRole);
   }
 
   /**
@@ -198,18 +204,16 @@ export class OffersController {
    * Requires either Host or Cleaner role.
    * @throws ForbiddenException if user not found or lacks valid role.
    */
-  private async resolveUserWithRole(
-    keycloakId: string,
-  ): Promise<User & { activeRole: UserRole }> {
+  private async resolveUserWithRole(keycloakId: string): Promise<ResolvedUserWithRole> {
     const user = await this.userRepository.findOne({ where: { keycloakId } });
 
     if (!user) {
       throw new ForbiddenException('User not found');
     }
 
-    const role = this.determineUserRole(user);
+    const activeRole = this.determineUserRole(user);
 
-    return Object.assign(user, { activeRole: role });
+    return { id: user.id, activeRole };
   }
 
   /** Determine the user's role for price breakdown view. */
