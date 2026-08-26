@@ -218,8 +218,8 @@ The Offer Radar is the Cleaner's primary interface for discovering cleaning offe
     - Test sort option reflected in list order
     - _Requirements: 6.2, 6.4, 6.5, 6.7_
 
-- [ ] 10. Mobile — Filter Panel
-  - [-] 10.1 Implement FilterPanel container
+- [x] 10. Mobile — Filter Panel
+  - [x] 10.1 Implement FilterPanel container
     - Create `components/filters/FilterPanel.tsx` as a bottom sheet
     - Contains all filter sub-components
     - "Clear all" button resets all filters via store `clearFilters()`
@@ -227,25 +227,25 @@ The Offer Radar is the Cleaner's primary interface for discovering cleaning offe
     - Filter changes trigger server-side re-fetch with new query params
     - _Requirements: 5.1, 5.2, 5.3, 5.5_
 
-  - [-] 10.2 Implement ServiceTypeChips
+  - [x] 10.2 Implement ServiceTypeChips
     - Create `components/filters/ServiceTypeChips.tsx` with multi-select chip UI
     - Service types: standard, deep, move_in_out, post_construction, post_event, recurring
     - All i18n keys for labels (no hardcoded text)
     - _Requirements: 5.1_
 
-  - [-] 10.3 Implement PriceRangeSlider
+  - [x] 10.3 Implement PriceRangeSlider
     - Create `components/filters/PriceRangeSlider.tsx` with dual-thumb slider
     - Min/max range in local currency display (formatted by locale)
     - Updates store `setFilters({ minPriceCents, maxPriceCents })`
     - _Requirements: 5.1_
 
-  - [-] 10.4 Implement DistanceSlider
+  - [x] 10.4 Implement DistanceSlider
     - Create `components/filters/DistanceSlider.tsx` with single-thumb slider
     - Display in km (metric) or miles (US/UK) based on user locale
     - Updates store `setFilters({ maxDistanceMeters })`
     - _Requirements: 5.1_
 
-  - [-] 10.5 Implement DateRangeFilter
+  - [x] 10.5 Implement DateRangeFilter
     - Create `components/filters/DateRangeFilter.tsx` with quick picks (today, tomorrow, this week) + custom date picker
     - Updates store `setFilters({ scheduledAfter, scheduledBefore })`
     - _Requirements: 5.1_

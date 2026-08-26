@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **useUrgencyTimer hook (mobile/radar)** — 60-second interval timer for urgency recalculation (Spec 7 — Offer Radar)
+  - Recalculates `isUrgent` for all offers in the Zustand store purely from local clock
+  - Offer is urgent when `(scheduledAt − now) ≤ URGENCY_THRESHOLD_MS` (2 hours)
+  - Only triggers store update when at least one offer's urgency actually changed (no unnecessary re-renders)
+  - Auto-cleans up interval on unmount; supports `enabled` option to pause/resume
+  - Exports `computeIsUrgent` and `refreshUrgencyValues` helpers for unit testing
 - **OfflineBanner component (mobile/radar)** — Persistent connectivity indicator that shows offline/reconnecting/polling-fallback status with animated slide-in/out transitions; reads connectionStatus from useRadarStore, hides automatically when connected; accessibility support with `alert` role and `polite` live region
 - **Radar Filter Panel components (mobile/radar)** — Full filter bottom sheet for the Offer Radar (Spec 7 — Tasks 10.1–10.5)
   - `FilterPanel.tsx` — Modal-based bottom sheet container with swipe-to-dismiss (PanResponder), header with "Clear all" action and active filter count badge, ScrollView rendering all filter sub-components

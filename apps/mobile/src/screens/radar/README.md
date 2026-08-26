@@ -50,6 +50,8 @@ Cleaner Navigator — Radar Tab
 | `components/OfflineBanner.tsx` | Connectivity indicator — persistent banner showing offline/reconnecting/polling-fallback status with slide-in/out animation; auto-hides when connected; reads connectionStatus from useRadarStore |
 | `components/ViewToggle.tsx` | Segmented control for switching between Map and List views — pill-shaped container with animated selection indicator (Animated API), toggles `viewMode` in Zustand store, i18n labels, accessibility roles |
 | `components/EmptyState.tsx` | No offers / no matching filters state |
+| `hooks/useOfferAnimations.ts` | Reanimated 3 spring animations for radar pins — entrance drop+bounce, exit fade+scale, urgency pulse ring, optional haptic |
+| `hooks/useUrgencyTimer.ts` | 60-second interval recalculating `isUrgent` for all offers — urgent when (scheduledAt − now) ≤ 2h; cleans up on unmount |
 
 ## Planned Files (from spec)
 
@@ -80,6 +82,7 @@ Cleaner Navigator — Radar Tab
 2. **Real-time**: WebSocket `offers:cleaner:{id}` → `offer_new` (add pin) / `offer_status_changed` (remove pin)
 3. **Reconnection**: On WS reconnect → REST `/snapshot` → replace all local data (REST wins)
 4. **Polling fallback**: After 3+ WS failures → `useRadarReconciliation` starts 30s interval REST polling (max 5 min), stops immediately on WS recovery
+5. **Urgency timer**: `useUrgencyTimer` runs 60s interval → recalculates `isUrgent` for all offers purely from local clock (no network needed)
 
 ## State Management
 
