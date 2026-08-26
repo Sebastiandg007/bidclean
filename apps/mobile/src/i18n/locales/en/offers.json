@@ -1,0 +1,7 @@
+{
+  "duration": {
+    "label": "Duration",
+    "decrease": "Decrease duration",
+    "increase": "Increase duration"
+  }
+}

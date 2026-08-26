@@ -90,15 +90,23 @@ Uses the BidClean design system tokens (see `src/theme/`):
 ## State Management
 
 ```
-Zustand Store: useOffersStore
-├── offers (paginated list)
-├── currentOffer (detail view)
-├── isLoading / error
-├── createOffer(dto, idempotencyKey)
-├── publishOffer(id, favoritesFirst)
-├── cancelOffer(id)
-├── fetchOffers(page, filter)
-├── fetchOfferDetail(id)
-├── getPriceBreakdown(id)
-└── handleOfferCancelled(offerId) — real-time sync via Centrifugo
+Zustand Store: useOffersStore (useOffers.ts)
+├── State
+│   ├── offers: Offer[] (paginated list)
+│   ├── selectedOffer: Offer | null (detail view)
+│   ├── priceBreakdown: PriceBreakdown | null
+│   ├── isLoading / isCreating / isPublishing / isCancelling
+│   ├── error: string | null (i18n key)
+│   ├── page / totalPages / hasMore (pagination)
+│   └── filterState: OfferState | null
+├── Actions
+│   ├── createOffer(payload) — POST /offers with Idempotency-Key header (expo-crypto)
+│   ├── publishOffer(offerId, favoritesFirst) — POST /offers/:id/publish
+│   ├── cancelOffer(offerId) — POST /offers/:id/cancel (optimistic update + rollback)
+│   ├── fetchOffers(state?, page?) — GET /offers (pagination, append on page > 1)
+│   ├── fetchOfferDetail(offerId) — GET /offers/:id
+│   ├── getPriceBreakdown(offerId) — GET /offers/:id/price-breakdown
+│   ├── handleOfferCancelled(offerId) — real-time sync via Centrifugo
+│   └── reset() — clears all state
+└── Hook: useOffers() — convenience wrapper
 ```

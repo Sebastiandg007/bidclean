@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **useOffers Zustand store (mobile)** — Full state management for offers CRUD, pagination, real-time sync (Spec 6 — Task 29)
+  - `useOffersStore` with Zustand `create`: offers array, selectedOffer, priceBreakdown, loading flags, error, pagination (page, totalPages, hasMore), filter state
+  - `createOffer(payload)`: POST /offers with auto-generated Idempotency-Key header via expo-crypto, returns offer ID or null on error
+  - `publishOffer(offerId, favoritesFirst)`: POST /offers/:id/publish, updates local state to PUBLISHED
+  - `cancelOffer(offerId)`: POST /offers/:id/cancel with optimistic state update to CANCELLED + rollback on API failure
+  - `fetchOffers(state?, page?)`: GET /offers with pagination (pageSize=20) + state filter, appends on subsequent pages
+  - `fetchOfferDetail(offerId)`: GET /offers/:id, sets selectedOffer with full state history
+  - `getPriceBreakdown(offerId)`: GET /offers/:id/price-breakdown, stores role-based breakdown
+  - `handleOfferCancelled(offerId)`: real-time handler for Centrifugo cancellation events, updates offer state in list
+  - `reset()`: clears all state to initial values
+  - Error handling: sets i18n error keys, never throws — graceful degradation
+  - Follows project pattern: lazy apiClient import, expo-crypto for idempotency, convenience useOffers() hook
 - **Offers mobile types and constants (mobile)** — Full type definitions and constants for offer screens (Spec 6 — Task 28)
   - `offers.types.ts`: OfferState type (7 states), ServiceType type (6 types), Offer interface (all 30+ fields), CreateOfferPayload, PriceBreakdown, StateTransition, OfferDetail, OfferListItem, PaginatedOffers, OfferListQuery, screen route params (OfferDetailParams, OfferConfirmationParams, OfferStackParamList)
   - `offers.constants.ts`: API_ENDPOINTS (base, detail, publish, cancel, price-breakdown), SERVICE_TYPE_LABELS (i18n keys), STATE_COLORS (BidClean design system), STATE_LABELS (i18n keys), MIN/MAX duration constants from environment, MIN_LEAD_TIME_MINUTES, design tokens (COLORS)
