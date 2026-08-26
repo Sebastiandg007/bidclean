@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **mapStyles.ts (mobile)** — Mapbox GL expression configuration for Offer Radar map layers (Spec 7 — Task 7.6)
+  - Icon image mapping: `match` expression mapping `serviceType` to custom pin icon asset names
+  - Pin color expressions: data-driven color (urgent = accent #00F5D4, normal = white)
+  - Pin opacity expressions: stale (0.5), viewed (0.6), normal (1.0) — cascading priority
+  - Price label expression: formats `payoutCents` as dollar value on pin
+  - Cluster circle styling: step-based radius and color scaling by `point_count`
+  - Work zone styling: semi-transparent fill + dashed border in accent color
+  - Filter expressions: `clusterFilter` and `unclusteredFilter` for layer separation
+  - Cluster source config: radius, max zoom, urgentCount aggregation property
+  - Composite style objects: `offerPinStyle`, `clusterCircleStyle`, `clusterCountStyle`, `workZoneFillStyle`, `workZoneBorderStyle`
 - **AvailableOffersController + AvailableOffersModule (api)** — REST controller for Cleaner's offer radar endpoints (Spec 7 — Task 1.4)
   - `GET /offers/available` — paginated, filtered, sorted available offers for authenticated Cleaner
   - `GET /offers/available/snapshot` — full unpaginated set for WebSocket reconnection reconciliation

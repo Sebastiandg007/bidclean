@@ -23,6 +23,13 @@ Cleaner Navigator — Radar Tab
 | `useRadarStore.ts` | Zustand store — offers Map, filters, sort, view mode, pagination, WebSocket handlers (idempotent), REST reconciliation, computed GeoJSON selectors |
 | `useCentrifugoChannel.ts` | WebSocket hook — Centrifugo channel subscription, event parsing, exponential backoff reconnection, fallback signaling, and reconciliation trigger |
 | `hooks/useRadarReconciliation.ts` | Orchestrates reconciliation lifecycle — wires Centrifugo callbacks to Zustand store, starts REST polling fallback after 3+ WS failures, stops polling on WS recovery, enforces mutual exclusivity (max 5s overlap) |
+| `components/map/mapStyles.ts` | Mapbox GL expression-based styles for offer pins (icon, color, opacity, price label), cluster circles (radius, color, count), work zone ring, and filter/source configuration |
+
+## Implemented Files
+
+| File | Responsibility |
+|------|---------------|
+| `components/map/mapStyles.ts` | Mapbox GL expressions for pin styling (icon mapping, color, opacity, price labels, cluster sizing/color, work zone, filter expressions) |
 
 ## Planned Files (from spec)
 
