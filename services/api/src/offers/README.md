@@ -151,6 +151,34 @@ The cancel flow (`OffersService.cancel()`) handles three states with different s
 
 Non-cancellable states (MATCHED, COMPLETED, CANCELLED, EXPIRED) return `422 Unprocessable Entity`.
 
+## Delivery Scheduler
+
+The `DeliverySchedulerService` orchestrates tiered offer delivery to Cleaners:
+
+### Flow
+
+1. **`deliverToCleaners(offerId, cleaners, radiusStep)`** — Main entry point:
+   - Partitions discovered Cleaners by tier (FAVORITE, PRO, FREE)
+   - If `favoritesFirst` AND favorites exist → deliver favorites immediately, schedule PRO after `FAVORITES_WINDOW_MS`, FREE after `FAVORITES_WINDOW_MS + PRO_FREE_DELAY_MS`
+   - Otherwise → deliver PRO immediately, schedule FREE after `PRO_FREE_DELAY_MS`
+
+2. **`deliverToSingleCleaner(offerId, cleanerId, tier, radiusStep)`** — Per-cleaner:
+   - Creates PENDING delivery record
+   - Attempts WebSocket via Centrifugo (`offers:cleaner:{cleanerId}`)
+   - Falls back to push via OneSignal
+   - Updates delivery status to SENT (with channel) or FAILED (with reason)
+   - Triggers PUBLISHED → ACTIVE on FIRST successful delivery
+
+3. **`scheduleTierDelivery(...)`** — Enqueues delayed BullMQ job for tier delivery
+4. **`processTierDeliveryJob(jobData)`** — Stale-job guard + iterates delivery
+
+### PUBLISHED → ACTIVE Trigger
+
+On the first SENT delivery, the service:
+- Transitions state via optimistic locking (`OfferStateMachineService`)
+- Emits `OfferActivated` domain event
+- Uses in-memory Set + DB-level optimistic locking for concurrency safety
+
 ## Commission Model
 
 - **Host fee**: 10% (1000 bps) added ON TOP of offered price

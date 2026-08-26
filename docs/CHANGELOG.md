@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **DeliverySchedulerService implementation (api)** — Full tiered delivery orchestration for offers (Spec 6 — Task 20)
+  - `deliverToCleaners(offerId, cleaners, radiusStep)`: partitions cleaners by tier, orchestrates delivery order
+  - Favorites-first mode: delivers to FAVORITE tier immediately, schedules PRO after FAVORITES_WINDOW_MS, FREE after combined delay
+  - Standard mode: delivers to PRO immediately, schedules FREE after PRO_FREE_DELAY_MS
+  - `deliverToSingleCleaner`: creates PENDING record, attempts WebSocket via Centrifugo, falls back to push via OneSignal
+  - `scheduleTierDelivery`: enqueues delayed BullMQ jobs for deferred tier delivery
+  - `processTierDeliveryJob`: stale-job guard validates offer state before processing
+  - PUBLISHED → ACTIVE state transition triggered on first successful delivery (in-memory Set + optimistic locking)
+  - Emits OfferActivated domain event on activation
+  - Channel naming: `offers:cleaner:{cleanerId}`, payload: `{ type: 'offer_new', offerId }`
+  - All delays sourced from constants (OFFER_FAVORITES_WINDOW_MS, OFFER_PRO_FREE_DELAY_MS)
 - **CentrifugoClient implementation (api)** — Full HTTP client for Centrifugo server API with retry logic (Spec 6 — Task 19)
   - `publish(channel, data)`: sends message to single Centrifugo channel via POST /api/publish
   - `broadcast(channels, data)`: sends message to multiple channels via POST /api/broadcast
