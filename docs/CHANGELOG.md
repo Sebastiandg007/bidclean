@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Offers screens folder structure (mobile)** — Mobile offers module scaffolding with documentation (Spec 6 — Task 27)
+  - `screens/offers/` folder structure: components/, __tests__/, types, constants, hooks placeholders
+  - Main README documenting purpose, flow, files, components, tests, dependencies, API endpoints, navigation, state management
+  - Components README documenting planned reusable UI components (PropertySelector, ServiceTypePicker, DurationSelector, PriceBreakdown, FavoritesToggle, OfferCard, StateTimeline, RadiusProgress)
+  - Tests README documenting planned test coverage and testing conventions
+  - Placeholder files: offers.types.ts, offers.constants.ts, useOffers.ts (implemented in tasks 28–29)
 - **Offers controller with auth guards and property tests (api)** — Full REST API for offer lifecycle (Spec 6 — Task 24)
   - `offers.controller.ts`: 6 endpoints (create, publish, cancel, list, detail, price-breakdown) with JwtAuthGuard at controller level, Host role verification, OfferOwnerGuard on mutation endpoints, Idempotency-Key header support
   - `offers.service.ts`: Implemented `findById` (with state transition history), `findByHostId` (paginated with state filter), `getPriceBreakdown` (role-based Host vs Cleaner view)

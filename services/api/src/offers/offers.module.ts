@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
-import { HttpModule } from '@nestjs/axios';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BullModule } from '@nestjs/bullmq';
 import { OffersController } from './offers.controller';
@@ -49,7 +48,6 @@ import { User } from '../auth/entities/user.entity';
 @Module({
   imports: [
     ConfigModule,
-    HttpModule,
     EventEmitterModule.forRoot(),
     TypeOrmModule.forFeature([Offer, OfferStateTransition, OfferDelivery, User]),
     ...OFFER_QUEUE_CONFIGS.map((config) =>
