@@ -195,6 +195,37 @@ export class PaymentsRepository {
     });
   }
 
+  /**
+   * Dispute-reconciliation candidates: payments whose charge succeeded, joined to the
+   * SUCCEEDED attempt's `stripe_charge_id`, filtered by current dispute status. Used by
+   * the dispute sweep to detect a `charge.dispute.*` webhook that was never processed
+   * (the one money-relevant signal with no other backstop). `disputeStatuses` selects
+   * which payments to check: `['NONE']` to catch newly opened disputes, `['OPEN']` to
+   * catch missed closures.
+   */
+  async findChargedPaymentsForDisputeCheck(
+    disputeStatuses: DisputeStatus[],
+    limit: number,
+  ): Promise<Array<{ paymentId: string; stripeChargeId: string }>> {
+    if (disputeStatuses.length === 0) {
+      return [];
+    }
+    const rows = await this.dataSource.query<
+      { payment_id: string; stripe_charge_id: string }[]
+    >(
+      `SELECT p."id" AS payment_id, a."stripe_charge_id" AS stripe_charge_id
+       FROM "payments" p
+       INNER JOIN "payment_attempts" a
+         ON a."payment_id" = p."id" AND a."status" = 'SUCCEEDED'
+       WHERE p."dispute_status" = ANY($1)
+         AND a."stripe_charge_id" IS NOT NULL
+       ORDER BY p."updated_at" ASC
+       LIMIT $2`,
+      [disputeStatuses, limit],
+    );
+    return rows.map((r) => ({ paymentId: r.payment_id, stripeChargeId: r.stripe_charge_id }));
+  }
+
   // ─── Payment + attempt writes ──────────────────────────────────────────────
 
   /**

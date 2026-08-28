@@ -609,12 +609,25 @@ Periodic, config-driven safety net (behind webhooks). Repairs:
 | Detected inconsistency | Repair |
 |------------------------|--------|
 | Latest attempt PROCESSING but Stripe intent succeeded | attempt SUCCEEDED, payment HELD, record fee |
-| Latest attempt PROCESSING but Stripe intent failed | attempt FAILED, payment FAILED |
+| Latest attempt PROCESSING but Stripe intent failed (`canceled` / `requires_payment_method`) | attempt FAILED, payment FAILED |
+| Latest attempt PROCESSING but intent non-terminal (`requires_action` / `requires_confirmation` / `processing`) | leave PROCESSING, log a warning so aged rows are alertable (never silently stuck) |
 | payout_status PENDING and account now payouts_enabled | create deferred Transfer, payout TRANSFER_CREATED |
 | Transfer exists in Stripe but payment not RELEASED | reconcile RELEASED + transfer id |
 | Refund/Reversal present in Stripe but not persisted | reconcile refunded/reversed amounts + status |
 
 Interval via `PAYMENTS_RECONCILE_INTERVAL_MS`.
+
+### Dispute Reconciliation (webhook backstop)
+
+The `charge.dispute.*` webhook is the ONLY signal that drives `dispute_status`, and losing the queued job would leave auto-release un-paused — so the payment reconciliation service runs a **second sweep** (`reconcileDisputes`) that converges dispute state to Stripe without relying solely on webhooks:
+
+| Detected inconsistency | Repair |
+|------------------------|--------|
+| dispute_status NONE but Stripe reports an open dispute on the charge | `DisputeService.openDispute` → dispute_status OPEN, auto-release paused (P5) |
+| dispute_status OPEN but Stripe resolved the dispute `won` | `DisputeService.closeDispute(..., true)` → dispute_status WON |
+| dispute_status OPEN but Stripe resolved the dispute `lost` | `DisputeService.closeDispute(..., false)` → dispute_status LOST |
+
+It joins the SUCCEEDED attempt's `stripe_charge_id` (`PaymentsRepository.findChargedPaymentsForDisputeCheck`) and lists disputes per charge (`StripeClient.listDisputesForCharge`). Only status is reconciled here; the formal evidence/resolution workflow remains owned by the future `dispute-system` spec, which consumes this module's Transfer Reversal primitive. Runs on the same `PAYMENTS_RECONCILE_INTERVAL_MS`.
 
 ## Connected Account Reconciliation
 

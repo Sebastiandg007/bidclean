@@ -50,6 +50,11 @@ export const CONNECT_RECONCILE_INTERVAL_MS = Number(
   process.env.CONNECT_RECONCILE_INTERVAL_MS ?? '900000',
 );
 
+/** Max disputes to scan per charge during the dispute reconciliation sweep */
+export const STRIPE_DISPUTE_LIST_LIMIT = Number(
+  process.env.STRIPE_DISPUTE_LIST_LIMIT ?? '10',
+);
+
 /** Max BullMQ job retries */
 export const PAYMENTS_MAX_RETRIES = Number(process.env.PAYMENTS_MAX_RETRIES ?? '5');
 
@@ -142,6 +147,12 @@ export function validatePaymentsConfig(): void {
 
   if (!Number.isInteger(PAYMENTS_MAX_RETRIES) || PAYMENTS_MAX_RETRIES <= 0) {
     errors.push(`PAYMENTS_MAX_RETRIES must be a positive integer, got ${PAYMENTS_MAX_RETRIES}`);
+  }
+
+  if (!Number.isInteger(STRIPE_DISPUTE_LIST_LIMIT) || STRIPE_DISPUTE_LIST_LIMIT <= 0) {
+    errors.push(
+      `STRIPE_DISPUTE_LIST_LIMIT must be a positive integer, got ${STRIPE_DISPUTE_LIST_LIMIT}`,
+    );
   }
 
   // Connect onboarding URLs are required whenever Connect is enabled (always, here).

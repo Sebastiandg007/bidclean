@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **Stripe Escrow — reconciliation hardening (Spec 9 — stripe-escrow)** — closed the two robustness gaps flagged in the audit, both fully inside this spec (no dependency on `dispute-system`):
+  - **Dispute webhook backstop:** `PaymentReconciliationService` now runs a second sweep (`reconcileDisputes`) that lists Stripe disputes per charge for payments with `dispute_status = NONE` (catches a missed `charge.dispute.created`, pausing auto-release, P5) and `dispute_status = OPEN` (catches a missed `charge.dispute.closed`, resolving won/lost). Previously the dispute lifecycle was webhook-only with no backstop. Added `StripeClient.listDisputesForCharge` and `PaymentsRepository.findChargedPaymentsForDisputeCheck` (joins the SUCCEEDED attempt's charge id). The formal evidence workflow stays owned by the future `dispute-system` spec — this only converges status.
+  - **Non-terminal charge intents:** `reconcilePayment` now explicitly recognizes `requires_action` / `requires_confirmation` / `processing` and leaves the payment in `PROCESSING` with a warning log (so aged rows surface for alerting) instead of silently doing nothing; only `canceled` / `requires_payment_method` move a payment to `FAILED`.
+  - Verified: typecheck + ESLint clean, 18 payments suites / 120 tests pass.
+
 - **Stripe Escrow — post-implementation audit fixes (Spec 9 — stripe-escrow)** — resolved money-safety and correctness findings from a behavioral review:
   - **Stranded-charge recovery (P11):** the charge attempt's real Stripe PaymentIntent id is now persisted immediately after `createPaymentIntent` (via new `PaymentsRepository.recordAttemptIntentId`) and again on success in `markChargeSucceeded`, replacing the `pending:` placeholder. `PaymentReconciliationService` now falls back to `StripeClient.findPaymentIntentByPaymentId` (Stripe search by `metadata.paymentId`) to heal a payment left `PROCESSING` after a crash between the charge call and the DB write — previously such a payment was permanently unrecoverable.
   - **Stripe fee captured on charge:** the charge PaymentIntent is created with `expand: ['latest_charge.balance_transaction']` so `stripe_fee_cents` and `net_platform_revenue_cents` are recorded correctly at capture instead of defaulting to 0.

@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import Stripe from 'stripe';
 import {
   STRIPE_API_VERSION,
+  STRIPE_DISPUTE_LIST_LIMIT,
   STRIPE_SECRET_KEY,
   STRIPE_WEBHOOK_SECRET,
   STRIPE_WEBHOOK_TOLERANCE_SECONDS,
@@ -95,6 +96,19 @@ export class StripeClient {
     idempotencyKey: string,
   ): Promise<Stripe.Refund> {
     return this.stripe.refunds.create(params, { idempotencyKey });
+  }
+
+  /**
+   * List Stripe disputes for a given charge. Used by the dispute reconciliation sweep
+   * to detect disputes whose `charge.dispute.*` webhook was never processed (the only
+   * dispute signal that has no other backstop), converging `dispute_status` to Stripe.
+   */
+  async listDisputesForCharge(chargeId: string): Promise<Stripe.Dispute[]> {
+    const result = await this.stripe.disputes.list({
+      charge: chargeId,
+      limit: STRIPE_DISPUTE_LIST_LIMIT,
+    });
+    return result.data;
   }
 
   /**
