@@ -378,7 +378,30 @@ Invariants enforced at the database level: at most one `SUCCEEDED` attempt per p
 
 ---
 
-## 5c. Payment Domain Events
+## 5c. Stripe Webhook Ingress
+
+> Stripe events enter through a single public endpoint that is authenticated by the signature (not JWT). The controller verifies, deduplicates, persists, and enqueues — then a worker advances the payment lifecycle, which fans out the domain events in §5d.
+
+```mermaid
+graph LR
+    Stripe["Stripe"] -->|"POST /payments/webhooks/stripe<br/>(raw body + Stripe-Signature)"| Ctrl["StripeWebhookController"]
+
+    Ctrl -->|"verify signature<br/>(P9: 400 on invalid/too-old)"| Verify{"valid?"}
+    Verify -->|"no"| Reject["400 — no mutation"]
+    Verify -->|"yes"| Dedup{"event id<br/>already seen? (P8)"}
+    Dedup -->|"yes"| Ack["2xx ACK (no reprocess)"]
+    Dedup -->|"no"| Persist["Append sanitized<br/>payment_events row"]
+    Persist --> Enqueue["Enqueue on webhook queue<br/>(BullMQ)"]
+    Enqueue --> Ack
+    Enqueue -.->|"async worker"| Lifecycle["Advance payment /<br/>dispute lifecycle"]
+    Lifecycle -.->|"emits"| Events["Payment domain events (§5d)"]
+```
+
+The payload is sanitized before persistence (`payment-payload.sanitizer.ts`): only ids, amounts, currency, status, and timestamps are stored — never card data, secrets, or PII.
+
+---
+
+## 5d. Payment Domain Events
 
 > The payments module communicates state changes to other modules through typed domain events (EventEmitter2, defined in `services/api/src/payments/events/payment-events.ts`) rather than writing their tables. Consumers react within their own bounded context.
 
@@ -399,6 +422,29 @@ graph LR
 ```
 
 Each event carries a shared base payload (`paymentId`, `offerId`, `hostId`, `cleanerId`, `timestamp`) plus event-specific fields (amounts in cents, currency, failure reason). This keeps the payments module as the sole writer of the `payments` tables while letting other modules advance their own lifecycles.
+
+---
+
+## 5e. Payment Reconciliation (P11)
+
+> Webhooks (§5c) are the primary path for advancing a charge, but delivery can be delayed, dropped, or interrupted mid-flight (e.g. a crash between creating the PaymentIntent and receiving its result). Two periodic sweeps act as a safety net that converges persisted state to Stripe's truth without distributed transactions.
+
+```mermaid
+graph LR
+    Timer["@Interval sweeps"] --> PayRec["PaymentReconciliationService<br/>(PAYMENTS_RECONCILE_INTERVAL_MS)"]
+    Timer --> ConnRec["ConnectReconciliationService<br/>(CONNECT_RECONCILE_INTERVAL_MS)"]
+
+    PayRec -->|"find payments stuck in PROCESSING"| Stuck["Stuck payments (batched)"]
+    Stuck -->|"retrieve latest attempt's PaymentIntent"| Stripe["Stripe"]
+    Stripe -->|"succeeded"| Held["mark HELD (record fee)"]
+    Stripe -->|"canceled / requires_payment_method"| Failed["mark FAILED"]
+
+    ConnRec -->|"retrieve not-yet-payable accounts"| Accts["Stripe connected accounts"]
+    Accts -->|"repair flags"| Flags["charges_enabled / payouts_enabled / details_submitted"]
+    Flags -->|"newly eligible"| Deferred["flush deferred payouts"]
+```
+
+Reconciliation is idempotent: a repair that Stripe already delivered via webhook is a no-op because the persisted state is already terminal for that attempt. Placeholder attempts whose intent id was never persisted (`pending:` prefix) are skipped, and per-payment errors are swallowed so one stuck record never stalls the batch.
 
 ---
 

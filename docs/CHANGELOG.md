@@ -7,7 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Documentation
+- **Payments module — reconciliation safety net (P11)** — documented `reconciliation/payment-reconciliation.service.ts` (`PaymentReconciliationService`) in `services/api/src/payments/README.md`, which sweeps payments stuck in `PROCESSING`, retrieves each latest attempt's PaymentIntent from Stripe, and converges persisted state to Stripe's truth (`succeeded → HELD` recording the fee, `canceled`/`requires_payment_method → FAILED`); added `docs/ARCHITECTURE.md` §5e "Payment Reconciliation" flow diagram covering both the payment and Connect account sweeps
+
 ### Added
+- **Stripe Escrow module (Spec — stripe-escrow)** — Stripe webhook ingress controller (`webhooks/stripe-webhook.controller.ts`)
+  - `StripeWebhookController` exposes the public `POST /payments/webhooks/stripe` endpoint; NOT behind the JWT guard — authenticated by the Stripe signature over the preserved raw body within the tolerance window (400 `BadRequestException` on missing signature/raw body or invalid/too-old signature, Property P9, no mutation)
+  - Deduplicates by Stripe event id via `PaymentsRepository.hasProcessedStripeEvent` (Property P8): a redelivery is acknowledged without reprocessing
+  - Persists a sanitized `payment_events` row (`payment-payload.sanitizer.ts` — ids/amounts/currency/status/timestamps only, never card data, secrets, or PII), enqueues async processing on the webhook BullMQ queue (`PAYMENTS_JOB_NAMES.PROCESS_WEBHOOK`), and returns a fast `{ received: true }` ACK
+  - Documented the controller and the new public API route in `services/api/src/payments/README.md`; added `docs/ARCHITECTURE.md` §5c "Stripe Webhook Ingress" flow diagram (domain-events section renumbered to §5d)
+- **Stripe Escrow module (Spec — stripe-escrow)** — refund service & request DTO (`refunds/refund.service.ts`, `dto/refund.dto.ts`)
+  - `RefundService.refund` authorizes the Host owner, applies the pure `refund-policy` decision, and performs the required Stripe operations: a Refund pre-release, or a Transfer Reversal + Refund once the Cleaner payout has been transferred
+  - Enforces the refund/reversal ceilings (422 `UnprocessableEntityException`) and blocks refunds while a dispute is OPEN (409 `ConflictException`); the Stripe processing fee is absorbed by the platform
+  - Appends sanitized `payment_events` for the reversal and refund (idempotency keys `reversal:*` / `refund:*`), transitions the payment to `REFUNDED` (full) or `PARTIALLY_REFUNDED` (partial), and emits `payment.refunded`
+  - `RefundDto` — request body validated with class-validator: optional positive-integer `amountCents` (cents) for a partial refund, omitted for a full refund of the remaining amount
+  - Documented `refunds/refund.service.ts`, `dto/refund.dto.ts`, and `dto/payment-response.dto.ts` in `services/api/src/payments/README.md`
 - **Stripe Escrow module (Spec — stripe-escrow)** — payment state machines (`payment-state-machine.ts`)
   - Three pure, independently-validated state machines for the orthogonal lifecycles: payment/financial (`PENDING → PROCESSING → HELD → { RELEASED | REFUNDED | PARTIALLY_REFUNDED }`, with retryable `FAILED`), dispute (`NONE → OPEN → { WON | LOST }`), and payout (`NOT_READY → { PENDING | TRANSFER_CREATED } → PAID → REVERSED`)
   - `ALLOWED_TRANSITIONS` maps plus `validatePaymentTransition` / `validateDisputeTransition` / `validatePayoutTransition` returning a `TransitionResult` (`{ valid, reason? }`); machines never throw — the calling service throws on invalid transitions
