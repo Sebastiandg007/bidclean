@@ -16,8 +16,11 @@ Owns the money lifecycle for a completed service: charging the Host into Stripe 
 | `entities/payment-attempt.entity.ts` | `payment_attempts` table — charge attempts against a payment (at most one `SUCCEEDED` per payment) |
 | `entities/payment-event.entity.ts` | `payment_events` table — audit ledger for API and webhook events, with Stripe event dedup |
 | `entities/stripe-account.entity.ts` | `stripe_accounts` table — one Stripe Express connected account per Cleaner |
+| `connect/connect-onboarding.service.ts` | `ConnectOnboardingService` — creates or reuses one Express Connected Account per Cleaner, generates the onboarding Account Link (refresh/return URLs), syncs capability flags, and exposes account status without leaking Stripe secrets |
+| `connect/connect-reconciliation.service.ts` | `ConnectReconciliationService` — periodic sweep (`CONNECT_RECONCILE_INTERVAL_MS`) that retrieves not-yet-payable accounts (via `idx_stripe_accounts_not_payable`), repairs `charges_enabled` / `payouts_enabled` / `details_submitted`, and triggers deferred payouts for newly-eligible Cleaners; does NOT rely solely on `account.updated` webhooks (P6, P11) |
 | `stripe/stripe.client.ts` | Thin injectable wrapper around the Stripe SDK — the module's only seam to Stripe (connected accounts, PaymentIntents, transfers, reversals, refunds, webhook verification). Every mutating call forwards an idempotency key |
 | `stripe/stripe-idempotency.ts` | Deterministic idempotency-key builders (`charge`, `release`, `refund`, `reversal`) derived from stable identifiers so replays are no-ops (Property P8) |
+| `stripe/stripe-fee.util.ts` | Pure helper (`extractStripeFeeCents`) that reads the Stripe processing fee (integer minor units) from an expanded PaymentIntent's balance transaction, returning `0` when the fee is not yet available for later webhook reconciliation |
 | `stripe/stripe.constants.ts` | `STRIPE_WEBHOOK_EVENTS` map and `StripeWebhookEventName` union — the Stripe webhook event names this module dispatches on |
 | `events/payment-events.ts` | `PAYMENT_EVENT_NAMES` map, `PaymentEventName` union, and the strongly-typed domain event payloads (`PaymentCapturedEvent`, `PaymentReleasedEvent`, `PaymentFailedEvent`, `PaymentRefundedEvent`, `PaymentDisputedEvent`) emitted via EventEmitter2 for downstream modules to consume — this module never writes another module's tables |
 
@@ -48,7 +51,7 @@ The module emits typed domain events (EventEmitter2, defined in `events/payment-
 - **Domain event consumers** — offer-publishing, notifications, service-tracking, dispute-system, and analytics subscribe to the payment events above; the payments module never writes their tables.
 - **Users module** — `host_id` and `cleaner_id` reference users (`ON DELETE RESTRICT`).
 - **Infrastructure** — PostgreSQL (TypeORM entities), Redis + BullMQ (webhook processing and deferred release queues).
-- **External** — Stripe Connect (escrow charges, transfers, connected accounts, webhooks).
+- **External** — Stripe Connect (escrow charges, transfers, connected accounts, webhooks, and periodic connected-account reconciliation).
 
 ## Environment Variables
 | Variable | Description | Required |
