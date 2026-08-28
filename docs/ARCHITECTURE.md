@@ -378,6 +378,30 @@ Invariants enforced at the database level: at most one `SUCCEEDED` attempt per p
 
 ---
 
+## 5c. Payment Domain Events
+
+> The payments module communicates state changes to other modules through typed domain events (EventEmitter2, defined in `services/api/src/payments/events/payment-events.ts`) rather than writing their tables. Consumers react within their own bounded context.
+
+```mermaid
+graph LR
+    Payments["Payments Module<br/>(emitter)"]
+
+    Payments -->|"payment.captured"| Notif["Notifications"]
+    Payments -->|"payment.released"| Notif
+    Payments -->|"payment.refunded"| Notif
+    Payments -->|"payment.disputed"| Notif
+
+    Payments -->|"payment.failed"| OfferPub["Offer Publishing<br/>(decides offer next state)"]
+    Payments -->|"payment.refunded"| Disputes["Dispute System"]
+    Payments -->|"payment.disputed"| Disputes
+
+    Payments -->|"all events"| Analytics["Analytics"]
+```
+
+Each event carries a shared base payload (`paymentId`, `offerId`, `hostId`, `cleanerId`, `timestamp`) plus event-specific fields (amounts in cents, currency, failure reason). This keeps the payments module as the sole writer of the `payments` tables while letting other modules advance their own lifecycles.
+
+---
+
 ## 6. Auth & Security Flow
 
 ```mermaid

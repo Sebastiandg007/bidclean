@@ -19,6 +19,7 @@ Owns the money lifecycle for a completed service: charging the Host into Stripe 
 | `stripe/stripe.client.ts` | Thin injectable wrapper around the Stripe SDK — the module's only seam to Stripe (connected accounts, PaymentIntents, transfers, reversals, refunds, webhook verification). Every mutating call forwards an idempotency key |
 | `stripe/stripe-idempotency.ts` | Deterministic idempotency-key builders (`charge`, `release`, `refund`, `reversal`) derived from stable identifiers so replays are no-ops (Property P8) |
 | `stripe/stripe.constants.ts` | `STRIPE_WEBHOOK_EVENTS` map and `StripeWebhookEventName` union — the Stripe webhook event names this module dispatches on |
+| `events/payment-events.ts` | `PAYMENT_EVENT_NAMES` map, `PaymentEventName` union, and the strongly-typed domain event payloads (`PaymentCapturedEvent`, `PaymentReleasedEvent`, `PaymentFailedEvent`, `PaymentRefundedEvent`, `PaymentDisputedEvent`) emitted via EventEmitter2 for downstream modules to consume — this module never writes another module's tables |
 
 ## Lifecycles
 
@@ -30,8 +31,21 @@ The three lifecycles are validated independently (orthogonality). Terminal state
 
 State transitions never throw. The pure `validateXxx` functions return a `TransitionResult`; the calling service is responsible for throwing on `{ valid: false }`.
 
+## Domain Events
+
+The module emits typed domain events (EventEmitter2, defined in `events/payment-events.ts`) instead of writing other modules' tables. Consumers react to their own domain:
+
+| Event | Emitted when | Notable consumers |
+|-------|--------------|-------------------|
+| `payment.captured` | Host charged, funds held in escrow | notifications, analytics |
+| `payment.released` | Cleaner payout Transfer created | notifications, analytics |
+| `payment.failed` | A charge attempt fails | offer-publishing (decides the offer's next state) |
+| `payment.refunded` | A refund (and any reversal) is applied | notifications, dispute-system, analytics |
+| `payment.disputed` | A dispute is opened on the payment | dispute-system, notifications |
+
 ## Dependencies
 - **Offers module** — a payment is created per accepted offer (`offer_id` is unique on `payments`).
+- **Domain event consumers** — offer-publishing, notifications, service-tracking, dispute-system, and analytics subscribe to the payment events above; the payments module never writes their tables.
 - **Users module** — `host_id` and `cleaner_id` reference users (`ON DELETE RESTRICT`).
 - **Infrastructure** — PostgreSQL (TypeORM entities), Redis + BullMQ (webhook processing and deferred release queues).
 - **External** — Stripe Connect (escrow charges, transfers, connected accounts, webhooks).
