@@ -78,6 +78,12 @@ export interface HostInboxItem {
   propertyName: string | null;
   proposal: ProposalView;
   cleaner: CleanerSummary;
+  /** Immutable base price of the offer (for counter-back deviation bounds) */
+  basePriceCents: number;
+  /** Snapshotted host commission rate (basis points) for counter-back payout preview */
+  hostFeeRateBps: number;
+  /** Snapshotted cleaner commission rate (basis points) for counter-back payout preview */
+  cleanerRateBps: number;
 }
 
 /** Price breakdown preview shown while entering a price */

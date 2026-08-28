@@ -16,7 +16,11 @@ import { NegotiationRepository } from './negotiation.repository';
 import { NegotiationPricingService } from './pricing/negotiation-pricing.service';
 import { NegotiationPublisher } from './events/negotiation-publisher.service';
 import { NegotiationIdempotencyService } from './negotiation-idempotency.service';
-import { NEGOTIATION_CHANNELS, NEGOTIATION_MAX_PROPOSALS_PER_THREAD, NEGOTIATION_RESPONSE_WINDOW_MS } from './negotiation.constants';
+import {
+  NEGOTIATION_CHANNELS,
+  NEGOTIATION_MAX_PROPOSALS_PER_THREAD,
+  NEGOTIATION_RESPONSE_WINDOW_MS,
+} from './negotiation.constants';
 import { NEGOTIATION_ERROR_MESSAGES } from './negotiation.messages';
 import {
   ProposalActor,
@@ -346,6 +350,9 @@ export class NegotiationService {
       offerId: row.offer_id,
       propertyName: row.property_name_snapshot,
       cleaner: { cleanerId: row.cleaner_id, fullName: row.cleaner_full_name },
+      basePriceCents: row.base_price_cents,
+      hostFeeRateBps: row.host_service_fee_rate_bps,
+      cleanerRateBps: row.cleaner_commission_rate_bps,
       proposal: {
         id: row.proposal_id,
         threadId: row.thread_id,

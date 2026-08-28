@@ -237,8 +237,11 @@ export class NegotiationRepository {
          p."thread_id" AS thread_id,
          t."offer_id" AS offer_id,
          t."cleaner_id" AS cleaner_id,
+         t."base_price_cents" AS base_price_cents,
          u."full_name" AS cleaner_full_name,
          o."property_name_snapshot" AS property_name_snapshot,
+         o."host_service_fee_rate_bps" AS host_service_fee_rate_bps,
+         o."cleaner_commission_rate_bps" AS cleaner_commission_rate_bps,
          p."actor" AS actor,
          p."sequence_number" AS sequence_number,
          p."proposed_price_cents" AS proposed_price_cents,
@@ -259,6 +262,23 @@ export class NegotiationRepository {
        ORDER BY p."created_at" ASC`,
       [hostId],
     );
+  }
+
+  /**
+   * The Cleaner who won a MATCHED offer, derived from the ACCEPTED proposal's
+   * thread. Returns null when no ACCEPTED proposal exists (e.g. a direct accept
+   * that created no proposal, or an offer matched outside negotiation).
+   */
+  async findMatchedCleanerId(offerId: string): Promise<string | null> {
+    const rows = await this.dataSource.query<{ cleaner_id: string }[]>(
+      `SELECT t."cleaner_id" AS cleaner_id
+       FROM "negotiation_proposals" p
+       INNER JOIN "negotiation_threads" t ON t."id" = p."thread_id"
+       WHERE t."offer_id" = $1 AND p."status" = 'ACCEPTED'
+       LIMIT 1`,
+      [offerId],
+    );
+    return rows[0]?.cleaner_id ?? null;
   }
 
   /** Whether the Cleaner has a SENT delivery record for the offer. */

@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
 import { NegotiationRepository } from '../negotiation.repository';
+import { NegotiationPublisher } from '../events/negotiation-publisher.service';
 import { NEGOTIATION_RECONCILE_INTERVAL_MS } from '../negotiation.constants';
 import { SupersededReason } from '../negotiation.types';
 
@@ -21,6 +22,9 @@ const OFFER_STATE_TO_REASON: Record<string, SupersededReason> = {
  *
  * - Offer terminal (MATCHED/CANCELLED/EXPIRED) but a proposal is still PENDING
  *   -> supersede the PENDING proposals with the matching reason and close threads.
+ * - MATCHED offer -> re-publish `offer_status_changed{MATCHED}` to OTHER delivered
+ *   Cleaners' radar channels, repairing a dropped best-effort broadcast so their
+ *   pins clear even if the original publish failed.
  *
  * This introduces NO distributed transaction; it makes post-match negotiation
  * state eventually consistent and retry-safe.
@@ -29,7 +33,10 @@ const OFFER_STATE_TO_REASON: Record<string, SupersededReason> = {
 export class NegotiationReconciliationService {
   private readonly logger = new Logger(NegotiationReconciliationService.name);
 
-  constructor(private readonly negotiationRepo: NegotiationRepository) {}
+  constructor(
+    private readonly negotiationRepo: NegotiationRepository,
+    private readonly publisher: NegotiationPublisher,
+  ) {}
 
   /** Reconcile interval resolved from configuration. */
   static getReconcileInterval(): number {
@@ -53,6 +60,12 @@ export class NegotiationReconciliationService {
         );
         await this.negotiationRepo.closeThreadsForOffer(row.offer_id);
 
+        // For a matched offer, re-publish the radar clear-pin event to other
+        // delivered Cleaners in case the original best-effort broadcast was dropped.
+        if (reason === SupersededReason.OFFER_MATCHED) {
+          await this.republishMatchedToOthers(row.offer_id);
+        }
+
         if (superseded > 0) {
           this.logger.warn(
             `Reconciliation repaired ${superseded} pending proposal(s) for terminal offer ${row.offer_id} (${row.offer_state})`,
@@ -62,5 +75,19 @@ export class NegotiationReconciliationService {
     } catch (error) {
       this.logger.error(`Negotiation reconciliation sweep failed: ${String(error)}`);
     }
+  }
+
+  /**
+   * Re-publish `offer_status_changed{MATCHED}` to the OTHER delivered Cleaners
+   * (excluding the winner) for a matched offer. Best-effort; publish failures are
+   * swallowed by the publisher. No-op when the winner cannot be determined.
+   */
+  private async republishMatchedToOthers(offerId: string): Promise<void> {
+    const winnerCleanerId = await this.negotiationRepo.findMatchedCleanerId(offerId);
+    if (!winnerCleanerId) {
+      return;
+    }
+    const others = await this.negotiationRepo.findOtherDeliveredCleaners(offerId, winnerCleanerId);
+    await this.publisher.publishOfferMatchedToOtherCleaners(others, offerId);
   }
 }

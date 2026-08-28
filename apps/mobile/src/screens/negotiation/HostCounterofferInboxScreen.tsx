@@ -25,17 +25,6 @@ const COLORS = {
 const SPACING = { md: 16, lg: 24, xxl: 48 } as const;
 const FONT_SIZE = { title: 22, empty: 15, error: 13 } as const;
 
-/**
- * Default commission rates for counter-back preview when not carried on the
- * inbox item. The server remains authoritative; these mirror the offer defaults.
- */
-const DEFAULT_HOST_FEE_RATE_BPS = Number(
-  process.env.EXPO_PUBLIC_OFFER_HOST_FEE_RATE_BPS ?? '1000',
-);
-const DEFAULT_CLEANER_RATE_BPS = Number(
-  process.env.EXPO_PUBLIC_OFFER_CLEANER_RATE_BPS ?? '300',
-);
-
 export function HostCounterofferInboxScreen(): React.JSX.Element {
   const { t } = useTranslation('negotiation');
 
@@ -77,9 +66,9 @@ export function HostCounterofferInboxScreen(): React.JSX.Element {
     ({ item }: ListRenderItemInfo<HostInboxItem>): React.JSX.Element => (
       <HostCounterofferCard
         item={item}
-        basePriceCents={item.proposal.proposedPriceCents}
-        hostFeeRateBps={DEFAULT_HOST_FEE_RATE_BPS}
-        cleanerRateBps={DEFAULT_CLEANER_RATE_BPS}
+        basePriceCents={item.basePriceCents}
+        hostFeeRateBps={item.hostFeeRateBps}
+        cleanerRateBps={item.cleanerRateBps}
         disabled={isSubmitting}
         onAccept={handleAccept}
         onReject={handleReject}

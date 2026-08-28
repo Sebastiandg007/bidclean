@@ -44,6 +44,9 @@ function makeInboxItem(overrides: Partial<HostInboxItem> = {}): HostInboxItem {
     offerId: 'offer-1',
     propertyName: 'Apt 1A',
     cleaner: { cleanerId: 'cleaner-1', fullName: 'Jane C' },
+    basePriceCents: 10000,
+    hostFeeRateBps: 1000,
+    cleanerRateBps: 300,
     proposal: {
       id: 'proposal-1',
       threadId: 'thread-1',

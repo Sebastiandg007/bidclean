@@ -106,6 +106,11 @@ export interface HostInboxItem {
   readonly propertyName: string | null;
   readonly proposal: ProposalView;
   readonly cleaner: CleanerSummary;
+  /** Immutable Base Price of the offer (for counter-back deviation bounds) */
+  readonly basePriceCents: number;
+  /** Offer's snapshotted commission rates (for an exact counter-back payout preview) */
+  readonly hostFeeRateBps: number;
+  readonly cleanerRateBps: number;
 }
 
 /** Raw row shape returned by the host inbox query */
@@ -114,8 +119,11 @@ export interface HostInboxRow {
   readonly thread_id: string;
   readonly offer_id: string;
   readonly cleaner_id: string;
+  readonly base_price_cents: number;
   readonly cleaner_full_name: string | null;
   readonly property_name_snapshot: string | null;
+  readonly host_service_fee_rate_bps: number;
+  readonly cleaner_commission_rate_bps: number;
   readonly actor: string;
   readonly sequence_number: number;
   readonly proposed_price_cents: number;

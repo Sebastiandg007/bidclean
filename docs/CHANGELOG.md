@@ -22,12 +22,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Tests: 8 backend suites (48 tests incl. property-based P1–P11 coverage across state machine, pricing, service, publisher, idempotency, listener) + mobile store tests (8) — all passing
 
 ### Fixed
+- **Offer Negotiation audit corrections** (Spec 8 — offer-negotiation)
+  - `NegotiationReconciliationService` now re-publishes `offer_status_changed{MATCHED}` to other delivered Cleaners for MATCHED offers, repairing a dropped best-effort broadcast so their radar pins clear (adds `NegotiationRepository.findMatchedCleanerId`)
+  - Host inbox now carries the offer's immutable Base Price and snapshotted commission rates (`basePriceCents`, `hostFeeRateBps`, `cleanerRateBps`) so the Host counter-back payout preview matches the server's authoritative breakdown exactly (removed env-default rate fallback in `HostCounterofferInboxScreen`)
+  - Documented `NEGOTIATION_*` environment variables in `.env.example`
 - **Offer Radar audit follow-up** — reverted Swagger decorators on `available-offers.controller.ts` (the `@nestjs/swagger` dependency is not installed; the codebase uses no Swagger), and hardened `available-offers` test files for `noUncheckedIndexedAccess` after `@ts-nocheck` removal
 - **Offer Radar audit corrections** — 5 post-audit quality improvements (Spec 7 — Offer Radar)
   - Added `error: string | null` state to `useRadarStore` with `clearError()` action; all REST actions now capture and expose error messages instead of silently swallowing (Req 13.5 toast notifications)
   - `refreshOffers()` now preserves `isViewed` state for existing offers instead of resetting all to unread on pull-to-refresh
   - Refactored `OfferPreviewSheet` service type label: replaced inline ternary mapping with centralized `SERVICE_TYPE_I18N_KEYS` Record + `getServiceTypeI18nKey()` helper
-  - Added Swagger/OpenAPI decorators to `AvailableOffersController`: `@ApiTags`, `@ApiBearerAuth`, `@ApiOperation`, `@ApiResponse` on both endpoints
+  - (Note: Swagger decorators added here were later reverted — see "Offer Radar audit follow-up" — because `@nestjs/swagger` is not a project dependency)
   - Removed `// @ts-nocheck` from test files; replaced `as any` casts with properly typed mock interfaces (`MockAuthenticatedRequest`, `AvailableOffersQueryDto`, `jest.Mocked<Pick<...>>`)
 
 ### Added
