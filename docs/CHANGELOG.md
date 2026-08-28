@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Stripe Escrow module (Spec — stripe-escrow)** — payment state machines (`payment-state-machine.ts`)
+  - Three pure, independently-validated state machines for the orthogonal lifecycles: payment/financial (`PENDING → PROCESSING → HELD → { RELEASED | REFUNDED | PARTIALLY_REFUNDED }`, with retryable `FAILED`), dispute (`NONE → OPEN → { WON | LOST }`), and payout (`NOT_READY → { PENDING | TRANSFER_CREATED } → PAID → REVERSED`)
+  - `ALLOWED_TRANSITIONS` maps plus `validatePaymentTransition` / `validateDisputeTransition` / `validatePayoutTransition` returning a `TransitionResult` (`{ valid, reason? }`); machines never throw — the calling service throws on invalid transitions
+  - `isTerminalPaymentStatus` + `TERMINAL_PAYMENT_STATUSES` (`REFUNDED`); lifecycle orthogonality (Property P12) follows from validating each status independently
+  - Added `services/api/src/payments/README.md` documenting the module's files, three lifecycles, dependencies, and environment variables
 - **Stripe Escrow module (Spec — stripe-escrow)** — payment tables migration (Task 2)
   - `CreatePaymentTables1700000014000` creates four tables with full `up()`/`down()` reversibility: `payments`, `payment_attempts`, `stripe_accounts`, `payment_events`
   - `payments` — escrow aggregate, one row per matched offer (`uq_payment_offer`); holds the integer-cent money snapshot from `CommissionService` and three orthogonal lifecycles (`payment_status`, `dispute_status`, `payout_status`), each guarded by a `CHECK`; FK to `offers` and `users` (`host_id`, `cleaner_id`) all `ON DELETE RESTRICT` to preserve financial referential integrity; `chk_refund_ceiling`/`chk_reversal_ceiling` enforce refunds ≤ host total and reversals ≤ cleaner payout (P7); partial indexes for the auto-release sweep (`HELD` + `NONE` dispute), deferred payout sweep (`PENDING`), and disputed rows
