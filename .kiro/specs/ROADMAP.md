@@ -20,7 +20,7 @@
 | 5 | `property-management` | ✅ Completed | Spec 1, 2 |
 | 6 | `offer-publishing` | ✅ Completed | Spec 5 |
 | 7 | `offer-radar` | ✅ Completed | Spec 5, 6 |
-| 8 | `offer-negotiation` | ⬜ Pending | Spec 6, 7 |
+| 8 | `offer-negotiation` | ✅ Completed | Spec 6, 7 |
 
 ### Sprint 3 — Payments
 | # | Spec | Status | Dependencies |

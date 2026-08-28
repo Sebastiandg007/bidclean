@@ -12,13 +12,6 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Request } from 'express';
-import {
-  ApiTags,
-  ApiBearerAuth,
-  ApiOperation,
-  ApiResponse,
-  ApiQuery,
-} from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { JwtUserPayload } from '../../auth/guards/jwt.types';
 import { User } from '../../auth/entities/user.entity';
@@ -53,8 +46,6 @@ interface AuthenticatedRequest extends Request {
  * Rate limiting: The snapshot endpoint is limited to 1 request per 30 seconds
  * per Cleaner (anti-abuse for full-table scan). Returns HTTP 429 when exceeded.
  */
-@ApiTags('Offers — Radar')
-@ApiBearerAuth()
 @Controller('offers/available')
 @UseGuards(JwtAuthGuard)
 export class AvailableOffersController {
@@ -79,15 +70,6 @@ export class AvailableOffersController {
    */
   @Get()
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary: 'Get available offers for authenticated Cleaner',
-    description:
-      'Returns paginated available offers visible to the Cleaner based on delivery records. ' +
-      'Supports server-side filtering by service type, price range, distance, and scheduled date.',
-  })
-  @ApiResponse({ status: 200, description: 'Paginated available offers', type: AvailableOffersResponseDto })
-  @ApiResponse({ status: 401, description: 'Unauthenticated — missing or invalid JWT' })
-  @ApiResponse({ status: 403, description: 'Forbidden — user not found or lacks Cleaner role' })
   async getAvailableOffers(
     @Req() req: AuthenticatedRequest,
     @Query(new ValidationPipe({ whitelist: true, transform: true }))
@@ -112,16 +94,6 @@ export class AvailableOffersController {
    */
   @Get('snapshot')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary: 'Get full offer snapshot for reconciliation',
-    description:
-      'Returns the complete unpaginated set of available offers for WebSocket reconnection reconciliation. ' +
-      'Rate-limited: max 1 request per 30 seconds per Cleaner.',
-  })
-  @ApiResponse({ status: 200, description: 'Full offer set with syncedAt timestamp', type: AvailableOffersSnapshotResponseDto })
-  @ApiResponse({ status: 401, description: 'Unauthenticated — missing or invalid JWT' })
-  @ApiResponse({ status: 403, description: 'Forbidden — user not found or lacks Cleaner role' })
-  @ApiResponse({ status: 429, description: 'Too many requests — rate limit exceeded (max 1/30s)' })
   async getAvailableOffersSnapshot(
     @Req() req: AuthenticatedRequest,
   ): Promise<AvailableOffersSnapshotResponseDto> {

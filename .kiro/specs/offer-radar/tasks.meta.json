@@ -1,616 +1,205 @@
 {
-  "pbtResults": {},
+  "pbtResults": {
+    "17.11 Property test: Offline Acceptance Safety": {
+      "status": "passed",
+      "lastRunTimestamp": 1787776311888
+    }
+  },
   "executionHistory": {
-    "1.1 Create DTO classes for available offers query parameters and response": [
+    "17.1 Property test: Visibility Contract Enforcement": [
       {
         "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
         "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787766322465
-      },
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787766339802
-      },
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787766770403
+        "timestamp": 1787776347167
       }
     ],
-    "1.2 Implement available offers repository with PostGIS query": [
+    "17. Property-Based Tests (fast-check)": [
       {
         "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
         "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787766322605
-      },
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787766778353
-      },
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787767143605
+        "timestamp": 1787776347263
       }
     ],
-    "1.3 Implement available offers service (business logic layer)": [
+    "3.3 Write unit tests for useRadarStore": [
       {
         "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
         "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787766322776
-      },
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787767158600
-      },
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787769112583
+        "timestamp": 1787776348082
       }
     ],
-    "1.4 Implement available offers controller with auth guard": [
+    "1.5 Write unit tests for available offers service": [
       {
         "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
         "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787766322858
-      },
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787769148348
-      },
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787770328073
+        "timestamp": 1787776348901
       }
     ],
-    "2. Checkpoint — Backend endpoint tests pass": [
+    "1.6 Write unit tests for available offers repository": [
       {
         "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
         "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787766322935
+        "timestamp": 1787776356045
       }
     ],
-    "3.1 Create radar types and constants": [
+    "1.7 Write unit tests for available offers controller": [
       {
         "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
         "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787766323025
-      },
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787766342576
+        "timestamp": 1787776356927
       }
     ],
-    "3.2 Implement useRadarStore with Zustand": [
+    "4.2 Write unit tests for useCentrifugoChannel": [
       {
         "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
         "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787766323126
-      },
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787766779281
-      },
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787767144713
+        "timestamp": 1787776357782
       }
     ],
-    "4.1 Implement useCentrifugoChannel hook": [
+    "9.4 Write unit tests for OfferListView": [
       {
         "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
         "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787766323232
-      },
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787767159545
-      },
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787769113522
+        "timestamp": 1787776358843
       }
     ],
-    "5.1 Implement useRadarReconciliation hook": [
+    "10.6 Write unit tests for FilterPanel": [
       {
         "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
         "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787766323328
-      },
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787769149450
-      },
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787770329056
+        "timestamp": 1787776359698
       }
     ],
-    "6. Checkpoint — Store and WebSocket logic complete": [
+    "11.2 Write unit tests for OfferPreviewSheet": [
       {
         "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
         "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787766323407
+        "timestamp": 1787776366160
       }
     ],
-    "7.1 Implement RadarMapView (main map container)": [
+    "15.2 Write component tests for RadarScreen": [
       {
         "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
         "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787766323575
-      },
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787770911412
-      },
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787771544705
+        "timestamp": 1787776366987
       }
     ],
-    "7.2 Implement OfferPinsLayer with native Mapbox SymbolLayer": [
+    "17.2 Property test: Filter Predicate Satisfaction": [
       {
         "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
         "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787766323658
-      },
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787770912870
-      },
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787771545576
+        "timestamp": 1787776367871
       }
     ],
-    "7.3 Implement ClusterLayer": [
+    "17.3 Property test: Sort Ordering Guarantee": [
       {
         "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
         "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787766323735
-      },
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787770913660
-      },
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787771546507
+        "timestamp": 1787776369002
       }
     ],
-    "7.4 Implement CleanerMarker (animated self-position)": [
+    "17.4 Property test: Privacy Field Exclusion": [
       {
         "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
         "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787766323820
-      },
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787770914854
-      },
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787771547550
+        "timestamp": 1787776369617
       }
     ],
-    "7.5 Implement WorkZoneCircle": [
+    "17.5 Property test: Reconciliation Completeness (REST Wins)": [
       {
         "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
         "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787766323911
-      },
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787770915369
-      },
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787771548182
+        "timestamp": 1787776377431
       }
     ],
-    "7.6 Implement map styles configuration": [
+    "17.6 Property test: Ad Slot Positioning": [
       {
         "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
         "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787766323985
-      },
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787770338949
-      },
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787770902324
+        "timestamp": 1787776378584
       }
     ],
-    "8.1 Implement useOfferAnimations hook": [
+    "17.7 Property test: WebSocket Event Idempotency": [
       {
         "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
         "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787766324138
-      },
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787772863056
-      },
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787772873015
+        "timestamp": 1787776379200
       }
     ],
-    "9.1 Implement OfferCard component": [
+    "17.8 Property test: Event Temporal Ordering": [
       {
         "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
         "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787766324224
-      },
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787770340165
-      },
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787770903226
+        "timestamp": 1787776379918
       }
     ],
-    "9.2 Implement AdSlot component": [
+    "17.9 Property test: Pagination Uniqueness": [
       {
         "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
         "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787766324301
-      },
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787770340861
-      },
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787770903844
+        "timestamp": 1787776380753
       }
     ],
-    "9.3 Implement OfferListView with infinite scroll and ads": [
+    "17.10 Property test: Public Location Privacy Displacement": [
       {
         "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
         "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787766324383
-      },
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787772863580
-      },
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787772874844
+        "timestamp": 1787776388325
       }
     ],
-    "10.1 Implement FilterPanel container": [
+    "18.1 Write integration test: full radar flow": [
       {
         "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
         "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787766324470
-      },
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787771557118
-      },
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787772850484
+        "timestamp": 1787776389535
       }
     ],
-    "10.2 Implement ServiceTypeChips": [
+    "18. Integration Tests": [
       {
         "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
         "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787766324551
-      },
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787771557902
-      },
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787772851233
+        "timestamp": 1787776390262
       }
     ],
-    "10.3 Implement PriceRangeSlider": [
+    "17.11 Property test: Offline Acceptance Safety": [
       {
         "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
         "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787766324645
-      },
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787771558948
-      },
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787772852094
+        "timestamp": 1787776390421
       }
     ],
-    "10.4 Implement DistanceSlider": [
+    "18.3 Write integration test: sort verification": [
       {
         "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
         "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787766324727
-      },
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787771559763
-      },
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787772853981
+        "timestamp": 1787776391388
       }
     ],
-    "10.5 Implement DateRangeFilter": [
+    "18.2 Write integration test: filter combinations": [
       {
         "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
         "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787766324813
-      },
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787771560533
-      },
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787772854315
+        "timestamp": 1787776392174
       }
     ],
-    "11.1 Implement OfferPreviewSheet": [
+    "18.5 Write integration test: distance calculation": [
       {
         "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
         "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787766324900
-      },
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787772863793
-      },
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787772875678
+        "timestamp": 1787776398237
       }
     ],
-    "12.1 Implement EmptyState component": [
+    "18.4 Write integration test: pagination uniqueness": [
       {
         "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
         "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787766325073
-      },
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787772865502
-      },
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787772876832
-      }
-    ],
-    "12.2 Implement OfflineBanner and ConnectivityIndicator": [
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787766325161
-      },
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787772884311
-      },
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787772890069
-      }
-    ],
-    "12.3 Implement ViewToggle (map ↔ list)": [
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787766325243
-      },
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787772883247
-      },
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787772891077
-      }
-    ],
-    "13.1 Implement useLocationPermission hook": [
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787766325325
-      },
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787770341919
-      },
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787770901581
-      }
-    ],
-    "14.1 Implement client-side urgency timer": [
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787766325406
-      },
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787772864700
-      },
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787772876961
-      }
-    ],
-    "15.1 Assemble RadarScreen with all components": [
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787766325483
-      },
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787772906568
-      }
-    ],
-    "16. Checkpoint — Full UI integration working": [
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787766325570
+        "timestamp": 1787776399025
       }
     ],
     "19. Final Checkpoint — All tests pass": [
       {
         "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
         "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787766325650
-      }
-    ],
-    "3. Mobile — Zustand Store (useRadarStore)": [
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787767144895
-      }
-    ],
-    "4. Mobile — Centrifugo WebSocket Hook": [
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787769114083
-      }
-    ],
-    "1. Backend — Available Offers Endpoint (REST)": [
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787770328480
-      }
-    ],
-    "5. Mobile — Reconciliation & Polling Fallback": [
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787770329578
-      }
-    ],
-    "13. Mobile — Location Permission Handling": [
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787770902172
-      }
-    ],
-    "7. Mobile — Map Components": [
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787771548569
-      }
-    ],
-    "10. Mobile — Filter Panel": [
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787772854485
-      }
-    ],
-    "8. Mobile — Pin Animations": [
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787772873812
-      }
-    ],
-    "9. Mobile — List View": [
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787772876497
-      }
-    ],
-    "11. Mobile — Bottom Sheet Preview": [
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787772876658
-      }
-    ],
-    "14. Mobile — Urgency Derivation": [
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787772877129
-      }
-    ],
-    "12. Mobile — Empty States, Offline Banner, Connectivity, View Toggle": [
-      {
-        "executionId": "4b1d39f7-78da-47d9-aa54-1348b6e8f553",
-        "chatSessionId": "sess_fe832392-9445-40f2-82ec-6ba973d948fc",
-        "timestamp": 1787772891497
+        "timestamp": 1787776400274
       }
     ]
   }

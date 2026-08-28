@@ -8,6 +8,7 @@ import { KycModule } from './kyc/kyc.module';
 import { ProfileModule } from './profile/profile.module';
 import { PropertiesModule } from './properties/properties.module';
 import { OffersModule } from './offers/offers.module';
+import { NegotiationModule } from './negotiation/negotiation.module';
 
 /**
  * Root application module.
@@ -38,6 +39,7 @@ import { OffersModule } from './offers/offers.module';
     ProfileModule,
     PropertiesModule,
     OffersModule,
+    NegotiationModule,
   ],
 })
 export class AppModule {}

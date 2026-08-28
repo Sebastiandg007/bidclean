@@ -45,7 +45,7 @@ The Offer Radar is the Cleaner's primary interface for discovering cleaning offe
     - Add Swagger/OpenAPI decorators for documentation
     - _Requirements: 4.1, 4.2, 4.5_
 
-  - [ ]* 1.5 Write unit tests for available offers service
+  - [x]* 1.5 Write unit tests for available offers service
     - Test filter application (each filter independently and all combined)
     - Test sort ordering for all 4 sort options
     - Test pagination math (page/limit/total/totalPages)
@@ -54,21 +54,21 @@ The Offer Radar is the Cleaner's primary interface for discovering cleaning offe
     - Test visibility contract: only ACTIVE + SENT + not-expired offers returned
     - _Requirements: 4.1, 4.3, 4.5, 4.8_
 
-  - [ ]* 1.6 Write unit tests for available offers repository
+  - [x]* 1.6 Write unit tests for available offers repository
     - Test SQL query builder for each filter parameter
     - Test null-filter handling (parameter not provided → no WHERE clause)
     - Test sort clause generation for each option
     - Test pagination offset calculation
     - _Requirements: 4.2, 4.3, 4.7_
 
-  - [ ]* 1.7 Write unit tests for available offers controller
+  - [x]* 1.7 Write unit tests for available offers controller
     - Test auth guard rejects unauthenticated requests
     - Test role guard rejects non-Cleaner roles
     - Test DTO validation rejects invalid parameters (negative prices, invalid sort values)
     - Test response shape matches documented interface
     - _Requirements: 4.1_
 
-- [~] 2. Checkpoint — Backend endpoint tests pass
+- [x] 2. Checkpoint — Backend endpoint tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 - [x] 3. Mobile — Zustand Store (useRadarStore)
@@ -89,7 +89,7 @@ The Offer Radar is the Cleaner's primary interface for discovering cleaning offe
     - Computed selectors: `getOffersAsGeoJSON()`, `getOffersList()`, `getActiveFilterCount()`
     - _Requirements: 3.2, 3.3, 5.3, 5.4, 14.1, 14.2, 14.3_
 
-  - [ ]* 3.3 Write unit tests for useRadarStore
+  - [x]* 3.3 Write unit tests for useRadarStore
     - Test `handleOfferNew` idempotency (same offerId multiple times → one entry)
     - Test `handleOfferStatusChanged` temporal ordering (older event after newer → discarded)
     - Test `reconcile` replaces all local state with snapshot
@@ -111,7 +111,7 @@ The Offer Radar is the Cleaner's primary interface for discovering cleaning offe
     - Subscribe on mount, unsubscribe on unmount (cleanup)
     - _Requirements: 3.1, 3.2, 3.3, 3.5, 3.6, 13.6_
 
-  - [ ]* 4.2 Write unit tests for useCentrifugoChannel
+  - [x]* 4.2 Write unit tests for useCentrifugoChannel
     - Test event parsing for offer_new and offer_status_changed
     - Test reconnection attempt counter increments correctly
     - Test connection status transitions (connected → disconnected → reconnecting)
@@ -130,7 +130,7 @@ The Offer Radar is the Cleaner's primary interface for discovering cleaning offe
     - Ensure no simultaneous WS + polling (controlled 5s overlap window for reconciliation)
     - _Requirements: 3.6, 13.4, 13.6, 14.3_
 
-- [~] 6. Checkpoint — Store and WebSocket logic complete
+- [x] 6. Checkpoint — Store and WebSocket logic complete
   - Ensure all tests pass, ask the user if questions arise.
 
 - [x] 7. Mobile — Map Components
@@ -211,7 +211,7 @@ The Offer Radar is the Cleaner's primary interface for discovering cleaning offe
     - Skeleton loaders during initial fetch (never generic spinner)
     - _Requirements: 6.1, 6.2, 6.4, 6.5, 6.7, 12.5_
 
-  - [ ]* 9.4 Write unit tests for OfferListView
+  - [x]* 9.4 Write unit tests for OfferListView
     - Test ad slot positioning (every 5th position when enabled, none when disabled)
     - Test pull-to-refresh triggers re-fetch
     - Test infinite scroll triggers load more
@@ -250,7 +250,7 @@ The Offer Radar is the Cleaner's primary interface for discovering cleaning offe
     - Updates store `setFilters({ scheduledAfter, scheduledBefore })`
     - _Requirements: 5.1_
 
-  - [ ]* 10.6 Write unit tests for FilterPanel
+  - [x]* 10.6 Write unit tests for FilterPanel
     - Test filter state persistence during session
     - Test clear all resets all values
     - Test badge count reflects active filters
@@ -267,7 +267,7 @@ The Offer Radar is the Cleaner's primary interface for discovering cleaning offe
     - Mark offer as viewed on open (`markOfferViewed`)
     - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5, 7.6_
 
-  - [ ]* 11.2 Write unit tests for OfferPreviewSheet
+  - [x]* 11.2 Write unit tests for OfferPreviewSheet
     - Test Quick Accept disabled when `connectionStatus = 'disconnected'`
     - Test offer data displayed correctly
     - Test dismiss on swipe down
@@ -311,8 +311,8 @@ The Offer Radar is the Cleaner's primary interface for discovering cleaning offe
     - Update store offers Map with refreshed urgency values
     - _Requirements: 2.5, Design: Urgency Derivation section_
 
-- [ ] 15. Mobile — RadarScreen Main Container
-  - [-] 15.1 Assemble RadarScreen with all components
+- [x] 15. Mobile — RadarScreen Main Container
+  - [x] 15.1 Assemble RadarScreen with all components
     - Create `RadarScreen.tsx` as the main container
     - Wire all sub-components: RadarMapView (or OfferListView based on viewMode), FilterPanel, OfferPreviewSheet, EmptyState, OfflineBanner, ConnectivityIndicator, ViewToggle
     - On mount: request location permission → fetch available offers → subscribe WebSocket
@@ -322,7 +322,7 @@ The Offer Radar is the Cleaner's primary interface for discovering cleaning offe
     - Wire urgency timer (60s interval)
     - _Requirements: 1.2, 3.1, 12.5, 12.6_
 
-  - [ ]* 15.2 Write component tests for RadarScreen
+  - [x]* 15.2 Write component tests for RadarScreen
     - Test initial load → pins appear on map
     - Test WebSocket event → pin added/removed
     - Test offline state → banner shown, Quick Accept disabled
@@ -330,100 +330,100 @@ The Offer Radar is the Cleaner's primary interface for discovering cleaning offe
     - Test filter change triggers re-fetch
     - _Requirements: 3.2, 3.3, 8.1, 13.1_
 
-- [~] 16. Checkpoint — Full UI integration working
+- [x] 16. Checkpoint — Full UI integration working
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 17. Property-Based Tests (fast-check)
-  - [ ]* 17.1 Property test: Visibility Contract Enforcement
+- [x] 17. Property-Based Tests (fast-check)
+  - [x]* 17.1 Property test: Visibility Contract Enforcement
     - **Property 1: Visibility Contract Enforcement**
     - **Validates: Requirements 4.1, 4.8, 3.7**
     - Generate random offers with all states × delivery statuses × (expired/not expired)
     - Assert only ACTIVE + SENT + not-expired offers appear in results
 
-  - [ ]* 17.2 Property test: Filter Predicate Satisfaction
+  - [x]* 17.2 Property test: Filter Predicate Satisfaction
     - **Property 2: Filter Predicate Satisfaction**
     - **Validates: Requirements 4.3, 5.3**
     - Generate random offers + random valid filter combinations
     - Assert every returned offer satisfies ALL active filter predicates simultaneously
 
-  - [ ]* 17.3 Property test: Sort Ordering Guarantee
+  - [x]* 17.3 Property test: Sort Ordering Guarantee
     - **Property 3: Sort Ordering Guarantee**
     - **Validates: Requirements 4.2, 4.7**
     - Generate random offer sets + each sort option
     - Assert consecutive pair invariant holds for selected comparator
 
-  - [ ]* 17.4 Property test: Privacy Field Exclusion
+  - [x]* 17.4 Property test: Privacy Field Exclusion
     - **Property 4: Privacy Field Exclusion**
     - **Validates: Requirements 4.5, 4.6**
     - Generate random valid query results
     - Assert no response object contains forbidden fields (street, postal code, formatted address, access instructions, location source)
 
-  - [ ]* 17.5 Property test: Reconciliation Completeness (REST Wins)
+  - [x]* 17.5 Property test: Reconciliation Completeness (REST Wins)
     - **Property 5: Reconciliation Completeness**
     - **Validates: Requirements 14.3, 14.4, 3.6**
     - Generate random pre-reconciliation store state + random snapshot response
     - Assert post-reconciliation store === snapshot (exact set equality)
 
-  - [ ]* 17.6 Property test: Ad Slot Positioning
+  - [x]* 17.6 Property test: Ad Slot Positioning
     - **Property 6: Ad Slot Positioning**
     - **Validates: Requirements 6.7**
     - Generate random list lengths (0–200) + random adsEnabled boolean
     - Assert ad slots at positions 4,9,14,19... when enabled; none when disabled
 
-  - [ ]* 17.7 Property test: WebSocket Event Idempotency
+  - [x]* 17.7 Property test: WebSocket Event Idempotency
     - **Property 7: WebSocket Event Idempotency**
     - **Validates: Requirements 3.2, 14.2**
     - Generate random sequences of offer_new events with duplicate offerIds
     - Assert store contains exactly one entry per unique offerId
 
-  - [ ]* 17.8 Property test: Event Temporal Ordering
+  - [x]* 17.8 Property test: Event Temporal Ordering
     - **Property 8: Event Temporal Ordering**
     - **Validates: Requirements 3.3, 14.4**
     - Generate random pairs of status events with varying timestamps in random order
     - Assert only event with latest changedAt takes effect
 
-  - [ ]* 17.9 Property test: Pagination Uniqueness
+  - [x]* 17.9 Property test: Pagination Uniqueness
     - **Property 9: Pagination Uniqueness**
     - **Validates: Requirements 4.2, 6.5**
     - Generate random offer sets across multiple pages
     - Assert union of all pages contains no duplicate offerIds
 
-  - [ ]* 17.10 Property test: Public Location Privacy Displacement
+  - [x]* 17.10 Property test: Public Location Privacy Displacement
     - **Property 10: Public Location Privacy Displacement**
     - **Validates: Requirements 4.5, 4.6**
     - Generate random exact locations + random offerIds
     - Assert distance between exact and public is in [MIN_JITTER, MAX_JITTER], deterministic
 
-  - [ ]* 17.11 Property test: Offline Acceptance Safety
+  - [x]* 17.11 Property test: Offline Acceptance Safety
     - **Property 11: Offline Acceptance Safety**
     - **Validates: Requirements 7.5, 13.3**
     - Generate random connectivity states + random user interactions
     - Assert Quick Accept is non-executable when disconnected
 
-- [ ] 18. Integration Tests
-  - [ ]* 18.1 Write integration test: full radar flow
+- [x] 18. Integration Tests
+  - [x]* 18.1 Write integration test: full radar flow
     - Authenticate as Cleaner → fetch available offers → verify response shape and visibility rules
     - Verify only offers with `delivery_status = 'SENT'` and `state = 'ACTIVE'` appear
     - _Requirements: 4.1, 4.8_
 
-  - [ ]* 18.2 Write integration test: filter combinations
+  - [x]* 18.2 Write integration test: filter combinations
     - Apply serviceType + price + distance filters simultaneously
     - Verify all returned offers match ALL active filters
     - _Requirements: 4.3, 5.3_
 
-  - [ ]* 18.3 Write integration test: sort verification
+  - [x]* 18.3 Write integration test: sort verification
     - Each sort option → verify ordering invariant in response
     - _Requirements: 4.7_
 
-  - [ ]* 18.4 Write integration test: pagination uniqueness
+  - [x]* 18.4 Write integration test: pagination uniqueness
     - Fetch all pages → verify no duplicates and total count matches
     - _Requirements: 4.2, 6.5_
 
-  - [ ]* 18.5 Write integration test: distance calculation
+  - [x]* 18.5 Write integration test: distance calculation
     - Use known coordinates → verify PostGIS distance within acceptable tolerance
     - _Requirements: 4.4_
 
-- [~] 19. Final Checkpoint — All tests pass
+- [x] 19. Final Checkpoint — All tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes

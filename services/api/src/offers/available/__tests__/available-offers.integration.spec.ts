@@ -58,14 +58,6 @@ function buildOfferRow(overrides: Partial<AvailableOfferRow> = {}): AvailableOff
   };
 }
 
-function buildUrgentOfferRow(overrides: Partial<AvailableOfferRow> = {}): AvailableOfferRow {
-  return buildOfferRow({
-    scheduled_at: new Date(Date.now() + 60 * 60 * 1000), // 1h from now (urgent)
-    is_urgent: true,
-    ...overrides,
-  });
-}
-
 function buildCleanerUser(): Partial<User> {
   return {
     id: CLEANER_ID,

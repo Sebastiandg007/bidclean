@@ -1,0 +1,56 @@
+{
+  "cleaner": {
+    "title": "Negociar oferta",
+    "acceptAtPrice": "Aceptar por {{price}}",
+    "counteroffer": "Hacer una contraoferta",
+    "yourProposal": "Tu contraoferta",
+    "proposalStatus": "Estado de la propuesta",
+    "hostResponded": "El anfitrión respondió",
+    "acceptSupersedesHint": "Aceptar al precio del anfitrión reemplazará tu contraoferta abierta.",
+    "submit": "Enviar contraoferta",
+    "acceptCounter": "Aceptar {{price}}",
+    "declineCounter": "Rechazar"
+  },
+  "host": {
+    "inboxTitle": "Contraofertas",
+    "empty": "Aún no hay contraofertas",
+    "proposedPrice": "Propuesto: {{price}}",
+    "yourTotal": "Tu total: {{total}}",
+    "cleanerPayout": "El limpiador recibe: {{payout}}",
+    "accept": "Aceptar",
+    "reject": "Rechazar",
+    "counter": "Contraofertar",
+    "counterBack": "Responder con contraoferta",
+    "counterPrice": "Tu precio de contraoferta"
+  },
+  "counterInput": {
+    "label": "Precio",
+    "placeholder": "Ingresa el monto",
+    "livePayout": "Recibirás {{payout}}",
+    "hostTotal": "El anfitrión paga {{total}}",
+    "allowedRange": "Rango permitido: {{min}} – {{max}}",
+    "outOfRange": "El precio debe estar entre {{min}} y {{max}}"
+  },
+  "status": {
+    "PENDING": "Pendiente",
+    "ACCEPTED": "Aceptada",
+    "REJECTED": "Rechazada",
+    "COUNTERED": "Contraofertada",
+    "SUPERSEDED": "Reemplazada",
+    "EXPIRED": "Expirada"
+  },
+  "match": {
+    "success": "¡Emparejado! Ganaste este trabajo.",
+    "hostSuccess": "Emparejado con el limpiador."
+  },
+  "error": {
+    "accept_failed": "No se pudo aceptar la oferta. Inténtalo de nuevo.",
+    "counteroffer_failed": "No se pudo enviar tu contraoferta. Inténtalo de nuevo.",
+    "reject_failed": "No se pudo rechazar la propuesta. Inténtalo de nuevo.",
+    "counter_failed": "No se pudo enviar tu contraoferta. Inténtalo de nuevo.",
+    "fetch_thread_failed": "No se pudo cargar la negociación.",
+    "fetch_inbox_failed": "No se pudieron cargar tus contraofertas.",
+    "offer_unavailable": "Esta oferta ya no está disponible.",
+    "price_out_of_bounds": "El precio está fuera del rango permitido."
+  }
+}

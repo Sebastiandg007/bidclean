@@ -7,7 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Offer Negotiation module (Spec 8 — offer-negotiation)** — full accept/counteroffer lifecycle and match finalization
+  - Backend `NegotiationModule` (NestJS): `negotiation_threads`, `negotiation_proposals`, `negotiation_idempotency` tables (migration `1700000013000`); direct accept, counteroffer, host accept/reject/counter, thread + host-inbox reads
+  - Match exclusively via the `OFFER_MATCH` contract (`matchSource: 'negotiation'`); the module never writes the `offers` table directly
+  - `OfferTerminalListener` (`@OnEvent` on `offer.matched/cancelled/expired`) is the single supersession authority; closes threads on terminal offers
+  - `NegotiationReconciliationService` (periodic) repairs partial post-match state; `ProposalExpiryWorker` marks stale PENDING proposals EXPIRED
+  - `NegotiationPricingService` reuses offer-publishing's `CommissionService`; deviation bounds always evaluated against the immutable Base Price
+  - At most one PENDING proposal per thread (partial unique index); strictly increasing `sequence_number` via `SELECT … FOR UPDATE`; idempotent mutations scoped by `(user, operation, key)`
+  - Real-time events over Centrifugo (`negotiation:host:{id}`, `negotiation:cleaner:{id}`) with `eventId`/`version`; `offer_status_changed{MATCHED}` broadcast clears other Cleaners' radar pins
+  - `CentrifugoClient` added to `OffersModule` exports; `NegotiationModule` registered in `AppModule`
+  - Mobile `useNegotiation` store + `CleanerNegotiationScreen`, `HostCounterofferInboxScreen`, and components (AcceptBar, CounterofferInput, CounterBackInput, PayoutPreview, ProposalStatusBadge, HostCounterofferCard); `negotiation` i18n namespace (en, es)
+  - Radar Quick Accept wired to `useNegotiation().acceptOffer` (offline-disabled; removes matched/stale offers)
+  - Tests: 8 backend suites (48 tests incl. property-based P1–P11 coverage across state machine, pricing, service, publisher, idempotency, listener) + mobile store tests (8) — all passing
+
 ### Fixed
+- **Offer Radar audit follow-up** — reverted Swagger decorators on `available-offers.controller.ts` (the `@nestjs/swagger` dependency is not installed; the codebase uses no Swagger), and hardened `available-offers` test files for `noUncheckedIndexedAccess` after `@ts-nocheck` removal
 - **Offer Radar audit corrections** — 5 post-audit quality improvements (Spec 7 — Offer Radar)
   - Added `error: string | null` state to `useRadarStore` with `clearError()` action; all REST actions now capture and expose error messages instead of silently swallowing (Req 13.5 toast notifications)
   - `refreshOffers()` now preserves `isViewed` state for existing offers instead of resetting all to unread on pull-to-refresh

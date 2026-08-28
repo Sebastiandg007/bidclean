@@ -88,6 +88,6 @@ import { AvailableOffersModule } from './available/available-offers.module';
       useClass: CleanerDiscoveryService,
     },
   ],
-  exports: [OffersService, CommissionService, OFFER_MATCH],
+  exports: [OffersService, CommissionService, CentrifugoClient, OFFER_MATCH],
 })
 export class OffersModule {}

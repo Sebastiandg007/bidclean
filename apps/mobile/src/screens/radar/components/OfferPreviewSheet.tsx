@@ -30,6 +30,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { RadarOffer } from '../radar.types';
 import { URGENCY_THRESHOLD_MS } from '../radar.constants';
 import { useRadarStore } from '../useRadarStore';
+import { useNegotiationStore } from '../../negotiation/useNegotiation';
 
 // ─── Service Type i18n Key Mapping ───────────────────────────────────────────
 
@@ -149,6 +150,8 @@ export function OfferPreviewSheet(): React.JSX.Element | null {
   const connectionStatus = useRadarStore((state) => state.connectionStatus);
   const selectOffer = useRadarStore((state) => state.selectOffer);
   const markOfferViewed = useRadarStore((state) => state.markOfferViewed);
+  const removeMatchedOffer = useRadarStore((state) => state.handleOfferStatusChanged);
+  const acceptOffer = useNegotiationStore((state) => state.acceptOffer);
 
   const selectedOffer: RadarOffer | undefined = selectedOfferId
     ? offers.get(selectedOfferId)
@@ -233,13 +236,25 @@ export function OfferPreviewSheet(): React.JSX.Element | null {
     }
   }, [selectedOffer, navigation, selectOffer]);
 
-  const handleQuickAccept = useCallback((): void => {
+  const handleQuickAccept = useCallback(async (): Promise<void> => {
+    // Quick Accept delegates to offer-negotiation. The backend revalidates offer
+    // state, delivery, and single-winner; the client performs no eligibility logic.
     if (isOffline || !selectedOffer) return;
-    // Delegates to offer-negotiation module (future implementation)
-    // For now, navigate to offer detail where full accept flow lives
-    navigation.navigate('OfferDetail', { offerId: selectedOffer.offerId });
+
+    const offerId = selectedOffer.offerId;
+    const result = await acceptOffer(offerId);
+
+    // On success OR on a stale offer (409), remove the pin from the radar and dismiss.
+    // handleOfferStatusChanged(MATCHED) removes the offer from the local map.
+    removeMatchedOffer(offerId, 'MATCHED', new Date().toISOString());
     selectOffer(null);
-  }, [isOffline, selectedOffer, navigation, selectOffer]);
+
+    if (!result.success) {
+      // Non-blocking: the offer was no longer available. It has been removed above.
+      // Error surfaced via the negotiation store's error state.
+      return;
+    }
+  }, [isOffline, selectedOffer, acceptOffer, removeMatchedOffer, selectOffer]);
 
   // ─── Computed Values ─────────────────────────────────────────────────────
 
@@ -375,7 +390,9 @@ export function OfferPreviewSheet(): React.JSX.Element | null {
                 styles.acceptButton,
                 isOffline && styles.acceptButtonDisabled,
               ]}
-              onPress={handleQuickAccept}
+              onPress={() => {
+                void handleQuickAccept();
+              }}
               activeOpacity={isOffline ? 1 : 0.7}
               disabled={isOffline}
               accessibilityRole="button"

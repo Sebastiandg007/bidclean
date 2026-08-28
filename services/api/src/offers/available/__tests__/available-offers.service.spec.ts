@@ -186,7 +186,7 @@ describe('AvailableOffersService', () => {
 
         await service.getAvailableOffers(cleanerId, queryDto);
 
-        const passedFilters = mockRepository.findAvailableOffers.mock.calls[0][0];
+        const passedFilters = mockRepository.findAvailableOffers.mock.calls[0]![0];
         expect(passedFilters.serviceTypes).toBeUndefined();
         expect(passedFilters.minPriceCents).toBeUndefined();
         expect(passedFilters.maxPriceCents).toBeUndefined();
@@ -347,7 +347,7 @@ describe('AvailableOffersService', () => {
 
         const result = await service.getAvailableOffers(cleanerId, queryDto);
 
-        expect(result.items[0].isUrgent).toBe(true);
+        expect(result.items[0]!.isUrgent).toBe(true);
       });
 
       it('should mark offer as urgent when scheduled exactly at 2-hour boundary', async () => {
@@ -362,7 +362,7 @@ describe('AvailableOffersService', () => {
 
         const result = await service.getAvailableOffers(cleanerId, queryDto);
 
-        expect(result.items[0].isUrgent).toBe(true);
+        expect(result.items[0]!.isUrgent).toBe(true);
       });
 
       it('should mark offer as not urgent when scheduled beyond 2 hours', async () => {
@@ -377,7 +377,7 @@ describe('AvailableOffersService', () => {
 
         const result = await service.getAvailableOffers(cleanerId, queryDto);
 
-        expect(result.items[0].isUrgent).toBe(false);
+        expect(result.items[0]!.isUrgent).toBe(false);
       });
     });
 
@@ -392,7 +392,7 @@ describe('AvailableOffersService', () => {
         queryDto.limit = 20;
 
         const result = await service.getAvailableOffers(cleanerId, queryDto);
-        const offer = result.items[0];
+        const offer = result.items[0]!;
 
         expect(offer.offerId).toBe(row.offer_id);
         expect(offer.propertySnapshot.name).toBe(row.property_name_snapshot);
@@ -425,7 +425,7 @@ describe('AvailableOffersService', () => {
 
         const result = await service.getAvailableOffers(cleanerId, queryDto);
 
-        expect(result.items[0].description).toBeNull();
+        expect(result.items[0]!.description).toBeNull();
       });
 
       it('should handle null coverPhotoUrl', async () => {
@@ -439,7 +439,7 @@ describe('AvailableOffersService', () => {
 
         const result = await service.getAvailableOffers(cleanerId, queryDto);
 
-        expect(result.items[0].propertySnapshot.coverPhotoUrl).toBeNull();
+        expect(result.items[0]!.propertySnapshot.coverPhotoUrl).toBeNull();
       });
     });
 
@@ -474,7 +474,7 @@ describe('AvailableOffersService', () => {
         queryDto.limit = 20;
 
         const result = await service.getAvailableOffers(cleanerId, queryDto);
-        const offer = result.items[0];
+        const offer = result.items[0]!;
 
         // Only public location fields should be present
         expect(offer.publicLocation).toBeDefined();
@@ -507,9 +507,9 @@ describe('AvailableOffersService', () => {
         const result = await service.getAvailableOffers(cleanerId, queryDto);
 
         expect(result.items).toHaveLength(3);
-        expect(result.items[0].offerId).toBe('offer-1');
-        expect(result.items[1].offerId).toBe('offer-2');
-        expect(result.items[2].offerId).toBe('offer-3');
+        expect(result.items[0]!.offerId).toBe('offer-1');
+        expect(result.items[1]!.offerId).toBe('offer-2');
+        expect(result.items[2]!.offerId).toBe('offer-3');
       });
     });
   });
@@ -525,8 +525,8 @@ describe('AvailableOffersService', () => {
       const result = await service.getAvailableOffersSnapshot(cleanerId);
 
       expect(result.offers).toHaveLength(2);
-      expect(result.offers[0].offerId).toBe('offer-1');
-      expect(result.offers[1].offerId).toBe('offer-2');
+      expect(result.offers[0]!.offerId).toBe('offer-1');
+      expect(result.offers[1]!.offerId).toBe('offer-2');
     });
 
     it('should include syncedAt timestamp in response', async () => {

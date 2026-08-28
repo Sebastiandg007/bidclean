@@ -60,6 +60,10 @@ Manages the full offer lifecycle for cleaning services: creation, publishing, pr
 | `available/dto/available-offer-response.dto.ts` | Response DTOs for available offers (paginated + snapshot) |
 | `available/dto/available-offers.types.ts` | Internal types: filters, raw DB row, query result interfaces |
 | `available/dto/index.ts` | Barrel exports for available offers DTOs and types |
+| `available/__tests__/available-offers.service.spec.ts` | Unit tests for AvailableOffersService (filters, DTO mapping, urgency, pagination, rate limiting) |
+| `available/__tests__/available-offers.repository.spec.ts` | Unit tests for AvailableOffersRepository (PostGIS queries, pagination, filtering, snapshot) |
+| `available/__tests__/available-offers.controller.spec.ts` | Unit tests for AvailableOffersController (role guard enforcement, response shape, user resolution, privacy) |
+| `available/__tests__/available-offers.integration.spec.ts` | Integration tests for available offers endpoints (auth, role guard, query params, PostGIS queries) |
 | `dto/create-offer.dto.ts` | Create offer request validation |
 | `dto/publish-offer.dto.ts` | Publish offer request validation |
 | `dto/offer-query.dto.ts` | Query/pagination parameters |

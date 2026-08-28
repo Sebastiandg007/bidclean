@@ -1,0 +1,56 @@
+{
+  "cleaner": {
+    "title": "Negotiate Offer",
+    "acceptAtPrice": "Accept for {{price}}",
+    "counteroffer": "Make a counteroffer",
+    "yourProposal": "Your counteroffer",
+    "proposalStatus": "Proposal status",
+    "hostResponded": "The Host responded",
+    "acceptSupersedesHint": "Accepting at the Host's price will replace your open counteroffer.",
+    "submit": "Submit counteroffer",
+    "acceptCounter": "Accept {{price}}",
+    "declineCounter": "Decline"
+  },
+  "host": {
+    "inboxTitle": "Counteroffers",
+    "empty": "No counteroffers yet",
+    "proposedPrice": "Proposed: {{price}}",
+    "yourTotal": "Your total: {{total}}",
+    "cleanerPayout": "Cleaner earns: {{payout}}",
+    "accept": "Accept",
+    "reject": "Reject",
+    "counter": "Counter",
+    "counterBack": "Counter back",
+    "counterPrice": "Your counter price"
+  },
+  "counterInput": {
+    "label": "Price",
+    "placeholder": "Enter amount",
+    "livePayout": "You'll earn {{payout}}",
+    "hostTotal": "Host pays {{total}}",
+    "allowedRange": "Allowed range: {{min}} – {{max}}",
+    "outOfRange": "Price must be between {{min}} and {{max}}"
+  },
+  "status": {
+    "PENDING": "Pending",
+    "ACCEPTED": "Accepted",
+    "REJECTED": "Rejected",
+    "COUNTERED": "Countered",
+    "SUPERSEDED": "Superseded",
+    "EXPIRED": "Expired"
+  },
+  "match": {
+    "success": "Matched! You won this job.",
+    "hostSuccess": "Matched with the Cleaner."
+  },
+  "error": {
+    "accept_failed": "Could not accept the offer. Please try again.",
+    "counteroffer_failed": "Could not submit your counteroffer. Please try again.",
+    "reject_failed": "Could not reject the proposal. Please try again.",
+    "counter_failed": "Could not send your counter. Please try again.",
+    "fetch_thread_failed": "Could not load the negotiation.",
+    "fetch_inbox_failed": "Could not load your counteroffers.",
+    "offer_unavailable": "This offer is no longer available.",
+    "price_out_of_bounds": "Price is outside the allowed range."
+  }
+}

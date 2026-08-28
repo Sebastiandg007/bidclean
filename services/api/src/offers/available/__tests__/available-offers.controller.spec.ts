@@ -243,7 +243,7 @@ describe('AvailableOffersController', () => {
           createDefaultQueryDto(),
         );
 
-        const offer = result.items[0];
+        const offer = result.items[0]!;
         expect(offer.offerId).toBeDefined();
         expect(offer.propertySnapshot).toBeDefined();
         expect(offer.propertySnapshot.name).toBeDefined();
@@ -375,7 +375,7 @@ describe('AvailableOffersController', () => {
 
         const result = await controller.getAvailableOffersSnapshot(createAuthRequest() as never);
 
-        expect((result as Record<string, unknown>).pagination).toBeUndefined();
+        expect((result as unknown as Record<string, unknown>).pagination).toBeUndefined();
       });
     });
 
