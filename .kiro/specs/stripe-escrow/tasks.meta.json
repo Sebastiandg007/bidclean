@@ -1,0 +1,36 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "1.1 Extend shared payment types (backward-compatible)": [
+      {
+        "executionId": "8fb19ee5-b005-479c-8eb9-8dece78bbbaf",
+        "chatSessionId": "sess_c0639f19-fe27-4622-9eb2-2788875136ea",
+        "timestamp": 1787951925948
+      },
+      {
+        "executionId": "8fb19ee5-b005-479c-8eb9-8dece78bbbaf",
+        "chatSessionId": "sess_c0639f19-fe27-4622-9eb2-2788875136ea",
+        "timestamp": 1787952124681
+      }
+    ],
+    "1.2 Add Stripe/escrow environment variables to `.env.example`": [
+      {
+        "executionId": "8fb19ee5-b005-479c-8eb9-8dece78bbbaf",
+        "chatSessionId": "sess_c0639f19-fe27-4622-9eb2-2788875136ea",
+        "timestamp": 1787951926928
+      },
+      {
+        "executionId": "8fb19ee5-b005-479c-8eb9-8dece78bbbaf",
+        "chatSessionId": "sess_c0639f19-fe27-4622-9eb2-2788875136ea",
+        "timestamp": 1787952125942
+      }
+    ],
+    "1. Shared types alignment & environment configuration": [
+      {
+        "executionId": "8fb19ee5-b005-479c-8eb9-8dece78bbbaf",
+        "chatSessionId": "sess_c0639f19-fe27-4622-9eb2-2788875136ea",
+        "timestamp": 1787952126031
+      }
+    ]
+  }
+}

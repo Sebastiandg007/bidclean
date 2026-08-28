@@ -307,6 +307,77 @@ graph LR
 
 ---
 
+## 5b. Payment Escrow Schema
+
+> Physical schema for the Stripe Escrow module (migration `1700000014000-CreatePaymentTables`). Money is stored as integer minor units (cents); statuses use `VARCHAR` + `CHECK`.
+
+```mermaid
+erDiagram
+    offers ||--o| payments : "one payment per offer"
+    users ||--o{ payments : "host_id (RESTRICT)"
+    users ||--o{ payments : "cleaner_id (RESTRICT)"
+    payments ||--o{ payment_attempts : "1..N charge attempts (CASCADE)"
+    payments ||--o{ payment_events : "audit ledger (CASCADE)"
+    users ||--o| stripe_accounts : "one Express account per cleaner (CASCADE)"
+
+    payments {
+        uuid id PK
+        uuid offer_id FK "UNIQUE (one per offer)"
+        uuid host_id FK
+        uuid cleaner_id FK
+        varchar payment_status "PENDING..REFUNDED"
+        varchar dispute_status "NONE|OPEN|WON|LOST"
+        varchar payout_status "NOT_READY..REVERSED"
+        char currency "ISO 4217"
+        int agreed_price_cents
+        int host_total_cents
+        int cleaner_payout_cents
+        int platform_gross_revenue_cents
+        int refunded_amount_cents "<= host_total_cents"
+        int reversed_amount_cents "<= cleaner_payout_cents"
+        varchar stripe_transfer_id
+        timestamptz held_at
+        timestamptz released_at
+    }
+
+    payment_attempts {
+        uuid id PK
+        uuid payment_id FK
+        int attempt_number "UNIQUE per payment"
+        varchar stripe_payment_intent_id "UNIQUE"
+        varchar stripe_charge_id
+        varchar status "PROCESSING|SUCCEEDED|FAILED"
+        int amount_cents
+        char currency
+    }
+
+    stripe_accounts {
+        uuid id PK
+        uuid cleaner_id FK "UNIQUE"
+        varchar stripe_account_id "UNIQUE (acct_...)"
+        bool charges_enabled
+        bool payouts_enabled
+        bool details_submitted
+        char country
+        char default_currency
+        timestamptz last_synced_at
+    }
+
+    payment_events {
+        uuid id PK
+        uuid payment_id FK "nullable"
+        varchar source "api|webhook"
+        varchar event_type
+        varchar stripe_event_id "UNIQUE when set (webhook dedup)"
+        varchar idempotency_key
+        jsonb payload_json
+    }
+```
+
+Invariants enforced at the database level: at most one `SUCCEEDED` attempt per payment (partial unique index), one payment per offer, refund/reversal ceilings via `CHECK`, and webhook idempotency via a partial unique index on `stripe_event_id`.
+
+---
+
 ## 6. Auth & Security Flow
 
 ```mermaid
@@ -355,5 +426,5 @@ sequenceDiagram
 
 ---
 
-*Last updated: August 27, 2026*
+*Last updated: August 28, 2026*
 *Update this document on EVERY structural change.*
