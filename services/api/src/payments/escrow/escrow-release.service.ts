@@ -44,6 +44,15 @@ export class EscrowReleaseService {
       throw new NotFoundException(`Payment ${paymentId} not found`);
     }
 
+    // Already released? Nothing to do (idempotent under concurrent triggers, P4).
+    // Checked first so a duplicate release trigger is a clean no-op, not a conflict.
+    if (
+      payment.payoutStatus === PayoutStatus.TRANSFER_CREATED ||
+      payment.payoutStatus === PayoutStatus.PAID
+    ) {
+      return;
+    }
+
     // Only HELD / PARTIALLY_REFUNDED payments are releasable, and never while disputed.
     const releasableStatuses: string[] = [PaymentStatus.HELD, PaymentStatus.PARTIALLY_REFUNDED];
     if (!releasableStatuses.includes(payment.paymentStatus)) {
@@ -53,14 +62,6 @@ export class EscrowReleaseService {
     }
     if (payment.disputeStatus === DisputeStatus.OPEN) {
       throw new ConflictException(`Payment ${paymentId} cannot be released while disputed`);
-    }
-
-    // Already released? Nothing to do (idempotent, P4).
-    if (
-      payment.payoutStatus === PayoutStatus.TRANSFER_CREATED ||
-      payment.payoutStatus === PayoutStatus.PAID
-    ) {
-      return;
     }
 
     const account = await this.repo.findAccountByCleaner(payment.cleanerId);

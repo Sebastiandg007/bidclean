@@ -17,6 +17,7 @@
     "@bidclean/shared": "*",
     "@react-native-community/datetimepicker": "8.2.0",
     "@rnmapbox/maps": "10.1.35",
+    "@stripe/stripe-react-native": "0.41.0",
     "axios": "1.7.9",
     "expo": "52.0.46",
     "expo-auth-session": "6.0.3",

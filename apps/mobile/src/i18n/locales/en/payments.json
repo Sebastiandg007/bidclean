@@ -1,0 +1,72 @@
+{
+  "hostPaymentMethod": {
+    "title": "Payment method",
+    "subtitle": "Add a card to pay for cleaning services.",
+    "addCard": "Add payment method",
+    "cardSaved": "Card saved",
+    "error": "Could not save your payment method. Please try again."
+  },
+  "onboarding": {
+    "title": "Set up payouts",
+    "subtitle": "Connect your bank to receive payments securely through Stripe.",
+    "startButton": "Start payout setup",
+    "continueButton": "Finish payout setup",
+    "completed": "Payouts enabled",
+    "bannerTitle": "Finish your payout setup",
+    "bannerBody": "You can win jobs now, but you must finish payout setup before funds are released.",
+    "opening": "Opening secure onboarding..."
+  },
+  "status": {
+    "title": "Payment",
+    "paymentLabel": "Payment",
+    "payoutLabel": "Payout",
+    "disputeLabel": "Dispute",
+    "hostTotal": "You paid {{total}}",
+    "cleanerPayout": "You earn {{payout}}",
+    "refunded": "Refunded {{amount}}",
+    "payment": {
+      "PENDING": "Pending",
+      "PROCESSING": "Processing",
+      "HELD": "Held in escrow",
+      "RELEASED": "Released",
+      "REFUNDED": "Refunded",
+      "PARTIALLY_REFUNDED": "Partially refunded",
+      "FAILED": "Failed"
+    },
+    "payout": {
+      "NOT_READY": "Not ready",
+      "PENDING": "Pending onboarding",
+      "TRANSFER_CREATED": "Sent",
+      "PAID": "Paid",
+      "REVERSED": "Reversed"
+    },
+    "dispute": {
+      "NONE": "None",
+      "OPEN": "Under review",
+      "WON": "Resolved in your favor",
+      "LOST": "Resolved"
+    }
+  },
+  "disputeBanner": {
+    "title": "Payment under review",
+    "body": "A dispute is open on this payment. Payouts are paused until it resolves."
+  },
+  "refund": {
+    "title": "Refund",
+    "fullRefund": "Full refund",
+    "partialRefund": "Partial refund",
+    "amountLabel": "Amount to refund",
+    "remaining": "Refundable: {{amount}}",
+    "submit": "Request refund",
+    "confirm": "Confirm refund",
+    "success": "Refund requested."
+  },
+  "error": {
+    "onboarding_failed": "Could not start payout setup. Please try again.",
+    "account_status_failed": "Could not load your payout status.",
+    "fetch_payment_failed": "Could not load the payment.",
+    "refund_failed": "Could not process the refund. Please try again.",
+    "refund_blocked": "This payment can't be refunded while a dispute is open.",
+    "refund_ceiling": "The refund amount exceeds what can be refunded."
+  }
+}

@@ -406,7 +406,7 @@ describe('stripe-escrow scenarios', () => {
     expect(payment?.paymentStatus).toBe(PaymentStatus.HELD);
     const attempts = await repo.listAttempts(payment!.id);
     expect(attempts.length).toBe(2);
-    expect(attempts[1].attemptNumber).toBe(2);
+    expect(attempts[1]?.attemptNumber).toBe(2);
   });
 
   it('cross-check: decideRefund never lets accumulated refunds exceed host_total', async () => {

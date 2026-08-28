@@ -25,7 +25,7 @@
 ### Sprint 3 — Payments
 | # | Spec | Status | Dependencies |
 |---|------|--------|-------------|
-| 9 | `stripe-escrow` | 🔄 In Progress | Spec 8 |
+| 9 | `stripe-escrow` | ✅ Completed | Spec 8 |
 | 10 | `commission-system` | ⬜ Pending | Spec 9 |
 | 11 | `revenuecat-subscriptions` | ⬜ Pending | Spec 1 |
 | 12 | `revenuecat-ads` | ⬜ Pending | Spec 11 |
