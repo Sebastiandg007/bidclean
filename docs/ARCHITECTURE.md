@@ -118,6 +118,7 @@ graph TB
             OffersStore["useOffersStore"]
             RadarStore["useRadarStore"]
             NegotiationStore["useNegotiationStore"]
+            PaymentsStore["usePaymentsStore"]
             ServiceStore["useServiceStore"]
             ChatStore["useChatStore"]
             SettingsStore["useSettingsStore"]
