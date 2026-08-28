@@ -157,9 +157,17 @@ class FakeRepo {
     return { payment, attempt };
   }
 
+  async recordAttemptIntentId(attemptId: string, stripePaymentIntentId: string): Promise<void> {
+    const attempt = this.attempts.find((a) => a.id === attemptId);
+    if (attempt && attempt.status === AttemptStatus.PROCESSING) {
+      attempt.stripePaymentIntentId = stripePaymentIntentId;
+    }
+  }
+
   async markChargeSucceeded(params: {
     paymentId: string;
     attemptId: string;
+    stripePaymentIntentId: string;
     stripeChargeId: string;
     stripeFeeCents: number;
   }): Promise<void> {
@@ -172,6 +180,7 @@ class FakeRepo {
       throw Object.assign(new Error('duplicate succeeded attempt'), { code: '23505' });
     }
     attempt.status = AttemptStatus.SUCCEEDED;
+    attempt.stripePaymentIntentId = params.stripePaymentIntentId;
     attempt.stripeChargeId = params.stripeChargeId;
     const payment = this.payments.get(params.paymentId)!;
     payment.paymentStatus = PaymentStatus.HELD;

@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Stripe Escrow — post-implementation audit fixes (Spec 9 — stripe-escrow)** — resolved money-safety and correctness findings from a behavioral review:
+  - **Stranded-charge recovery (P11):** the charge attempt's real Stripe PaymentIntent id is now persisted immediately after `createPaymentIntent` (via new `PaymentsRepository.recordAttemptIntentId`) and again on success in `markChargeSucceeded`, replacing the `pending:` placeholder. `PaymentReconciliationService` now falls back to `StripeClient.findPaymentIntentByPaymentId` (Stripe search by `metadata.paymentId`) to heal a payment left `PROCESSING` after a crash between the charge call and the DB write — previously such a payment was permanently unrecoverable.
+  - **Stripe fee captured on charge:** the charge PaymentIntent is created with `expand: ['latest_charge.balance_transaction']` so `stripe_fee_cents` and `net_platform_revenue_cents` are recorded correctly at capture instead of defaulting to 0.
+  - **Refund net-revenue guard:** `applyRefund` now rejects negative amounts and any `reversal > refund` at the repository boundary (prevents net revenue from drifting upward on a malformed refund) and documents that the Stripe fee stays absorbed from capture.
+  - **Dispute resolution:** `charge.dispute.closed` now maps only explicit `won`/`lost` outcomes; non-terminal statuses (e.g. `warning_closed`) no longer count as a loss.
+  - **Idempotent release:** `markReleased` treats an already-released payment as a clean no-op under concurrent triggers instead of throwing a conflict (P4).
+  - Verified: `services/api` typecheck clean, ESLint clean, 18 payments suites / 114 tests pass.
+
 ### Added
 - **Stripe Escrow spec complete (Spec 9 — stripe-escrow)** — all implementation tasks (including optional `*` tasks) finished and verified. The `payments` NestJS module charges the Host on `offer.matched` (separate charges & transfers, funds held on the platform balance), releases the Cleaner payout on confirm / 24h auto-release / deferred-onboarding, and supports pre-/post-release refunds with proportional Transfer Reversals — across three orthogonal lifecycles (`payment_status`, `dispute_status`, `payout_status`). Stripe is reached only through the injectable `StripeClient` seam; every mutating call is idempotent; webhooks are signature-verified, deduped, sanitized, and processed on a BullMQ queue; two `@Interval` sweeps reconcile payments and Connected-account capabilities to Stripe's truth. Mobile adds the `payments` screens (Host Payment Sheet, Cleaner payout onboarding, payment status + refund) backed by the `usePayments` Zustand store, with `en`/`es` i18n. Verification: `services/api` typecheck clean and 18 payments suites / 113 tests pass (unit + fast-check properties P1–P12 + scenario flows 18.1–18.8); `apps/mobile` typecheck clean and the `usePayments` suite passes. `stripe-escrow` marked ✅ in the ROADMAP and all boxes checked in its `tasks.md`.
 

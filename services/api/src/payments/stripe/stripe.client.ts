@@ -54,6 +54,24 @@ export class StripeClient {
     });
   }
 
+  /**
+   * Find the most recent PaymentIntent for a payment via its `metadata.paymentId`.
+   * Used by reconciliation to heal an attempt whose real intent id was never persisted
+   * (crash between the charge call and the DB write). Returns null when none is found.
+   */
+  async findPaymentIntentByPaymentId(paymentId: string): Promise<Stripe.PaymentIntent | null> {
+    const result = await this.stripe.paymentIntents.search({
+      query: `metadata['paymentId']:'${paymentId}'`,
+      limit: 1,
+    });
+    const found = result.data[0];
+    if (!found) {
+      return null;
+    }
+    // Re-retrieve with the balance transaction expanded so the fee is available.
+    return this.retrievePaymentIntent(found.id);
+  }
+
   /** Create a Transfer to a Connected Account (payout) with an idempotency key. */
   createTransfer(
     params: Stripe.TransferCreateParams,

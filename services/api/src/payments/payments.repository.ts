@@ -284,19 +284,39 @@ export class PaymentsRepository {
     }
   }
 
-  /** Mark an attempt SUCCEEDED and move the payment to HELD, recording the Stripe fee. */
+  /**
+   * Persist the real Stripe PaymentIntent id on an attempt as soon as the intent is
+   * created, replacing the `pending:` placeholder. This closes the crash window between
+   * the Stripe charge and `markChargeSucceeded`: reconciliation can then retrieve the
+   * intent from Stripe and converge the payment (P11).
+   */
+  async recordAttemptIntentId(attemptId: string, stripePaymentIntentId: string): Promise<void> {
+    await this.dataSource.query(
+      `UPDATE "payment_attempts"
+       SET "stripe_payment_intent_id" = $1, "updated_at" = NOW()
+       WHERE "id" = $2 AND "status" = 'PROCESSING'`,
+      [stripePaymentIntentId, attemptId],
+    );
+  }
+
+  /**
+   * Mark an attempt SUCCEEDED and move the payment to HELD, recording the Stripe fee.
+   * Overwrites the placeholder `stripe_payment_intent_id` with the real intent id so the
+   * reconciliation sweep can heal a crashed charge (never leaves a `pending:` intent).
+   */
   async markChargeSucceeded(params: {
     paymentId: string;
     attemptId: string;
+    stripePaymentIntentId: string;
     stripeChargeId: string;
     stripeFeeCents: number;
   }): Promise<void> {
     await this.dataSource.transaction(async (manager: EntityManager) => {
       await manager.query(
         `UPDATE "payment_attempts"
-         SET "status" = $1, "stripe_charge_id" = $2, "updated_at" = NOW()
-         WHERE "id" = $3 AND "status" = 'PROCESSING'`,
-        [AttemptStatus.SUCCEEDED, params.stripeChargeId, params.attemptId],
+         SET "status" = $1, "stripe_payment_intent_id" = $2, "stripe_charge_id" = $3, "updated_at" = NOW()
+         WHERE "id" = $4 AND "status" = 'PROCESSING'`,
+        [AttemptStatus.SUCCEEDED, params.stripePaymentIntentId, params.stripeChargeId, params.attemptId],
       );
 
       const payment = await this.lockPayment(manager, params.paymentId);
@@ -348,6 +368,15 @@ export class PaymentsRepository {
   async markReleased(params: { paymentId: string; stripeTransferId: string }): Promise<void> {
     await this.dataSource.transaction(async (manager: EntityManager) => {
       const payment = await this.lockPayment(manager, params.paymentId);
+      // Idempotent under concurrent triggers (P4): if another writer already recorded
+      // the release inside its own lock, this is a clean no-op — not an error. The
+      // Stripe Transfer itself is deduped by the `release:paymentId` idempotency key.
+      if (
+        payment.payout_status === PayoutStatus.TRANSFER_CREATED ||
+        payment.payout_status === PayoutStatus.PAID
+      ) {
+        return;
+      }
       this.assertPayoutTransition(payment.payout_status, PayoutStatus.TRANSFER_CREATED);
       this.assertPaymentTransition(payment.payment_status, PaymentStatus.RELEASED);
       await manager.query(
@@ -407,14 +436,27 @@ export class PaymentsRepository {
     reversalAmountCents: number;
     resultingStatus: PaymentStatus;
   }): Promise<void> {
+    // Defensive boundary guards: the refund policy enforces these upstream, but this
+    // method is public and its net-revenue math relies on them holding.
+    if (params.refundAmountCents < 0 || params.reversalAmountCents < 0) {
+      throw new Error('Refund and reversal amounts must be non-negative');
+    }
+    if (params.reversalAmountCents > params.refundAmountCents) {
+      throw new Error('Reversal amount cannot exceed the refund amount');
+    }
+
     await this.dataSource.transaction(async (manager: EntityManager) => {
       const payment = await this.lockPayment(manager, params.paymentId);
       this.assertPaymentTransition(payment.payment_status, params.resultingStatus);
 
       const newRefunded = payment.refunded_amount_cents + params.refundAmountCents;
       const newReversed = payment.reversed_amount_cents + params.reversalAmountCents;
-      // Net revenue = gross - stripe fee - (refunded platform share). The platform
-      // refunds its own commission from balance; reversal recovers the cleaner share.
+      // Net platform revenue only reflects the platform's own commission line. The
+      // Stripe processing fee was subtracted once at capture and stays absorbed (never
+      // returned by Stripe on a refund). The platform's share of this refund is the
+      // portion NOT recovered from the Cleaner via reversal: (refund - reversal). The
+      // Cleaner's share is recovered by the Transfer Reversal, so it doesn't touch
+      // platform revenue. Guaranteed >= 0 by the boundary guards above.
       const platformRefundShare = params.refundAmountCents - params.reversalAmountCents;
       const newNetRevenue = payment.net_platform_revenue_cents - platformRefundShare;
 

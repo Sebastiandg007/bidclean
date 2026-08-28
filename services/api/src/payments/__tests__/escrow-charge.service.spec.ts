@@ -16,6 +16,7 @@ describe('EscrowChargeService', () => {
         payment: { id: 'pay-1' },
         attempt: { id: 'att-1', attemptNumber: 1 },
       }),
+      recordAttemptIntentId: jest.fn(),
       markChargeSucceeded: jest.fn(),
       markChargeFailed: jest.fn(),
       appendEvent: jest.fn(),
@@ -44,8 +45,15 @@ describe('EscrowChargeService', () => {
       expect.objectContaining({ amount: 11000, currency: 'usd' }),
       'charge:offer-1:1',
     );
+    // Records the real intent id before the terminal write (crash-recovery window).
+    expect(repo.recordAttemptIntentId).toHaveBeenCalledWith('att-1', 'pi_1');
     expect(repo.markChargeSucceeded).toHaveBeenCalledWith(
-      expect.objectContaining({ paymentId: 'pay-1', stripeChargeId: 'ch_1', stripeFeeCents: 320 }),
+      expect.objectContaining({
+        paymentId: 'pay-1',
+        stripePaymentIntentId: 'pi_1',
+        stripeChargeId: 'ch_1',
+        stripeFeeCents: 320,
+      }),
     );
     expect(publisher.emitCaptured).toHaveBeenCalledTimes(1);
     expect(publisher.emitFailed).not.toHaveBeenCalled();

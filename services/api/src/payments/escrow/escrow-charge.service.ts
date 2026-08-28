@@ -87,6 +87,9 @@ export class EscrowChargeService {
           currency: rates.currency.toLowerCase(),
           confirm: true,
           off_session: true,
+          // Expand the balance transaction so the Stripe fee is available immediately
+          // and net revenue is recorded correctly on capture (not left at 0).
+          expand: ['latest_charge.balance_transaction'],
           metadata: {
             offerId: ctx.offerId,
             paymentId: payment.id,
@@ -96,10 +99,15 @@ export class EscrowChargeService {
         stripeIdempotency.charge(ctx.offerId, attempt.attemptNumber),
       );
 
+      // Persist the real intent id before the terminal write so a crash between here
+      // and markChargeSucceeded is recoverable by reconciliation (no stranded charge).
+      await this.repo.recordAttemptIntentId(attempt.id, intent.id);
+
       const stripeFeeCents = extractStripeFeeCents(intent);
       await this.repo.markChargeSucceeded({
         paymentId: payment.id,
         attemptId: attempt.id,
+        stripePaymentIntentId: intent.id,
         stripeChargeId: this.resolveChargeId(intent),
         stripeFeeCents,
       });

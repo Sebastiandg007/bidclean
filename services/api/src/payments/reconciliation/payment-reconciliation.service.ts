@@ -51,16 +51,27 @@ export class PaymentReconciliationService {
     if (!latest || latest.status !== AttemptStatus.PROCESSING) {
       return;
     }
+    // Resolve the intent. Normally the attempt holds the real intent id; a `pending:`
+    // placeholder means the process crashed between the Stripe charge and the DB write,
+    // so fall back to finding the intent by `metadata.paymentId` (P11 — no stranded charge).
+    let intent = null;
     if (latest.stripePaymentIntentId.startsWith('pending:')) {
-      // The intent id was never persisted (crash before creation) — nothing to query.
-      return;
+      intent = await this.stripe.findPaymentIntentByPaymentId(paymentId);
+      if (!intent) {
+        this.logger.warn(
+          `Payment ${paymentId} is PROCESSING with an unresolved intent (no Stripe match yet); will retry next sweep`,
+        );
+        return;
+      }
+    } else {
+      intent = await this.stripe.retrievePaymentIntent(latest.stripePaymentIntentId);
     }
-
-    const intent = await this.stripe.retrievePaymentIntent(latest.stripePaymentIntentId);
     if (intent.status === 'succeeded') {
       await this.repo.markChargeSucceeded({
         paymentId,
         attemptId: latest.id,
+        // Use the resolved intent's real id (heals a `pending:` placeholder).
+        stripePaymentIntentId: intent.id,
         stripeChargeId: this.resolveChargeId(intent),
         stripeFeeCents: extractStripeFeeCents(intent),
       });

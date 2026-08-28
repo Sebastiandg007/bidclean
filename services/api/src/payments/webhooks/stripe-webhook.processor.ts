@@ -80,6 +80,12 @@ export class StripeWebhookProcessor extends WorkerHost {
   }
 
   private async onDisputeClosed(sanitized: SanitizedPayload): Promise<void> {
+    // Only 'won' and 'lost' are terminal outcomes. Other closed statuses (e.g.
+    // 'warning_closed') are not a resolution and must not be treated as a loss.
+    if (sanitized.status !== 'won' && sanitized.status !== 'lost') {
+      this.logger.debug(`Ignoring dispute.closed with non-terminal status ${sanitized.status}`);
+      return;
+    }
     const paymentId = await this.resolvePaymentIdFromCharge(sanitized);
     if (paymentId) {
       await this.disputes.closeDispute(paymentId, sanitized.status === 'won');
