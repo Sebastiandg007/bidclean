@@ -88,6 +88,20 @@ The module emits typed domain events (EventEmitter2, defined in `events/payment-
 
 Configuration is validated at startup by `validatePaymentsConfig()`, which throws a descriptive error (fail-fast) so a misconfiguration never surfaces mid-payment.
 
+## Testing
+Tests live in `__tests__/`. Unit specs cover each service, the controller, the repository, and the pure helpers. Alongside them, `payments.property.spec.ts` is a property-based suite (fast-check) that asserts the module's correctness properties over randomized inputs:
+
+| Property | What it guards |
+|----------|----------------|
+| P1 | Money integrity — every monetary value stays an integer (cents) |
+| P2 | Breakdown consistency — `host_total = price + fee`, `cleaner_payout = price - commission`, `gross = host_total - payout` |
+| P5 | A refund is blocked while a dispute is `OPEN` |
+| P7 | Refund/reversal ceilings — refunds never exceed `host_total`, reversals never exceed `cleaner_payout`, including across sequential accumulation |
+| P8 | Idempotency keys are deterministic per input, and distinct charge attempts produce distinct keys |
+| P12 | Lifecycle orthogonality — each state machine only permits its own declared transitions |
+
+Flows that need a live DB/Stripe (single-charge, single-release, reconciliation convergence, authorization) are exercised end-to-end in the integration tests rather than here.
+
 ## Related Documentation
 - `docs/ARCHITECTURE.md` §5 Payment Flow, §5b Payment Escrow Schema, §5c Stripe Webhook Ingress, §5d Payment Domain Events, §5e Payment Reconciliation
 - `docs/ADR/005-stripe-connect-escrow.md`
