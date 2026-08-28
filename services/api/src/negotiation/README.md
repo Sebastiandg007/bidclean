@@ -23,6 +23,7 @@ Manages price negotiation between a Host and a Cleaner over a published offer. A
 | `entities/negotiation-proposal.entity.ts` | TypeORM entity for `negotiation_proposals` (actor, sequence, prices, status, supersession reason, expiry) |
 | `events/negotiation-events.ts` | Real-time event name constants (`NEGOTIATION_EVENT_NAMES`), the `NegotiationEvent` envelope published to Centrifugo (carries `version`/`sequenceNumber` for ordering and `eventId` for dedup), and the `OfferStatusChangedEvent` schema consumed from offer-radar |
 | `events/negotiation-publisher.service.ts` | Wraps Centrifugo publishing for negotiation events (proposal created/countered/rejected/accepted, offer-matched fan-out to other Cleaners). Transport-only, best-effort; attaches the Cleaner identity summary to the Host channel only |
+| `__tests__/negotiation-publisher.service.spec.ts` | Unit tests for `NegotiationPublisher` channel scoping and the privacy boundary: proposal events reach only the intended Host/Cleaner channel, the `offer_status_changed{MATCHED}` fan-out targets other Cleaners' radar channels without leaking winner identity, and publish/broadcast failures are swallowed (best-effort contract) |
 | `dto/create-counteroffer.dto.ts` | Request DTO for a Cleaner counteroffer (`proposedPriceCents`) |
 | `dto/host-counter.dto.ts` | Request DTO for a Host counter-back (`proposedPriceCents`) |
 
