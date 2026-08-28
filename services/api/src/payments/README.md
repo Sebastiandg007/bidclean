@@ -13,6 +13,9 @@ Owns the money lifecycle for a completed service: charging the Host into Stripe 
 | `entities/payment-attempt.entity.ts` | `payment_attempts` table — charge attempts against a payment (at most one `SUCCEEDED` per payment) |
 | `entities/payment-event.entity.ts` | `payment_events` table — audit ledger for API and webhook events, with Stripe event dedup |
 | `entities/stripe-account.entity.ts` | `stripe_accounts` table — one Stripe Express connected account per Cleaner |
+| `stripe/stripe.client.ts` | Thin injectable wrapper around the Stripe SDK — the module's only seam to Stripe (connected accounts, PaymentIntents, transfers, reversals, refunds, webhook verification). Every mutating call forwards an idempotency key |
+| `stripe/stripe-idempotency.ts` | Deterministic idempotency-key builders (`charge`, `release`, `refund`, `reversal`) derived from stable identifiers so replays are no-ops (Property P8) |
+| `stripe/stripe.constants.ts` | `STRIPE_WEBHOOK_EVENTS` map and `StripeWebhookEventName` union — the Stripe webhook event names this module dispatches on |
 
 ## Lifecycles
 
