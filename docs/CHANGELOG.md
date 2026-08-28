@@ -16,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Removed `// @ts-nocheck` from test files; replaced `as any` casts with properly typed mock interfaces (`MockAuthenticatedRequest`, `AvailableOffersQueryDto`, `jest.Mocked<Pick<...>>`)
 
 ### Added
+- **Negotiation database schema migration (api)** — Task 1.1 (Spec — Offer Negotiation)
+  - `CreateNegotiationTables1700000013000` migration creates three tables with full `up()`/`down()` reversibility
+  - `negotiation_threads` — one thread per (offer, host, cleaner) via `uq_negotiation_thread`; holds `current_proposal_id` pointer, monotonic `version` for event ordering, and immutable `base_price_cents` deviation reference; FK to `offers` (CASCADE) and `users` (RESTRICT); indexes on offer_id, host_id, cleaner_id
+  - `negotiation_proposals` — generic CLEANER/HOST proposal rows with `sequence_number` (unique per thread, Property P5), snapshotted `cleaner_payout_cents`/`host_total_cents`, status lifecycle check, and `superseded_reason` validation; partial unique index `uq_one_pending_per_thread` enforces at most one PENDING proposal per thread (Property P4); partial `idx_negotiation_proposals_expiry` for the expiration sweep worker
+  - `negotiation_idempotency` — replay cache scoped by `(user_id, operation, idempotency_key)` so keys never collide across operations (Property P9)
+  - Updated ARCHITECTURE.md backend diagram: added Negotiation Module with DB, Queue, Events, `OFFER_MATCH` contract to Offers, and Centrifugo edges
 - **Unit tests for useRadarStore (mobile/radar)** — Task 3.3 (Spec 7 — Offer Radar)
   - 30 unit tests covering: handleOfferNew idempotency, handleOfferStatusChanged temporal ordering, reconcile REST-wins behavior, setFilters/clearFilters, getOffersAsGeoJSON transformation, markAllStale, getActiveFilterCount, getOffersList sorted output, markOfferViewed, setConnectionStatus, selectOffer, setViewMode
 - **Property-based tests for Offer Radar (mobile/radar)** — Tasks 17.1–17.11 (Spec 7 — Offer Radar)

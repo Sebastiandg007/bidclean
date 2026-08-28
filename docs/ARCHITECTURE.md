@@ -163,6 +163,7 @@ graph TB
             KYC["KYC Module"]
             Properties["Properties Module"]
             Offers["Offers Module"]
+            Negotiation["Negotiation Module"]
             Payments["Payments Module"]
             Chat["Chat Module"]
             Notifications["Notifications Module"]
@@ -200,7 +201,11 @@ graph TB
     Offers --> Cache
     Offers --> Queue
     Offers --> Events
-    Offers --> Events
+    Negotiation --> DB
+    Negotiation --> Queue
+    Negotiation --> Events
+    Negotiation --> |"OFFER_MATCH contract"| Offers
+    Negotiation --> |"Centrifugo API"| Centrifugo
     Payments --> DB
     Payments --> |"Stripe SDK"| Stripe["Stripe Connect"]
     Chat --> Cache
@@ -348,5 +353,5 @@ sequenceDiagram
 
 ---
 
-*Last updated: August 26, 2026*
+*Last updated: August 27, 2026*
 *Update this document on EVERY structural change.*
