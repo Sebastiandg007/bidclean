@@ -16,6 +16,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Removed `// @ts-nocheck` from test files; replaced `as any` casts with properly typed mock interfaces (`MockAuthenticatedRequest`, `AvailableOffersQueryDto`, `jest.Mocked<Pick<...>>`)
 
 ### Added
+- **Proposal state machine tests (api)** — Unit + property-based tests for the negotiation proposal state machine (Spec — Offer Negotiation)
+  - `__tests__/proposal-state-machine.spec.ts`: validates allowed transitions from PENDING, that `validateProposalTransition` agrees with `PROPOSAL_ALLOWED_TRANSITIONS` for all status pairs, and Correctness Property P6 (Terminal Immutability — no transition out of any terminal status), using fast-check (200 runs per property)
+  - Listed the new test file in `services/api/src/negotiation/README.md` Files table
+- **Negotiation mobile state layer (mobile)** — Client-side negotiation flow for Cleaner and Host (Spec — Offer Negotiation)
+  - `useNegotiation.ts` — `useNegotiationStore` (Zustand) with Cleaner actions (`acceptOffer`, `submitCounteroffer`, `acceptHostCounter`, `declineHostCounter`, `fetchThread`), Host actions (`fetchInbox`, `acceptCounteroffer`, `rejectCounteroffer`, `counterBack`), version/sequence-gated real-time handling with `eventId` dedup, and server-authoritative payout preview / deviation-bounds helpers
+  - `negotiation.api.ts` — typed HTTP client attaching a crypto-random `Idempotency-Key` (expo-crypto) to every mutation via a lazy `apiClient` import
+  - `negotiation.types.ts` — mobile-side proposal/thread/match/event interfaces (integer-cent pricing)
+  - `negotiation.constants.ts` — route names, endpoint builders, i18n error keys, and the client mirror of `NEGOTIATION_MIN/MAX_DEVIATION_BPS` (default 2000 bps)
+  - Added `apps/mobile/src/screens/negotiation/README.md` and listed `useNegotiationStore` in the frontend diagram of `docs/ARCHITECTURE.md`
+- **Negotiation background workers (api)** — Scheduled `@nestjs/schedule` sweeps for the negotiation module (Spec — Offer Negotiation)
+  - `expiration/proposal-expiry.worker.ts` — `ProposalExpiryWorker` marks PENDING proposals past their response window as `EXPIRED` on the `NEGOTIATION_EXPIRY_SWEEP_MS` interval (default 60s); the offer stays ACTIVE so the Cleaner may submit a new counteroffer; distinct from `SUPERSEDED` to preserve auditability
+  - `reconciliation/negotiation-reconciliation.service.ts` — `NegotiationReconciliationService` safety-net sweep (second line of defense behind `OfferTerminalListener`) supersedes PENDING proposals stranded on terminal offers and closes their threads on the `NEGOTIATION_RECONCILE_INTERVAL_MS` interval (default 120s), with no distributed transaction
+  - Both workers are idempotent, retry-safe, log-and-continue on failure, and delegate all DB access to `NegotiationRepository`
+  - Updated `services/api/src/negotiation/README.md` with a Background Workers section and Files-table rows for both workers
+- **NegotiationService orchestration layer (api)** — Single entry point for negotiation mutations and read models (Spec — Offer Negotiation)
+  - Operations: `acceptOffer` (direct accept at Base Price), `createCounteroffer`, `acceptProposal`, `rejectProposal`, `counterProposal`, plus `getThreadForCleaner` / `getHostInbox` read models
+  - Uniform pipeline per mutation: idempotency (`runOnce`) → authorization + offer-state gate + delivery revalidation → atomic DB mutation → match via the `OFFER_MATCH` contract → best-effort Centrifugo publish; never writes the `offers` table directly (`ACTIVE → MATCHED` only through `OFFER_MATCH`)
+  - Counterparty authorization: a Host acts only on `CLEANER` proposals, a Cleaner only on `HOST` proposals; on match, only the winning proposal is marked `ACCEPTED` and superseding the rest is delegated to `OfferTerminalListener`
+  - Added `negotiation.messages.ts` (centralized server-side error messages) and integrated `negotiation-idempotency.service.ts` (Correctness Property P9) and `events/negotiation-publisher.service.ts`
+  - Updated `services/api/src/negotiation/README.md` with an Orchestration & Operations section and Files-table rows for the service, idempotency, messages, publisher, and DTOs
+- **NegotiationPricingService (api)** — Proposal pricing and deviation-bounds enforcement (Spec — Offer Negotiation)
+  - `computeBreakdown(offer, proposedPriceCents)` delegates to the offers `CommissionService`, reusing the offer's snapshotted rate bps and integer-only rounding — no independent commission or rounding algorithm (Req 6.2)
+  - `getDeviationRange(basePriceCents)` computes the inclusive `[min, max]` allowed proposal price range via integer-only `Math.trunc` bps arithmetic against the immutable Base Price
+  - `isWithinDeviationBounds(basePriceCents, proposedPriceCents)` enforces bounds always relative to the Base Price, never a prior proposal (Correctness Property P11)
+  - Bounds derive from `NEGOTIATION_MIN_DEVIATION_BPS` / `NEGOTIATION_MAX_DEVIATION_BPS` (default 2000 bps = 20%)
+  - Added `services/api/src/negotiation/README.md` documenting the module's files, entities, state machine, pricing, channels, and configuration
 - **Negotiation database schema migration (api)** — Task 1.1 (Spec — Offer Negotiation)
   - `CreateNegotiationTables1700000013000` migration creates three tables with full `up()`/`down()` reversibility
   - `negotiation_threads` — one thread per (offer, host, cleaner) via `uq_negotiation_thread`; holds `current_proposal_id` pointer, monotonic `version` for event ordering, and immutable `base_price_cents` deviation reference; FK to `offers` (CASCADE) and `users` (RESTRICT); indexes on offer_id, host_id, cleaner_id

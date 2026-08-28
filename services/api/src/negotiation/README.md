@@ -8,14 +8,23 @@ Manages price negotiation between a Host and a Cleaner over a published offer. A
 
 | File | Responsibility |
 |------|---------------|
+| `negotiation.service.ts` | Orchestration layer for every negotiation mutation (accept offer, create counteroffer, accept/reject/counter proposal) and the read models (Cleaner thread, Host inbox). Coordinates idempotency → authorization + offer-state gate + delivery revalidation → atomic DB mutation → match via `OFFER_MATCH` → best-effort real-time publish. Never writes the `offers` table directly |
 | `negotiation.types.ts` | Domain enums (`ProposalActor`, `ProposalStatus`, `SupersededReason`, `ThreadStatus`, `NegotiationOperation`) and view/summary interfaces returned by the service layer |
 | `negotiation.constants.ts` | Environment-derived configuration (deviation bounds, response window, max proposals, sweep intervals), Centrifugo channel builders, and startup config validation |
+| `negotiation.messages.ts` | Centralized server-side error messages (`NEGOTIATION_ERROR_MESSAGES`) so error strings are not scattered as literals; the mobile app maps HTTP outcomes to its own i18n keys |
+| `negotiation-idempotency.service.ts` | `runOnce(userId, operation, key, work)` at-most-once wrapper backing Correctness Property P9: replays return the cached result and never create a duplicate proposal or second match, protected by a unique constraint on (user_id, operation, idempotency_key) |
 | `proposal-state-machine.ts` | Pure proposal transition validation: allowed transitions map, terminal-status detection, `validateProposalTransition()` |
+| `__tests__/proposal-state-machine.spec.ts` | Unit + property-based tests (fast-check) for the proposal state machine: allowed transitions from PENDING, transition table agreement, and Correctness Property P6 (Terminal Immutability — no transition out of any terminal status) |
 | `negotiation.repository.ts` | Data-access layer for `negotiation_threads` and `negotiation_proposals`. Owns all reads/writes via parameterized SQL, including the `SELECT ... FOR UPDATE` transaction that allocates a monotonic sequence/version on proposal insert. Never writes the `offers` table (matching goes through the `OFFER_MATCH` contract) |
 | `pricing/negotiation-pricing.service.ts` | Computes proposal commission breakdown (delegating to offers `CommissionService`) and enforces deviation bounds against the immutable Base Price |
+| `expiration/proposal-expiry.worker.ts` | Scheduled `@Interval` worker that periodically marks PENDING proposals past their response window as `EXPIRED` (distinct from `SUPERSEDED`); the offer stays ACTIVE so the Cleaner may re-counter. Sweep interval from `NEGOTIATION_EXPIRY_SWEEP_MS` |
+| `reconciliation/negotiation-reconciliation.service.ts` | Scheduled `@Interval` safety-net sweep (second line of defense behind `OfferTerminalListener`) that supersedes PENDING proposals left on terminal offers and closes their threads, making post-match state eventually consistent. Interval from `NEGOTIATION_RECONCILE_INTERVAL_MS` |
 | `entities/negotiation-thread.entity.ts` | TypeORM entity for `negotiation_threads` (one per offer/host/cleaner, current-proposal pointer, monotonic version, base price snapshot) |
 | `entities/negotiation-proposal.entity.ts` | TypeORM entity for `negotiation_proposals` (actor, sequence, prices, status, supersession reason, expiry) |
 | `events/negotiation-events.ts` | Real-time event name constants (`NEGOTIATION_EVENT_NAMES`), the `NegotiationEvent` envelope published to Centrifugo (carries `version`/`sequenceNumber` for ordering and `eventId` for dedup), and the `OfferStatusChangedEvent` schema consumed from offer-radar |
+| `events/negotiation-publisher.service.ts` | Wraps Centrifugo publishing for negotiation events (proposal created/countered/rejected/accepted, offer-matched fan-out to other Cleaners). Transport-only, best-effort; attaches the Cleaner identity summary to the Host channel only |
+| `dto/create-counteroffer.dto.ts` | Request DTO for a Cleaner counteroffer (`proposedPriceCents`) |
+| `dto/host-counter.dto.ts` | Request DTO for a Host counter-back (`proposedPriceCents`) |
 
 ## Database
 
@@ -41,6 +50,22 @@ Manages price negotiation between a Host and a Cleaner over a published offer. A
 - `chk_proposal_superseded_reason` — superseded_reason NULL or in (OFFER_MATCHED, OFFER_CANCELLED, OFFER_EXPIRED, DIRECT_ACCEPT)
 - `chk_proposal_price_positive` — proposed_price_cents > 0
 
+## Orchestration & Operations
+
+`NegotiationService` is the single entry point for negotiation mutations. Every mutation runs through `NegotiationIdempotencyService.runOnce(...)` and follows the same pipeline: idempotency check → authorization + offer-state gate + delivery revalidation → atomic DB mutation → match via the `OFFER_MATCH` contract when accepting → best-effort real-time publish. The service never writes the `offers` table directly; the `ACTIVE → MATCHED` transition happens exclusively through `OFFER_MATCH`. On a successful match it marks only the winning proposal `ACCEPTED`; superseding the other `PENDING` proposals is delegated to `OfferTerminalListener` reacting to `offer.matched`.
+
+| Operation | Actor | Effect |
+|-----------|-------|--------|
+| `acceptOffer` | Cleaner | Direct accept at the Host's Base Price: match via contract, supersede the Cleaner's own open counteroffer (`DIRECT_ACCEPT`), publish |
+| `createCounteroffer` | Cleaner | Validate deviation bounds + proposal budget, insert a PENDING `CLEANER` proposal, publish to the Host channel |
+| `acceptProposal` | Counterparty | Authorize counterparty, mark proposal `ACCEPTED`, match via contract, publish |
+| `rejectProposal` | Counterparty | Mark proposal `REJECTED` (offer stays `ACTIVE`), notify the proposal's author |
+| `counterProposal` | Counterparty | Mark prior proposal `COUNTERED`, insert a new PENDING proposal by the countering actor, notify the counterparty |
+| `getThreadForCleaner` | Cleaner | Read the Cleaner's own thread with ordered proposals |
+| `getHostInbox` | Host | Read PENDING Cleaner counteroffers across the Host's ACTIVE offers |
+
+Authorization rule: only the counterparty may act on a proposal — a Host acts on `CLEANER` proposals, a Cleaner acts on `HOST` proposals, never their own.
+
 ## Data Access
 
 `NegotiationRepository` is the single owner of all reads and writes to `negotiation_threads` and `negotiation_proposals`. It uses parameterized SQL exclusively (no string concatenation) and keeps money math out of its scope — payouts arrive pre-computed from `NegotiationPricingService`.
@@ -58,6 +83,15 @@ Key operations:
 | `findThreadsNeedingReconciliation` | Detects PENDING proposals left behind on terminal offers for the reconciliation sweep |
 
 Concurrency guarantee: the `SELECT ... FOR UPDATE` lock plus the `uq_proposal_thread_sequence` unique index serialize concurrent inserts so at most one PENDING proposal exists per thread and sequence numbers never collide.
+
+## Background Workers
+
+Two scheduled sweeps run on `@nestjs/schedule` `@Interval` timers (same pattern as `EmailVerificationSyncService`). Both are idempotent and retry-safe, log-and-continue on failure, and delegate all DB work to `NegotiationRepository`.
+
+| Worker | Interval | Responsibility |
+|--------|----------|---------------|
+| `ProposalExpiryWorker.sweep` | `NEGOTIATION_EXPIRY_SWEEP_MS` (default 60s) | Marks PENDING proposals past their response window as `EXPIRED`. The offer stays ACTIVE so the Cleaner may submit a new counteroffer |
+| `NegotiationReconciliationService.reconcile` | `NEGOTIATION_RECONCILE_INTERVAL_MS` (default 120s) | Safety net behind `OfferTerminalListener`: supersedes PENDING proposals stranded on terminal (MATCHED/CANCELLED/EXPIRED) offers and closes their threads, without a distributed transaction |
 
 ## Proposal State Machine
 
