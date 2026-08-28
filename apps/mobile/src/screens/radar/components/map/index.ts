@@ -10,6 +10,5 @@ export { WorkZoneCircle } from './WorkZoneCircle';
 
 export type { RadarMapViewProps } from './RadarMapView';
 export type { OfferPinsLayerProps } from './OfferPinsLayer';
-export type { ClusterLayerProps } from './ClusterLayer';
 export type { CleanerMarkerProps } from './CleanerMarker';
 export type { WorkZoneCircleProps } from './WorkZoneCircle';

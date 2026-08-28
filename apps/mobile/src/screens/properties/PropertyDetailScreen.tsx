@@ -179,8 +179,9 @@ function FullScreenGallery({ visible, photos, initialIndex, onClose }: FullScree
 
   const handleViewableChange = useCallback(
     ({ viewableItems }: { viewableItems: Array<{ index: number | null }> }) => {
-      if (viewableItems.length > 0 && viewableItems[0].index !== null) {
-        setCurrentIndex(viewableItems[0].index);
+      const first = viewableItems[0];
+      if (first && first.index !== null) {
+        setCurrentIndex(first.index);
       }
     },
     [],

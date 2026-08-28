@@ -98,12 +98,10 @@ export const WorkZoneCircle: React.FC<WorkZoneCircleProps> = React.memo(
         <MapboxGL.FillLayer
           id={LAYER_IDS.WORK_ZONE_FILL}
           style={workZoneFillStyle}
-          testID="work-zone-fill-layer"
         />
         <MapboxGL.LineLayer
           id={LAYER_IDS.WORK_ZONE_BORDER}
           style={workZoneBorderStyle}
-          testID="work-zone-border-layer"
         />
       </MapboxGL.ShapeSource>
     );

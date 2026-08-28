@@ -19,9 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `CentrifugoClient` added to `OffersModule` exports; `NegotiationModule` registered in `AppModule`
   - Mobile `useNegotiation` store + `CleanerNegotiationScreen`, `HostCounterofferInboxScreen`, and components (AcceptBar, CounterofferInput, CounterBackInput, PayoutPreview, ProposalStatusBadge, HostCounterofferCard); `negotiation` i18n namespace (en, es)
   - Radar Quick Accept wired to `useNegotiation().acceptOffer` (offline-disabled; removes matched/stale offers)
-  - Tests: 8 backend suites (48 tests incl. property-based P1–P11 coverage across state machine, pricing, service, publisher, idempotency, listener) + mobile store tests (8) — all passing
+  - Tests: 9 backend suites (52 tests incl. property-based P1–P11 coverage across state machine, pricing, service, publisher, idempotency, listener, config) + mobile store tests (8) — all passing
 
 ### Fixed
+- **Mobile typecheck cleanup (specs 5/6/7 — properties, offer-publishing, offer-radar)** — resolved all `tsc --noEmit` errors so the mobile workspace type-checks clean under `strict` + `noUncheckedIndexedAccess` + `noUnused*`
+  - `@rnmapbox/maps` v10 typings: removed unsupported `testID` from map `Layer` components, replaced the non-exported `Expression` type with a local alias in `mapStyles.ts`, and replaced `MapboxGL.OnPressEvent` with a structural payload type in `OfferPinsLayer`
+  - `noUncheckedIndexedAccess` guards: array-swap reorder helpers (`ChecklistEditor`, `PhotoUploader`), coordinate destructuring (`PropertyMap`), `viewableItems[0]` access (`PropertyPhotoGallery`, `PropertyDetailScreen`), and non-null assertions on indexed access in radar test specs
+  - Removed unused locals/imports (`SPACING`, `t`, `connectionStatus`, `useTranslation`, `SOURCE_IDS`, `React`, `act`, `ClusterLayerProps`); `ClusterLayer` no longer takes an unused `onClusterPress` prop
+  - `StateTimeline`: replaced the `TFunction` import with a minimal `TranslateFn` type and removed the invalid RN `accessibilityRole="listitem"`
+  - `PropertyPhotoGallery`: added the missing `useTranslation()` in the top-level component
+  - Added missing Expo dependencies used by existing screens: `expo-haptics` (radar pin haptics) and `@react-native-community/datetimepicker` (create-offer date/time), installed via `expo install` for SDK 52 compatibility
 - **Offer Negotiation audit corrections** (Spec 8 — offer-negotiation)
   - `NegotiationReconciliationService` now re-publishes `offer_status_changed{MATCHED}` to other delivered Cleaners for MATCHED offers, repairing a dropped best-effort broadcast so their radar pins clear (adds `NegotiationRepository.findMatchedCleanerId`)
   - Host inbox now carries the offer's immutable Base Price and snapshotted commission rates (`basePriceCents`, `hostFeeRateBps`, `cleanerRateBps`) so the Host counter-back payout preview matches the server's authoritative breakdown exactly (removed env-default rate fallback in `HostCounterofferInboxScreen`)

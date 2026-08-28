@@ -22,10 +22,6 @@ const COLORS = {
   inactiveText: 'rgba(255, 255, 255, 0.6)',
 } as const;
 
-const SPACING = {
-  xs: 4,
-} as const;
-
 const FONT_SIZE = {
   button: 13,
 } as const;

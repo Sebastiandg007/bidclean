@@ -406,20 +406,22 @@ describe('Offer Radar — Property-Based Tests', () => {
             const sorted = applySorting(offers, sort);
 
             for (let i = 0; i < sorted.length - 1; i++) {
+              const current = sorted[i]!;
+              const next = sorted[i + 1]!;
               switch (sort) {
                 case 'distance_asc':
-                  expect(sorted[i].distanceMeters).toBeLessThanOrEqual(sorted[i + 1].distanceMeters);
+                  expect(current.distanceMeters).toBeLessThanOrEqual(next.distanceMeters);
                   break;
                 case 'price_desc':
-                  expect(sorted[i].priceBreakdown.payoutCents).toBeGreaterThanOrEqual(
-                    sorted[i + 1].priceBreakdown.payoutCents,
+                  expect(current.priceBreakdown.payoutCents).toBeGreaterThanOrEqual(
+                    next.priceBreakdown.payoutCents,
                   );
                   break;
                 case 'scheduled_asc':
-                  expect(sorted[i].scheduledAt <= sorted[i + 1].scheduledAt).toBe(true);
+                  expect(current.scheduledAt <= next.scheduledAt).toBe(true);
                   break;
                 case 'published_desc':
-                  expect(sorted[i].publishedAt >= sorted[i + 1].publishedAt).toBe(true);
+                  expect(current.publishedAt >= next.publishedAt).toBe(true);
                   break;
               }
             }

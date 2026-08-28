@@ -47,7 +47,7 @@ export const OfferPinsLayer: React.FC<OfferPinsLayerProps> = React.memo(
     const geoJSON = useRadarStore((state) => state.getOffersAsGeoJSON());
 
     const handlePress = useCallback(
-      (event: MapboxGL.OnPressEvent) => {
+      (event: { features?: GeoJSON.Feature[] }) => {
         const feature = event.features?.[0];
         if (!feature) return;
 
@@ -85,7 +85,6 @@ export const OfferPinsLayer: React.FC<OfferPinsLayerProps> = React.memo(
           id={LAYER_IDS.OFFER_PINS}
           filter={unclusteredFilter}
           style={offerPinStyle}
-          testID="offer-pins-layer"
         />
 
         {/* Cluster circles + count (rendered above pins) */}

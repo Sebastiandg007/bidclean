@@ -341,6 +341,7 @@ export const PhotoUploader: React.FC<PhotoUploaderProps> = ({
     if (result.canceled || !result.assets?.length) return;
 
     const asset = result.assets[0];
+    if (!asset) return;
     const fileSizeBytes = asset.fileSize ?? 0;
     const maxBytes = PROPERTY_PHOTO_MAX_SIZE_MB * BYTES_PER_MB;
 
@@ -365,10 +366,10 @@ export const PhotoUploader: React.FC<PhotoUploaderProps> = ({
       if (currentIndex <= 0) return;
 
       const reordered = [...ids];
-      [reordered[currentIndex - 1], reordered[currentIndex]] = [
-        reordered[currentIndex],
-        reordered[currentIndex - 1],
-      ];
+      const prev = reordered[currentIndex - 1]!;
+      const current = reordered[currentIndex]!;
+      reordered[currentIndex - 1] = current;
+      reordered[currentIndex] = prev;
       onReorder?.(reordered);
     },
     [sortedPhotos, onReorder],
@@ -381,10 +382,10 @@ export const PhotoUploader: React.FC<PhotoUploaderProps> = ({
       if (currentIndex < 0 || currentIndex >= ids.length - 1) return;
 
       const reordered = [...ids];
-      [reordered[currentIndex], reordered[currentIndex + 1]] = [
-        reordered[currentIndex + 1],
-        reordered[currentIndex],
-      ];
+      const current = reordered[currentIndex]!;
+      const next = reordered[currentIndex + 1]!;
+      reordered[currentIndex] = next;
+      reordered[currentIndex + 1] = current;
       onReorder?.(reordered);
     },
     [sortedPhotos, onReorder],

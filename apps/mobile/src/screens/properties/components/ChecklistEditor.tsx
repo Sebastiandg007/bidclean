@@ -335,7 +335,10 @@ export const ChecklistEditor: React.FC<ChecklistEditorProps> = ({
     (index: number) => {
       if (index <= 0) return;
       const reordered = [...items];
-      [reordered[index - 1], reordered[index]] = [reordered[index], reordered[index - 1]];
+      const prev = reordered[index - 1]!;
+      const current = reordered[index]!;
+      reordered[index - 1] = current;
+      reordered[index] = prev;
       onChange?.(reordered);
     },
     [items, onChange],
@@ -345,7 +348,10 @@ export const ChecklistEditor: React.FC<ChecklistEditorProps> = ({
     (index: number) => {
       if (index >= items.length - 1) return;
       const reordered = [...items];
-      [reordered[index], reordered[index + 1]] = [reordered[index + 1], reordered[index]];
+      const current = reordered[index]!;
+      const next = reordered[index + 1]!;
+      reordered[index] = next;
+      reordered[index + 1] = current;
       onChange?.(reordered);
     },
     [items, onChange],

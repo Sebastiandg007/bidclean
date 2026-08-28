@@ -15,7 +15,7 @@
  * - Full accessibility support (roles, labels, states)
  */
 
-import React, { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,

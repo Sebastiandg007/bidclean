@@ -113,7 +113,6 @@ export const RadarMapView: React.FC<RadarMapViewProps> = React.memo(
           maxZoomLevel={MAP_MAX_ZOOM}
           animationMode="flyTo"
           animationDuration={MAP_FLY_TO_DURATION_MS}
-          testID="radar-camera"
         />
 
         {/* Layer 1: Work zone radius ring (bottom-most overlay) */}

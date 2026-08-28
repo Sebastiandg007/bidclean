@@ -87,10 +87,13 @@ export interface PropertyMapProps {
 
 // ─── Sub-Components ──────────────────────────────────────────────────────────
 
+/** Drag payload emitted by Mapbox PointAnnotation (a GeoJSON Point feature) */
+type PinDragPayload = GeoJSON.Feature<GeoJSON.Point>;
+
 interface MapPinProps {
   coordinate: [number, number];
   draggable: boolean;
-  onDragEnd: (event: { geometry: { coordinates: [number, number] } }) => void;
+  onDragEnd: (payload: PinDragPayload) => void;
 }
 
 /** Custom map pin marker with accent color */
@@ -230,8 +233,10 @@ export const PropertyMap: React.FC<PropertyMapProps> = ({
 
   /** Handle pin drag end — triggers reverse geocoding */
   const handleDragEnd = useCallback(
-    (event: { geometry: { coordinates: [number, number] } }) => {
-      const [longitude, latitude] = event.geometry.coordinates;
+    (payload: PinDragPayload) => {
+      const longitude = payload.geometry.coordinates[0];
+      const latitude = payload.geometry.coordinates[1];
+      if (longitude === undefined || latitude === undefined) return;
       const newCoordinates: Coordinates = { latitude, longitude };
       void handlePinPlacement(newCoordinates);
     },
@@ -246,7 +251,9 @@ export const PropertyMap: React.FC<PropertyMapProps> = ({
       const geometry = feature.geometry;
       if (geometry.type !== 'Point') return;
 
-      const [longitude, latitude] = geometry.coordinates;
+      const longitude = geometry.coordinates[0];
+      const latitude = geometry.coordinates[1];
+      if (longitude === undefined || latitude === undefined) return;
       const newCoordinates: Coordinates = { latitude, longitude };
       void handlePinPlacement(newCoordinates);
     },

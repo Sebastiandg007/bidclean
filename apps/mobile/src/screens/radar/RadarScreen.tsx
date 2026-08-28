@@ -17,7 +17,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useTranslation } from 'react-i18next';
 
 import { useAuthStore } from '../../stores/auth.store';
 import { useProfileStore } from '../profile/useProfile';
@@ -56,8 +55,6 @@ const KM_TO_METERS = 1_000;
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export function RadarScreen(): React.JSX.Element {
-  const { t } = useTranslation('radar');
-
   // ─── Auth (Cleaner ID) ─────────────────────────────────────────────────
 
   const cleanerId = useAuthStore((state) => state.user?.id ?? '');
@@ -97,7 +94,6 @@ export function RadarScreen(): React.JSX.Element {
 
   const offers = useRadarStore((state) => state.offers);
   const viewMode = useRadarStore((state) => state.viewMode);
-  const connectionStatus = useRadarStore((state) => state.connectionStatus);
   const isLoading = useRadarStore((state) => state.isLoading);
   const selectedOfferId = useRadarStore((state) => state.selectedOfferId);
   const getActiveFilterCount = useRadarStore((state) => state.getActiveFilterCount);

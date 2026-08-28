@@ -6,7 +6,7 @@
  */
 
 import React from 'react';
-import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
+import { render, fireEvent, waitFor } from '@testing-library/react-native';
 
 // ─── Mocks ───────────────────────────────────────────────────────────────────
 
@@ -70,41 +70,39 @@ jest.mock('react-native-reanimated', () => {
   };
 });
 
-jest.mock('react-native-safe-area-context', () => ({
-  SafeAreaView: ({ children, ...props }: { children: React.ReactNode }) => (
-    <mock-safe-area {...props}>{children}</mock-safe-area>
-  ),
-}));
+jest.mock('react-native-safe-area-context', () => {
+  const { View } = require('react-native') as typeof import('react-native');
+  return {
+    SafeAreaView: ({ children, ...props }: { children: React.ReactNode }) => (
+      <View {...props}>{children}</View>
+    ),
+  };
+});
 
-jest.mock('../components/PropertyTypeSelector', () => ({
-  PropertyTypeSelector: ({ selected, onChange }: { selected?: string; onChange: (t: string) => void }) => (
-    <mock-type-selector testID="property-type-selector" selected={selected} onChange={onChange} />
-  ),
-}));
+jest.mock('../components/PropertyTypeSelector', () => {
+  const { View } = require('react-native') as typeof import('react-native');
+  return { PropertyTypeSelector: () => <View testID="property-type-selector" /> };
+});
 
-jest.mock('../components/AddressInput', () => ({
-  AddressInput: ({ value, onChange, onGeocode }: { value: object; onChange: (a: object) => void; onGeocode: () => void }) => (
-    <mock-address-input testID="address-input" value={JSON.stringify(value)} onChange={onChange} onGeocode={onGeocode} />
-  ),
-}));
+jest.mock('../components/AddressInput', () => {
+  const { View } = require('react-native') as typeof import('react-native');
+  return { AddressInput: () => <View testID="address-input" /> };
+});
 
-jest.mock('../components/PropertyMap', () => ({
-  PropertyMap: ({ coordinates, onLocationChange }: { coordinates?: object; onLocationChange?: (c: object) => void }) => (
-    <mock-property-map testID="property-map" coordinates={JSON.stringify(coordinates)} onLocationChange={onLocationChange} />
-  ),
-}));
+jest.mock('../components/PropertyMap', () => {
+  const { View } = require('react-native') as typeof import('react-native');
+  return { PropertyMap: () => <View testID="property-map" /> };
+});
 
-jest.mock('../components/ChecklistEditor', () => ({
-  ChecklistEditor: ({ items, onChange }: { items: string[]; onChange: (i: string[]) => void }) => (
-    <mock-checklist-editor testID="checklist-editor" items={JSON.stringify(items)} onChange={onChange} />
-  ),
-}));
+jest.mock('../components/ChecklistEditor', () => {
+  const { View } = require('react-native') as typeof import('react-native');
+  return { ChecklistEditor: () => <View testID="checklist-editor" /> };
+});
 
-jest.mock('../components/RequirementsChips', () => ({
-  RequirementsChips: ({ selected, onChange }: { selected: string[]; onChange: (r: string[]) => void }) => (
-    <mock-requirements-chips testID="requirements-chips" selected={JSON.stringify(selected)} onChange={onChange} />
-  ),
-}));
+jest.mock('../components/RequirementsChips', () => {
+  const { View } = require('react-native') as typeof import('react-native');
+  return { RequirementsChips: () => <View testID="requirements-chips" /> };
+});
 
 // ─── Import After Mocks ──────────────────────────────────────────────────────
 

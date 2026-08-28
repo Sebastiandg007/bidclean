@@ -12,7 +12,15 @@
 
 import React, { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { useTranslation, type TFunction } from 'react-i18next';
+import { useTranslation } from 'react-i18next';
+
+/**
+ * Minimal structural type for the i18next translate function. Avoids coupling
+ * to i18next's strict `TFunction` generic (which triggers overload mismatches
+ * when passing interpolation options) since this project does not generate
+ * typed translation resources.
+ */
+type TranslateFn = (key: string, options?: Record<string, unknown>) => string;
 
 import { COLORS, SPACING, FONT_SIZE, STATE_COLORS } from '../offers.constants';
 import type { OfferState, OfferStateTransition } from '../offers.types';
@@ -43,7 +51,7 @@ const MS_PER_SECOND = 1000;
  * Formats a timestamp as relative (e.g., "5m ago") if within 24h,
  * otherwise as absolute date/time string.
  */
-function formatTimestamp(isoDate: string, t: TFunction): string {
+function formatTimestamp(isoDate: string, t: TranslateFn): string {
   const date = new Date(isoDate);
   const now = Date.now();
   const diffMs = now - date.getTime();
@@ -55,7 +63,7 @@ function formatTimestamp(isoDate: string, t: TFunction): string {
   return formatRelative(diffMs, t);
 }
 
-function formatRelative(diffMs: number, t: TFunction): string {
+function formatRelative(diffMs: number, t: TranslateFn): string {
   const seconds = Math.floor(diffMs / MS_PER_SECOND);
   const minutes = Math.floor(seconds / SECONDS_PER_MINUTE);
   const hours = Math.floor(minutes / MINUTES_PER_HOUR);
@@ -138,7 +146,6 @@ export function StateTimeline({
           <View
             key={entry.id}
             style={styles.entry}
-            accessibilityRole="listitem"
             accessibilityLabel={t('offers.stateTimeline.entryA11y', {
               state: t(`offers.state.${entry.state}`),
               time: formatTimestamp(entry.createdAt, t),

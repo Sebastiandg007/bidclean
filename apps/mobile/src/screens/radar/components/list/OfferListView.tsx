@@ -72,7 +72,7 @@ function injectAdSlots(offers: RadarOffer[], adsEnabled: boolean): ListItem[] {
   const items: ListItem[] = [];
   let adIndex = 0;
 
-  for (let i = 0; i < offers.length; i++) {
+  for (const offer of offers) {
     const currentPosition = items.length;
 
     // Check if current position should be an ad slot
@@ -85,13 +85,13 @@ function injectAdSlots(offers: RadarOffer[], adsEnabled: boolean): ListItem[] {
       adIndex++;
     }
 
-    items.push({ type: 'offer', data: offers[i] });
+    items.push({ type: 'offer', data: offer });
   }
 
   return items;
 }
 
-function getItemKey(item: ListItem, index: number): string {
+function getItemKey(item: ListItem): string {
   if (item.type === 'ad') {
     return item.key;
   }

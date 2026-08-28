@@ -27,7 +27,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import type { GeoPoint } from '../../radar.types';
-import { CLEANER_PULSE_CONFIG, SOURCE_IDS, LAYER_IDS } from '../../radar.constants';
+import { CLEANER_PULSE_CONFIG, LAYER_IDS } from '../../radar.constants';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -46,8 +46,8 @@ export interface CleanerMarkerProps {
 
 export const CleanerMarker: React.FC<CleanerMarkerProps> = React.memo(
   ({ location }) => {
-    const scale = useSharedValue(CLEANER_PULSE_CONFIG.minScale);
-    const opacity = useSharedValue(CLEANER_PULSE_CONFIG.maxOpacity);
+    const scale = useSharedValue<number>(CLEANER_PULSE_CONFIG.minScale);
+    const opacity = useSharedValue<number>(CLEANER_PULSE_CONFIG.maxOpacity);
 
     useEffect(() => {
       const halfDuration = CLEANER_PULSE_CONFIG.durationMs / 2;

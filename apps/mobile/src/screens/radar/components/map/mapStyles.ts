@@ -11,13 +11,18 @@
  * - CircleLayer (work zone): fill, border
  */
 
-import type { Expression } from '@rnmapbox/maps';
-
 import {
   CLUSTER_CONFIG,
   PIN_COLORS,
   SERVICE_TYPE_ICONS,
 } from '../../radar.constants';
+
+/**
+ * Mapbox GL style expression. `@rnmapbox/maps` v10 does not export a public
+ * `Expression` type, so we model it locally as a JSON expression array
+ * (operator followed by arguments). This matches the Mapbox GL expression spec.
+ */
+type Expression = unknown[];
 
 // ─── Icon Image Mapping ──────────────────────────────────────────────────────
 

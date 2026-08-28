@@ -149,8 +149,9 @@ function FullScreenViewer({
 
   const handleViewableChange = useCallback(
     ({ viewableItems }: { viewableItems: Array<{ index: number | null }> }) => {
-      if (viewableItems.length > 0 && viewableItems[0].index !== null) {
-        setCurrentIndex(viewableItems[0].index);
+      const first = viewableItems[0];
+      if (first && first.index !== null) {
+        setCurrentIndex(first.index);
       }
     },
     [],
@@ -251,6 +252,7 @@ function FullScreenViewer({
  * @param props.photos - Sorted array of PropertyPhoto objects to display
  */
 export const PropertyPhotoGallery: React.FC<PropertyPhotoGalleryProps> = ({ photos }) => {
+  const { t } = useTranslation();
   const [fullScreenVisible, setFullScreenVisible] = useState(false);
   const [fullScreenIndex, setFullScreenIndex] = useState(0);
 

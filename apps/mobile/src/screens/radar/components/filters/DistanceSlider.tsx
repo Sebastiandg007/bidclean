@@ -88,7 +88,10 @@ function getDeviceLocale(): string {
 
 function useImperialUnits(): boolean {
   const locale = getDeviceLocale();
-  return IMPERIAL_LOCALES.some((l) => locale.startsWith(l.split('-')[0]));
+  return IMPERIAL_LOCALES.some((l) => {
+    const language = l.split('-')[0] ?? l;
+    return locale.startsWith(language);
+  });
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────

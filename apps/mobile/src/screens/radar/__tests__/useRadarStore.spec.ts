@@ -336,7 +336,7 @@ describe('useRadarStore', () => {
       const result = useRadarStore.getState().getOffersAsGeoJSON();
 
       expect(result.features).toHaveLength(1);
-      const feature = result.features[0];
+      const feature = result.features[0]!;
       expect(feature.type).toBe('Feature');
       expect(feature.geometry.type).toBe('Point');
       expect(feature.geometry.coordinates).toEqual([-74.072, 4.711]);
@@ -362,7 +362,7 @@ describe('useRadarStore', () => {
       );
 
       const result = useRadarStore.getState().getOffersAsGeoJSON();
-      expect(result.features[0].properties.payoutCents).toBe(14550);
+      expect(result.features[0]!.properties.payoutCents).toBe(14550);
     });
   });
 
@@ -447,9 +447,9 @@ describe('useRadarStore', () => {
       store.handleOfferNew(createMockOffer({ offerId: 'mid', distanceMeters: 2000 }));
 
       const list = useRadarStore.getState().getOffersList();
-      expect(list[0].offerId).toBe('near');
-      expect(list[1].offerId).toBe('mid');
-      expect(list[2].offerId).toBe('far');
+      expect(list[0]!.offerId).toBe('near');
+      expect(list[1]!.offerId).toBe('mid');
+      expect(list[2]!.offerId).toBe('far');
     });
   });
 
