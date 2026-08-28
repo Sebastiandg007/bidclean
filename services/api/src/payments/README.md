@@ -100,7 +100,20 @@ Tests live in `__tests__/`. Unit specs cover each service, the controller, the r
 | P8 | Idempotency keys are deterministic per input, and distinct charge attempts produce distinct keys |
 | P12 | Lifecycle orthogonality — each state machine only permits its own declared transitions |
 
-Flows that need a live DB/Stripe (single-charge, single-release, reconciliation convergence, authorization) are exercised end-to-end in the integration tests rather than here.
+`payments.scenarios.spec.ts` is a scenario suite that wires the real services (`EscrowChargeService`, `EscrowReleaseService`, `RefundService`, `DisputeService`, `CommissionService`) together over an in-memory fake repository and a mocked `StripeClient`, exercising the escrow flows end-to-end without a live database. The fake repository mirrors the DB-level invariants (`uq_payment_offer`, `uq_one_succeeded_attempt`, `chk_refund_ceiling`/`chk_reversal_ceiling`, `uq_payment_event_stripe_id`) so the service logic is validated against the same guarantees Postgres enforces in production:
+
+| Scenario | What it covers |
+|----------|----------------|
+| 18.1 / 18.1b | Charge on `offer.matched` → `HELD` with fee recorded; a second match creates no second payment or charge (P3) |
+| 18.2 / 18.2b | Confirm → single release Transfer → `RELEASED`; concurrent release triggers yield one Transfer (P4) |
+| 18.3 | Deferred release when the account is not payout-enabled, then flushed once eligible (P6) |
+| 18.4 | Pre-release partial refund → `PARTIALLY_REFUNDED`; over-ceiling refund rejected (P7) |
+| 18.5 | Post-release full refund → bounded Transfer Reversal + Refund → `REFUNDED` |
+| 18.6 | Dispute `OPEN` pauses auto-release (P5) |
+| 18.7 | Redelivered webhook event id is deduped (P8) |
+| 18.8 | Failed charge → `FAILED` + `payment.failed`; retry creates attempt #2 → `HELD` |
+
+Flows that need a live DB/Stripe (real persistence, connected-account onboarding round-trips, reconciliation convergence against live Stripe state, authorization guards) are exercised in the integration tests rather than here.
 
 ## Related Documentation
 - `docs/ARCHITECTURE.md` §5 Payment Flow, §5b Payment Escrow Schema, §5c Stripe Webhook Ingress, §5d Payment Domain Events, §5e Payment Reconciliation
