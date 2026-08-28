@@ -110,6 +110,8 @@ graph TB
             Service["Service In Progress"]
             Chat["Chat Screen"]
             PropertyEdit["Property Editor"]
+            PaymentStatus["Payment Status<br/>(Breakdown + Refund)"]
+            PayoutOnboarding["Cleaner Payout Onboarding<br/>(Stripe Express)"]
         end
 
         subgraph Stores["Zustand Stores"]
