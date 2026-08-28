@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Stripe Escrow module (Spec — stripe-escrow)** — shared types alignment & environment configuration (Task 1)
+  - Extended shared `PaymentBreakdown` (`packages/shared/src/types/payment.types.ts`) with optional `stripeFeeAmount` and `netPlatformRevenue` fields (integer minor units / cents); additive only, no existing consumers broken
+  - Added a `# --- Payments (Stripe Escrow) ---` section to `.env.example` with Stripe config (`STRIPE_API_VERSION`, `STRIPE_CONNECT_ACCOUNT_TYPE`), webhook replay tolerance (`STRIPE_WEBHOOK_TOLERANCE_SECONDS`), Express onboarding URLs (`STRIPE_ONBOARDING_REFRESH_URL`, `STRIPE_ONBOARDING_RETURN_URL`), escrow/release timing (`ESCROW_AUTO_RELEASE_HOURS`, `PAYMENTS_AUTO_RELEASE_SWEEP_MS`), reconciliation intervals (`PAYMENTS_RECONCILE_INTERVAL_MS`, `CONNECT_RECONCILE_INTERVAL_MS`), and BullMQ retry/backoff (`PAYMENTS_MAX_RETRIES`, `PAYMENTS_BACKOFF_DELAY_MS`); existing `STRIPE_SECRET_KEY`/`STRIPE_PUBLISHABLE_KEY`/`STRIPE_WEBHOOK_SECRET` not duplicated
 - **Offer Negotiation module (Spec 8 — offer-negotiation)** — full accept/counteroffer lifecycle and match finalization
   - Backend `NegotiationModule` (NestJS): `negotiation_threads`, `negotiation_proposals`, `negotiation_idempotency` tables (migration `1700000013000`); direct accept, counteroffer, host accept/reject/counter, thread + host-inbox reads
   - Match exclusively via the `OFFER_MATCH` contract (`matchSource: 'negotiation'`); the module never writes the `offers` table directly
