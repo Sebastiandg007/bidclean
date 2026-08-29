@@ -29,7 +29,7 @@ Implementation tasks for the User Authentication & Registration feature. Covers 
 - [x] 21. Write unit tests for auth service (register, callback, session metadata creation)
 - [x] 22. Write unit tests for biometric service (challenge generation, signature verification, expiry)
 - [x] 23. Write unit tests for session metadata service (create, revoke single, revoke-all)
-- [ ] 24. Write integration tests for auth endpoints (full flow with test Keycloak)
+- [!] 24. Write integration tests for auth endpoints (full flow with test Keycloak) — BLOCKED (infra)
 - [x] 25. Create auth screens folder structure with README
 - [x] 26. Implement Welcome screen (logo animation with Reanimated 3, Get Started and Log In buttons, dark theme)
 - [x] 27. Implement Register screen (full name, country ISO 3166-1 picker, language BCP 47 picker)
@@ -66,3 +66,38 @@ Implementation tasks for the User Authentication & Registration feature. Covers 
 - Rate limiting (Task 18) requires Redis to be available.
 - Mobile OAuth uses system browser (not WebView) for security.
 - Integration tests (Task 24) require a test Keycloak instance.
+
+### Task 24 — BLOCKED (infrastructure dependency)
+
+Status: `[!]` blocked. Not implementable in the current environment.
+
+Why it is blocked:
+
+- The task is explicitly a full-flow integration test ("full flow with test
+  Keycloak"). It exercises the real register → login-url → callback →
+  `/auth/me` → logout path against a live Keycloak realm, so it cannot be
+  satisfied by mocked unit tests (those already exist as Tasks 21–23).
+- It requires a running Keycloak instance with the BidClean realm/client
+  provisioned (Task 1), plus Redis for the rate-limit guard (Task 18). Neither
+  service is available in this workspace (no Docker/Compose stack running).
+
+What is needed to unblock:
+
+1. A disposable test Keycloak (e.g. `keycloak` service in
+   `infra/docker-compose*.yml`) with the BidClean realm imported and a
+   confidential client for the API.
+2. Redis available for the rate-limit guard.
+3. Test env config pointing the API at those instances
+   (`KEYCLOAK_*`, `REDIS_*` in a `.env.test`).
+
+Where it should live / run when unblocked:
+
+- Test files: `services/api/test/auth/*.e2e-spec.ts` (Nest e2e via
+  `supertest`), run with the API e2e jest project — not the unit `jest` run.
+- CI: a dedicated job in `.github/workflows/ci.yml` that spins up Keycloak +
+  Redis as service containers before running the auth e2e suite.
+
+Unit-level coverage of the same logic already exists (Tasks 21–23:
+auth.service, biometric.service, session-metadata.service), so the auth
+module's business logic is tested; only the live end-to-end wiring is
+deferred until the test infrastructure is provisioned.

@@ -15,6 +15,7 @@ import { useRouter } from 'expo-router';
 import { SettingsItem } from './components/SettingsItem';
 import { DeleteAccountModal } from './components/DeleteAccountModal';
 import { useAuthStore } from '../../stores/auth.store';
+import { apiClient } from '../../services/api.service';
 
 // ─── Design Tokens ───────────────────────────────────────────────────────────
 
@@ -60,12 +61,6 @@ const CONFIRMATION_WORD = 'DELETE';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-async function getApiClient() {
-   
-  const { apiClient } = await import('../../services/api.service') as { apiClient: { post: <T>(url: string, data?: unknown) => Promise<{ data: T; status: number }> } };
-  return apiClient;
-}
-
 function extractErrorMessage(err: unknown, fallbackKey: string): string {
   if (err instanceof Error && err.message) {
     return err.message;
@@ -91,8 +86,7 @@ export function AccountScreen(): React.JSX.Element {
 
   const handleChangeEmail = useCallback(async () => {
     try {
-      const client = await getApiClient();
-      const response = await client.post<{ url: string }>(ENDPOINTS.CHANGE_EMAIL);
+      const response = await apiClient.post<{ url: string }>(ENDPOINTS.CHANGE_EMAIL);
       await WebBrowser.openBrowserAsync(response.data.url);
     } catch (err) {
       const message = extractErrorMessage(err, t('profile.account.error.email_change_failed'));
@@ -102,8 +96,7 @@ export function AccountScreen(): React.JSX.Element {
 
   const handleChangePassword = useCallback(async () => {
     try {
-      const client = await getApiClient();
-      const response = await client.post<{ url: string }>(ENDPOINTS.CHANGE_PASSWORD);
+      const response = await apiClient.post<{ url: string }>(ENDPOINTS.CHANGE_PASSWORD);
       await WebBrowser.openBrowserAsync(response.data.url);
     } catch (err) {
       const message = extractErrorMessage(err, t('profile.account.error.password_change_failed'));
@@ -123,8 +116,7 @@ export function AccountScreen(): React.JSX.Element {
     setDeletionLoading(true);
 
     try {
-      const client = await getApiClient();
-      const response = await client.post(ENDPOINTS.DELETE_ACCOUNT, {
+      const response = await apiClient.post(ENDPOINTS.DELETE_ACCOUNT, {
         confirmationWord: CONFIRMATION_WORD,
       });
 

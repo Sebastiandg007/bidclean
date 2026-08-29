@@ -9,8 +9,11 @@ import { Alert } from 'react-native';
 
 // ─── Mocks ───────────────────────────────────────────────────────────────────
 
+// Stable `t` reference (matches react-i18next). A fresh `t` per render would recreate
+// the fetch useCallback and re-fire its effect, causing an infinite render loop.
+const stableT = (key: string): string => key;
 jest.mock('react-i18next', () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
+  useTranslation: () => ({ t: stableT }),
 }));
 
 jest.mock('react-native-safe-area-context', () => {

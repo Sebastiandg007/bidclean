@@ -8,13 +8,15 @@ import { render } from '@testing-library/react-native';
 
 // ─── Mocks ───────────────────────────────────────────────────────────────────
 
+// Stable `t` reference (mirrors react-i18next, whose `t` is stable across renders).
+// A fresh `t` per render would recreate the fetch useCallback and re-fire its effect,
+// causing an infinite render loop in components that depend on `t` in fetch deps.
+const stableT = (key: string, params?: Record<string, unknown>): string => {
+  if (params && 'date' in params) return `${key}__${String(params.date)}`;
+  return key;
+};
 jest.mock('react-i18next', () => ({
-  useTranslation: () => ({
-    t: (key: string, params?: Record<string, unknown>) => {
-      if (params && 'date' in params) return `${key}__${params.date}`;
-      return key;
-    },
-  }),
+  useTranslation: () => ({ t: stableT }),
 }));
 
 jest.mock('react-native-safe-area-context', () => {

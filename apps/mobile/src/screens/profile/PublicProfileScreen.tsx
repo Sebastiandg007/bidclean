@@ -25,6 +25,7 @@ import { useLocalSearchParams } from 'expo-router';
 
 import { useSignedUrl } from './useSignedUrl';
 import type { PortfolioPhoto, PublicProfile } from './profile.types';
+import { apiClient } from '../../services/api.service';
 
 // ─── Design Tokens ───────────────────────────────────────────────────────────
 
@@ -68,16 +69,6 @@ const PHOTO_SIZE = 96;
 
 interface PublicProfileResponse extends PublicProfile {
   portfolioPhotos?: PortfolioPhoto[];
-}
-
-async function getApiClient() {
-   
-  const { apiClient } = await import('../../services/api.service') as {
-    apiClient: {
-      get: <T>(url: string) => Promise<{ data: T }>;
-    };
-  };
-  return apiClient;
 }
 
 /** Formats rating to one decimal place or shows placeholder */
@@ -192,8 +183,7 @@ export function PublicProfileScreen(): React.JSX.Element {
     setError(null);
 
     try {
-      const client = await getApiClient();
-      const response = await client.get<PublicProfileResponse>(`/profile/${userId}`);
+      const response = await apiClient.get<PublicProfileResponse>(`/profile/${userId}`);
       setProfile(response.data);
     } catch {
       setError(t('profile.public.error'));

@@ -64,11 +64,16 @@ import { SettingsScreen } from '../SettingsScreen';
 
 beforeEach(() => {
   jest.clearAllMocks();
-  // Reset the zustand store before each test
+  // Reset the zustand store before each test.
+  // Stub the mount-effect actions by default so a plain render() does not fire
+  // real async store updates that resolve after the test ends (act warnings +
+  // cross-suite leaks). Individual tests override these when they assert on them.
   useSettingsStore.setState({
     settings: mockSettingsData(),
     isLoading: false,
     error: null,
+    loadFromLocal: jest.fn().mockResolvedValue(undefined),
+    fetchFromBackend: jest.fn().mockResolvedValue(undefined),
   });
 });
 
@@ -192,6 +197,9 @@ describe('SettingsScreen', () => {
       settings: null,
       isLoading: true,
       error: null,
+      // Stub the mount-effect actions so no real async fetch leaks past teardown.
+      loadFromLocal: jest.fn().mockResolvedValue(undefined),
+      fetchFromBackend: jest.fn().mockResolvedValue(undefined),
     });
 
     const { getByTestId } = render(<SettingsScreen />);
