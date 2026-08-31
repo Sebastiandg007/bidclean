@@ -1,7 +1,5 @@
 import { DataSource } from 'typeorm';
 import { SubscriptionsRepository } from '../subscriptions.repository';
-import { Subscription } from '../entities/subscription.entity';
-import { SubscriptionEvent } from '../entities/subscription-event.entity';
 import {
   DispatchStatus,
   EntitlementDelta,
