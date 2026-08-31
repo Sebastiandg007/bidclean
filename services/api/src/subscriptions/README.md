@@ -54,6 +54,9 @@ in one role and FREE in the other. `ad_free` is independent and never implies PR
 | `__tests__/revenuecat-signature.spec.ts` | Unit tests for HMAC-SHA256 verification (tolerance + constant-time compare). | Implemented |
 | `__tests__/revenuecat-webhook.processor.spec.ts` | Unit tests for the BullMQ processor: applies deltas + PROCESSED, idempotent no-op on already-PROCESSED, unknown event → empty deltas (still PROCESSED), missing ledger row skip, FAILED on retry exhaustion. | Implemented |
 | `__tests__/subscription-reconciliation.service.spec.ts` | Unit tests for the reconciliation sweep: converge stale rows, no-op when correct, discover missing subscribers (P18), RevenueCat outage leaves the mirror untouched, and a failing repository query never throws. | Implemented |
+| `__tests__/subscription-webhook.property.spec.ts` | Property-based tests (fast-check) for webhook authenticity, ingestion, and durability: P3 signature/tamper/tolerance, P4 idempotent ingestion, P5/P15 out-of-order + per-entitlement convergence, P9 no sensitive persistence, P13 transfer integrity, P16 webhook durability. | Implemented |
+| `__tests__/subscription-reconciliation.property.spec.ts` | Property-based tests (fast-check) for reconciliation: P6 convergence, P8 safe degradation on RevenueCat outage, P18 discovery of missing subscribers. | Implemented |
+| `__tests__/subscription-config.property.spec.ts` | Property-based tests (fast-check) for P10 configuration integrity: production startup fails when any entitlement id mapping is missing (no silent hardcoded fallback). | Implemented |
 
 ## Domain Rules
 
@@ -114,7 +117,11 @@ referenced by name only and never committed.
 ## Testing
 
 No live RevenueCat is required — the `RevenueCatClient` seam and a faked repository cover
-ingestion, resolution, recovery, and reconciliation. Property-based tests (fast-check) in
-`__tests__/subscription-tier.property.spec.ts` cover the tier-resolution correctness properties
-(P1, P2, P11, P12, P17); the remaining correctness properties (P1–P18) and integration/scenario
-and mobile tests are added as the corresponding files land.
+ingestion, resolution, recovery, and reconciliation. Property-based tests (fast-check) cover the
+backend correctness properties: tier resolution (P1, P2, P11, P12, P17) in
+`__tests__/subscription-tier.property.spec.ts`; webhook authenticity, ingestion, and durability
+(P3, P4, P5, P9, P13, P15, P16) in `__tests__/subscription-webhook.property.spec.ts`;
+reconciliation (P6, P8, P18) in `__tests__/subscription-reconciliation.property.spec.ts`; and
+configuration integrity (P10) in `__tests__/subscription-config.property.spec.ts`. P7 and P14 are
+structural (server-authoritative reads) and are covered by the mobile store tests, which land with
+the corresponding files.
