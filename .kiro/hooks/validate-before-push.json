@@ -1,0 +1,15 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Validate Lint & Types Before Push (Full CI Parity)",
+      "description": "Runs the exact same lint and typecheck commands as the CI workflow before any git push. Covers all workspaces (mobile, api, shared). Automatically fixes what it can and blocks the push if unfixable errors remain.",
+      "trigger": "PreToolUse",
+      "action": {
+        "type": "agent",
+        "prompt": "This shell command contains 'git push'. Before proceeding, you MUST validate the code passes the same checks as the CI. Run these commands from the PROJECT ROOT in order:\n\n1. Run 'npm run lint:fix --workspaces --if-present' to auto-fix lint issues across all workspaces.\n2. Run 'npm run typecheck --workspaces --if-present' to verify TypeScript types across all workspaces.\n3. If step 1 modified files (check 'git status --short'), stage with 'git add -A' and amend with 'git commit --amend --no-edit'.\n4. If step 2 failed, fix the TypeScript errors manually, then run step 2 again to verify.\n5. If fixes were applied in step 4, stage and amend the commit.\n6. Only proceed with the git push when BOTH lint and typecheck pass with zero errors across all workspaces.\n\nThese are the EXACT same commands the CI runs ('npm run lint' and 'npm run typecheck' with --workspaces --if-present). Do NOT skip any workspace. Do NOT push if any check fails."
+      },
+      "enabled": false
+    }
+  ]
+}

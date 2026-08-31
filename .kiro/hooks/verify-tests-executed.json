@@ -1,0 +1,15 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Verify Tests Executed",
+      "description": "After a task completes, verifies if tests were needed and ran. If the task implemented logic/endpoints/components that need tests but none exist or ran, the agent must create them. If the task was config/docs/structure, testing is not required.",
+      "trigger": "PostTaskExec",
+      "action": {
+        "type": "agent",
+        "prompt": "A task was just completed. Determine if this task required automated tests: Did it implement business logic, API endpoints, services, or interactive components? If YES: verify that corresponding tests exist and pass. If tests are missing, create them now. If tests fail, fix them. If NO (the task was purely configuration, documentation, or folder structure): confirm testing is not applicable and continue."
+      },
+      "enabled": true
+    }
+  ]
+}

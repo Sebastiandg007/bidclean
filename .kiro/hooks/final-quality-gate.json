@@ -1,0 +1,15 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Final Quality Gate",
+      "description": "Lightweight final check when the agent finishes. Verifies that work was committed and documentation was updated. Does NOT re-run lint/typecheck/tests if the sub-agent already did so (avoids redundant credit usage).",
+      "trigger": "Stop",
+      "action": {
+        "type": "agent",
+        "prompt": "The agent just finished working. Perform this LIGHTWEIGHT quality check ONLY IF code files were created or modified during this session. If no code changes were made (only conversation), skip all checks and say so.\n\nFOR CODE CHANGES — verify these quickly (do NOT re-run commands that already passed):\n\n1. GIT STATUS: Run 'git status --short'. If there are uncommitted changes, stage and commit them with a conventional commit message, then push.\n\n2. DOCUMENTATION SPOT-CHECK: If new modules/files were created, verify the parent README.md mentions them. If not, update it.\n\n3. CHANGELOG: If a feature or bugfix was implemented, verify docs/CHANGELOG.md has an entry under [Unreleased].\n\n4. AUDIT SUMMARY: Report in 2-3 sentences what was verified. If lint/typecheck/tests already ran successfully during implementation (check conversation history), do NOT re-run them — just confirm they passed.\n\nIMPORTANT: This is a SPOT CHECK, not a full re-verification. Trust that steering rules and preToolUse hooks already enforced quality during implementation. Only catch things that slipped through."
+      },
+      "enabled": true
+    }
+  ]
+}

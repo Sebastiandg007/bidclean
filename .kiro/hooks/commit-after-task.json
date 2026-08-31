@@ -1,0 +1,15 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Commit and Push After Task",
+      "description": "After a spec task is completed, commits all changes with a descriptive conventional commit message and pushes to the current branch",
+      "trigger": "PostTaskExec",
+      "action": {
+        "type": "agent",
+        "prompt": "A task was just completed. Stage all changes with git add -A, then commit with a descriptive conventional commit message (feat/fix/docs/refactor scope and short description), then push to the current branch. Do not ask for permission — just commit and push."
+      },
+      "enabled": true
+    }
+  ]
+}

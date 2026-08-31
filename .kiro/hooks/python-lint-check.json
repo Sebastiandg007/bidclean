@@ -1,0 +1,16 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Lint Python on Save",
+      "description": "Checks Python files against project standards (PEP 8, type hints, docstrings) when saved",
+      "trigger": "PostFileSave",
+      "matcher": ".*[^/]*\\.py$",
+      "action": {
+        "type": "agent",
+        "prompt": "A Python file was saved. Check if it follows the project's Python standards: type hints on all functions, proper docstrings, PEP 8 compliance, structured error handling. Fix any violations."
+      },
+      "enabled": true
+    }
+  ]
+}
