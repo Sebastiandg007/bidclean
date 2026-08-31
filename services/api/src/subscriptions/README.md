@@ -34,7 +34,7 @@ in one role and FREE in the other. `ad_free` is independent and never implies PR
 | `subscriptions.module.ts` | NestJS module; provides + exports the real `SUBSCRIPTION_TIER`; validates config. | Planned |
 | `subscription-tier.service.ts` | `RealSubscriptionTierService`: `getTier` + `getRoleTier` derived from the mirror. | Planned |
 | `subscriptions.service.ts` | Read model (`getMyEntitlements`), self-heal trigger, mirror upsert orchestration. | Planned |
-| `subscriptions.repository.ts` | Mirror + ledger/outbox reads and writes; dedup; per-entitlement ordering; discovery; deletion cleanup. | Planned |
+| `subscriptions.repository.ts` | Mirror + ledger/outbox reads and writes; dedup; per-entitlement ordering; atomic TRANSFER; reconciliation convergence + discovery; deletion cleanup. | Implemented |
 | `subscriptions.controller.ts` | `GET /subscriptions/me` (JWT, scoped, self-heal on missing/stale). | Planned |
 | `revenuecat/revenuecat.client.ts` | Versioned REST seam: `getSubscriber`, `deleteSubscriber`. | Planned |
 | `revenuecat/revenuecat.constants.ts` | Logical→configured entitlement id map + `toEntitlementKeys()` (maps external RevenueCat entitlement ids to internal keys). | Implemented |
