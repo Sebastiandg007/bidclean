@@ -53,8 +53,9 @@ describe('mapEventToDeltas', () => {
     RevenueCatEventType.UNCANCELLATION,
     RevenueCatEventType.PRODUCT_CHANGE,
   ])('activates the entitlement on %s', (type) => {
-    const [delta] = mapEventToDeltas(event({ type }));
-    expect(delta).toMatchObject({
+    const deltas = mapEventToDeltas(event({ type }));
+    expect(deltas).toHaveLength(1);
+    expect(deltas[0]).toMatchObject({
       userId: 'user-1',
       entitlementKey: 'CLEANER_PRO',
       active: true,
@@ -64,21 +65,24 @@ describe('mapEventToDeltas', () => {
   });
 
   it('keeps the entitlement active on CANCELLATION (not immediate loss)', () => {
-    const [delta] = mapEventToDeltas(event({ type: RevenueCatEventType.CANCELLATION }));
-    expect(delta.active).toBe(true);
+    const deltas = mapEventToDeltas(event({ type: RevenueCatEventType.CANCELLATION }));
+    expect(deltas).toHaveLength(1);
+    expect(deltas[0]?.active).toBe(true);
   });
 
   it.each([RevenueCatEventType.BILLING_ISSUE, RevenueCatEventType.SUBSCRIPTION_PAUSED])(
     'keeps the entitlement active until expiry on %s (reconciliation is arbiter)',
     (type) => {
-      const [delta] = mapEventToDeltas(event({ type }));
-      expect(delta.active).toBe(true);
+      const deltas = mapEventToDeltas(event({ type }));
+      expect(deltas).toHaveLength(1);
+      expect(deltas[0]?.active).toBe(true);
     },
   );
 
   it('deactivates the entitlement on EXPIRATION', () => {
-    const [delta] = mapEventToDeltas(event({ type: RevenueCatEventType.EXPIRATION }));
-    expect(delta.active).toBe(false);
+    const deltas = mapEventToDeltas(event({ type: RevenueCatEventType.EXPIRATION }));
+    expect(deltas).toHaveLength(1);
+    expect(deltas[0]?.active).toBe(false);
   });
 
   it('produces a source+destination pair on TRANSFER', () => {
@@ -115,6 +119,6 @@ describe('mapEventToDeltas', () => {
   it('ignores unmapped entitlements but keeps recognized ones', () => {
     const deltas = mapEventToDeltas(event({ entitlementIds: ['cleaner_pro', 'unknown'] }));
     expect(deltas).toHaveLength(1);
-    expect(deltas[0].entitlementKey).toBe('CLEANER_PRO');
+    expect(deltas[0]?.entitlementKey).toBe('CLEANER_PRO');
   });
 });
