@@ -30,13 +30,13 @@ in one role and FREE in the other. `ad_free` is independent and never implies PR
 | File | Responsibility | Status |
 |------|---------------|--------|
 | `subscriptions.types.ts` | `EntitlementKey`, `SubscriberRole`, `Store`, `RevenueCatEventType`, `DispatchStatus`, `SubscriberTier`, and the view / delta types (`EntitlementState`, `SubscriptionView`, `EntitlementDelta`). | Implemented |
-| `subscriptions.constants.ts` | Env config + `validateSubscriptionsConfig()` (fail-fast); reuses `REVENUECAT_API_KEY` / `REVENUECAT_API_URL`; logical→configured entitlement id map (`ENTITLEMENT_ID_MAP`). | Planned |
+| `subscriptions.constants.ts` | Env config + `validateSubscriptionsConfig()` (fail-fast); reuses `REVENUECAT_API_KEY` / `REVENUECAT_API_URL`; logical→configured entitlement id map (`ENTITLEMENT_ID_MAP`). | Implemented |
 | `subscriptions.module.ts` | NestJS module; provides + exports the real `SUBSCRIPTION_TIER`; validates config. | Planned |
-| `subscription-tier.service.ts` | `RealSubscriptionTierService`: `getTier` + `getRoleTier` derived from the mirror. | Planned |
+| `subscription-tier.service.ts` | `RealSubscriptionTierService`: `getTier` + `getRoleTier` derived from the mirror. | Implemented |
 | `subscriptions.service.ts` | Read model (`getMyEntitlements`), self-heal trigger, mirror upsert orchestration. | Planned |
 | `subscriptions.repository.ts` | Mirror + ledger/outbox reads and writes; dedup; per-entitlement ordering; atomic TRANSFER; reconciliation convergence + discovery; deletion cleanup. | Implemented |
 | `subscriptions.controller.ts` | `GET /subscriptions/me` (JWT, scoped, self-heal on missing/stale). | Planned |
-| `revenuecat/revenuecat.client.ts` | Versioned REST seam: `getSubscriber`, `deleteSubscriber`. | Planned |
+| `revenuecat/revenuecat.client.ts` | Versioned REST seam: `getSubscriber`, `deleteSubscriber`. | Implemented |
 | `revenuecat/revenuecat.constants.ts` | Logical→configured entitlement id map + `toEntitlementKeys()` (maps external RevenueCat entitlement ids to internal keys). | Implemented |
 | `revenuecat/revenuecat-signature.ts` | HMAC-SHA256 verify (timestamp tolerance + constant-time compare). | Implemented |
 | `revenuecat/revenuecat-event.mapper.ts` | Pure: RevenueCat event → `EntitlementDelta[]`. | Implemented |
@@ -45,8 +45,12 @@ in one role and FREE in the other. `ad_free` is independent and never implies PR
 | `webhooks/revenuecat-webhook.processor.ts` | BullMQ: apply deltas per entitlement (out-of-order safe); mark `PROCESSED`. | Planned |
 | `webhooks/subscription-dispatch.worker.ts` | Recovery: re-enqueue `RECEIVED`/`QUEUED` ledger rows not yet processed. | Planned |
 | `reconciliation/subscription-reconciliation.service.ts` | `@Interval` sweep: converge existing rows + discover missing subscribers. | Planned |
-| `entities/subscription.entity.ts` | `subscriptions` mirror (one row per user). | Planned |
-| `entities/subscription-event.entity.ts` | Append-only `subscription_events` ledger + outbox. | Planned |
+| `entities/subscription.entity.ts` | `subscriptions` mirror (one row per user). | Implemented |
+| `entities/subscription-event.entity.ts` | Append-only `subscription_events` ledger + outbox. | Implemented |
+| `__tests__/subscription-tier.service.spec.ts` | Unit tests for role-aware tier derivation (active/expiry rules, empty mirror → FREE, `ad_free` never implies PRO). | Implemented |
+| `__tests__/revenuecat-event.mapper.spec.ts` | Unit tests for the RevenueCat event → `EntitlementDelta[]` mapper. | Implemented |
+| `__tests__/revenuecat-payload.sanitizer.spec.ts` | Unit tests for the payload field whitelist (no PII / secrets). | Implemented |
+| `__tests__/revenuecat-signature.spec.ts` | Unit tests for HMAC-SHA256 verification (tolerance + constant-time compare). | Implemented |
 
 ## Domain Rules
 
