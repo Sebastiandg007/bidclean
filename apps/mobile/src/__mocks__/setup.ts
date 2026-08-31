@@ -33,3 +33,22 @@ jest.mock('expo-crypto', () => ({
   CryptoDigestAlgorithm: { SHA256: 'SHA-256' },
   CryptoEncoding: { BASE64: 'base64' },
 }));
+
+// RevenueCat SDK — native module; mocked so unit tests run without a prebuild/EAS build.
+jest.mock('react-native-purchases', () => ({
+  __esModule: true,
+  default: {
+    configure: jest.fn(),
+    getCustomerInfo: jest.fn().mockResolvedValue({ entitlements: { active: {} } }),
+    getOfferings: jest.fn().mockResolvedValue({ current: null, all: {} }),
+    purchasePackage: jest.fn().mockResolvedValue({ customerInfo: { entitlements: { active: {} } } }),
+    restorePurchases: jest.fn().mockResolvedValue({ entitlements: { active: {} } }),
+  },
+}));
+
+// RevenueCat Paywalls UI — native module; mocked to a no-op component in tests.
+jest.mock('react-native-purchases-ui', () => ({
+  __esModule: true,
+  default: { presentPaywall: jest.fn().mockResolvedValue({}) },
+  Paywall: () => null,
+}));
