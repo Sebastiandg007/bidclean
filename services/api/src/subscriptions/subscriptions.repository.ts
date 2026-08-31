@@ -102,18 +102,19 @@ export class SubscriptionsRepository {
    * Returns the new ledger row id, or null when the event id already exists (redelivery).
    */
   async appendEvent(params: AppendEventParams): Promise<string | null> {
+    const row: Partial<SubscriptionEvent> = {
+      revenuecatEventId: params.revenuecatEventId,
+      userId: params.userId,
+      eventType: params.eventType,
+      entitlementIds: params.entitlementIds,
+      store: params.store,
+      eventTimestampMs: String(params.eventTimestampMs),
+      expirationAt: params.expirationAt,
+      payloadJson: params.payload,
+      dispatchStatus: DispatchStatus.RECEIVED,
+    };
     try {
-      const result = await this.dataSource.getRepository(SubscriptionEvent).insert({
-        revenuecatEventId: params.revenuecatEventId,
-        userId: params.userId,
-        eventType: params.eventType,
-        entitlementIds: params.entitlementIds,
-        store: params.store,
-        eventTimestampMs: String(params.eventTimestampMs),
-        expirationAt: params.expirationAt,
-        payloadJson: params.payload,
-        dispatchStatus: DispatchStatus.RECEIVED,
-      });
+      const result = await this.dataSource.getRepository(SubscriptionEvent).insert(row);
       return (result.identifiers[0]?.id as string | undefined) ?? null;
     } catch (error) {
       if (this.isUniqueViolation(error)) {
