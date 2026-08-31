@@ -37,9 +37,10 @@ in one role and FREE in the other. `ad_free` is independent and never implies PR
 | `subscriptions.repository.ts` | Mirror + ledger/outbox reads and writes; dedup; per-entitlement ordering; discovery; deletion cleanup. | Planned |
 | `subscriptions.controller.ts` | `GET /subscriptions/me` (JWT, scoped, self-heal on missing/stale). | Planned |
 | `revenuecat/revenuecat.client.ts` | Versioned REST seam: `getSubscriber`, `deleteSubscriber`. | Planned |
-| `revenuecat/revenuecat-signature.ts` | HMAC-SHA256 verify (timestamp tolerance + constant-time compare). | Planned |
-| `revenuecat/revenuecat-event.mapper.ts` | Pure: RevenueCat event → `EntitlementDelta[]`. | Planned |
-| `revenuecat/revenuecat-payload.sanitizer.ts` | Pure: whitelist safe fields only (no PII / secrets). | Planned |
+| `revenuecat/revenuecat.constants.ts` | Logical→configured entitlement id map + `toEntitlementKeys()` (maps external RevenueCat entitlement ids to internal keys). | Implemented |
+| `revenuecat/revenuecat-signature.ts` | HMAC-SHA256 verify (timestamp tolerance + constant-time compare). | Implemented |
+| `revenuecat/revenuecat-event.mapper.ts` | Pure: RevenueCat event → `EntitlementDelta[]`. | Implemented |
+| `revenuecat/revenuecat-payload.sanitizer.ts` | Pure: whitelist safe fields only (no PII / secrets). | Implemented |
 | `webhooks/revenuecat-webhook.controller.ts` | Public `POST /webhooks/revenuecat`; HMAC verify; dedup; ledger `RECEIVED`; enqueue; ACK. | Planned |
 | `webhooks/revenuecat-webhook.processor.ts` | BullMQ: apply deltas per entitlement (out-of-order safe); mark `PROCESSED`. | Planned |
 | `webhooks/subscription-dispatch.worker.ts` | Recovery: re-enqueue `RECEIVED`/`QUEUED` ledger rows not yet processed. | Planned |
