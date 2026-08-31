@@ -8,6 +8,7 @@ The Cleaner and Host UI for RevenueCat subscriptions (Cleaner PRO / Host PRO) an
 
 | File | Responsibility |
 |------|---------------|
+| `PaywallScreen.tsx` | Presents the RevenueCat server-driven paywall (Paywalls V2) for the role-appropriate offering; on purchase/restore refreshes the server-authoritative view and dismisses |
 | `subscriptions.types.ts` | Mirror of the backend `/subscriptions/me` contract: entitlement keys, subscriber tier/role, entitlement state, subscription view, purchase result |
 | `subscriptions.constants.ts` | Routes, `/subscriptions/me` endpoint, platform public SDK keys, entitlement/offering ids (from config), i18n keys |
 | `subscriptions.api.ts` | Typed HTTP client for `GET /subscriptions/me` via the lazy shared `apiClient` |
