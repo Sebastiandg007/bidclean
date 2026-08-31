@@ -4,8 +4,13 @@
  */
 
 import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
+import { Alert } from 'react-native';
 
 // ─── Mocks ───────────────────────────────────────────────────────────────────
+
+// Alert.alert may be undefined under the jest-expo RN mock depending on suite
+// load order; assign a stable mock so this suite never depends on it.
+Alert.alert = jest.fn();
 
 const mockReplace = jest.fn();
 jest.mock('expo-router', () => ({
@@ -54,6 +59,9 @@ import { AccountScreen } from '../AccountScreen';
 describe('AccountScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // Re-assign per test: a prior suite can reset the shared RN module and leave
+    // Alert.alert undefined.
+    Alert.alert = jest.fn();
   });
 
   it('renders account screen with all sections', () => {

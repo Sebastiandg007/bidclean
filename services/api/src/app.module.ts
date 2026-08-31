@@ -9,6 +9,8 @@ import { ProfileModule } from './profile/profile.module';
 import { PropertiesModule } from './properties/properties.module';
 import { OffersModule } from './offers/offers.module';
 import { NegotiationModule } from './negotiation/negotiation.module';
+import { PaymentsModule } from './payments/payments.module';
+import { CommissionModule } from './commission/commission.module';
 
 /**
  * Root application module.
@@ -40,6 +42,8 @@ import { NegotiationModule } from './negotiation/negotiation.module';
     PropertiesModule,
     OffersModule,
     NegotiationModule,
+    PaymentsModule,
+    CommissionModule,
   ],
 })
 export class AppModule {}

@@ -13,6 +13,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { PortfolioGrid } from './components/PortfolioGrid';
 import { PORTFOLIO, PROFILE_PHOTO } from './profile.constants';
 import type { PortfolioPhoto } from './profile.types';
+import { apiClient } from '../../services/api.service';
 
 // ─── Design Tokens ───────────────────────────────────────────────────────────
 
@@ -44,18 +45,6 @@ const PAGE_SIZE = 10;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-async function getApiClient() {
-   
-  const { apiClient } = await import('../../services/api.service') as {
-    apiClient: {
-      get: <T>(url: string) => Promise<{ data: T }>;
-      post: <T>(url: string, data?: unknown, config?: Record<string, unknown>) => Promise<{ data: T }>;
-      delete: (url: string) => Promise<{ data: unknown }>;
-    };
-  };
-  return apiClient;
-}
-
 function extractErrorMessage(err: unknown, fallbackKey: string): string {
   if (err instanceof Error && err.message) {
     return err.message;
@@ -78,8 +67,7 @@ export function PortfolioGalleryScreen(): React.JSX.Element {
     setIsLoading(true);
 
     try {
-      const client = await getApiClient();
-      const response = await client.get<PortfolioPhoto[]>(
+      const response = await apiClient.get<PortfolioPhoto[]>(
         `${ENDPOINTS.PORTFOLIO}?page=${page}&limit=${PAGE_SIZE}`,
       );
 
@@ -136,7 +124,6 @@ export function PortfolioGalleryScreen(): React.JSX.Element {
     setIsUploading(true);
 
     try {
-      const client = await getApiClient();
       const formData = new FormData();
 
       formData.append('file', {
@@ -145,7 +132,7 @@ export function PortfolioGalleryScreen(): React.JSX.Element {
         name: `portfolio_${Date.now()}.jpg`,
       } as unknown as Blob);
 
-      const response = await client.post<PortfolioPhoto>(
+      const response = await apiClient.post<PortfolioPhoto>(
         ENDPOINTS.PORTFOLIO,
         formData,
         {
@@ -175,8 +162,7 @@ export function PortfolioGalleryScreen(): React.JSX.Element {
             style: 'destructive',
             onPress: async () => {
               try {
-                const client = await getApiClient();
-                await client.delete(`${ENDPOINTS.PORTFOLIO}/${photoId}`);
+                await apiClient.delete(`${ENDPOINTS.PORTFOLIO}/${photoId}`);
                 setPhotos((prev) => prev.filter((p) => p.id !== photoId));
               } catch (err) {
                 const message = extractErrorMessage(

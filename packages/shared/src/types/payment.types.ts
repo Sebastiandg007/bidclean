@@ -34,4 +34,10 @@ export interface PaymentBreakdown {
   readonly cleanerPayout: number;
   readonly platformRevenue: number;
   readonly currency: string;
+  // Optional so existing consumers created before Stripe escrow keep working:
+  // these are only known once a charge settles through Stripe.
+  /** Stripe processing fee in integer minor units (cents); absorbed by the platform. */
+  readonly stripeFeeAmount?: number;
+  /** Platform gross revenue minus the Stripe fee and any refund/reversal adjustments, in integer minor units (cents). */
+  readonly netPlatformRevenue?: number;
 }

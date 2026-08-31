@@ -2,7 +2,7 @@
 
 > This file tracks the state of all feature specs. Read this first in any new session to know where the project stands and what to work on next.
 
-## Current Sprint: Sprint 2 — Core Marketplace
+## Current Sprint: Sprint 3 — Payments
 
 ## Specs Status
 
@@ -25,8 +25,8 @@
 ### Sprint 3 — Payments
 | # | Spec | Status | Dependencies |
 |---|------|--------|-------------|
-| 9 | `stripe-escrow` | ⬜ Pending | Spec 8 |
-| 10 | `commission-system` | ⬜ Pending | Spec 9 |
+| 9 | `stripe-escrow` | ✅ Completed | Spec 8 |
+| 10 | `commission-system` | ✅ Completed | Spec 9 |
 | 11 | `revenuecat-subscriptions` | ⬜ Pending | Spec 1 |
 | 12 | `revenuecat-ads` | ⬜ Pending | Spec 11 |
 

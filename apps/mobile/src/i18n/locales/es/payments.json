@@ -1,0 +1,72 @@
+{
+  "hostPaymentMethod": {
+    "title": "Método de pago",
+    "subtitle": "Agrega una tarjeta para pagar los servicios de limpieza.",
+    "addCard": "Agregar método de pago",
+    "cardSaved": "Tarjeta guardada",
+    "error": "No se pudo guardar tu método de pago. Inténtalo de nuevo."
+  },
+  "onboarding": {
+    "title": "Configura tus pagos",
+    "subtitle": "Conecta tu banco para recibir pagos de forma segura con Stripe.",
+    "startButton": "Iniciar configuración de pagos",
+    "continueButton": "Finalizar configuración de pagos",
+    "completed": "Pagos habilitados",
+    "bannerTitle": "Termina la configuración de pagos",
+    "bannerBody": "Ya puedes ganar trabajos, pero debes finalizar la configuración antes de que se liberen los fondos.",
+    "opening": "Abriendo la configuración segura..."
+  },
+  "status": {
+    "title": "Pago",
+    "paymentLabel": "Pago",
+    "payoutLabel": "Desembolso",
+    "disputeLabel": "Disputa",
+    "hostTotal": "Pagaste {{total}}",
+    "cleanerPayout": "Ganas {{payout}}",
+    "refunded": "Reembolsado {{amount}}",
+    "payment": {
+      "PENDING": "Pendiente",
+      "PROCESSING": "Procesando",
+      "HELD": "Retenido en garantía",
+      "RELEASED": "Liberado",
+      "REFUNDED": "Reembolsado",
+      "PARTIALLY_REFUNDED": "Reembolsado parcialmente",
+      "FAILED": "Fallido"
+    },
+    "payout": {
+      "NOT_READY": "No listo",
+      "PENDING": "Pendiente de configuración",
+      "TRANSFER_CREATED": "Enviado",
+      "PAID": "Pagado",
+      "REVERSED": "Revertido"
+    },
+    "dispute": {
+      "NONE": "Ninguna",
+      "OPEN": "En revisión",
+      "WON": "Resuelta a tu favor",
+      "LOST": "Resuelta"
+    }
+  },
+  "disputeBanner": {
+    "title": "Pago en revisión",
+    "body": "Hay una disputa abierta en este pago. Los desembolsos están pausados hasta que se resuelva."
+  },
+  "refund": {
+    "title": "Reembolso",
+    "fullRefund": "Reembolso total",
+    "partialRefund": "Reembolso parcial",
+    "amountLabel": "Monto a reembolsar",
+    "remaining": "Reembolsable: {{amount}}",
+    "submit": "Solicitar reembolso",
+    "confirm": "Confirmar reembolso",
+    "success": "Reembolso solicitado."
+  },
+  "error": {
+    "onboarding_failed": "No se pudo iniciar la configuración de pagos. Inténtalo de nuevo.",
+    "account_status_failed": "No se pudo cargar el estado de tus pagos.",
+    "fetch_payment_failed": "No se pudo cargar el pago.",
+    "refund_failed": "No se pudo procesar el reembolso. Inténtalo de nuevo.",
+    "refund_blocked": "Este pago no se puede reembolsar mientras haya una disputa abierta.",
+    "refund_ceiling": "El monto del reembolso supera lo que se puede reembolsar."
+  }
+}

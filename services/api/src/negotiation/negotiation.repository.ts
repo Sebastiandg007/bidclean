@@ -326,4 +326,45 @@ export class NegotiationRepository {
       [proposalId],
     );
   }
+
+  /**
+   * Snapshot the Cleaner commission rate resolved AT MATCH (against the winning Cleaner)
+   * onto the offer's cleaner columns, and — when the match came via a proposal — onto the
+   * winning proposal's payout. This is a rate/derived-money snapshot only; the offer's
+   * state transition (ACTIVE -> MATCHED) remains the exclusive responsibility of the
+   * OFFER_MATCH contract. Runs in one transaction so the offer and proposal stay consistent.
+   */
+  async persistMatchedCleanerRate(params: {
+    offerId: string;
+    winningProposalId: string | null;
+    cleanerCommissionRateBps: number;
+    cleanerCommissionCents: number;
+    cleanerPayoutCents: number;
+  }): Promise<void> {
+    await this.dataSource.transaction(async (manager) => {
+      await manager.query(
+        `UPDATE "offers"
+         SET "cleaner_commission_rate_bps" = $1,
+             "cleaner_commission_cents" = $2,
+             "cleaner_payout_cents" = $3,
+             "updated_at" = NOW()
+         WHERE "id" = $4`,
+        [
+          params.cleanerCommissionRateBps,
+          params.cleanerCommissionCents,
+          params.cleanerPayoutCents,
+          params.offerId,
+        ],
+      );
+
+      if (params.winningProposalId) {
+        await manager.query(
+          `UPDATE "negotiation_proposals"
+           SET "cleaner_payout_cents" = $1, "updated_at" = NOW()
+           WHERE "id" = $2`,
+          [params.cleanerPayoutCents, params.winningProposalId],
+        );
+      }
+    });
+  }
 }

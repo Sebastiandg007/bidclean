@@ -20,6 +20,7 @@ describe('OffersService', () => {
   let mockDataSource: any;
   let mockCentrifugoClient: any;
   let mockPropertyReadiness: any;
+  let mockCommissionRates: any;
   let mockQueue: any;
 
   const hostId = 'host-uuid-123';
@@ -65,6 +66,13 @@ describe('OffersService', () => {
       check: jest.fn(),
     };
 
+    mockCommissionRates = {
+      resolveHostRate: jest.fn().mockResolvedValue({ rateBps: 1000, ruleId: null }),
+      resolveCleanerRate: jest.fn().mockResolvedValue({ rateBps: 300, ruleId: null }),
+      previewHostRate: jest.fn(),
+      previewCleanerRate: jest.fn(),
+    };
+
     mockCentrifugoClient = {
       publish: jest.fn().mockResolvedValue(true),
       broadcast: jest.fn().mockResolvedValue(true),
@@ -82,6 +90,7 @@ describe('OffersService', () => {
       mockDataSource,
       mockCentrifugoClient,
       mockPropertyReadiness,
+      mockCommissionRates,
       mockQueue,
     );
   });
@@ -233,27 +242,208 @@ describe('OffersService', () => {
   });
 
   describe('create', () => {
-    it.todo('should create an offer in DRAFT state');
-    it.todo('should validate property readiness before creation');
-    it.todo('should reject negative price');
-    it.todo('should reject scheduled time without minimum lead');
-    it.todo('should reject duplicate active offer for same property');
-    it.todo('should support idempotency key');
+    const futureDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    const validDto = {
+      propertyId,
+      serviceType: 'standard',
+      offeredPriceCents: 5000,
+      currency: 'USD',
+      scheduledAt: futureDate,
+      timezone: 'America/Bogota',
+      estimatedDurationMinutes: 120,
+      description: 'Deep clean',
+    };
+    const breakdown = {
+      offeredPriceCents: 5000,
+      hostFeeCents: 500,
+      hostTotalCents: 5500,
+      cleanerCommissionCents: 150,
+      cleanerPayoutCents: 4850,
+      hostFeeRateBps: 1000,
+      cleanerRateBps: 300,
+    };
+
+    beforeEach(() => {
+      mockPropertyReadiness.check.mockResolvedValue({ ready: true, reasons: [] });
+      mockCommission.getFullBreakdown.mockReturnValue(breakdown);
+      mockRepository.findByIdempotencyKey.mockResolvedValue(null);
+      mockRepository.create.mockResolvedValue({ id: offerId });
+      // resolvePropertyCountry query returns the property's ISO country
+      mockDataSource.query.mockResolvedValue([{ address_country: 'CO' }]);
+    });
+
+    it('should create an offer in DRAFT state', async () => {
+      const result = await service.create(hostId, validDto);
+
+      expect(result).toEqual({ id: offerId });
+      expect(mockRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ hostId, propertyId, state: OfferState.DRAFT }),
+      );
+      expect(mockRepository.insertStateTransition).toHaveBeenCalledWith(
+        expect.objectContaining({ fromState: null, toState: OfferState.DRAFT, triggeredBy: 'host' }),
+      );
+      expect(mockEventEmitter.emitCreated).toHaveBeenCalledTimes(1);
+    });
+
+    it('should resolve the Host rate via COMMISSION_RATES and feed it to CommissionService', async () => {
+      await service.create(hostId, validDto);
+
+      expect(mockCommissionRates.resolveHostRate).toHaveBeenCalledWith({
+        country: 'CO',
+        hostId,
+        serviceType: 'standard',
+      });
+      // resolved host bps (1000) is passed into getFullBreakdown as the 2nd arg
+      expect(mockCommission.getFullBreakdown).toHaveBeenCalledWith(5000, 1000);
+    });
+
+    it('should still create when country lookup yields no row (env-default fallback)', async () => {
+      mockDataSource.query.mockResolvedValue([]);
+      mockCommissionRates.resolveHostRate.mockResolvedValue({ rateBps: 1000, ruleId: null });
+
+      const result = await service.create(hostId, validDto);
+
+      expect(result).toEqual({ id: offerId });
+      expect(mockCommissionRates.resolveHostRate).toHaveBeenCalledWith(
+        expect.objectContaining({ country: '', hostId }),
+      );
+    });
+
+    it('should validate property readiness before creation', async () => {
+      mockPropertyReadiness.check.mockResolvedValue({ ready: false, reasons: ['NO_PHOTOS'] });
+
+      await expect(service.create(hostId, validDto)).rejects.toThrow(UnprocessableEntityException);
+      expect(mockRepository.create).not.toHaveBeenCalled();
+    });
+
+    it('should reject negative price', async () => {
+      await expect(
+        service.create(hostId, { ...validDto, offeredPriceCents: -100 }),
+      ).rejects.toBeTruthy();
+      expect(mockRepository.create).not.toHaveBeenCalled();
+    });
+
+    it('should reject scheduled time without minimum lead', async () => {
+      const tooSoon = new Date(Date.now() + 60 * 1000).toISOString();
+      await expect(
+        service.create(hostId, { ...validDto, scheduledAt: tooSoon }),
+      ).rejects.toBeTruthy();
+      expect(mockRepository.create).not.toHaveBeenCalled();
+    });
+
+    it('should support idempotency key (returns existing offer)', async () => {
+      mockRepository.findByIdempotencyKey.mockResolvedValue({ id: 'existing-offer' });
+
+      const result = await service.create(hostId, { ...validDto, idempotencyKey: 'key-1' });
+
+      expect(result).toEqual({ id: 'existing-offer' });
+      expect(mockRepository.create).not.toHaveBeenCalled();
+    });
   });
 
   describe('cancel', () => {
-    it.todo('should cancel from DRAFT state');
-    it.todo('should cancel from PUBLISHED state');
-    it.todo('should cancel from ACTIVE state and notify Cleaners');
+    beforeEach(() => {
+      mockStateMachine.transitionState.mockResolvedValue(true);
+      mockDataSource.query.mockResolvedValue([]);
+      mockEventEmitter.emitCancelled = jest.fn();
+      // cancelPendingJobs (PUBLISHED/ACTIVE) drains the radius-expansion queue.
+      mockQueue.getDelayed = jest.fn().mockResolvedValue([]);
+      mockQueue.getWaiting = jest.fn().mockResolvedValue([]);
+    });
+
+    it('should cancel from DRAFT state', async () => {
+      mockRepository.findById.mockResolvedValue({ ...draftOffer, state: OfferState.DRAFT });
+      await service.cancel(offerId, hostId);
+      expect(mockStateMachine.transitionState).toHaveBeenCalledWith(
+        offerId,
+        OfferState.DRAFT,
+        OfferState.CANCELLED,
+        'host',
+      );
+    });
+
+    it('should cancel from PUBLISHED state and drain pending jobs', async () => {
+      mockRepository.findById.mockResolvedValue({ ...draftOffer, state: OfferState.PUBLISHED });
+      await service.cancel(offerId, hostId);
+      expect(mockStateMachine.transitionState).toHaveBeenCalledWith(
+        offerId,
+        OfferState.PUBLISHED,
+        OfferState.CANCELLED,
+        'host',
+      );
+      expect(mockQueue.getDelayed).toHaveBeenCalled();
+    });
+
+    it('should reject cancelling an offer not owned by the host', async () => {
+      mockRepository.findById.mockResolvedValue({ ...draftOffer, hostId: 'other-host' });
+      await expect(service.cancel(offerId, hostId)).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should throw NotFoundException when offer does not exist', async () => {
+      mockRepository.findById.mockResolvedValue(null);
+      await expect(service.cancel(offerId, hostId)).rejects.toThrow(NotFoundException);
+    });
   });
 
   describe('findById', () => {
-    it.todo('should return offer with state history');
-    it.todo('should return null for non-existent offer');
+    it('should return offer with state history for the owner', async () => {
+      mockRepository.findById.mockResolvedValue({
+        ...draftOffer,
+        stateTransitions: [
+          { fromState: null, toState: OfferState.DRAFT, triggeredBy: 'host', createdAt: new Date() },
+        ],
+      });
+
+      const result = await service.findById(offerId, hostId);
+
+      expect(result).not.toBeNull();
+      expect(mockRepository.findById).toHaveBeenCalledWith(offerId, ['stateTransitions']);
+    });
+
+    it('should return null for non-existent offer', async () => {
+      mockRepository.findById.mockResolvedValue(null);
+      await expect(service.findById(offerId, hostId)).resolves.toBeNull();
+    });
+
+    it('should return null when the offer is not owned by the requester', async () => {
+      mockRepository.findById.mockResolvedValue({ ...draftOffer, hostId: 'other-host' });
+      await expect(service.findById(offerId, hostId)).resolves.toBeNull();
+    });
   });
 
   describe('findByHostId', () => {
-    it.todo('should return paginated results');
-    it.todo('should filter by state');
+    it('should return paginated results mapped to summaries', async () => {
+      mockRepository.findByHostId = jest.fn().mockResolvedValue({
+        items: [draftOffer],
+        total: 1,
+        page: 1,
+        pageSize: 20,
+        totalPages: 1,
+      });
+
+      const result = await service.findByHostId(hostId, { page: 1, pageSize: 20 });
+
+      expect(result.total).toBe(1);
+      expect(result.items).toHaveLength(1);
+      expect(result.page).toBe(1);
+    });
+
+    it('should pass the state filter through to the repository', async () => {
+      const findByHostId = jest.fn().mockResolvedValue({
+        items: [],
+        total: 0,
+        page: 1,
+        pageSize: 20,
+        totalPages: 0,
+      });
+      mockRepository.findByHostId = findByHostId;
+
+      await service.findByHostId(hostId, { state: OfferState.ACTIVE, page: 1, pageSize: 20 });
+
+      expect(findByHostId).toHaveBeenCalledWith(
+        hostId,
+        expect.objectContaining({ state: OfferState.ACTIVE }),
+      );
+    });
   });
 });

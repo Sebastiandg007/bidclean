@@ -10,6 +10,10 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { OFFER_MATCH, OfferMatchInterface } from '../offers/contracts/offer-match.interface';
+import {
+  COMMISSION_RATES,
+  CommissionRateContract,
+} from '../commission/contracts/commission-rates.interface';
 import { Offer } from '../offers/entities/offer.entity';
 import { OfferState } from '../offers/offers.types';
 import { NegotiationRepository } from './negotiation.repository';
@@ -62,6 +66,8 @@ export class NegotiationService {
   constructor(
     @Inject(OFFER_MATCH)
     private readonly offerMatch: OfferMatchInterface,
+    @Inject(COMMISSION_RATES)
+    private readonly commissionRates: CommissionRateContract,
     @InjectRepository(Offer)
     private readonly offerRepo: Repository<Offer>,
     private readonly negotiationRepo: NegotiationRepository,
@@ -110,7 +116,12 @@ export class NegotiationService {
           }
         }
 
-        const breakdown = this.pricing.computeBreakdown(offer, offer.offeredPriceCents);
+        const breakdown = await this.resolveAndSnapshotCleanerRate(
+          offer,
+          cleanerId,
+          offer.offeredPriceCents,
+          matchedProposalId,
+        );
         await this.publishMatchToOthers(offerId, cleanerId);
 
         this.logger.log(`Direct accept matched offer ${offerId} to cleaner ${cleanerId}`);
@@ -209,6 +220,13 @@ export class NegotiationService {
 
         await this.negotiationRepo.markProposalAccepted(proposal.id);
 
+        const breakdown = await this.resolveAndSnapshotCleanerRate(
+          offer,
+          thread.cleanerId,
+          proposal.proposedPriceCents,
+          proposal.id,
+        );
+
         const acceptedChannel =
           proposal.actor === ProposalActor.CLEANER
             ? NEGOTIATION_CHANNELS.cleaner(thread.cleanerId)
@@ -226,8 +244,8 @@ export class NegotiationService {
           offerId: offer.id,
           cleanerId: thread.cleanerId,
           agreedPriceCents: proposal.proposedPriceCents,
-          cleanerPayoutCents: proposal.cleanerPayoutCents,
-          hostTotalCents: proposal.hostTotalCents,
+          cleanerPayoutCents: breakdown.cleanerPayoutCents,
+          hostTotalCents: breakdown.hostTotalCents,
           currency: proposal.currency,
           matchedProposalId: proposal.id,
         };
@@ -487,6 +505,57 @@ export class NegotiationService {
       currency: offer.currency,
       expiresAt,
     });
+  }
+
+  /**
+   * Resolve the Cleaner commission rate AT MATCH against the winning Cleaner's tier +
+   * the offer's country + service type, compute the authoritative payout via the pricing
+   * service (reusing CommissionService), and snapshot the resolved rate + derived money
+   * onto the offer (and winning proposal). Returns the authoritative breakdown.
+   *
+   * The commission contract never throws (degrades to the env default), so match is never
+   * blocked. The Host rate remains the offer's creation-time snapshot.
+   */
+  private async resolveAndSnapshotCleanerRate(
+    offer: Offer,
+    winningCleanerId: string,
+    agreedPriceCents: number,
+    winningProposalId: string | null,
+  ): Promise<{ cleanerPayoutCents: number; hostTotalCents: number }> {
+    const country = await this.resolveOfferCountry(offer.propertyId);
+    const cleanerRate = await this.commissionRates.resolveCleanerRate({
+      country,
+      cleanerId: winningCleanerId,
+      serviceType: offer.serviceType,
+    });
+
+    const breakdown = this.pricing.computeMatchBreakdown(
+      offer,
+      agreedPriceCents,
+      cleanerRate.rateBps,
+    );
+
+    await this.negotiationRepo.persistMatchedCleanerRate({
+      offerId: offer.id,
+      winningProposalId,
+      cleanerCommissionRateBps: breakdown.cleanerRateBps,
+      cleanerCommissionCents: breakdown.cleanerCommissionCents,
+      cleanerPayoutCents: breakdown.cleanerPayoutCents,
+    });
+
+    return {
+      cleanerPayoutCents: breakdown.cleanerPayoutCents,
+      hostTotalCents: breakdown.hostTotalCents,
+    };
+  }
+
+  /** Resolve the ISO country of the offer's property for commission resolution. */
+  private async resolveOfferCountry(propertyId: string): Promise<string> {
+    const rows = await this.offerRepo.query(
+      `SELECT address_country FROM properties WHERE id = $1 LIMIT 1`,
+      [propertyId],
+    ) as { address_country: string | null }[];
+    return rows[0]?.address_country ?? '';
   }
 
   /** Publish offer_status_changed{MATCHED} to other delivered Cleaners' radar channels. */

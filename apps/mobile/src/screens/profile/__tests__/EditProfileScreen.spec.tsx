@@ -93,7 +93,9 @@ beforeEach(() => {
   mockUpdateCommon.mockResolvedValue(undefined);
   mockUpdateHost.mockResolvedValue(undefined);
   mockUpdateCleaner.mockResolvedValue(undefined);
-  jest.spyOn(Alert, 'alert').mockImplementation(() => undefined);
+  // Assign directly (not spyOn) so Alert.alert stays defined for later suites
+  // sharing the RN module in the same process.
+  Alert.alert = jest.fn();
 });
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
@@ -289,8 +291,15 @@ describe('EditProfileScreen', () => {
 
   describe('UI state', () => {
     it('disables save button while saving', async () => {
+      // Hold the save in-flight with a manually-resolved promise so we can
+      // assert the disabled state, then settle it before the test ends (leaving
+      // it pending would resolve during a later suite and call Alert.alert on a
+      // torn-down tree).
+      let resolveSave: () => void = () => undefined;
       mockUpdateCommon.mockImplementation(
-        () => new Promise((resolve) => setTimeout(resolve, 1000)),
+        () => new Promise<void>((resolve) => {
+          resolveSave = resolve;
+        }),
       );
       mockActiveRole = 'host';
       const { getByTestId } = render(<EditProfileScreen />);
@@ -301,6 +310,11 @@ describe('EditProfileScreen', () => {
 
       expect(getByTestId('button-save').props.accessibilityState?.disabled ||
              getByTestId('button-save').props.disabled).toBeTruthy();
+
+      // Settle the in-flight save so no async work leaks past this test.
+      await act(async () => {
+        resolveSave();
+      });
     });
 
     it('navigates back on cancel press', () => {

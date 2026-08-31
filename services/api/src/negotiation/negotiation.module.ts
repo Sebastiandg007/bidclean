@@ -4,6 +4,7 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ScheduleModule } from '@nestjs/schedule';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { OffersModule } from '../offers/offers.module';
+import { CommissionModule } from '../commission/commission.module';
 import { User } from '../auth/entities/user.entity';
 import { Offer } from '../offers/entities/offer.entity';
 import { NegotiationController } from './negotiation.controller';
@@ -36,6 +37,7 @@ import { validateNegotiationConfig } from './negotiation.constants';
     ScheduleModule.forRoot(),
     TypeOrmModule.forFeature([NegotiationThread, NegotiationProposal, Offer, User]),
     OffersModule,
+    CommissionModule,
   ],
   controllers: [NegotiationController],
   providers: [

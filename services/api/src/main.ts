@@ -5,7 +5,8 @@ import { AppModule } from './app.module';
 const DEFAULT_PORT = 3000;
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule);
+  // rawBody enables Stripe webhook signature verification (req.rawBody preserved).
+  const app = await NestFactory.create(AppModule, { rawBody: true });
   const logger = new Logger('Bootstrap');
 
   app.useGlobalPipes(
