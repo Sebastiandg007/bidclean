@@ -44,7 +44,7 @@ in one role and FREE in the other. `ad_free` is independent and never implies PR
 | `webhooks/revenuecat-webhook.controller.ts` | Public `POST /webhooks/revenuecat`; HMAC verify; dedup; ledger `RECEIVED`; enqueue; ACK. | Implemented |
 | `webhooks/revenuecat-webhook.processor.ts` | BullMQ: apply deltas per entitlement (out-of-order safe); mark `PROCESSED`; `onFailed` dead-letters to `FAILED` on retry exhaustion. | Implemented |
 | `webhooks/subscription-dispatch.worker.ts` | Recovery: re-enqueue `RECEIVED`/`QUEUED` ledger rows not yet processed. | Planned |
-| `reconciliation/subscription-reconciliation.service.ts` | `@Interval` sweep: converge existing rows + discover missing subscribers. | Planned |
+| `reconciliation/subscription-reconciliation.service.ts` | `@Interval` sweep: converge existing rows + discover missing subscribers. | Implemented |
 | `entities/subscription.entity.ts` | `subscriptions` mirror (one row per user). | Implemented |
 | `entities/subscription-event.entity.ts` | Append-only `subscription_events` ledger + outbox. | Implemented |
 | `__tests__/subscription-tier.service.spec.ts` | Unit tests for role-aware tier derivation (active/expiry rules, empty mirror → FREE, `ad_free` never implies PRO). | Implemented |
@@ -52,6 +52,7 @@ in one role and FREE in the other. `ad_free` is independent and never implies PR
 | `__tests__/revenuecat-payload.sanitizer.spec.ts` | Unit tests for the payload field whitelist (no PII / secrets). | Implemented |
 | `__tests__/revenuecat-signature.spec.ts` | Unit tests for HMAC-SHA256 verification (tolerance + constant-time compare). | Implemented |
 | `__tests__/revenuecat-webhook.processor.spec.ts` | Unit tests for the BullMQ processor: applies deltas + PROCESSED, idempotent no-op on already-PROCESSED, unknown event → empty deltas (still PROCESSED), missing ledger row skip, FAILED on retry exhaustion. | Implemented |
+| `__tests__/subscription-reconciliation.service.spec.ts` | Unit tests for the reconciliation sweep: converge stale rows, no-op when correct, discover missing subscribers (P18), RevenueCat outage leaves the mirror untouched, and a failing repository query never throws. | Implemented |
 
 ## Domain Rules
 

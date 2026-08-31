@@ -324,6 +324,31 @@ export class SubscriptionsRepository {
   }
 
   /**
+   * Discovery candidate source (P18): user ids that appear in the ledger (known RevenueCat
+   * subscribers) but have no mirror row yet — a webhook was missed. Returns the oldest-seen
+   * first, bounded by `limit`.
+   */
+  async findLedgerUserIdsWithoutMirror(limit: number): Promise<string[]> {
+    const rows = await this.dataSource
+      .getRepository(SubscriptionEvent)
+      .createQueryBuilder('e')
+      .select('DISTINCT e.user_id', 'userId')
+      .where('e.user_id IS NOT NULL')
+      .andWhere((qb) => {
+        const sub = qb
+          .subQuery()
+          .select('1')
+          .from(Subscription, 's')
+          .where('s.user_id = e.user_id')
+          .getQuery();
+        return `NOT EXISTS ${sub}`;
+      })
+      .limit(limit)
+      .getRawMany<{ userId: string }>();
+    return rows.map((row) => row.userId);
+  }
+
+  /**
    * Converge a mirror row to an authoritative RevenueCat snapshot (idempotent).
    * Overwrites every entitlement's state and refreshes `last_reconciled_at`; reconciliation is
    * the arbiter, so it does not consult per-entitlement event timestamps.
