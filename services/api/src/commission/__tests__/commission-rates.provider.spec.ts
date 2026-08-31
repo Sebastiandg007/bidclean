@@ -2,7 +2,7 @@ import { CommissionRatesProvider } from '../commission-rates.provider';
 import { DefaultSubscriptionTierService } from '../contracts/default-subscription-tier.service';
 import { CommissionRateResolver } from '../rate-resolver.service';
 import { SubscriptionTierContract } from '../contracts/subscription-tier.interface';
-import { RateSide, ResolvedRate, SubscriberTier } from '../commission.types';
+import { RateSide, ResolvedRate, SubscriberRole, SubscriberTier } from '../commission.types';
 import {
   OFFER_HOST_FEE_RATE_BPS,
   OFFER_CLEANER_RATE_BPS,
@@ -13,13 +13,38 @@ import {
  *
  * Feature: commission-system
  * Validates: Requirements 2.1 (tier via contract), 2.5/2.6 (safe degradation, never blocks),
- * 4.4 (env-default fallback), 7.5 (preview shares resolution, no persistence).
+ * 4.4 (env-default fallback), 7.5 (preview shares resolution, no persistence),
+ * and the role-aware extension (Host fee ← Host tier, Cleaner commission ← Cleaner tier).
  */
 
+/** A fake tier contract that returns a fixed tier for both getTier and getRoleTier. */
+function fixedTier(tier: SubscriberTier): SubscriptionTierContract {
+  return { getTier: async () => tier, getRoleTier: async () => tier };
+}
+
+/** A fake tier contract that returns per-role tiers (the P0 mixed-role case). */
+function perRoleTier(
+  byRole: Record<SubscriberRole, SubscriberTier>,
+): SubscriptionTierContract {
+  return {
+    getTier: async () =>
+      byRole.HOST === SubscriberTier.PRO || byRole.CLEANER === SubscriberTier.PRO
+        ? SubscriberTier.PRO
+        : SubscriberTier.FREE,
+    getRoleTier: async (_userId, role) => byRole[role],
+  };
+}
+
 describe('DefaultSubscriptionTierService', () => {
-  it('returns FREE for every user', async () => {
+  it('returns FREE for every user (global)', async () => {
     const svc = new DefaultSubscriptionTierService();
     await expect(svc.getTier('anyone')).resolves.toBe(SubscriberTier.FREE);
+  });
+
+  it('returns FREE for every user in every role', async () => {
+    const svc = new DefaultSubscriptionTierService();
+    await expect(svc.getRoleTier('anyone', SubscriberRole.HOST)).resolves.toBe(SubscriberTier.FREE);
+    await expect(svc.getRoleTier('anyone', SubscriberRole.CLEANER)).resolves.toBe(SubscriberTier.FREE);
   });
 });
 
@@ -35,35 +60,51 @@ describe('CommissionRatesProvider', () => {
     return new CommissionRatesProvider(resolver, tierImpl);
   }
 
-  const freeTier: SubscriptionTierContract = { getTier: async () => SubscriberTier.FREE };
+  const freeTier: SubscriptionTierContract = fixedTier(SubscriberTier.FREE);
 
-  it('resolves the Host side against the Host tier', async () => {
+  it('resolves the Host side against the Host role tier', async () => {
     const seen: Array<{ side: RateSide; tier: SubscriberTier }> = [];
     const provider = build(
       (side, _c, tier) => {
         seen.push({ side, tier });
         return { rateBps: 1000, ruleId: 'h1' };
       },
-      { getTier: async () => SubscriberTier.PRO },
+      fixedTier(SubscriberTier.PRO),
     );
     const res = await provider.resolveHostRate({ country: 'CO', hostId: 'h', serviceType: 'standard' });
     expect(res).toEqual({ rateBps: 1000, ruleId: 'h1' });
     expect(seen[0]).toEqual({ side: RateSide.HOST, tier: SubscriberTier.PRO });
   });
 
-  it('resolves the Cleaner side against the Cleaner tier', async () => {
+  it('resolves the Cleaner side against the Cleaner role tier', async () => {
     const provider = build(
       (_side, _c, tier) => ({ rateBps: tier === SubscriberTier.PRO ? 100 : 300, ruleId: 'c1' }),
-      { getTier: async () => SubscriberTier.PRO },
+      fixedTier(SubscriberTier.PRO),
     );
     const res = await provider.resolveCleanerRate({ country: 'CO', cleanerId: 'c', serviceType: 'standard' });
     expect(res).toEqual({ rateBps: 100, ruleId: 'c1' });
   });
 
-  it('degrades to FREE when the tier lookup throws (never blocks)', async () => {
+  it('scopes each side to its own role (Host PRO, Cleaner FREE — the P0 case)', async () => {
+    // The same user is PRO as a Host and FREE as a Cleaner: each side must see its own tier.
+    const tierImpl = perRoleTier({ HOST: SubscriberTier.PRO, CLEANER: SubscriberTier.FREE });
+    const provider = build(
+      (_side, _c, tier) => ({ rateBps: tier === SubscriberTier.PRO ? 100 : 300, ruleId: null }),
+      tierImpl,
+    );
+    const host = await provider.resolveHostRate({ country: 'CO', hostId: 'u', serviceType: 'standard' });
+    const cleaner = await provider.resolveCleanerRate({ country: 'CO', cleanerId: 'u', serviceType: 'standard' });
+    expect(host.rateBps).toBe(100); // Host PRO
+    expect(cleaner.rateBps).toBe(300); // Cleaner FREE
+  });
+
+  it('degrades to FREE when the role-tier lookup throws (never blocks)', async () => {
     const provider = build(
       (_s, _c, tier) => ({ rateBps: tier === SubscriberTier.FREE ? 300 : 100, ruleId: null }),
-      { getTier: async () => { throw new Error('tier service down'); } },
+      {
+        getTier: async () => { throw new Error('tier service down'); },
+        getRoleTier: async () => { throw new Error('tier service down'); },
+      },
     );
     const res = await provider.resolveCleanerRate({ country: 'CO', cleanerId: 'c', serviceType: 'standard' });
     expect(res.rateBps).toBe(300); // FREE path used

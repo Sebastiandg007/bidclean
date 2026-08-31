@@ -245,8 +245,14 @@ describe('commission-system — Integration / Scenario Tests', () => {
     await admin.createRule(createInput({ appliesTo: RateSide.HOST, subscriberTier: SubscriberTier.FREE, rateBps: 1000 }));
 
     const resolver = new CommissionRateResolver(cache);
-    const proTier: SubscriptionTierContract = { getTier: async () => SubscriberTier.PRO };
-    const freeTier: SubscriptionTierContract = { getTier: async () => SubscriberTier.FREE };
+    const proTier: SubscriptionTierContract = {
+      getTier: async () => SubscriberTier.PRO,
+      getRoleTier: async () => SubscriberTier.PRO,
+    };
+    const freeTier: SubscriptionTierContract = {
+      getTier: async () => SubscriberTier.FREE,
+      getRoleTier: async () => SubscriberTier.FREE,
+    };
 
     const cleanerProvider = new CommissionRatesProvider(resolver, proTier);
     const hostProvider = new CommissionRatesProvider(resolver, freeTier);
@@ -270,6 +276,7 @@ describe('commission-system — Integration / Scenario Tests', () => {
     const resolver = new CommissionRateResolver(cache);
     const erroringTier: SubscriptionTierContract = {
       getTier: async () => { throw new Error('tier down'); },
+      getRoleTier: async () => { throw new Error('tier down'); },
     };
     const provider = new CommissionRatesProvider(resolver, erroringTier);
 
