@@ -180,8 +180,11 @@ describe('repository ingestion — properties', () => {
             await repo.applyDeltas([delta({ eventTimestampMs: e.ts, active: e.active })], null);
           }
           const row = await repo.findByUserId('user-1');
-          // Expected: the state of the event with the maximum timestamp.
-          const winner = events.reduce((a, b) => (b.ts >= a.ts ? b : a));
+          // The guard applies an event only when strictly newer than the entitlement's last
+          // event time (`>`), so among events sharing the maximum timestamp the FIRST-applied
+          // wins (a same-timestamp redelivery is a deterministic no-op).
+          const maxTs = Math.max(...events.map((e) => e.ts));
+          const winner = events.find((e) => e.ts === maxTs)!;
           expect(row?.cleanerProActive).toBe(winner.active);
         },
       ),
