@@ -42,7 +42,7 @@ in one role and FREE in the other. `ad_free` is independent and never implies PR
 | `revenuecat/revenuecat-event.mapper.ts` | Pure: RevenueCat event → `EntitlementDelta[]`. | Implemented |
 | `revenuecat/revenuecat-payload.sanitizer.ts` | Pure: whitelist safe fields only (no PII / secrets). | Implemented |
 | `webhooks/revenuecat-webhook.controller.ts` | Public `POST /webhooks/revenuecat`; HMAC verify; dedup; ledger `RECEIVED`; enqueue; ACK. | Implemented |
-| `webhooks/revenuecat-webhook.processor.ts` | BullMQ: apply deltas per entitlement (out-of-order safe); mark `PROCESSED`. | Planned |
+| `webhooks/revenuecat-webhook.processor.ts` | BullMQ: apply deltas per entitlement (out-of-order safe); mark `PROCESSED`; `onFailed` dead-letters to `FAILED` on retry exhaustion. | Implemented |
 | `webhooks/subscription-dispatch.worker.ts` | Recovery: re-enqueue `RECEIVED`/`QUEUED` ledger rows not yet processed. | Planned |
 | `reconciliation/subscription-reconciliation.service.ts` | `@Interval` sweep: converge existing rows + discover missing subscribers. | Planned |
 | `entities/subscription.entity.ts` | `subscriptions` mirror (one row per user). | Implemented |
@@ -51,6 +51,7 @@ in one role and FREE in the other. `ad_free` is independent and never implies PR
 | `__tests__/revenuecat-event.mapper.spec.ts` | Unit tests for the RevenueCat event → `EntitlementDelta[]` mapper. | Implemented |
 | `__tests__/revenuecat-payload.sanitizer.spec.ts` | Unit tests for the payload field whitelist (no PII / secrets). | Implemented |
 | `__tests__/revenuecat-signature.spec.ts` | Unit tests for HMAC-SHA256 verification (tolerance + constant-time compare). | Implemented |
+| `__tests__/revenuecat-webhook.processor.spec.ts` | Unit tests for the BullMQ processor: applies deltas + PROCESSED, idempotent no-op on already-PROCESSED, unknown event → empty deltas (still PROCESSED), missing ledger row skip, FAILED on retry exhaustion. | Implemented |
 
 ## Domain Rules
 

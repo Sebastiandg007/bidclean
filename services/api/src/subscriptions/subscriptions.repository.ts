@@ -126,6 +126,11 @@ export class SubscriptionsRepository {
     }
   }
 
+  /** Load a single ledger row by id (used by the processor to read the sanitized payload). */
+  async findLedgerRow(ledgerId: string): Promise<SubscriptionEvent | null> {
+    return this.dataSource.getRepository(SubscriptionEvent).findOne({ where: { id: ledgerId } });
+  }
+
   /** Mark a ledger row QUEUED after a successful enqueue. */
   async markQueued(ledgerId: string): Promise<void> {
     await this.updateDispatchStatus(ledgerId, DispatchStatus.QUEUED, null);
