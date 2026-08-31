@@ -41,7 +41,7 @@ in one role and FREE in the other. `ad_free` is independent and never implies PR
 | `revenuecat/revenuecat-signature.ts` | HMAC-SHA256 verify (timestamp tolerance + constant-time compare). | Implemented |
 | `revenuecat/revenuecat-event.mapper.ts` | Pure: RevenueCat event → `EntitlementDelta[]`. | Implemented |
 | `revenuecat/revenuecat-payload.sanitizer.ts` | Pure: whitelist safe fields only (no PII / secrets). | Implemented |
-| `webhooks/revenuecat-webhook.controller.ts` | Public `POST /webhooks/revenuecat`; HMAC verify; dedup; ledger `RECEIVED`; enqueue; ACK. | Planned |
+| `webhooks/revenuecat-webhook.controller.ts` | Public `POST /webhooks/revenuecat`; HMAC verify; dedup; ledger `RECEIVED`; enqueue; ACK. | Implemented |
 | `webhooks/revenuecat-webhook.processor.ts` | BullMQ: apply deltas per entitlement (out-of-order safe); mark `PROCESSED`. | Planned |
 | `webhooks/subscription-dispatch.worker.ts` | Recovery: re-enqueue `RECEIVED`/`QUEUED` ledger rows not yet processed. | Planned |
 | `reconciliation/subscription-reconciliation.service.ts` | `@Interval` sweep: converge existing rows + discover missing subscribers. | Planned |
