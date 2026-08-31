@@ -57,22 +57,28 @@ function serviceWith(row: Subscription | null): RealSubscriptionTierService {
   return new RealSubscriptionTierService(repo);
 }
 
-/** An entitlement arbitrary: sometimes absent, else active/inactive with a past/future expiry. */
+/**
+ * An entitlement arbitrary: sometimes absent, else active/inactive with an expiry that is
+ * UNAMBIGUOUSLY past or future. A ~1h dead zone around "now" is excluded so the boundary can
+ * never flip between generating the value and reading `Date.now()` in the assertion (no flake).
+ */
+const DEAD_ZONE_MS = 3_600_000; // 1 hour
 const entitlementArb: fc.Arbitrary<EntitlementArb | null> = fc.option(
   fc.record({
     active: fc.boolean(),
-    // Expiry from ~1 day in the past to ~1 day in the future (and null handled by option).
-    offsetMs: fc.integer({ min: -86_400_000, max: 86_400_000 }),
+    offsetMs: fc
+      .integer({ min: -86_400_000, max: 86_400_000 })
+      .filter((ms) => Math.abs(ms) >= DEAD_ZONE_MS),
   }),
   { nil: null },
 );
 
-/** Whether an entitlement grants access: active AND future/open-ended expiry. */
+/** Whether an entitlement grants access: active AND future expiry (dead zone excludes ~now). */
 function grantsAccess(e: EntitlementArb | null): boolean {
   if (!e || !e.active) {
     return false;
   }
-  return e.offsetMs > 0; // strictly future (offset 0 is effectively now/past by the time we read)
+  return e.offsetMs > 0;
 }
 
 describe('RealSubscriptionTierService — properties', () => {
@@ -82,13 +88,9 @@ describe('RealSubscriptionTierService — properties', () => {
         const svc = serviceWith(mirrorFrom(cleaner, host, null));
         const cleanerTier = await svc.getRoleTier('user-1', SubscriberRole.CLEANER);
         const hostTier = await svc.getRoleTier('user-1', SubscriberRole.HOST);
-        // Allow the boundary case (offsetMs===0) either way by re-deriving with a tolerance.
-        if (cleaner?.offsetMs !== 0) {
-          expect(cleanerTier === SubscriberTier.PRO).toBe(grantsAccess(cleaner));
-        }
-        if (host?.offsetMs !== 0) {
-          expect(hostTier === SubscriberTier.PRO).toBe(grantsAccess(host));
-        }
+        // The dead zone guarantees every expiry is unambiguously past/future — no boundary flake.
+        expect(cleanerTier === SubscriberTier.PRO).toBe(grantsAccess(cleaner));
+        expect(hostTier === SubscriberTier.PRO).toBe(grantsAccess(host));
       }),
       { numRuns: NUM_RUNS },
     );
@@ -125,9 +127,7 @@ describe('RealSubscriptionTierService — properties', () => {
         const svc = serviceWith(mirrorFrom(cleaner, host, adFree));
         const global = await svc.getTier('user-1');
         const expectedPro = grantsAccess(cleaner) || grantsAccess(host);
-        if (cleaner?.offsetMs !== 0 && host?.offsetMs !== 0) {
-          expect(global === SubscriberTier.PRO).toBe(expectedPro);
-        }
+        expect(global === SubscriberTier.PRO).toBe(expectedPro);
       }),
       { numRuns: NUM_RUNS },
     );
