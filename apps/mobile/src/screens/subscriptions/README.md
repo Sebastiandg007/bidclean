@@ -12,6 +12,7 @@ The Cleaner and Host UI for RevenueCat subscriptions (Cleaner PRO / Host PRO) an
 | `subscriptions.constants.ts` | Routes, `/subscriptions/me` endpoint, platform public SDK keys, entitlement/offering ids (from config), i18n keys |
 | `subscriptions.api.ts` | Typed HTTP client for `GET /subscriptions/me` via the lazy shared `apiClient` |
 | `useSubscription.ts` | Zustand store: configures the SDK with the internal UUID as `app_user_id`, derives client entitlements from `customerInfo`, `purchase`/`restore`, and converges to the server view via `refreshServerView` |
+| `components/ProBadge.tsx` | Presentational "PRO" badge, gated per role from the server-authoritative view (`roleTiers[role] === PRO`); renders nothing when FREE |
 
 ## Dependencies
 
