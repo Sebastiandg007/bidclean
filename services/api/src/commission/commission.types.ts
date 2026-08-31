@@ -14,6 +14,16 @@ export type SubscriberTier = (typeof SubscriberTier)[keyof typeof SubscriberTier
 export const RateSide = { HOST: 'HOST', CLEANER: 'CLEANER' } as const;
 export type RateSide = (typeof RateSide)[keyof typeof RateSide];
 
+/**
+ * The role a subscriber tier is resolved against.
+ *
+ * Mirrors {@link RateSide} 1:1 (HOST/CLEANER) but names the SUBSCRIBER dimension: a user can
+ * be PRO as a Host and FREE as a Cleaner. The `SUBSCRIPTION_TIER` contract resolves the Host
+ * tier from the `host_pro` entitlement and the Cleaner tier from `cleaner_pro`, independently.
+ */
+export const SubscriberRole = { HOST: 'HOST', CLEANER: 'CLEANER' } as const;
+export type SubscriberRole = (typeof SubscriberRole)[keyof typeof SubscriberRole];
+
 /** Audit action recorded for every rule mutation. */
 export const RuleAuditAction = {
   CREATE: 'CREATE',
