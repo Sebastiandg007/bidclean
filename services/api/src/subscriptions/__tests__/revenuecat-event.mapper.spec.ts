@@ -1,6 +1,6 @@
 import { RevenueCatEventType } from '../subscriptions.types';
 import type { SanitizedEventPayload } from '../revenuecat/revenuecat-payload.sanitizer';
-import type { mapEventToDeltas as MapEventToDeltas } from '../revenuecat/revenuecat-event.mapper';
+import { mapEventToDeltas } from '../revenuecat/revenuecat-event.mapper';
 
 /**
  * Unit tests for the RevenueCat event mapper.
@@ -9,19 +9,8 @@ import type { mapEventToDeltas as MapEventToDeltas } from '../revenuecat/revenue
  * Validates: Requirements 2.6, 2.9, 2.10 (per-type effects incl. PAUSED/BILLING keep-active,
  * TRANSFER source+destination pair, unknown -> no mutation).
  *
- * The entitlement id map is read from env at import time, so we set the mapping and load the
- * mapper in an isolated module registry.
+ * The entitlement id map (RC_ENTITLEMENT_*) is seeded by test/setup-env.ts before modules load.
  */
-function loadMapper(): typeof MapEventToDeltas {
-  let fn!: typeof MapEventToDeltas;
-  jest.isolateModules(() => {
-    process.env.RC_ENTITLEMENT_CLEANER_PRO = 'cleaner_pro';
-    process.env.RC_ENTITLEMENT_HOST_PRO = 'host_pro';
-    process.env.RC_ENTITLEMENT_AD_FREE = 'ad_free';
-    fn = require('../revenuecat/revenuecat-event.mapper').mapEventToDeltas;
-  });
-  return fn;
-}
 
 function event(overrides: Partial<SanitizedEventPayload>): SanitizedEventPayload {
   return {
@@ -44,7 +33,6 @@ function event(overrides: Partial<SanitizedEventPayload>): SanitizedEventPayload
 }
 
 describe('mapEventToDeltas', () => {
-  const mapEventToDeltas = loadMapper();
   const expiresIso = new Date(1_700_100_000_000).toISOString();
 
   it.each([

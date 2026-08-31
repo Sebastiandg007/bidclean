@@ -85,6 +85,11 @@ function applyOperator(value: unknown, op: FindOperatorLike): boolean {
 export class InMemoryRepository {
   constructor(private readonly db: InMemoryDataSource, private readonly table: Table) {}
 
+  /** Mirrors TypeORM's `create`: returns a plain object copy of the given values. */
+  create(values: Record<string, unknown>): Record<string, unknown> {
+    return { ...values };
+  }
+
   async findOne(options: { where: Record<string, unknown> }): Promise<Record<string, unknown> | null> {
     return this.db.rows(this.table).find((row) => matches(row, options.where)) ?? null;
   }
@@ -108,11 +113,21 @@ export class InMemoryRepository {
   }
 
   async insert(values: Record<string, unknown>): Promise<{ identifiers: Array<{ id: string }> }> {
+    const row = this.persist(values);
+    return { identifiers: [{ id: row.id as string }] };
+  }
+
+  /** Mirrors TypeORM's `save`: persists and returns the row (with its generated id). */
+  async save(values: Record<string, unknown>): Promise<Record<string, unknown>> {
+    return this.persist(values);
+  }
+
+  private persist(values: Record<string, unknown>): Record<string, unknown> {
     this.enforceUnique(values);
     const id = nextId(this.table === 'Subscription' ? 'sub' : 'evt');
     const row = this.withDefaults(id, values);
     this.db.rows(this.table).push(row);
-    return { identifiers: [{ id }] };
+    return row;
   }
 
   async update(where: Record<string, unknown>, patch: Record<string, unknown>): Promise<void> {
