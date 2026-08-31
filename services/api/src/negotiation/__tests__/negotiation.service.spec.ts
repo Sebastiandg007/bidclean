@@ -74,7 +74,13 @@ describe('NegotiationService', () => {
 
   // Mocks
   let offerMatch: { match: jest.Mock };
-  let offerRepo: { findOne: jest.Mock };
+  let offerRepo: { findOne: jest.Mock; query: jest.Mock };
+  let commissionRates: {
+    resolveHostRate: jest.Mock;
+    resolveCleanerRate: jest.Mock;
+    previewHostRate: jest.Mock;
+    previewCleanerRate: jest.Mock;
+  };
   let negotiationRepo: {
     findThread: jest.Mock;
     findThreadById: jest.Mock;
@@ -85,6 +91,7 @@ describe('NegotiationService', () => {
     markProposalCountered: jest.Mock;
     setProposalStatus: jest.Mock;
     markProposalAccepted: jest.Mock;
+    persistMatchedCleanerRate: jest.Mock;
     hasSentDelivery: jest.Mock;
     findOtherDeliveredCleaners: jest.Mock;
     findHostInbox: jest.Mock;
@@ -95,7 +102,19 @@ describe('NegotiationService', () => {
 
   beforeEach(() => {
     offerMatch = { match: jest.fn().mockResolvedValue({ success: true }) };
-    offerRepo = { findOne: jest.fn().mockResolvedValue(makeOffer()) };
+    offerRepo = {
+      findOne: jest.fn().mockResolvedValue(makeOffer()),
+      // resolveOfferCountry runs a raw query against properties
+      query: jest.fn().mockResolvedValue([{ address_country: 'US' }]),
+    };
+    // commission-system contract: resolve the winning Cleaner rate at match.
+    // Returns the same default 300 bps so payout arithmetic is unchanged here.
+    commissionRates = {
+      resolveHostRate: jest.fn(),
+      resolveCleanerRate: jest.fn().mockResolvedValue({ rateBps: CLEANER_RATE_BPS, ruleId: null }),
+      previewHostRate: jest.fn(),
+      previewCleanerRate: jest.fn(),
+    };
     negotiationRepo = {
       findThread: jest.fn().mockResolvedValue(null),
       findThreadById: jest.fn().mockResolvedValue(makeThread()),
@@ -108,6 +127,7 @@ describe('NegotiationService', () => {
       markProposalCountered: jest.fn().mockResolvedValue(undefined),
       setProposalStatus: jest.fn().mockResolvedValue(undefined),
       markProposalAccepted: jest.fn().mockResolvedValue(undefined),
+      persistMatchedCleanerRate: jest.fn().mockResolvedValue(undefined),
       hasSentDelivery: jest.fn().mockResolvedValue(true),
       findOtherDeliveredCleaners: jest.fn().mockResolvedValue([]),
       findHostInbox: jest.fn().mockResolvedValue([]),
@@ -129,6 +149,7 @@ describe('NegotiationService', () => {
 
     service = new NegotiationService(
       offerMatch as never,
+      commissionRates as never,
       offerRepo as never,
       negotiationRepo as never,
       pricing,
@@ -144,6 +165,26 @@ describe('NegotiationService', () => {
       expect(offerMatch.match).toHaveBeenCalledWith('offer-1', 'cleaner-1', 'negotiation');
       expect(result.agreedPriceCents).toBe(BASE_PRICE);
       expect(result.cleanerPayoutCents).toBe(BASE_PRICE - Math.trunc((BASE_PRICE * CLEANER_RATE_BPS) / 10000));
+    });
+
+    it('resolves the winning Cleaner rate at match and snapshots it (two-moment resolution)', async () => {
+      await service.acceptOffer('cleaner-1', 'offer-1', 'key-1');
+
+      expect(commissionRates.resolveCleanerRate).toHaveBeenCalledWith({
+        country: 'US',
+        cleanerId: 'cleaner-1',
+        serviceType: undefined,
+      });
+      expect(negotiationRepo.persistMatchedCleanerRate).toHaveBeenCalledWith(
+        expect.objectContaining({ offerId: 'offer-1', cleanerCommissionRateBps: CLEANER_RATE_BPS }),
+      );
+    });
+
+    it('applies a reduced PRO Cleaner rate resolved at match to the payout', async () => {
+      commissionRates.resolveCleanerRate.mockResolvedValue({ rateBps: 100, ruleId: 'pro-c' });
+      const result = await service.acceptOffer('cleaner-1', 'offer-1', 'key-1');
+      // payout uses the resolved 100 bps, not the offer snapshot 300 bps
+      expect(result.cleanerPayoutCents).toBe(BASE_PRICE - Math.trunc((BASE_PRICE * 100) / 10000));
     });
 
     it('Property P8: rejects when the offer is not ACTIVE', async () => {

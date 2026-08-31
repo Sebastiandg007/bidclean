@@ -30,6 +30,7 @@ import { OfferStateTransition } from './entities/offer-state-transition.entity';
 import { OfferDelivery } from './entities/offer-delivery.entity';
 import { User } from '../auth/entities/user.entity';
 import { AvailableOffersModule } from './available/available-offers.module';
+import { CommissionModule } from '../commission/commission.module';
 
 /**
  * Offers module.
@@ -58,6 +59,7 @@ import { AvailableOffersModule } from './available/available-offers.module';
       }),
     ),
     AvailableOffersModule,
+    CommissionModule,
   ],
   controllers: [OffersController],
   providers: [

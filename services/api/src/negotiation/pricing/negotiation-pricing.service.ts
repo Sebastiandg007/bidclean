@@ -46,6 +46,29 @@ export class NegotiationPricingService {
   }
 
   /**
+   * Compute the AUTHORITATIVE match breakdown using an explicitly-resolved Cleaner rate
+   * (from commission-system at match time, against the winning Cleaner's tier) while keeping
+   * the offer's snapshotted Host rate. Reuses CommissionService for the cents math — no
+   * independent commission or rounding algorithm here.
+   *
+   * @param offer - The offer being matched (source of the snapshotted Host rate)
+   * @param agreedPriceCents - The agreed price in cents (base price or accepted proposal)
+   * @param cleanerRateBps - The Cleaner commission rate resolved at match
+   * @returns The commission breakdown with the resolved Cleaner rate applied
+   */
+  computeMatchBreakdown(
+    offer: Offer,
+    agreedPriceCents: number,
+    cleanerRateBps: number,
+  ): CommissionBreakdown {
+    return this.commission.getFullBreakdown(
+      agreedPriceCents,
+      offer.hostServiceFeeRateBps,
+      cleanerRateBps,
+    );
+  }
+
+  /**
    * Compute the inclusive allowed price range relative to the immutable Base Price.
    * Uses integer-only Math.trunc bps arithmetic.
    *

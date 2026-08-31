@@ -20,6 +20,7 @@ describe('OffersService', () => {
   let mockDataSource: any;
   let mockCentrifugoClient: any;
   let mockPropertyReadiness: any;
+  let mockCommissionRates: any;
   let mockQueue: any;
 
   const hostId = 'host-uuid-123';
@@ -65,6 +66,13 @@ describe('OffersService', () => {
       check: jest.fn(),
     };
 
+    mockCommissionRates = {
+      resolveHostRate: jest.fn().mockResolvedValue({ rateBps: 1000, ruleId: null }),
+      resolveCleanerRate: jest.fn().mockResolvedValue({ rateBps: 300, ruleId: null }),
+      previewHostRate: jest.fn(),
+      previewCleanerRate: jest.fn(),
+    };
+
     mockCentrifugoClient = {
       publish: jest.fn().mockResolvedValue(true),
       broadcast: jest.fn().mockResolvedValue(true),
@@ -82,6 +90,7 @@ describe('OffersService', () => {
       mockDataSource,
       mockCentrifugoClient,
       mockPropertyReadiness,
+      mockCommissionRates,
       mockQueue,
     );
   });
@@ -259,6 +268,8 @@ describe('OffersService', () => {
       mockCommission.getFullBreakdown.mockReturnValue(breakdown);
       mockRepository.findByIdempotencyKey.mockResolvedValue(null);
       mockRepository.create.mockResolvedValue({ id: offerId });
+      // resolvePropertyCountry query returns the property's ISO country
+      mockDataSource.query.mockResolvedValue([{ address_country: 'CO' }]);
     });
 
     it('should create an offer in DRAFT state', async () => {
@@ -272,6 +283,30 @@ describe('OffersService', () => {
         expect.objectContaining({ fromState: null, toState: OfferState.DRAFT, triggeredBy: 'host' }),
       );
       expect(mockEventEmitter.emitCreated).toHaveBeenCalledTimes(1);
+    });
+
+    it('should resolve the Host rate via COMMISSION_RATES and feed it to CommissionService', async () => {
+      await service.create(hostId, validDto);
+
+      expect(mockCommissionRates.resolveHostRate).toHaveBeenCalledWith({
+        country: 'CO',
+        hostId,
+        serviceType: 'standard',
+      });
+      // resolved host bps (1000) is passed into getFullBreakdown as the 2nd arg
+      expect(mockCommission.getFullBreakdown).toHaveBeenCalledWith(5000, 1000);
+    });
+
+    it('should still create when country lookup yields no row (env-default fallback)', async () => {
+      mockDataSource.query.mockResolvedValue([]);
+      mockCommissionRates.resolveHostRate.mockResolvedValue({ rateBps: 1000, ruleId: null });
+
+      const result = await service.create(hostId, validDto);
+
+      expect(result).toEqual({ id: offerId });
+      expect(mockCommissionRates.resolveHostRate).toHaveBeenCalledWith(
+        expect.objectContaining({ country: '', hostId }),
+      );
     });
 
     it('should validate property readiness before creation', async () => {

@@ -170,6 +170,7 @@ graph TB
             Offers["Offers Module"]
             Negotiation["Negotiation Module"]
             Payments["Payments Module"]
+            Commission["Commission Module"]
             Chat["Chat Module"]
             Notifications["Notifications Module"]
             Subscriptions["Subscriptions Module"]
@@ -211,6 +212,10 @@ graph TB
     Negotiation --> Events
     Negotiation --> |"OFFER_MATCH contract"| Offers
     Negotiation --> |"Centrifugo API"| Centrifugo
+    Commission --> DB
+    Commission --> |"cache invalidation"| Cache
+    Offers --> |"COMMISSION_RATES: resolveHostRate (create)"| Commission
+    Negotiation --> |"COMMISSION_RATES: resolveCleanerRate (match)"| Commission
     Payments --> DB
     Payments --> |"Stripe SDK"| Stripe["Stripe Connect"]
     Chat --> Cache
@@ -448,6 +453,67 @@ graph LR
 ```
 
 Reconciliation is idempotent: a repair that Stripe already delivered via webhook is a no-op because the persisted state is already terminal for that attempt. Placeholder attempts whose intent id was never persisted (`pending:` prefix) are skipped, and per-payment errors are swallowed so one stuck record never stalls the batch.
+
+---
+
+## 5f. Commission Rate Resolution (two-moment)
+
+> The `commission-system` module (ADR-006) decides *which* commission rate applies to each side of a service. It resolves rates only — the cents arithmetic stays in each consumer's own `CommissionService`, and coupling is one-directional via the `COMMISSION_RATES` token (no circular dependency). The two rates are resolved at different moments because they depend on actors known at different times.
+
+```mermaid
+sequenceDiagram
+    participant Host
+    participant Offers as Offers Module (create)
+    participant Rates as COMMISSION_RATES
+    participant Tier as SUBSCRIPTION_TIER (stub → Spec 11)
+    participant Cleaner as Winning Cleaner
+    participant Neg as Negotiation Module (match)
+
+    Host->>Offers: create offer (country, serviceType)
+    Offers->>Rates: resolveHostRate({ country, hostId, serviceType })
+    Rates->>Tier: getTier(hostId) (bounded; FREE on timeout)
+    Rates-->>Offers: { hostFeeRateBps, hostRuleId }
+    Note over Offers: own CommissionService → snapshot Host rate on offer
+
+    Cleaner->>Neg: accept / accepted proposal (Cleaner now known)
+    Neg->>Rates: resolveCleanerRate({ country, cleanerId, serviceType })
+    Rates->>Tier: getTier(cleanerId) (bounded; FREE on timeout)
+    Rates-->>Neg: { cleanerRateBps, cleanerRuleId }
+    Note over Neg: own CommissionService → snapshot Cleaner rate on winning proposal/offer
+```
+
+Resolution selects the most-specific active rule (specificity → priority → `effective_from` → lowest UUID) from `commission_rules`; with an empty ruleset it returns the environment defaults (identical to the prior flat model). Rules never overlap (GiST exclusion constraint), are never physically deleted (audit `ON DELETE RESTRICT`), and rate changes propagate across API instances via Redis pub/sub invalidation. Any failure degrades to the env-default rate and never blocks creation or match.
+
+### Commission Rules Schema
+
+```mermaid
+erDiagram
+    commission_rules {
+        uuid id PK
+        char country "ISO alpha-2 or NULL=ANY"
+        varchar subscriber_tier "FREE|PRO or NULL=ANY"
+        varchar service_type "or NULL=ANY"
+        varchar applies_to "HOST|CLEANER"
+        integer rate_bps
+        integer priority
+        timestamptz effective_from
+        timestamptz effective_to "NULL=open-ended"
+        boolean is_active
+        uuid created_by FK
+        uuid updated_by FK
+    }
+    commission_rule_audit {
+        uuid id PK
+        uuid rule_id FK "ON DELETE RESTRICT"
+        varchar action "CREATE|UPDATE|ACTIVATE|DEACTIVATE"
+        uuid actor_id FK
+        jsonb old_values
+        jsonb new_values
+        text reason
+        timestamptz created_at
+    }
+    commission_rules ||--o{ commission_rule_audit : "audited by"
+```
 
 ---
 

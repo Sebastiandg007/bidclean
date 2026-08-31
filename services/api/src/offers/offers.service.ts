@@ -20,6 +20,10 @@ import {
   PROPERTY_READINESS,
   PropertyReadinessInterface,
 } from './contracts/property-readiness.interface';
+import {
+  COMMISSION_RATES,
+  CommissionRateContract,
+} from '../commission/contracts/commission-rates.interface';
 import { OfferState, ServiceType, OfferQueryFilters, PaginatedResponse } from './offers.types';
 import { Offer } from './entities/offer.entity';
 import {
@@ -78,6 +82,8 @@ export class OffersService {
     private readonly centrifugoClient: CentrifugoClient,
     @Inject(PROPERTY_READINESS)
     private readonly propertyReadiness: PropertyReadinessInterface,
+    @Inject(COMMISSION_RATES)
+    private readonly commissionRates: CommissionRateContract,
     @InjectQueue(QUEUE_NAMES.RADIUS_EXPANSION)
     private readonly radiusExpansionQueue: Queue,
   ) {}
@@ -112,7 +118,21 @@ export class OffersService {
       }
     }
 
-    const breakdown = this.commissionService.getFullBreakdown(dto.offeredPriceCents);
+    // Resolve the Host service fee rate for this offer's context (country + Host tier +
+    // service type). The commission-system contract never throws — on any failure it
+    // returns the env-default rate, preserving the prior flat behavior. The Cleaner rate
+    // is resolved later, at match, against the winning Cleaner.
+    const country = await this.resolvePropertyCountry(dto.propertyId);
+    const hostRate = await this.commissionRates.resolveHostRate({
+      country,
+      hostId,
+      serviceType: dto.serviceType,
+    });
+
+    const breakdown = this.commissionService.getFullBreakdown(
+      dto.offeredPriceCents,
+      hostRate.rateBps,
+    );
 
     const offer = await this.offersRepository.create({
       hostId,
@@ -207,6 +227,19 @@ export class OffersService {
     }
 
     return offer;
+  }
+
+  /**
+   * Resolve the property's ISO country for commission rate resolution.
+   * Falls back to an empty string when unavailable; the commission contract then
+   * yields the env-default rate (never blocks offer creation).
+   */
+  private async resolvePropertyCountry(propertyId: string): Promise<string> {
+    const rows = await this.dataSource.query<{ address_country: string | null }[]>(
+      `SELECT address_country FROM properties WHERE id = $1 LIMIT 1`,
+      [propertyId],
+    );
+    return rows[0]?.address_country ?? '';
   }
 
   /** Query property name, type, city, and cover photo for the snapshot. */

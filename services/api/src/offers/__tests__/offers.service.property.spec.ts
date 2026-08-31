@@ -10,6 +10,7 @@ import { OfferEventEmitterService } from '../events/offer-event-emitter.service'
 import { OfferStateMachineService } from '../state-machine/offer-state-machine';
 import { CentrifugoClient } from '../delivery/centrifugo.client';
 import { PROPERTY_READINESS } from '../contracts/property-readiness.interface';
+import { COMMISSION_RATES } from '../../commission/contracts/commission-rates.interface';
 import { OfferState, ServiceType } from '../offers.types';
 import {
   OFFER_MIN_LEAD_MINUTES,
@@ -69,9 +70,18 @@ describe('OffersService — Create Flow Property-Based Tests', () => {
         { provide: CommissionService, useValue: new CommissionService() },
         { provide: OfferEventEmitterService, useValue: mockEventEmitter },
         { provide: OfferStateMachineService, useValue: { transitionState: jest.fn() } },
-        { provide: DataSource, useValue: { query: jest.fn() } },
+        { provide: DataSource, useValue: { query: jest.fn().mockResolvedValue([{ address_country: 'CO' }]) } },
         { provide: CentrifugoClient, useValue: { publish: jest.fn().mockResolvedValue(true), broadcast: jest.fn().mockResolvedValue(true) } },
         { provide: PROPERTY_READINESS, useValue: mockPropertyReadiness },
+        {
+          provide: COMMISSION_RATES,
+          useValue: {
+            resolveHostRate: jest.fn().mockResolvedValue({ rateBps: 1000, ruleId: null }),
+            resolveCleanerRate: jest.fn().mockResolvedValue({ rateBps: 300, ruleId: null }),
+            previewHostRate: jest.fn(),
+            previewCleanerRate: jest.fn(),
+          },
+        },
         { provide: getQueueToken(QUEUE_NAMES.RADIUS_EXPANSION), useValue: { add: jest.fn() } },
       ],
     }).compile();

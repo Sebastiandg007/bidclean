@@ -101,6 +101,7 @@ describe('OffersService.cancel', () => {
       mockDataSource as never,
       mockCentrifugoClient as never,
       {} as never, // propertyReadiness — not used in cancel
+      {} as never, // commissionRates — not used in cancel
       mockRadiusExpansionQueue as never,
     );
   });
