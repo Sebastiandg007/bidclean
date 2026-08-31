@@ -31,11 +31,11 @@ in one role and FREE in the other. `ad_free` is independent and never implies PR
 |------|---------------|--------|
 | `subscriptions.types.ts` | `EntitlementKey`, `SubscriberRole`, `Store`, `RevenueCatEventType`, `DispatchStatus`, `SubscriberTier`, and the view / delta types (`EntitlementState`, `SubscriptionView`, `EntitlementDelta`). | Implemented |
 | `subscriptions.constants.ts` | Env config + `validateSubscriptionsConfig()` (fail-fast); reuses `REVENUECAT_API_KEY` / `REVENUECAT_API_URL`; logical→configured entitlement id map (`ENTITLEMENT_ID_MAP`). | Implemented |
-| `subscriptions.module.ts` | NestJS module; provides + exports the real `SUBSCRIPTION_TIER`; validates config. | Planned |
+| `subscriptions.module.ts` | NestJS module; provides + exports the real `SUBSCRIPTION_TIER`; validates config. | Implemented |
 | `subscription-tier.service.ts` | `RealSubscriptionTierService`: `getTier` + `getRoleTier` derived from the mirror. | Implemented |
-| `subscriptions.service.ts` | Read model (`getMyEntitlements`), self-heal trigger, mirror upsert orchestration. | Planned |
+| `subscriptions.service.ts` | Read model (`getMyEntitlements`), self-heal trigger, mirror upsert orchestration. | Implemented |
 | `subscriptions.repository.ts` | Mirror + ledger/outbox reads and writes; dedup; per-entitlement ordering; atomic TRANSFER; reconciliation convergence + discovery; deletion cleanup. | Implemented |
-| `subscriptions.controller.ts` | `GET /subscriptions/me` (JWT, scoped, self-heal on missing/stale). | Planned |
+| `subscriptions.controller.ts` | `GET /subscriptions/me` (JWT, scoped, self-heal on missing/stale). | Implemented |
 | `revenuecat/revenuecat.client.ts` | Versioned REST seam: `getSubscriber`, `deleteSubscriber`. | Implemented |
 | `revenuecat/revenuecat.constants.ts` | Logical→configured entitlement id map + `toEntitlementKeys()` (maps external RevenueCat entitlement ids to internal keys). | Implemented |
 | `revenuecat/revenuecat-signature.ts` | HMAC-SHA256 verify (timestamp tolerance + constant-time compare). | Implemented |
@@ -43,7 +43,7 @@ in one role and FREE in the other. `ad_free` is independent and never implies PR
 | `revenuecat/revenuecat-payload.sanitizer.ts` | Pure: whitelist safe fields only (no PII / secrets). | Implemented |
 | `webhooks/revenuecat-webhook.controller.ts` | Public `POST /webhooks/revenuecat`; HMAC verify; dedup; ledger `RECEIVED`; enqueue; ACK. | Implemented |
 | `webhooks/revenuecat-webhook.processor.ts` | BullMQ: apply deltas per entitlement (out-of-order safe); mark `PROCESSED`; `onFailed` dead-letters to `FAILED` on retry exhaustion. | Implemented |
-| `webhooks/subscription-dispatch.worker.ts` | Recovery: re-enqueue `RECEIVED`/`QUEUED` ledger rows not yet processed. | Planned |
+| `webhooks/subscription-dispatch.worker.ts` | Recovery: re-enqueue `RECEIVED`/`QUEUED` ledger rows not yet processed. | Implemented |
 | `reconciliation/subscription-reconciliation.service.ts` | `@Interval` sweep: converge existing rows + discover missing subscribers. | Implemented |
 | `entities/subscription.entity.ts` | `subscriptions` mirror (one row per user). | Implemented |
 | `entities/subscription-event.entity.ts` | Append-only `subscription_events` ledger + outbox. | Implemented |
@@ -57,6 +57,13 @@ in one role and FREE in the other. `ad_free` is independent and never implies PR
 | `__tests__/subscription-webhook.property.spec.ts` | Property-based tests (fast-check) for webhook authenticity, ingestion, and durability: P3 signature/tamper/tolerance, P4 idempotent ingestion, P5/P15 out-of-order + per-entitlement convergence, P9 no sensitive persistence, P13 transfer integrity, P16 webhook durability. | Implemented |
 | `__tests__/subscription-reconciliation.property.spec.ts` | Property-based tests (fast-check) for reconciliation: P6 convergence, P8 safe degradation on RevenueCat outage, P18 discovery of missing subscribers. | Implemented |
 | `__tests__/subscription-config.property.spec.ts` | Property-based tests (fast-check) for P10 configuration integrity: production startup fails when any entitlement id mapping is missing (no silent hardcoded fallback). | Implemented |
+| `__tests__/revenuecat.client.spec.ts` | Unit tests for the REST seam (`getSubscriber` / `deleteSubscriber`): entitlement mapping, versioned URL, and error handling. | Implemented |
+| `__tests__/revenuecat-webhook.controller.spec.ts` | Unit tests for the public webhook ingress: HMAC verify, dedup, ledger `RECEIVED`, enqueue, and ACK. | Implemented |
+| `__tests__/subscription-dispatch.worker.spec.ts` | Unit tests for the recovery worker: re-enqueues un-processed `RECEIVED`/`QUEUED` rows past the grace window. | Implemented |
+| `__tests__/subscriptions.controller.spec.ts` | Unit tests for `GET /subscriptions/me`: JWT scoping and self-heal on a missing/stale mirror. | Implemented |
+| `__tests__/subscriptions.repository.spec.ts` | Unit tests for the repository over the in-memory DataSource: dedup, per-entitlement ordering, atomic TRANSFER, dispatch lifecycle, discovery, and deletion cleanup. | Implemented |
+| `__tests__/subscription.scenarios.spec.ts` | Integration/scenario tests wiring the real modules together over an in-memory DataSource + fake RevenueCat client: purchase→mirror→commission (19.1), host-only PRO split (19.2), expiration→FREE (19.3), recovery of an un-enqueued event (19.4), out-of-order A/B (19.5), TRANSFER (19.6), reconciliation heal+discover (19.7), deletion cleanup + flat commission (19.8). | Implemented |
+| `__tests__/support/in-memory-data-source.ts` | Test support: a minimal behavioral in-memory stand-in for TypeORM's `DataSource` (unique violation, ordering, TRANSFER, dispatch lifecycle) so the repository runs without live Postgres. | Implemented |
 
 ## Domain Rules
 
@@ -125,3 +132,12 @@ reconciliation (P6, P8, P18) in `__tests__/subscription-reconciliation.property.
 configuration integrity (P10) in `__tests__/subscription-config.property.spec.ts`. P7 and P14 are
 structural (server-authoritative reads) and are covered by the mobile store tests, which land with
 the corresponding files.
+
+On top of the unit and property layers, `__tests__/subscription.scenarios.spec.ts` wires the
+**real** modules together — repository, tier service, event mapper/sanitizer, reconciliation, and
+the commission provider — over the shared in-memory DataSource
+(`__tests__/support/in-memory-data-source.ts`) and a fake `RevenueCatClient`, with no live infra.
+These end-to-end scenarios validate the cross-module behaviors that unit tests can't: webhook →
+mirror → commission resolution, the host-only PRO role split, expiration, recovery of an
+un-enqueued event, out-of-order delivery, TRANSFER, reconciliation heal/discovery, and the
+deletion cascade reverting to flat FREE commission.
