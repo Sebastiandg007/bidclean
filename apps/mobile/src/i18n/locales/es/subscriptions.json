@@ -1,0 +1,18 @@
+{
+  "paywall": {
+    "title": "Hazte PRO",
+    "restore": "Restaurar compras",
+    "close": "Ahora no"
+  },
+  "badge": {
+    "pro": "PRO"
+  },
+  "error": {
+    "purchase_cancelled": "Compra cancelada.",
+    "purchase_pending": "Tu compra está pendiente de aprobación.",
+    "purchase_failed": "No se pudo completar la compra. Inténtalo de nuevo.",
+    "restore_failed": "No se pudieron restaurar tus compras. Inténtalo de nuevo.",
+    "offering_unavailable": "Las suscripciones no están disponibles en este momento. Inténtalo más tarde.",
+    "fetch_status_failed": "No se pudo cargar el estado de tu suscripción."
+  }
+}

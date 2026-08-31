@@ -47,8 +47,14 @@ jest.mock('react-native-purchases', () => ({
 }));
 
 // RevenueCat Paywalls UI — native module; mocked to a no-op component in tests.
+// RevenueCatUI is the default export (a class with a static `Paywall` component); mirror that
+// shape so screens can render <RevenueCatUI.Paywall> and tests can spy on it.
 jest.mock('react-native-purchases-ui', () => ({
   __esModule: true,
-  default: { presentPaywall: jest.fn().mockResolvedValue({}) },
-  Paywall: () => null,
+  default: {
+    Paywall: () => null,
+    PaywallFooterContainerView: () => null,
+    presentPaywall: jest.fn().mockResolvedValue({}),
+    presentPaywallIfNeeded: jest.fn().mockResolvedValue({}),
+  },
 }));
