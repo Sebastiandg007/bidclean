@@ -1,5 +1,4 @@
 import { CommissionRatesProvider } from '../commission-rates.provider';
-import { DefaultSubscriptionTierService } from '../contracts/default-subscription-tier.service';
 import { CommissionRateResolver } from '../rate-resolver.service';
 import { SubscriptionTierContract } from '../contracts/subscription-tier.interface';
 import { RateSide, ResolvedRate, SubscriberRole, SubscriberTier } from '../commission.types';
@@ -9,7 +8,7 @@ import {
 } from '../commission.constants';
 
 /**
- * Unit tests for the SUBSCRIPTION_TIER stub and the COMMISSION_RATES provider.
+ * Unit tests for the COMMISSION_RATES provider, exercised against fake SUBSCRIPTION_TIER contracts.
  *
  * Feature: commission-system
  * Validates: Requirements 2.1 (tier via contract), 2.5/2.6 (safe degradation, never blocks),
@@ -34,19 +33,6 @@ function perRoleTier(
     getRoleTier: async (_userId, role) => byRole[role],
   };
 }
-
-describe('DefaultSubscriptionTierService', () => {
-  it('returns FREE for every user (global)', async () => {
-    const svc = new DefaultSubscriptionTierService();
-    await expect(svc.getTier('anyone')).resolves.toBe(SubscriberTier.FREE);
-  });
-
-  it('returns FREE for every user in every role', async () => {
-    const svc = new DefaultSubscriptionTierService();
-    await expect(svc.getRoleTier('anyone', SubscriberRole.HOST)).resolves.toBe(SubscriberTier.FREE);
-    await expect(svc.getRoleTier('anyone', SubscriberRole.CLEANER)).resolves.toBe(SubscriberTier.FREE);
-  });
-});
 
 describe('CommissionRatesProvider', () => {
   function build(

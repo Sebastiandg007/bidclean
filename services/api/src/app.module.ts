@@ -11,6 +11,7 @@ import { OffersModule } from './offers/offers.module';
 import { NegotiationModule } from './negotiation/negotiation.module';
 import { PaymentsModule } from './payments/payments.module';
 import { CommissionModule } from './commission/commission.module';
+import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 
 /**
  * Root application module.
@@ -43,6 +44,7 @@ import { CommissionModule } from './commission/commission.module';
     OffersModule,
     NegotiationModule,
     PaymentsModule,
+    SubscriptionsModule,
     CommissionModule,
   ],
 })

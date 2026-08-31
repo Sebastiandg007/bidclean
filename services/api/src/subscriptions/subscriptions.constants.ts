@@ -82,6 +82,23 @@ export const ENTITLEMENT_ID_MAP: Record<EntitlementKey, string> = {
 export const SUBSCRIPTION_QUEUE_NAME = 'subscriptions-revenuecat-webhook';
 export const SUBSCRIPTION_JOB_NAME = 'process-revenuecat-event';
 
+/** BullMQ backoff strategy for webhook processing retries. */
+export const SUBSCRIPTION_BACKOFF_TYPE = 'exponential';
+
+/**
+ * Default BullMQ job options for the subscriptions webhook queue: retry with exponential
+ * backoff, keep failed jobs for dead-letter inspection so no acknowledged event is lost.
+ */
+export const SUBSCRIPTION_DEFAULT_JOB_OPTIONS = {
+  attempts: SUBSCRIPTION_MAX_RETRIES,
+  backoff: {
+    type: SUBSCRIPTION_BACKOFF_TYPE,
+    delay: SUBSCRIPTION_BACKOFF_DELAY_MS,
+  },
+  removeOnComplete: true,
+  removeOnFail: false,
+} as const;
+
 /**
  * Fail-fast startup validation for all subscription configuration.
  *
