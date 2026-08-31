@@ -48,6 +48,7 @@ in one role and FREE in the other. `ad_free` is independent and never implies PR
 | `entities/subscription.entity.ts` | `subscriptions` mirror (one row per user). | Implemented |
 | `entities/subscription-event.entity.ts` | Append-only `subscription_events` ledger + outbox. | Implemented |
 | `__tests__/subscription-tier.service.spec.ts` | Unit tests for role-aware tier derivation (active/expiry rules, empty mirror → FREE, `ad_free` never implies PRO). | Implemented |
+| `__tests__/subscription-tier.property.spec.ts` | Property-based tests (fast-check) for tier derivation: P1 tier-derivation correctness, P2 backward-compatible default, P11 role-tier independence, P12 `ad_free` non-implication, P17 role-specific tier. | Implemented |
 | `__tests__/revenuecat-event.mapper.spec.ts` | Unit tests for the RevenueCat event → `EntitlementDelta[]` mapper. | Implemented |
 | `__tests__/revenuecat-payload.sanitizer.spec.ts` | Unit tests for the payload field whitelist (no PII / secrets). | Implemented |
 | `__tests__/revenuecat-signature.spec.ts` | Unit tests for HMAC-SHA256 verification (tolerance + constant-time compare). | Implemented |
@@ -113,6 +114,7 @@ referenced by name only and never committed.
 ## Testing
 
 No live RevenueCat is required — the `RevenueCatClient` seam and a faked repository cover
-ingestion, resolution, recovery, and reconciliation. Property-based tests (fast-check) cover the
-correctness properties P1–P18; unit, integration/scenario, and mobile tests are added as the
-corresponding files land.
+ingestion, resolution, recovery, and reconciliation. Property-based tests (fast-check) in
+`__tests__/subscription-tier.property.spec.ts` cover the tier-resolution correctness properties
+(P1, P2, P11, P12, P17); the remaining correctness properties (P1–P18) and integration/scenario
+and mobile tests are added as the corresponding files land.
