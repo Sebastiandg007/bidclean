@@ -3,16 +3,19 @@
  *
  * Computes `shouldRender = adsEnabled AND providerReady AND placementAllowed AND consentResolved`
  * (Req 1.2 / P1). Eligibility (`adsEnabled`) comes ONLY from `useAdVisibility` (`ad_free`) — no
- * PRO/tier is read here (P1). The hook requests an ad AT MOST ONCE per mount for the slot key (no
- * re-request on list re-render, Req 6.1 / P13) and releases on unmount (Req 6.4). Background/
- * foreground release-then-re-request is owned by the provider adapter, not this hook.
+ * PRO/tier is read here (P1).
+ *
+ * Request-once-per-mount and release-on-unmount (Req 6.1 / 6.4 / P13) are realized by the render
+ * topology, not by imperative calls here: a resolved slot mounts exactly one `AdBanner`, which
+ * mounts exactly one native ad view owned by the provider adapter (`AdMobAdProvider`). A live list
+ * re-render does not remount `AdBanner`, so the ad is not re-requested; unmounting the slot
+ * unmounts the native view, which the adapter tears down. This hook therefore stays a pure
+ * selector of the render decision + provider bindings and holds no imperative lifecycle state.
  *
  * The MVP surface is the Cleaner radar list, so `placementAllowed` is asserted for the known
  * radar slot key — making the Cleaner-only invariant explicit rather than incidental (Req 1.7 /
  * P11). `onPaidImpression` is wired to `useAds.reportImpression`; the AdSlot never calls RevenueCat.
  */
-
-import { useEffect, useRef } from 'react';
 
 import { useAdVisibility } from '../radar/hooks/useAdVisibility';
 import { RADAR_AD_FORMAT, RADAR_AD_SLOT_KEY } from './ads.constants';
@@ -61,19 +64,6 @@ export function useAdSlot(slotKey: string): UseAdSlotResult {
   const placementAllowed = isPlacementAllowed(slotKey);
   const shouldRender =
     adsEnabled && providerReady && placementAllowed && consentResolved;
-
-  // Request-once-per-mount guard: re-renders never re-request; release happens on unmount.
-  const requestedRef = useRef(false);
-  useEffect(() => {
-    if (shouldRender && !requestedRef.current) {
-      requestedRef.current = true;
-    }
-    return () => {
-      requestedRef.current = false;
-    };
-    // Intentionally keyed on `slotKey` only: a live list re-render (offers changing) must NOT
-    // re-run this effect and re-request the ad (request-once-per-mount, P13).
-  }, [slotKey]);
 
   return {
     shouldRender,

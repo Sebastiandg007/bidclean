@@ -16,7 +16,7 @@
 import { create } from 'zustand';
 
 import { deriveAdAttributionId } from './ad-attribution';
-import { createAdProvider } from './ad-provider.factory';
+import { createAdProvider, resolveAdEnvironment } from './ad-provider.factory';
 import {
   createDefaultAdRevenueTracker,
   type AdRevenueTracker,
@@ -94,7 +94,7 @@ export const useAdsStore = create<AdsStore>((set, get) => ({
     try {
       const context: AdProviderContext = {
         platform,
-        environment: 'production',
+        environment: resolveAdEnvironment(),
         personalizationMode: get().personalizationMode,
         attributionId: await deriveAdAttributionId(appUserId),
       };
