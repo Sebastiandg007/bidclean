@@ -1,5 +1,4 @@
 import { ChatConversation } from '../../entities/chat-conversation.entity';
-import { ChatMessage } from '../../entities/chat-message.entity';
 
 /**
  * A minimal, behavioral in-memory stand-in for TypeORM's DataSource, modelling ONLY the
@@ -234,7 +233,7 @@ export class InMemoryChatQueryBuilder {
     return this;
   }
 
-  andWhere(clause: string, params: { beforeSeq?: number; afterSeq?: number }): this {
+  andWhere(_clause: string, params: { beforeSeq?: number; afterSeq?: number }): this {
     if (params.beforeSeq !== undefined) {
       this.lessThan = params.beforeSeq;
     }
