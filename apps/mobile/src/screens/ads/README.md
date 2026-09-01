@@ -19,11 +19,6 @@ The display-ads feature module for the free tier. It fills the placeholder `AdSl
 | `providers/mock.provider.ts` | `MockAdProvider` — deterministic `AdProvider` with no native SDK: stable placeholder view (`MOCK_AD_VIEW_TEST_ID`) plus `buildSyntheticImpression` for zero-real-request rendering in CI; selected under test or `EXPO_PUBLIC_ADS_PROVIDER=mock`, never a production fallback |
 | `providers/admob.provider.ts` | `AdMobAdProvider` — concrete provider backed by Google AdMob (`react-native-google-mobile-ads`, loaded defensively); renders a banner, forwards only paid impressions (ILRD), owns native ad lifecycle, collapses the slot on no-fill/error, imports no RevenueCat and never decides eligibility |
 | `useAdSlot.ts` | Per-slot lifecycle: request-once-per-mount guard, release on unmount, and the layered render decision (`adsEnabled AND providerReady AND placementAllowed AND consentResolved`). Reads eligibility only from `useAdVisibility` (never PRO/tier), asserts the Cleaner-only radar slot invariant, and wires `onPaidImpression` to `useAds.reportImpression` (never calls RevenueCat directly) |
-
-> The remaining files below are planned by `.kiro/specs/revenuecat-ads/design.md` and not yet implemented.
-
-| Planned file | Responsibility |
-|------|---------------|
 | `components/AdBanner.tsx` | Renders the provider ad view; collapses on no-fill/error; imports no RevenueCat |
 
 ## Dependencies
@@ -49,6 +44,21 @@ An ad renders only when `adsEnabled AND providerReady AND placementAllowed AND c
 | `EXPO_PUBLIC_ADS_ENABLED` | Operational UI kill-switch (not a security control) | No |
 
 In development, absent unit ids fall back to AdMob official test unit ids; a production build with missing config disables ads (never falls back to the mock).
+
+## Testing
+
+Tests live in `__tests__/`. Unit specs cover the store, the slot hook, the banner, and the pure helpers. Alongside them, property-based suites (fast-check, 100+ iterations per property) assert the module's correctness properties over randomized inputs.
+
+| File | Responsibility |
+|------|---------------|
+| `__tests__/useAds.spec.ts` | Unit tests for the Zustand store: provider lifecycle, consent resolution, impression reporting, and reset |
+| `__tests__/useAdSlot.spec.ts` | Unit tests for the per-slot lifecycle: request-once guard, release on unmount, and the layered render decision |
+| `__tests__/AdBanner.spec.tsx` | Unit tests for the banner: renders the provider view, collapses on no-fill/error |
+| `__tests__/ad-provider.factory.spec.ts` | Unit tests for provider selection from config/env (AdMob / Mock / disabled) |
+| `__tests__/ad-revenue-tracker.spec.ts` | Unit tests for paid-impression forwarding, dedup by `eventId`, and graceful skip when RevenueCat is unconfigured |
+| `__tests__/ad-attribution.spec.ts` | Unit tests for the privacy-scoped attribution pseudonym derivation |
+| `__tests__/personalization.spec.ts` | Unit tests for platform-aware personalization mode derivation (ATT iOS-only + UMP) |
+| `__tests__/ads-eligibility.property.spec.ts` | Property-based tests (fast-check) for P1 eligibility authority: an ad renders iff `adsEnabled AND providerReady AND placementAllowed AND consentResolved`, independent of PRO/role/subscription; active `ad_free` never renders |
 
 ## Spec
 
