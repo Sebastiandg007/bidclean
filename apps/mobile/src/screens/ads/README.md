@@ -59,6 +59,14 @@ Tests live in `__tests__/`. Unit specs cover the store, the slot hook, the banne
 | `__tests__/ad-attribution.spec.ts` | Unit tests for the privacy-scoped attribution pseudonym derivation |
 | `__tests__/personalization.spec.ts` | Unit tests for platform-aware personalization mode derivation (ATT iOS-only + UMP) |
 | `__tests__/ads-eligibility.property.spec.ts` | Property-based tests (fast-check) for P1 eligibility authority: an ad renders iff `adsEnabled AND providerReady AND placementAllowed AND consentResolved`, independent of PRO/role/subscription; active `ad_free` never renders |
+| `__tests__/consent.property.spec.ts` | Property-based tests (fast-check) for P6 consent correctness: `derivePersonalizationMode` is total and platform-aware, never PERSONALIZED while unresolved, and Android is invariant to an `unavailable` ATT status |
+| `__tests__/impression-dedup.property.spec.ts` | Property-based tests (fast-check) for P5/P14: each distinct `eventId` is forwarded to the RevenueCat sink at most once, including across a simulated relaunch that rehydrates from the same persisted backing |
+| `__tests__/placement.property.spec.ts` | Property-based tests (fast-check) for slot placement (Req 1.6): the ads module only fills slots and leaves the radar's `computeAdSlotPositions` cadence intact |
+| `__tests__/slot-lifecycle.property.spec.ts` | Property-based tests (fast-check) for P13 lifecycle idempotency: re-render and unmount/remount sequences never throw and keep `shouldRender` stable (request-once-per-mount) |
+| `__tests__/integration-eligibility.spec.tsx` | Integration test driving the real `useAdVisibility` + `ad_free` path end-to-end through `AdSlot`: renders for free users, renders nothing when `ad_free` is active, still shows ads to a PRO-but-not-`ad_free` user (P1) |
+| `__tests__/integration-consent-gating.spec.ts` | Integration test proving consent gates personalization, not eligibility: an eligible free user with `personalizationMode = UNRESOLVED` still renders once `consentResolved` is true (P6) |
+| `__tests__/integration-degradation.spec.ts` | Integration test for graceful degradation (P7): no-fill collapses the banner and provider init failure fails safe (providerReady=false), never crashing the radar |
+| `__tests__/integration-impression-flow.spec.ts` | Integration test for the paid-impression flow (P4/P5/P14): `reportImpression` delegation plus the real `createAdRevenueTracker` proving event-id dedup and non-throwing behavior on a failing sink |
 
 ## Spec
 
