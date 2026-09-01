@@ -43,6 +43,41 @@ interface AdMobModule {
   BannerAdSize: Record<string, string>;
 }
 
+// ─── Native lifecycle wrapper ───────────────────────────────────────────────────
+
+interface AdMobBannerViewProps {
+  readonly BannerAd: React.ComponentType<AdMobBannerProps>;
+  readonly unitId: string;
+  readonly onPaid: (event: AdMobPaidEvent) => void;
+  readonly onError: (error: unknown) => void;
+  /** Invoked once when the native view unmounts (release edge). */
+  readonly onReleased: () => void;
+}
+
+/**
+ * Wraps the native `BannerAd` so the adapter OWNS the ad view lifecycle 1:1 with the slot mount
+ * (Req 6.4). The native `BannerAd` allocates its native ad object on mount and releases it on
+ * unmount; by rendering it only through this dedicated wrapper (one wrapper per resolved slot),
+ * unmounting the slot deterministically unmounts and frees the native view. The optional
+ * `onReleased` callback fires on unmount so callers/tests can observe the release edge, and gives
+ * a single seam to add an imperative SDK destroy if one is ever exposed.
+ */
+function AdMobBannerView({
+  BannerAd,
+  unitId,
+  onPaid,
+  onError,
+  onReleased,
+}: AdMobBannerViewProps): React.ReactElement {
+  React.useEffect(() => onReleased, [onReleased]);
+
+  return React.createElement(BannerAd, {
+    unitId,
+    onPaid,
+    onAdFailedToLoad: onError,
+  });
+}
+
 /** Load the native AdMob module defensively; returns null when unavailable (dev/CI). */
 function loadAdMobModule(): AdMobModule | null {
   try {
@@ -57,19 +92,26 @@ function loadAdMobModule(): AdMobModule | null {
 
 const MICROS_PER_UNIT = 1_000_000;
 
+/** Monotonic counter guaranteeing per-impression eventId uniqueness within a session. */
+let impressionSequence = 0;
+
 /** Map an AdMob paid event to our metadata-only PaidImpression (Req 3.4 / P10). */
 function toPaidImpression(
   event: AdMobPaidEvent,
   adUnitId: string,
 ): PaidImpression {
+  const occurredAtMs = Date.now();
+  impressionSequence += 1;
   return {
-    eventId: `admob:${adUnitId}:${Date.now()}:${event.value}`,
+    // Sequence makes the id unique even for two same-value impressions in the same millisecond,
+    // so dedup only ever collapses genuine retries — not distinct impressions (Req 3.5 / P14).
+    eventId: `admob:${adUnitId}:${occurredAtMs}:${impressionSequence}`,
     revenueMicros: Math.round(event.value * MICROS_PER_UNIT),
     currency: event.currency,
     network: 'admob',
     adUnitId,
     format: RADAR_AD_FORMAT,
-    occurredAtMs: Date.now(),
+    occurredAtMs,
   };
 }
 
@@ -108,14 +150,19 @@ export class AdMobAdProvider implements AdProvider {
       props.onNoFill();
       return null;
     }
-    return React.createElement(adMob.BannerAd, {
-      unitId: this.bannerUnitId,
+    const unitId = this.bannerUnitId;
+    return React.createElement(AdMobBannerView, {
+      BannerAd: adMob.BannerAd,
+      unitId,
       onPaid: (event: AdMobPaidEvent) => {
         if (props.personalizationMode !== PersonalizationMode.UNRESOLVED) {
-          props.onPaidImpression(toPaidImpression(event, this.bannerUnitId));
+          props.onPaidImpression(toPaidImpression(event, unitId));
         }
       },
-      onAdFailedToLoad: (error: unknown) => props.onError(error),
+      onError: (error: unknown) => props.onError(error),
+      // Release edge: the native view is torn down on unmount. No UI signal is emitted here —
+      // collapsing (onNoFill) is a load-outcome, not a teardown, so release stays a no-op seam.
+      onReleased: () => {},
     });
   }
 }
