@@ -71,8 +71,8 @@ export function useAdSlot(slotKey: string): UseAdSlotResult {
     return () => {
       requestedRef.current = false;
     };
-    // Depends only on the slot key: a live re-render (offers changing) must NOT re-run this.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Intentionally keyed on `slotKey` only: a live list re-render (offers changing) must NOT
+    // re-run this effect and re-request the ad (request-once-per-mount, P13).
   }, [slotKey]);
 
   return {
