@@ -162,6 +162,11 @@ export class ChatService {
     await this.chatRepository.closeConversationForThread(threadId);
   }
 
+  /** Close every conversation for a terminal offer. Idempotent (offer-terminal lifecycle). */
+  async closeConversationsForOffer(offerId: string): Promise<void> {
+    await this.chatRepository.closeConversationsForOffer(offerId);
+  }
+
   // ─── Helpers ───────────────────────────────────────────────────────────────
 
   /** Map a repository send outcome to a result or the appropriate HTTP error. */

@@ -230,6 +230,19 @@ export class ChatRepository {
     );
   }
 
+  /**
+   * Close every OPEN conversation for an offer when the offer becomes terminal. Idempotent and
+   * keyed on `offer_id` (the conversation carries it), so chat needs no negotiation lookup.
+   */
+  async closeConversationsForOffer(offerId: string): Promise<void> {
+    await this.dataSource.query(
+      `UPDATE "chat_conversations"
+       SET "status" = 'CLOSED', "updated_at" = NOW()
+       WHERE "offer_id" = $1 AND "status" = 'OPEN'`,
+      [offerId],
+    );
+  }
+
   /** Look up an existing message by its client id within the locked transaction. */
   private async findByClientMessageId(
     manager: EntityManager,
