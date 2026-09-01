@@ -12,6 +12,7 @@ The display-ads feature module for the free tier. It fills the placeholder `AdSl
 | `ads.constants.ts` | `EXPO_PUBLIC_*` app/unit ids per platform, official AdMob test unit ids, provider selection, `resolveBannerUnitId` / `hasProductionAdMobConfig` helpers, i18n keys |
 | `personalization.ts` | Pure `derivePersonalizationMode(platform, consent)` — platform-aware (ATT iOS-only + UMP), never gates eligibility |
 | `ad-attribution.ts` | Pure `deriveAdAttributionId(appUserId)` — privacy-scoped, purpose-separated pseudonym (salted SHA-256 digest), never the raw UUID |
+| `ad-revenue-tracker.ts` | `AdRevenueTracker`: forwards paid impressions (ILRD) to RevenueCat's `AdTracker` sink; deduped by `eventId` via an in-memory + bounded persisted ring (relaunch-safe), best-effort and non-blocking (failures swallowed), skips gracefully when RevenueCat is unconfigured. Collaborators (`AdRevenueSink`, `KeyValueStore`) injected via `createAdRevenueTracker` for testability |
 
 > The remaining files below are planned by `.kiro/specs/revenuecat-ads/design.md` and not yet implemented.
 
@@ -19,7 +20,6 @@ The display-ads feature module for the free tier. It fills the placeholder `AdSl
 |------|---------------|
 | `useAds.ts` | Zustand store: `providerReady`, consent, `personalizationMode`; `initialize` / `resolveConsent` / `reportImpression` / `reset` |
 | `ad-provider.factory.ts` | Selects `AdMobAdProvider` \| `MockAdProvider` from config/env |
-| `ad-revenue-tracker.ts` | `AdRevenueTracker`: dedup by `eventId` → RevenueCat `AdTracker` (best-effort, non-blocking) |
 | `useAdSlot.ts` | Per-slot request-once lifecycle, release on unmount, layered render decision |
 | `providers/admob.provider.ts` | `AdMobAdProvider` via `react-native-google-mobile-ads` |
 | `providers/mock.provider.ts` | `MockAdProvider` — deterministic placeholder + synthetic impressions for tests |
