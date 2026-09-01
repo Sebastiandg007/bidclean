@@ -145,9 +145,9 @@ export function useChatChannel(options: UseChatChannelOptions): UseChatChannelRe
     const delay = calculateBackoffDelay(attempt);
     reconnectTimerRef.current = setTimeout(() => {
       reconnectAttemptsRef.current = attempt + 1;
-      connect(); // eslint-disable-line @typescript-eslint/no-use-before-define
+      connect();
     }, delay);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   const connect = useCallback(async () => {
     if (isDisconnectingRef.current) {
@@ -248,7 +248,7 @@ export function useChatChannel(options: UseChatChannelOptions): UseChatChannelRe
     return () => {
       disconnect();
     };
-  }, [conversationId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [conversationId, connect, disconnect]);
 
   return { isConnected, disconnect };
 }
