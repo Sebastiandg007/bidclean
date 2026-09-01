@@ -1,0 +1,16 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "No Hardcoded Values Check",
+      "description": "Before writing production code files, verifies that no hardcoded values exist — no API keys, URLs, secrets, business rule literals, or UI text should be inline. Excludes test files, markdown docs, and i18n translation files.",
+      "trigger": "PreToolUse",
+      "matcher": "^(fs_write|fs_append|str_replace|delete_file|code)$",
+      "action": {
+        "type": "agent",
+        "prompt": "Before writing this file, check if it is a test file (*.spec.*, *.test.*), a markdown file (*.md), or an i18n translation file (locales/*.json). If it is ANY of those types, skip this check entirely and proceed with the write — those files legitimately contain literal strings and test fixtures.\n\nONLY for production code files (.ts, .tsx, .py, .yml, .env): verify it contains NO hardcoded values: no API keys, URLs, secrets, business rule numbers (percentages, timeouts, limits), or UI text strings. All such values must come from environment variables, configuration files, constants modules, or i18n keys. If any hardcoded values are found, replace them with the appropriate configurable reference before writing."
+      },
+      "enabled": false
+    }
+  ]
+}

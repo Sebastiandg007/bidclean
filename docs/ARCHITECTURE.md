@@ -112,6 +112,7 @@ graph TB
             PropertyEdit["Property Editor"]
             PaymentStatus["Payment Status<br/>(Breakdown + Refund)"]
             PayoutOnboarding["Cleaner Payout Onboarding<br/>(Stripe Express)"]
+            Paywall["Paywall Screen<br/>(Cleaner PRO / Host PRO)"]
         end
 
         subgraph Stores["Zustand Stores"]

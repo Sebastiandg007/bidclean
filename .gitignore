@@ -3,6 +3,9 @@ contexto/
 plan/
 methodology/
 
+# Code-review tool output (local artifacts, not part of the project)
+semantic-review/
+
 # Dependencies
 node_modules/
 .pnp

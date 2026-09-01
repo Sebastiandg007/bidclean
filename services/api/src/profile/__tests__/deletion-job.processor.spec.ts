@@ -132,7 +132,7 @@ describe('DeletionJobProcessor', () => {
       });
     });
 
-    it('should call steps in correct order (subscriptions → keycloak → minio → pii → mark)', async () => {
+    it('should call steps in order (subscriptions → mirror cleanup → keycloak → minio → pii → mark)', async () => {
       const callOrder: string[] = [];
 
       mockFetch.mockImplementation(async () => {
@@ -155,8 +155,12 @@ describe('DeletionJobProcessor', () => {
         return stream;
       });
 
+      // The first transaction is the subscription mirror cleanup (before keycloak); the second
+      // is PII anonymization (after minio). Both are dataSource.transaction calls.
+      let transactionCount = 0;
       dataSource.transaction.mockImplementation(async (cb: (m: { query: jest.Mock }) => Promise<void>) => {
-        callOrder.push('anonymize');
+        transactionCount += 1;
+        callOrder.push(transactionCount === 1 ? 'mirror_cleanup' : 'anonymize');
         await cb({ query: jest.fn() });
       });
 
@@ -169,11 +173,29 @@ describe('DeletionJobProcessor', () => {
 
       expect(callOrder).toEqual([
         'revenuecat',
+        'mirror_cleanup',
         'keycloak',
         'minio',
         'anonymize',
         'mark_deleted',
       ]);
+    });
+
+    it('cleans up the subscription mirror and anonymizes the ledger', async () => {
+      const queries: string[] = [];
+      dataSource.transaction.mockImplementation(async (cb: (m: { query: jest.Mock }) => Promise<void>) => {
+        await cb({
+          query: jest.fn().mockImplementation((sql: string) => {
+            queries.push(sql);
+            return Promise.resolve(undefined);
+          }),
+        });
+      });
+
+      await processor.process(mockJob);
+
+      expect(queries.some((q) => /DELETE FROM subscriptions/i.test(q))).toBe(true);
+      expect(queries.some((q) => /UPDATE subscription_events SET user_id = NULL/i.test(q))).toBe(true);
     });
   });
 
@@ -352,21 +374,20 @@ describe('DeletionJobProcessor', () => {
 
       await processor.process(mockJob);
 
-      expect(transactionQueries).toHaveLength(2);
-
-      const firstQuery = transactionQueries[0]!;
-      const secondQuery = transactionQueries[1]!;
+      // The cascade runs two transactions: mirror cleanup, then PII anonymization.
+      const usersQuery = transactionQueries.find((q) => q.sql.includes('UPDATE users SET email = NULL'));
+      const profileQuery = transactionQueries.find((q) => q.sql.includes('phone_number = NULL'));
 
       // Verify users.email set to NULL
-      expect(firstQuery.sql).toContain('UPDATE users SET email = NULL');
-      expect(firstQuery.params).toContain('user-123');
+      expect(usersQuery).toBeDefined();
+      expect(usersQuery!.params).toContain('user-123');
 
       // Verify profile_details anonymization
-      expect(secondQuery.sql).toContain('phone_number = NULL');
-      expect(secondQuery.sql).toContain('display_name = $2');
-      expect(secondQuery.sql).toContain('photo_storage_key = NULL');
-      expect(secondQuery.sql).toContain('bio = NULL');
-      expect(secondQuery.params).toContain('Deleted User');
+      expect(profileQuery).toBeDefined();
+      expect(profileQuery!.sql).toContain('display_name = $2');
+      expect(profileQuery!.sql).toContain('photo_storage_key = NULL');
+      expect(profileQuery!.sql).toContain('bio = NULL');
+      expect(profileQuery!.params).toContain('Deleted User');
     });
   });
 

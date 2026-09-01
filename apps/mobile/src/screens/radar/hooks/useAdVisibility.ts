@@ -1,17 +1,14 @@
 /**
- * useAdVisibility — Abstracted entitlement hook for ad slot visibility.
+ * useAdVisibility — entitlement-driven ad slot visibility.
  *
- * Checks whether ads should be displayed via an `adsEnabled` flag
- * derived from the entitlement layer (RevenueCat). Does NOT check
- * `cleaner_pro` directly — uses an abstracted entitlement so names
- * can change without modifying Radar code.
- *
- * When RevenueCat SDK is fully integrated, this hook will query the
- * customer's active entitlements for an "ad_free" entitlement.
- * Users WITH the entitlement see no ads; users WITHOUT see ads.
+ * Reads the real `ad_free` entitlement from the server-authoritative subscription view. Users
+ * WITH `ad_free` see no ads; users WITHOUT it see ads. `ad_free` is an independent entitlement
+ * and does NOT imply PRO (a user can be PRO without ad_free, or ad_free without PRO). The check
+ * is abstracted through the entitlement key so tier names can change without touching Radar.
  */
 
-import { useEffect, useState } from 'react';
+import { useSubscriptionStore } from '../../subscriptions/useSubscription';
+import { EntitlementKey } from '../../subscriptions/subscriptions.types';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -24,75 +21,34 @@ interface AdVisibilityState {
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-/**
- * Entitlement identifier that grants ad-free experience.
- * Abstracted from specific subscription tier names.
- */
-const AD_FREE_ENTITLEMENT_ID = 'ad_free';
-
-/**
- * Simulated loading delay for entitlement check (ms).
- * Removed when real RevenueCat SDK is integrated.
- */
-const MOCK_LOADING_DELAY_MS = 100;
+/** Entitlement key that grants an ad-free experience (abstracted from tier names). */
+const AD_FREE_ENTITLEMENT_KEY = EntitlementKey.AD_FREE;
 
 // ─── Hook ────────────────────────────────────────────────────────────────────
 
 /**
  * Determines whether ad slots should be visible for the current user.
  *
- * Implementation:
- * - Checks the entitlement layer for an `ad_free` entitlement
- * - If the user HAS the entitlement → adsEnabled = false (no ads)
- * - If the user does NOT have the entitlement → adsEnabled = true (show ads)
- *
- * Currently uses a placeholder implementation that defaults to
- * `adsEnabled: true` (free-tier behavior). Replace with RevenueCat
- * `Purchases.getCustomerInfo()` when SDK integration is complete.
+ * - Reads the server-authoritative subscription view (fed by the RevenueCat mirror).
+ * - If the user HAS the `ad_free` entitlement active -> adsEnabled = false (no ads).
+ * - If not -> adsEnabled = true (free-tier users see ads).
+ * - While the view has not loaded yet, reports loading and defaults to showing ads (the safe
+ *   monetization fallback).
  */
 export function useAdVisibility(): AdVisibilityState {
-  const [adsEnabled, setAdsEnabled] = useState<boolean>(false);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const serverView = useSubscriptionStore((s) => s.serverView);
+  const isLoading = useSubscriptionStore((s) => s.isLoading);
 
-  useEffect(() => {
-    let isMounted = true;
+  if (serverView === null) {
+    // Not yet loaded: default to showing ads (safe monetization fallback).
+    return { adsEnabled: true, isLoading };
+  }
 
-    async function checkEntitlement(): Promise<void> {
-      try {
-        // TODO(BID-RC): Replace with RevenueCat entitlement check:
-        // const customerInfo = await Purchases.getCustomerInfo();
-        // const hasAdFree = AD_FREE_ENTITLEMENT_ID in customerInfo.entitlements.active;
-        // setAdsEnabled(!hasAdFree);
-
-        // Placeholder: simulate async entitlement check.
-        // Defaults to adsEnabled = true (free-tier users see ads).
-        await new Promise((resolve) => setTimeout(resolve, MOCK_LOADING_DELAY_MS));
-
-        if (isMounted) {
-          const hasAdFreeEntitlement = false; // Placeholder: no entitlement = free tier
-          setAdsEnabled(!hasAdFreeEntitlement);
-        }
-      } catch {
-        // On error, default to showing ads (safe fallback for monetization)
-        if (isMounted) {
-          setAdsEnabled(true);
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
-      }
-    }
-
-    checkEntitlement();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  return { adsEnabled, isLoading };
+  const hasAdFree = serverView.entitlements.some(
+    (entitlement) => entitlement.key === AD_FREE_ENTITLEMENT_KEY && entitlement.active,
+  );
+  return { adsEnabled: !hasAdFree, isLoading: false };
 }
 
-// Re-export the entitlement ID for testing purposes
-export { AD_FREE_ENTITLEMENT_ID };
+// Re-export the entitlement key for testing purposes.
+export { AD_FREE_ENTITLEMENT_KEY };

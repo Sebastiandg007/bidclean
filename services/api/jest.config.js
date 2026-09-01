@@ -9,6 +9,7 @@ module.exports = {
   collectCoverageFrom: ['**/*.ts', '!**/*.spec.ts', '!**/index.ts'],
   coverageDirectory: '../coverage',
   testEnvironment: 'node',
+  setupFiles: ['<rootDir>/../test/setup-env.ts'],
   moduleNameMapper: {
     '@bidclean/shared': '<rootDir>/../../packages/shared/src',
   },

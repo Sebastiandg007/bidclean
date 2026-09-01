@@ -18,6 +18,7 @@ export type DeletionStatus = 'DELETION_PENDING' | 'DELETED';
 /** Deletion job step names for audit logging */
 export type DeletionStep =
   | 'CANCEL_SUBSCRIPTIONS'
+  | 'CLEANUP_SUBSCRIPTION_MIRROR'
   | 'DELETE_KEYCLOAK'
   | 'DELETE_MINIO'
   | 'ANONYMIZE_PII'

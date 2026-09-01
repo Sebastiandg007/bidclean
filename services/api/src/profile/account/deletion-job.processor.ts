@@ -83,6 +83,7 @@ export class DeletionJobProcessor extends WorkerHost {
     );
 
     await this.executeCancelSubscriptions(userId);
+    await this.executeCleanupSubscriptionMirror(userId);
     await this.executeDeleteKeycloak(keycloakId);
     await this.executeDeleteMinioFiles(userId);
     await this.executeAnonymizePii(userId);
@@ -113,7 +114,24 @@ export class DeletionJobProcessor extends WorkerHost {
   }
 
   /**
-   * Step 2: Permanently delete user from Keycloak.
+   * Step 2: Clean up the local subscription mirror + ledger.
+   * Removes the mirror row (its per-user runtime read model) and anonymizes the append-only
+   * ledger (user_id -> NULL) so audit history survives deletion. Idempotent, never blocks on
+   * RevenueCat, safe to retry.
+   */
+  private async executeCleanupSubscriptionMirror(userId: string): Promise<void> {
+    const audit = this.startAudit('CLEANUP_SUBSCRIPTION_MIRROR');
+
+    try {
+      await this.cleanupSubscriptionMirror(userId);
+      this.completeAudit(audit);
+    } catch (error: unknown) {
+      this.handleStepError(audit, error, 'CLEANUP_SUBSCRIPTION_MIRROR');
+    }
+  }
+
+  /**
+   * Step 3: Permanently delete user from Keycloak.
    * Skips gracefully if user is already deleted (404).
    */
   private async executeDeleteKeycloak(keycloakId: string): Promise<void> {
@@ -128,7 +146,7 @@ export class DeletionJobProcessor extends WorkerHost {
   }
 
   /**
-   * Step 3: Delete all user files from MinIO (profile photo + portfolio).
+   * Step 4: Delete all user files from MinIO (profile photo + portfolio).
    * Skips gracefully if no objects exist.
    */
   private async executeDeleteMinioFiles(userId: string): Promise<void> {
@@ -143,7 +161,7 @@ export class DeletionJobProcessor extends WorkerHost {
   }
 
   /**
-   * Step 4: Anonymize all PII in the database.
+   * Step 5: Anonymize all PII in the database.
    * Sets email, phone, display name, photo key, and bio to anonymized values.
    */
   private async executeAnonymizePii(userId: string): Promise<void> {
@@ -158,7 +176,7 @@ export class DeletionJobProcessor extends WorkerHost {
   }
 
   /**
-   * Step 5: Mark user as DELETED in the users table.
+   * Step 6: Mark user as DELETED in the users table.
    * Idempotent — succeeds even if already marked.
    */
   private async executeMarkDeleted(userId: string): Promise<void> {
@@ -275,6 +293,30 @@ export class DeletionJobProcessor extends WorkerHost {
     });
 
     this.logger.log(`PII anonymized for user ${userId}`);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Subscription Mirror Cleanup
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Removes the subscription mirror row and anonymizes the append-only ledger for a user.
+   *
+   * The mirror is a disposable runtime read model (hard-deleted); the ledger is audit history
+   * that must survive deletion, so its `user_id` is nulled rather than the rows removed (the
+   * ledger deliberately has no FK to `users`). Both statements run in one transaction and are
+   * idempotent (a missing mirror row / already-anonymized ledger is a no-op).
+   */
+  private async cleanupSubscriptionMirror(userId: string): Promise<void> {
+    await this.dataSource.transaction(async (manager) => {
+      await manager.query(`DELETE FROM subscriptions WHERE user_id = $1`, [userId]);
+      await manager.query(
+        `UPDATE subscription_events SET user_id = NULL WHERE user_id = $1`,
+        [userId],
+      );
+    });
+
+    this.logger.log(`Subscription mirror cleaned up for user ${userId}`);
   }
 
   // ---------------------------------------------------------------------------

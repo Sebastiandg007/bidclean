@@ -1,0 +1,18 @@
+{
+  "paywall": {
+    "title": "Go PRO",
+    "restore": "Restore purchases",
+    "close": "Not now"
+  },
+  "badge": {
+    "pro": "PRO"
+  },
+  "error": {
+    "purchase_cancelled": "Purchase cancelled.",
+    "purchase_pending": "Your purchase is pending approval.",
+    "purchase_failed": "Could not complete the purchase. Please try again.",
+    "restore_failed": "Could not restore your purchases. Please try again.",
+    "offering_unavailable": "Subscriptions are unavailable right now. Please try again later.",
+    "fetch_status_failed": "Could not load your subscription status."
+  }
+}

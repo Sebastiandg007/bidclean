@@ -1,0 +1,15 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Run Tests After Task",
+      "description": "After completing a spec task, runs related tests to verify the implementation does not break existing functionality",
+      "trigger": "PostTaskExec",
+      "action": {
+        "type": "agent",
+        "prompt": "A spec task was just completed. Identify and run the related tests to verify the implementation works correctly and does not break existing functionality. Report any failures."
+      },
+      "enabled": true
+    }
+  ]
+}

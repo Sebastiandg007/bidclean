@@ -10,6 +10,7 @@ import {
   HostRateContext,
   RateSide,
   ResolvedRate,
+  SubscriberRole,
   SubscriberTier,
 } from './commission.types';
 import {
@@ -61,7 +62,7 @@ export class CommissionRatesProvider implements CommissionRateContract {
     serviceType: string,
   ): Promise<ResolvedRate> {
     try {
-      const tier = await this.lookupTier(userId);
+      const tier = await this.lookupTier(userId, roleForSide(side));
       return this.resolver.resolveSide(side, country, tier, serviceType, new Date());
     } catch (error) {
       this.logger.error(
@@ -73,10 +74,12 @@ export class CommissionRatesProvider implements CommissionRateContract {
   }
 
   /**
-   * Bounded tier lookup. On timeout or error, degrades to FREE (the real contract impl
-   * owns the last-known-tier cache; commission-system stores no tier). Never rejects.
+   * Bounded ROLE-AWARE tier lookup. The Host fee resolves against the Host tier and the
+   * Cleaner commission against the Cleaner tier, so a user PRO in only one role is scoped
+   * correctly. On timeout or error, degrades to FREE (the real contract impl owns the
+   * last-known-tier cache; commission-system stores no tier). Never rejects.
    */
-  private async lookupTier(userId: string): Promise<SubscriberTier> {
+  private async lookupTier(userId: string, role: SubscriberRole): Promise<SubscriberTier> {
     const timeout = new Promise<SubscriberTier>((resolve) => {
       const handle = setTimeout(() => resolve(SubscriberTier.FREE), COMMISSION_TIER_LOOKUP_TIMEOUT_MS);
       if (typeof handle.unref === 'function') {
@@ -84,14 +87,19 @@ export class CommissionRatesProvider implements CommissionRateContract {
       }
     });
     const lookup = this.tiers
-      .getTier(userId)
+      .getRoleTier(userId, role)
       .catch((error: unknown) => {
         this.logger.warn(
-          `Subscriber-tier lookup failed for ${userId}; degrading to FREE`,
+          `Subscriber-tier lookup failed for ${userId} (${role}); degrading to FREE`,
           error instanceof Error ? error.message : String(error),
         );
         return SubscriberTier.FREE;
       });
     return Promise.race([lookup, timeout]);
   }
+}
+
+/** Map a rate side to the subscriber role whose tier gates it (HOST fee ← Host, CLEANER ← Cleaner). */
+function roleForSide(side: RateSide): SubscriberRole {
+  return side === RateSide.HOST ? SubscriberRole.HOST : SubscriberRole.CLEANER;
 }

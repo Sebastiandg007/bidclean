@@ -1,0 +1,16 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Update Docs on File Create",
+      "description": "When a file is created or deleted, prompts to update documentation (ARCHITECTURE.md, module READMEs, diagrams) and evaluate if new steering/hooks are needed",
+      "trigger": "PostFileCreate",
+      "matcher": "(.*[^/]*\\.ts$|.*[^/]*\\.tsx$|.*[^/]*\\.py$|.*docker-compose[^/]*\\.yml$)",
+      "action": {
+        "type": "agent",
+        "prompt": "A new file was created in the project. Evaluate: 1) Does the parent folder README need updating? 2) Does ARCHITECTURE.md need a diagram update? 3) Is a new steering file or hook needed for this new pattern? If yes to any, make the updates."
+      },
+      "enabled": true
+    }
+  ]
+}

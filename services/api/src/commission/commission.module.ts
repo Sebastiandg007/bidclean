@@ -12,24 +12,27 @@ import { CommissionAdminService } from './admin/commission-admin.service';
 import { CommissionAdminController } from './admin/commission-admin.controller';
 import { CommissionAdminGuard } from './guards/commission-admin.guard';
 import { CommissionAdminRateLimitGuard } from './guards/commission-admin-rate-limit.guard';
-import { DefaultSubscriptionTierService } from './contracts/default-subscription-tier.service';
-import { SUBSCRIPTION_TIER } from './contracts/subscription-tier.interface';
 import { COMMISSION_RATES } from './contracts/commission-rates.interface';
 import { validateCommissionConfig } from './commission.constants';
+import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
 
 /**
  * Commission System module.
  *
- * Owns commission-rule resolution and configuration. Exposes the `COMMISSION_RATES` and
- * `SUBSCRIPTION_TIER` tokens. Deliberately does NOT import OffersModule or CommissionService
- * — coupling to consumers is one-directional via the exported token (no circular dependency).
+ * Owns commission-rule resolution and configuration. Exposes the `COMMISSION_RATES` token and
+ * imports `SubscriptionsModule` to consume the REAL role-aware `SUBSCRIPTION_TIER` (the
+ * FREE-returning stub is retired). Coupling is one-directional (Commission -> Subscriptions) via
+ * the token, and to consumers via the exported `COMMISSION_RATES` — no circular dependency.
  *
  * On init it validates config (fail-fast) and wires the ruleset cache loader to the
  * repository; the cache's initial load + Redis-invalidation subscription happen in
  * CommissionCacheInvalidation.onModuleInit.
  */
 @Module({
-  imports: [TypeOrmModule.forFeature([CommissionRule, CommissionRuleAudit, User])],
+  imports: [
+    TypeOrmModule.forFeature([CommissionRule, CommissionRuleAudit, User]),
+    SubscriptionsModule,
+  ],
   controllers: [CommissionAdminController],
   providers: [
     CommissionRulesRepository,
@@ -39,10 +42,9 @@ import { validateCommissionConfig } from './commission.constants';
     CommissionAdminService,
     CommissionAdminGuard,
     CommissionAdminRateLimitGuard,
-    { provide: SUBSCRIPTION_TIER, useClass: DefaultSubscriptionTierService },
     { provide: COMMISSION_RATES, useClass: CommissionRatesProvider },
   ],
-  exports: [COMMISSION_RATES, SUBSCRIPTION_TIER],
+  exports: [COMMISSION_RATES],
 })
 export class CommissionModule implements OnModuleInit {
   constructor(
