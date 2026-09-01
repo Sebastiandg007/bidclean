@@ -17,8 +17,10 @@ This module does not issue Centrifugo tokens. Auth owns identity and token signi
 | `chat.repository.ts` | All reads/writes to `chat_conversations` / `chat_messages` via parameterized SQL. Idempotent open-or-get per thread (P2); serialized send under the conversation row lock — verify `OPEN`, dedup on `(conversation_id, client_message_id)` with payload check, allocate `sequence_number` from the locked `message_seq` counter, insert, and bump `last_message_at` atomically (P4/P5/P6/P16/P17); keyset history via `getMessagesBefore`/`getMessagesAfter` (P8/P9); inbox via `listConversationsForUser`; `isParticipant` check (P3); idempotent `closeConversationForThread` (P1). |
 | `chat-participation.service.ts` | Single source of the chat participation rule (`isParticipant(userId, conversationId)`, delegating to `ChatRepository`). Consumed by chat's own authorization and by the auth module's Centrifugo subscription-token endpoint (auth owns token issuance, chat owns participation). Identity is always the authenticated subject supplied by the caller, never a client-supplied value or channel string (P3). |
 | `chat.service.ts` | Orchestrates the chat domain. Opening a conversation requires the thread to be MATCHED (an ACCEPTED proposal for that exact thread, via `NegotiationRepository.isThreadMatched`, P1/P2); reads/writes require the caller to be a participant (P3). Send validates the body (P7), delegates to the repository's serialized transaction (durable before realtime, P4), then publishes best-effort to Centrifugo through the injected `ChatRealtimePublisher` seam — a publish failure never fails the request nor loses the message (P4). Message bodies are never logged verbatim (P7). |
+| `chat.controller.ts` | JWT-guarded REST surface (`/chat`). Resolves the authenticated Keycloak subject to a BidClean user and passes that server-side identity to the service (never a client-supplied id, P3). Exposes open-or-get conversation, inbox list, single conversation, keyset history (`before`/`after` cursors, page size bounded by `CHAT_HISTORY_PAGE_SIZE`), and send (requires an `Idempotency-Key` header + `clientMessageId`, P5). |
+| `dto/send-message.dto.ts` | Validated send payload (`clientMessageId`, `body`), enforced with a whitelisting `ValidationPipe`. |
 
-> The remaining components (`chat.module.ts`, `chat.controller.ts`, DTOs) are landing incrementally per the `realtime-chat` spec tasks. Update this table as each file is added.
+> The remaining components (`chat.module.ts`) are landing incrementally per the `realtime-chat` spec tasks. Update this table as each file is added.
 
 ## Dependencies
 
@@ -27,7 +29,7 @@ This module does not issue Centrifugo tokens. Auth owns identity and token signi
 - **Negotiation module** — match lookup (`ACCEPTED` proposal on a thread) gates conversation creation; thread/offer terminal transitions close the conversation.
 - Tables (planned, migration `1700000019000-CreateChatTables`): `chat_conversations`, `chat_messages`; references `negotiation_threads`, `offers`, `users`.
 
-## API (planned per spec)
+## API
 
 | Method | Path | Description |
 |--------|------|-------------|
