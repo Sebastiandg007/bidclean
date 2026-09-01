@@ -346,6 +346,10 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
     const patch: Partial<ChatState> = { messagesByConversation: merged };
 
+    // Refresh the inbox preview when we already track this conversation's summary. A message alone
+    // can't produce a complete ChatConversationSummary (it lacks thread/offer/participant fields),
+    // so a conversation not yet in the inbox is left to the authoritative `loadConversations`
+    // refresh rather than fabricating a partial summary.
     const summary = conversations.get(message.conversationId);
     if (summary !== undefined) {
       const nextConversations = new Map(conversations);

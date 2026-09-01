@@ -10,7 +10,7 @@
  * @requirements 6.3, 6.5
  */
 
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo } from 'react';
 import { FlatList, StyleSheet, Text, View } from 'react-native';
 import type { ListRenderItemInfo } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -84,6 +84,9 @@ export function ChatScreen({ route, navigation }: ChatScreenProps): React.JSX.El
 
   const isClosed = conversation?.status === 'CLOSED';
   const orderedMessages = messages ?? [];
+  // The store keeps messages ascending (oldest→newest). The inverted list renders newest at the
+  // bottom, so feed it a newest-first copy.
+  const displayMessages = useMemo(() => [...orderedMessages].reverse(), [orderedMessages]);
 
   const handleSend = useCallback(
     (body: string) => {
@@ -115,10 +118,12 @@ export function ChatScreen({ route, navigation }: ChatScreenProps): React.JSX.El
 
       <FlatList
         style={styles.list}
-        data={orderedMessages}
+        data={displayMessages}
         keyExtractor={keyForMessage}
         renderItem={renderItem}
-        inverted={false}
+        // Inverted: newest renders at the bottom; `onEndReached` fires at the top (older history),
+        // which is exactly where backward pagination belongs. Data is newest-first to match.
+        inverted={displayMessages.length > 0}
         onEndReached={handleLoadOlder}
         onEndReachedThreshold={0.5}
         contentContainerStyle={styles.listContent}
