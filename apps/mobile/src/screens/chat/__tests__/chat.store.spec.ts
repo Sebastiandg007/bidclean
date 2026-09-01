@@ -32,13 +32,13 @@ jest.mock('../chat.api', () => ({
 
 // Unique client message ids per call (the global setup mock returns fixed bytes, which would
 // collapse every optimistic send onto one clientMessageId).
-let cryptoCounter = 0;
+let mockCryptoCounter = 0;
 jest.mock('expo-crypto', () => ({
   getRandomBytesAsync: jest.fn(async () => {
-    cryptoCounter += 1;
+    mockCryptoCounter += 1;
     const bytes = new Uint8Array(16);
-    bytes[0] = cryptoCounter & 0xff;
-    bytes[1] = (cryptoCounter >> 8) & 0xff;
+    bytes[0] = mockCryptoCounter & 0xff;
+    bytes[1] = (mockCryptoCounter >> 8) & 0xff;
     return bytes;
   }),
 }));
@@ -82,7 +82,7 @@ function sendResult(message: ChatMessage): ChatSendResult {
 beforeEach(() => {
   jest.clearAllMocks();
   jest.useRealTimers();
-  cryptoCounter = 0;
+  mockCryptoCounter = 0;
   useChatStore.getState().reset();
 });
 
