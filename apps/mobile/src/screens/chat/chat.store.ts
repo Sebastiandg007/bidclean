@@ -17,7 +17,6 @@ import { create } from 'zustand';
 import * as Crypto from 'expo-crypto';
 
 import {
-  getConversationRequest,
   getMessagesAfterRequest,
   getMessagesBeforeRequest,
   listConversationsRequest,
