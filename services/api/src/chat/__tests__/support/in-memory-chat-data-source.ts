@@ -131,6 +131,8 @@ const COLUMN_MAP: Record<string, string> = {
   cleanerId: 'cleaner_id',
   messageSeq: 'message_seq',
   lastMessageAt: 'last_message_at',
+  createdAt: 'created_at',
+  updatedAt: 'updated_at',
 };
 
 function toColumn(field: string): string {

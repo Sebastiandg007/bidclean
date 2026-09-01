@@ -12,6 +12,7 @@ import { NegotiationModule } from './negotiation/negotiation.module';
 import { PaymentsModule } from './payments/payments.module';
 import { CommissionModule } from './commission/commission.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
+import { ChatModule } from './chat/chat.module';
 
 /**
  * Root application module.
@@ -46,6 +47,7 @@ import { SubscriptionsModule } from './subscriptions/subscriptions.module';
     PaymentsModule,
     SubscriptionsModule,
     CommissionModule,
+    ChatModule,
   ],
 })
 export class AppModule {}

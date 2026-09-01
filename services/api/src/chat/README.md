@@ -19,8 +19,7 @@ This module does not issue Centrifugo tokens. Auth owns identity and token signi
 | `chat.service.ts` | Orchestrates the chat domain. Opening a conversation requires the thread to be MATCHED (an ACCEPTED proposal for that exact thread, via `NegotiationRepository.isThreadMatched`, P1/P2); reads/writes require the caller to be a participant (P3). Send validates the body (P7), delegates to the repository's serialized transaction (durable before realtime, P4), then publishes best-effort to Centrifugo through the injected `ChatRealtimePublisher` seam — a publish failure never fails the request nor loses the message (P4). Message bodies are never logged verbatim (P7). |
 | `chat.controller.ts` | JWT-guarded REST surface (`/chat`). Resolves the authenticated Keycloak subject to a BidClean user and passes that server-side identity to the service (never a client-supplied id, P3). Exposes open-or-get conversation, inbox list, single conversation, keyset history (`before`/`after` cursors, page size bounded by `CHAT_HISTORY_PAGE_SIZE`), and send (requires an `Idempotency-Key` header + `clientMessageId`, P5). |
 | `dto/send-message.dto.ts` | Validated send payload (`clientMessageId`, `body`), enforced with a whitelisting `ValidationPipe`. |
-
-> The remaining components (`chat.module.ts`) are landing incrementally per the `realtime-chat` spec tasks. Update this table as each file is added.
+| `chat.module.ts` | Wires the module: registers `ChatController` + providers, binds the `CHAT_REALTIME_PUBLISHER` seam to the existing `CentrifugoClient` (`useExisting`, imported via `OffersModule`) so the service depends on the interface not the HTTP client, and exports `ChatParticipationService` (for the auth Centrifugo endpoint) and `ChatService`. Runs `validateChatConfig()` on init (fail-fast). |
 
 ## Dependencies
 

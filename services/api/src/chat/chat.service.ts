@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  Inject,
   Injectable,
   Logger,
   NotFoundException,
@@ -62,6 +63,7 @@ export class ChatService {
   constructor(
     private readonly chatRepository: ChatRepository,
     private readonly negotiationRepository: NegotiationRepository,
+    @Inject(CHAT_REALTIME_PUBLISHER)
     private readonly publisher: ChatRealtimePublisher,
   ) {}
 
