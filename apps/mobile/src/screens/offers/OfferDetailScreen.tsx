@@ -561,6 +561,21 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: COLORS.textPrimary,
   },
+  chatButton: {
+    height: CANCEL_BUTTON_HEIGHT,
+    borderRadius: CARD_BORDER_RADIUS,
+    backgroundColor: COLORS.accent,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  chatButtonPressed: {
+    opacity: 0.8,
+  },
+  chatButtonText: {
+    fontSize: FONT_SIZE.button,
+    fontWeight: '700',
+    color: COLORS.background,
+  },
   cancelButton: {
     height: CANCEL_BUTTON_HEIGHT,
     borderRadius: CARD_BORDER_RADIUS,

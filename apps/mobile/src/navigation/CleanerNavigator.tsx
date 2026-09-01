@@ -8,7 +8,7 @@
  * REQ-5: Profile tab contains the role switch option.
  */
 
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
@@ -17,6 +17,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
 import RoleSwitchButton from '../screens/roles/RoleSwitchButton';
+import { ChatEntryScreen } from '../screens/chat/ChatEntryScreen';
+import { CHAT_ROUTE } from '../screens/chat/chat.constants';
 
 // ─── Design Tokens ───────────────────────────────────────────────────────────
 
@@ -97,15 +99,73 @@ const CLEANER_TABS: TabDefinition[] = [
 
 const DEFAULT_TAB_INDEX = 0;
 
+// ─── Active Stack Navigator ──────────────────────────────────────────────────
+
+const ACTIVE_ROUTES = { ActiveList: 'ActiveList' } as const;
+
+interface StackEntry {
+  screen: string;
+  params?: Record<string, unknown>;
+}
+
+interface StackNavigation {
+  navigate: (screen: string, params?: Record<string, unknown>) => void;
+  goBack: () => void;
+}
+
+/**
+ * Lightweight local stack for the Active tab. Starts on the active-jobs list placeholder and can
+ * push the chat entry screen for a matched thread (mirrors the Host Offers stack pattern).
+ */
+function ActiveStackNavigator() {
+  const { t } = useTranslation();
+  const [stack, setStack] = useState<StackEntry[]>([{ screen: ACTIVE_ROUTES.ActiveList }]);
+
+  const navigation: StackNavigation = useMemo(
+    () => ({
+      navigate: (screen: string, params?: Record<string, unknown>) =>
+        setStack((prev) => [...prev, { screen, params }]),
+      goBack: () => setStack((prev) => (prev.length > 1 ? prev.slice(0, -1) : prev)),
+    }),
+    [],
+  );
+
+  const currentEntry = stack[stack.length - 1] as StackEntry;
+
+  if (currentEntry.screen === CHAT_ROUTE) {
+    return (
+      <ChatEntryScreen
+        navigation={navigation}
+        route={{ params: currentEntry.params as { threadId: string } }}
+      />
+    );
+  }
+
+  return (
+    <View style={styles.screenContainer} testID="cleaner-screen-active">
+      <Text style={styles.screenTitle}>
+        {t('navigation.cleaner.tabs.active', { defaultValue: 'Active' })}
+      </Text>
+      <Text style={styles.screenSubtitle}>
+        {t('navigation.cleaner.screen.placeholder', { defaultValue: 'Coming soon' })}
+      </Text>
+    </View>
+  );
+}
+
 // ─── Tab Screen Placeholders ─────────────────────────────────────────────────
 
 /**
- * Placeholder screen for each Cleaner tab.
- * Will be replaced with real screen implementations in future tasks.
+ * Renders the active screen for each Cleaner tab.
+ * Active tab uses the local stack navigator (list → chat).
  * Profile tab includes the RoleSwitchButton (REQ-5).
  */
 function TabScreen({ tabKey, label }: { tabKey: string; label: string }) {
   const { t } = useTranslation();
+
+  if (tabKey === 'active') {
+    return <ActiveStackNavigator />;
+  }
 
   return (
     <View style={styles.screenContainer} testID={`cleaner-screen-${tabKey}`}>
