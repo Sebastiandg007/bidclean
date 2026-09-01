@@ -28,7 +28,7 @@
 | 9 | `stripe-escrow` | ✅ Completed | Spec 8 |
 | 10 | `commission-system` | ✅ Completed | Spec 9 |
 | 11 | `revenuecat-subscriptions` | ✅ Completed | Spec 1 |
-| 12 | `revenuecat-ads` | ⬜ Pending | Spec 11 |
+| 12 | `revenuecat-ads` | 🔄 In Progress | Spec 11 |
 
 ### Sprint 4 — Communication
 | # | Spec | Status | Dependencies |
