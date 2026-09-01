@@ -75,9 +75,10 @@ export class InMemoryChatDataSource {
       return undefined;
     }
     if (sql.includes('UPDATE "chat_conversations"') && sql.includes(`'CLOSED'`)) {
-      const threadId = params[0];
+      const matchColumn = sql.includes('"offer_id" = $1') ? 'offer_id' : 'thread_id';
+      const target = params[0];
       for (const conv of this.conversations) {
-        if (conv.thread_id === threadId && conv.status === 'OPEN') {
+        if (conv[matchColumn] === target && conv.status === 'OPEN') {
           conv.status = 'CLOSED';
         }
       }
