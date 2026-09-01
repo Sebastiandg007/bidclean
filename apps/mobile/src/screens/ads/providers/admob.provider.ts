@@ -1,10 +1,12 @@
 /**
  * AdMobAdProvider — the concrete `AdProvider` backed by Google AdMob.
  *
- * Renders a banner via `react-native-google-mobile-ads`, forwards ONLY paid impressions (ILRD)
- * through the callback (Req 3.1), and OWNS the native ad object lifecycle — releasing native
- * resources when the React wrapper unmounts (Req 6.4 / design §7). It NEVER throws into the
- * render path: a no-fill or error collapses the slot via the provided callbacks (Req 1.5 / P7).
+ * Renders a banner via `react-native-google-mobile-ads` through a dedicated wrapper that OWNS the
+ * native ad object lifecycle — the native view mounts/unmounts 1:1 with the slot, releasing native
+ * resources on unmount (Req 6.4 / design §7). It forwards ONLY paid impressions (ILRD) through the
+ * callback (Req 3.1), each tagged with a monotonic sequence so two same-value impressions in the
+ * same millisecond stay distinct (Req 3.5 / P14). It NEVER throws into the render path: a no-fill
+ * or error collapses the slot via the provided callbacks (Req 1.5 / P7).
  * It never imports RevenueCat (Req 2.6) and never decides eligibility (Req 2.5).
  *
  * The AdMob SDK is a NATIVE module loaded defensively so this file type-checks and imports safely
