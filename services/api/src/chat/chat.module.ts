@@ -13,6 +13,7 @@ import { ChatService, CHAT_REALTIME_PUBLISHER } from './chat.service';
 import { validateChatConfig } from './chat.constants';
 import { ChatConversation } from './entities/chat-conversation.entity';
 import { ChatMessage } from './entities/chat-message.entity';
+import { OfferTerminalChatListener } from './listeners/offer-terminal-chat.listener';
 
 /**
  * Chat module (realtime-chat).
@@ -37,6 +38,7 @@ import { ChatMessage } from './entities/chat-message.entity';
     ChatRepository,
     ChatParticipationService,
     NegotiationRepository,
+    OfferTerminalChatListener,
     { provide: CHAT_REALTIME_PUBLISHER, useExisting: CentrifugoClient },
   ],
   exports: [ChatParticipationService, ChatService],
