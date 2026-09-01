@@ -28,19 +28,16 @@ Reachable from both role navigators: the Host Offers stack (from a matched offer
 | `useChatChannel.ts` | WebSocket lifecycle mirroring `useCentrifugoChannel` (raw WebSocket): fetches connection + per-channel subscription tokens, connects to `chat:conversation:{id}`, unwraps the Centrifugo push envelope, reconnects with bounded exponential backoff, reconciles missed messages via the `after` cursor on every (re)connect, and tears down on unmount. Transport only — merge/dedup/order live in the store |
 | `components/MessageBubble.tsx` | Single message bubble (own vs counterparty, send state) |
 | `components/MessageComposer.tsx` | Text input + send action (validates against the client-side message max length; backend authoritative) |
-
-### Planned (per `realtime-chat/design.md`)
-
-| File | Responsibility |
-|------|---------------|
-| `ChatScreen.tsx` | Conversation screen (own vs counterparty bubbles, send-state affordance, i18n) |
-| `components/ConversationHeader.tsx` | Counterparty header for the active conversation |
+| `ChatScreen.tsx` | Conversation screen: composes the store (state + optimistic send) with `useChatChannel` (incoming + reconcile) and the presentational components (header, message list, composer); own vs counterparty decided by the authenticated user id; renders the empty/closed states; all copy from i18n |
+| `components/ConversationHeader.tsx` | Top bar for the active conversation: back affordance, title, and a connection-status indicator (connected / connecting / reconnecting / offline); i18n copy only, no message content |
 
 ## Tests
 
 | File | Responsibility |
 |------|---------------|
 | `__tests__/chat.store.spec.ts` | Unit + property-based tests for `chat.store.ts`: optimistic send reconciliation, send-timeout → `failed`, late confirmation after timeout, dedup by `id` and `clientMessageId`, `sequenceNumber` ordering, `loadOlder`/`reconcileNewer` paging merges, `reset`, and property P13 (each message rendered once, in order, under arbitrary interleavings). `chat.api` and `expo-crypto` are mocked; no network or native crypto |
+| `__tests__/ChatScreen.spec.tsx` | Unit tests for `ChatScreen`: renders own vs counterparty messages (alignment via `isOwn`), surfaces the send-state affordance for own optimistic messages, hides the composer and shows the closed notice when the conversation is `CLOSED`, and renders the empty state. i18n returns keys/defaults; `useChatChannel` and `chat.api` are mocked (no WebSocket/network) |
+| `__tests__/useChatChannel.spec.ts` | Unit tests for the `useChatChannel` realtime lifecycle: token fetch, subscribe on mount, envelope unwrap → `onMessage`, reconcile-on-(re)connect, bounded backoff, and teardown on unmount |
 
 ## Dependencies
 

@@ -79,6 +79,15 @@ function sendResult(message: ChatMessage): ChatSendResult {
   return { message, deduplicated: false };
 }
 
+/** Return the first message, asserting the list is non-empty (keeps the strict compiler happy). */
+function firstMessage(messages: readonly ChatMessage[]): ChatMessage {
+  const [first] = messages;
+  if (first === undefined) {
+    throw new Error('expected at least one message');
+  }
+  return first;
+}
+
 beforeEach(() => {
   jest.clearAllMocks();
   jest.useRealTimers();
@@ -97,9 +106,10 @@ describe('chat.store — optimistic send', () => {
 
     const messages = useChatStore.getState().getMessages(CONVERSATION_ID);
     expect(messages).toHaveLength(1);
-    expect(messages[0].sendState).toBeUndefined();
-    expect(messages[0].sequenceNumber).toBe(5);
-    expect(messages[0].id).toBe('srv-5');
+    const only = firstMessage(messages);
+    expect(only.sendState).toBeUndefined();
+    expect(only.sequenceNumber).toBe(5);
+    expect(only.id).toBe('srv-5');
   });
 
   it('flips the placeholder to failed after the send timeout', async () => {
@@ -116,7 +126,7 @@ describe('chat.store — optimistic send', () => {
 
     const messages = useChatStore.getState().getMessages(CONVERSATION_ID);
     expect(messages).toHaveLength(1);
-    expect(messages[0].sendState).toBe('failed');
+    expect(firstMessage(messages).sendState).toBe('failed');
 
     jest.useRealTimers();
     void promise;
@@ -136,7 +146,9 @@ describe('chat.store — optimistic send', () => {
     await Promise.resolve();
     await Promise.resolve();
     jest.advanceTimersByTime(CHAT_SEND_TIMEOUT_MS);
-    expect(useChatStore.getState().getMessages(CONVERSATION_ID)[0].sendState).toBe('failed');
+    expect(firstMessage(useChatStore.getState().getMessages(CONVERSATION_ID)).sendState).toBe(
+      'failed',
+    );
 
     jest.useRealTimers();
     resolveSend(sendResult(serverMessage(9)));
@@ -144,8 +156,9 @@ describe('chat.store — optimistic send', () => {
 
     const messages = useChatStore.getState().getMessages(CONVERSATION_ID);
     expect(messages).toHaveLength(1);
-    expect(messages[0].sendState).toBeUndefined();
-    expect(messages[0].sequenceNumber).toBe(9);
+    const only = firstMessage(messages);
+    expect(only.sendState).toBeUndefined();
+    expect(only.sequenceNumber).toBe(9);
   });
 });
 
@@ -165,7 +178,7 @@ describe('chat.store — incoming dedup & ordering', () => {
     await useChatStore.getState().sendMessage(CONVERSATION_ID, 'hi');
 
     // Realtime channel echoes the same message (same clientMessageId) — must not duplicate.
-    const echoed = useChatStore.getState().getMessages(CONVERSATION_ID)[0];
+    const echoed = firstMessage(useChatStore.getState().getMessages(CONVERSATION_ID));
     useChatStore.getState().onIncomingMessage(echoed);
 
     expect(useChatStore.getState().getMessages(CONVERSATION_ID)).toHaveLength(1);
