@@ -36,6 +36,12 @@ Reachable from both role navigators: the Host Offers stack (from a matched offer
 | `components/MessageComposer.tsx` | Text input + send action (validates against message max length) |
 | `components/ConversationHeader.tsx` | Counterparty header for the active conversation |
 
+## Tests
+
+| File | Responsibility |
+|------|---------------|
+| `__tests__/chat.store.spec.ts` | Unit + property-based tests for `chat.store.ts`: optimistic send reconciliation, send-timeout → `failed`, late confirmation after timeout, dedup by `id` and `clientMessageId`, `sequenceNumber` ordering, `loadOlder`/`reconcileNewer` paging merges, `reset`, and property P13 (each message rendered once, in order, under arbitrary interleavings). `chat.api` and `expo-crypto` are mocked; no network or native crypto |
+
 ## Dependencies
 
 - `apps/mobile/src/screens/negotiation` — a conversation opens only for a matched thread; the thread/offer id is the entry point
