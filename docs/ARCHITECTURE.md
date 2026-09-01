@@ -47,7 +47,8 @@ graph TB
 
     subgraph External["☁️ External Services"]
         Stripe["Stripe Connect<br/>(Payments + Escrow)"]
-        RevenueCat["RevenueCat<br/>(Subscriptions + Ads)"]
+        RevenueCat["RevenueCat<br/>(Subscriptions + Ad Revenue Tracking)"]
+        AdMob["Google AdMob<br/>(Display Ads — free tier)"]
         OneSignal["OneSignal<br/>(Push Notifications)"]
         Mapbox["Mapbox<br/>(Maps + Directions)"]
         Bedrock["AWS Bedrock<br/>(AI Models)"]
@@ -87,6 +88,8 @@ graph TB
     API --> Loki
     Mobile --> Posthog
     Mobile --> Sentry
+    Mobile --> AdMob
+    Mobile --> RevenueCat
 ```
 
 ---

@@ -58,3 +58,26 @@ jest.mock('react-native-purchases-ui', () => ({
     presentPaywallIfNeeded: jest.fn().mockResolvedValue({}),
   },
 }));
+
+// Google Mobile Ads (AdMob) — native module; mocked so ad unit tests run without a prebuild/EAS
+// build. Mobile Ads is the default export (an initializer); BannerAd is a no-op component; and the
+// UMP consent surface (AdsConsent) resolves to a benign "not required" default in tests.
+jest.mock('react-native-google-mobile-ads', () => ({
+  __esModule: true,
+  default: {
+    initialize: jest.fn().mockResolvedValue([]),
+  },
+  BannerAd: () => null,
+  BannerAdSize: { BANNER: 'BANNER', ANCHORED_ADAPTIVE_BANNER: 'ANCHORED_ADAPTIVE_BANNER' },
+  AdsConsent: {
+    requestInfoUpdate: jest.fn().mockResolvedValue(undefined),
+    getConsentInfo: jest.fn().mockResolvedValue({ status: 'NOT_REQUIRED' }),
+  },
+}));
+
+// iOS App Tracking Transparency — native module; mocked to an undetermined-then-denied default so
+// the personalization derivation stays deterministic in tests without a native prompt.
+jest.mock('expo-tracking-transparency', () => ({
+  getTrackingPermissionsAsync: jest.fn().mockResolvedValue({ status: 'undetermined' }),
+  requestTrackingPermissionsAsync: jest.fn().mockResolvedValue({ status: 'denied' }),
+}));
