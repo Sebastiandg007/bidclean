@@ -66,4 +66,20 @@ describe('AdBanner', () => {
     );
     expect(queryByTestId('ad-banner')).toBeNull();
   });
+
+  it('does not import RevenueCat (Req 2.6)', () => {
+    const fs = require('fs') as typeof import('fs');
+    const path = require('path') as typeof import('path');
+    const source = fs.readFileSync(
+      path.join(__dirname, '..', 'components', 'AdBanner.tsx'),
+      'utf8',
+    );
+    const importLines = source
+      .split('\n')
+      .filter((line) => /^\s*import\b|require\(/.test(line));
+    for (const line of importLines) {
+      expect(line).not.toMatch(/react-native-purchases/);
+      expect(line).not.toMatch(/ad-revenue-tracker/);
+    }
+  });
 });
