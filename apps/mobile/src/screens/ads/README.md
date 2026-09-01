@@ -13,6 +13,9 @@ The display-ads feature module for the free tier. It fills the placeholder `AdSl
 | `personalization.ts` | Pure `derivePersonalizationMode(platform, consent)` — platform-aware (ATT iOS-only + UMP), never gates eligibility |
 | `ad-attribution.ts` | Pure `deriveAdAttributionId(appUserId)` — privacy-scoped, purpose-separated pseudonym (salted SHA-256 digest), never the raw UUID |
 | `ad-revenue-tracker.ts` | `AdRevenueTracker`: forwards paid impressions (ILRD) to RevenueCat's `AdTracker` sink; deduped by `eventId` via an in-memory + bounded persisted ring (relaunch-safe), best-effort and non-blocking (failures swallowed), skips gracefully when RevenueCat is unconfigured. Collaborators (`AdRevenueSink`, `KeyValueStore`) injected via `createAdRevenueTracker` for testability |
+| `consent.ts` | Reads the device consent state (ATT on iOS + UMP) behind a guarded native seam so it runs in CI without a native build; supplies `readConsentState(platform)` consumed by the store to derive personalization |
+| `ad-provider.factory.ts` | `createAdProvider(platform)` — selects `AdMobAdProvider` \| `MockAdProvider` from config/env; returns `null` when ads are disabled so the store fails into "no ad shown" |
+| `useAds.ts` | Zustand store owning the provider lifecycle, consent, and impression reporting (`provider`, `providerReady`, `consent`, `personalizationMode`); `initialize` / `resolveConsent` / `reportImpression` / `reset`. Independent of the subscriptions lifecycle; eligibility is never read here |
 | `providers/mock.provider.ts` | `MockAdProvider` — deterministic `AdProvider` with no native SDK: stable placeholder view (`MOCK_AD_VIEW_TEST_ID`) plus `buildSyntheticImpression` for zero-real-request rendering in CI; selected under test or `EXPO_PUBLIC_ADS_PROVIDER=mock`, never a production fallback |
 | `providers/admob.provider.ts` | `AdMobAdProvider` — concrete provider backed by Google AdMob (`react-native-google-mobile-ads`, loaded defensively); renders a banner, forwards only paid impressions (ILRD), owns native ad lifecycle, collapses the slot on no-fill/error, imports no RevenueCat and never decides eligibility |
 
@@ -20,8 +23,6 @@ The display-ads feature module for the free tier. It fills the placeholder `AdSl
 
 | Planned file | Responsibility |
 |------|---------------|
-| `useAds.ts` | Zustand store: `providerReady`, consent, `personalizationMode`; `initialize` / `resolveConsent` / `reportImpression` / `reset` |
-| `ad-provider.factory.ts` | Selects `AdMobAdProvider` \| `MockAdProvider` from config/env |
 | `useAdSlot.ts` | Per-slot request-once lifecycle, release on unmount, layered render decision |
 | `components/AdBanner.tsx` | Renders the provider ad view; collapses on no-fill/error; imports no RevenueCat |
 
