@@ -58,6 +58,8 @@ This module does not issue Centrifugo tokens. Auth owns identity and token signi
 | Suite | Covers |
 |-------|--------|
 | `__tests__/chat.service.spec.ts` | `ChatService` orchestration with mocked repositories + publisher: open gated on a per-thread match (P1) and participant-only (P3); send validates the body (P7), persists before publishing (P4), treats an idempotent duplicate as no-publish and maps payload-mismatch/closed/not-found outcomes to the right HTTP errors (P5), and never throws when the Centrifugo publish fails (best-effort transport, P4). |
+| `__tests__/chat.integration.spec.ts` | `ChatService` wired to the real `ChatRepository` over an in-memory `DataSource` (match lookup mocked, controllable publisher): match → open → send → read-back through keyset history end-to-end (P1/P4/P9), plus participant and lifecycle guards (P3/P17). |
+| `__tests__/chat.repository.spec.ts` | `ChatRepository` reads/writes against the in-memory `DataSource`: idempotent open-or-get (P2), serialized send with dedup + sequence allocation (P5/P6), history cursors (P8/P9), and idempotent close (P1). |
 
 ## Correctness Properties
 
