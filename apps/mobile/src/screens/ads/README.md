@@ -9,16 +9,16 @@ The display-ads feature module for the free tier. It fills the placeholder `AdSl
 | File | Responsibility |
 |------|---------------|
 | `ads.types.ts` | Pure domain types: `AdFormat`, `PersonalizationMode`, `ConsentState`, `AdProviderContext`, `PaidImpression`, `AdViewProps`, `AdProvider` interface (no SDK imports) |
+| `ads.constants.ts` | `EXPO_PUBLIC_*` app/unit ids per platform, official AdMob test unit ids, provider selection, `resolveBannerUnitId` / `hasProductionAdMobConfig` helpers, i18n keys |
+| `personalization.ts` | Pure `derivePersonalizationMode(platform, consent)` — platform-aware (ATT iOS-only + UMP), never gates eligibility |
+| `ad-attribution.ts` | Pure `deriveAdAttributionId(appUserId)` — privacy-scoped, purpose-separated pseudonym (salted SHA-256 digest), never the raw UUID |
 
 > The remaining files below are planned by `.kiro/specs/revenuecat-ads/design.md` and not yet implemented.
 
 | Planned file | Responsibility |
 |------|---------------|
-| `ads.constants.ts` | `EXPO_PUBLIC_*` app/unit ids per platform, test unit ids, provider selection, i18n keys |
 | `useAds.ts` | Zustand store: `providerReady`, consent, `personalizationMode`; `initialize` / `resolveConsent` / `reportImpression` / `reset` |
 | `ad-provider.factory.ts` | Selects `AdMobAdProvider` \| `MockAdProvider` from config/env |
-| `personalization.ts` | Pure `derivePersonalizationMode(platform, consent)` (ATT iOS-only + UMP) |
-| `ad-attribution.ts` | Pure `deriveAdAttributionId(appUserId)` — privacy-scoped pseudonym, not the raw UUID |
 | `ad-revenue-tracker.ts` | `AdRevenueTracker`: dedup by `eventId` → RevenueCat `AdTracker` (best-effort, non-blocking) |
 | `useAdSlot.ts` | Per-slot request-once lifecycle, release on unmount, layered render decision |
 | `providers/admob.provider.ts` | `AdMobAdProvider` via `react-native-google-mobile-ads` |
