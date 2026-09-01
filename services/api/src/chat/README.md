@@ -11,8 +11,11 @@ This module does not issue Centrifugo tokens. Auth owns identity and token signi
 | File | Responsibility |
 |------|---------------|
 | `chat.constants.ts` | Env-configurable values (token TTL, message length, page size, channel prefix) + `chatChannelForConversation()` helper + `validateChatConfig()` fail-fast startup validation. Reuses the shared `CENTRIFUGO_*` variables rather than introducing divergent ones. |
+| `chat.types.ts` | API-facing view/result contracts: `ConversationStatus` / `MessageType` unions, `MessageView`, `ConversationView`, `ConversationSummaryView` (inbox row), `SendResult` (with `deduplicated`), and `MessagePage` (keyset history page). Message bodies are plain user text, never logged verbatim. |
+| `entities/chat-conversation.entity.ts` | `chat_conversations` table entity (conversation attached to a matched thread). |
+| `entities/chat-message.entity.ts` | `chat_messages` table entity (ordered, idempotent messages). |
 
-> The remaining components (`chat.module.ts`, `chat.controller.ts`, `chat.service.ts`, `chat-participation.service.ts`, `chat.repository.ts`, entities, DTOs) are landing incrementally per the `realtime-chat` spec tasks. Update this table as each file is added.
+> The remaining components (`chat.module.ts`, `chat.controller.ts`, `chat.service.ts`, `chat-participation.service.ts`, `chat.repository.ts`, DTOs) are landing incrementally per the `realtime-chat` spec tasks. Update this table as each file is added.
 
 ## Dependencies
 
