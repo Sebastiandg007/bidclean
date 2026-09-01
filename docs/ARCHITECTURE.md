@@ -571,5 +571,43 @@ sequenceDiagram
 
 ---
 
-*Last updated: August 28, 2026*
+## 7. Chat Message Lifecycle (Realtime Chat)
+
+> Post-match Host↔Cleaner messaging (Spec 13, ADR-009). **PostgreSQL is the source of truth; Centrifugo is transport only.** A send persists first, then publishes best-effort — a publish failure never loses the message. There is no immediate-delivery guarantee: recipients recover missed messages via the `after` reconciliation cursor on reconnect. Auth issues Centrifugo tokens; chat owns the participation rule.
+
+```mermaid
+sequenceDiagram
+    participant S as Sender App
+    participant R as Recipient App
+    participant Auth as Auth (token endpoint)
+    participant API as Chat Module (API)
+    participant DB as PostgreSQL
+    participant C as Centrifugo
+
+    Note over S,C: Subscribe (both participants)
+    S->>Auth: GET /auth/centrifugo/token?channel=chat:conversation:{id}
+    Auth->>API: ChatParticipationService.isParticipant(subject, id)
+    API-->>Auth: participant? (by JWT subject, not channel string)
+    Auth-->>S: subscription token (only if participant)
+    S->>C: subscribe chat:conversation:{id}
+
+    Note over S,DB: Send = one serialized transaction (persist-then-publish)
+    S->>API: POST /chat/conversations/:id/messages (Idempotency-Key + clientMessageId)
+    API->>DB: BEGIN · SELECT ... FOR UPDATE conversation
+    API->>DB: verify OPEN · dedup(client_message_id) · next sequence_number · insert · bump last_message_at · COMMIT
+    API-->>S: 201 (persisted; deduplicated when a retry)
+    API-->>C: publish {type: chat_message} (best-effort)
+    C-->>R: live message
+    Note over API,C: publish failure → logged (never the body), request still succeeds
+
+    Note over R,DB: Reconnect reconciliation (no immediate-delivery guarantee)
+    R->>C: reconnect
+    R->>API: GET /chat/conversations/:id/messages?after=<lastSeq>
+    API->>DB: keyset read (sequence_number > lastSeq)
+    API-->>R: missed messages (client dedups by id + clientMessageId, orders by sequenceNumber)
+```
+
+---
+
+*Last updated: September 1, 2026*
 *Update this document on EVERY structural change.*

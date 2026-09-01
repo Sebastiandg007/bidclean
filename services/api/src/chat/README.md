@@ -27,7 +27,7 @@ This module does not issue Centrifugo tokens. Auth owns identity and token signi
 - **Centrifugo** — WebSocket transport for live message delivery; reuses the existing `CentrifugoClient` (shared `CENTRIFUGO_API_URL` / `CENTRIFUGO_API_KEY` / `CENTRIFUGO_TOKEN_SECRET`).
 - **Auth module** — consumes `ChatParticipationService.isParticipant()` to gate per-channel subscription tokens; chat never issues tokens itself.
 - **Negotiation module** — match lookup (`ACCEPTED` proposal on a thread) gates conversation creation; thread/offer terminal transitions close the conversation.
-- Tables (planned, migration `1700000019000-CreateChatTables`): `chat_conversations`, `chat_messages`; references `negotiation_threads`, `offers`, `users`.
+- Tables (migration `1700000019000-CreateChatTables`): `chat_conversations`, `chat_messages`; references `negotiation_threads`, `offers`, `users`.
 
 ## API
 
