@@ -64,4 +64,8 @@ export const CHAT_I18N_KEYS = {
   EMPTY: 'chat.empty',
   CLOSED_NOTICE: 'chat.closedNotice',
   LOAD_ERROR: 'chat.loadError',
+  CONNECTION_CONNECTED: 'chat.connection.connected',
+  CONNECTION_CONNECTING: 'chat.connection.connecting',
+  CONNECTION_RECONNECTING: 'chat.connection.reconnecting',
+  CONNECTION_DISCONNECTED: 'chat.connection.disconnected',
 } as const;

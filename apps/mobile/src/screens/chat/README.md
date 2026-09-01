@@ -25,15 +25,15 @@ Reachable from both role navigators: the Host Offers stack (from a matched offer
 | `chat.constants.ts` | Routes/endpoints, channel prefix, message max length, page size, send timeout (all from `EXPO_PUBLIC_*` / constants), i18n keys |
 | `chat.api.ts` | Typed calls over the shared `apiClient` (open-or-get, list, get, history `before`/`after`, send, get connection/subscription token) |
 | `chat.store.ts` | Zustand `useChatStore` (conversations, messagesByConversation, connectionStatus) with optimistic send keyed by `clientMessageId`, timeout → `failed`, and upsert/dedup by `id` (and `clientMessageId` for own sends) in `sequenceNumber` order |
+| `useChatChannel.ts` | WebSocket lifecycle mirroring `useCentrifugoChannel` (raw WebSocket): fetches connection + per-channel subscription tokens, connects to `chat:conversation:{id}`, unwraps the Centrifugo push envelope, reconnects with bounded exponential backoff, reconciles missed messages via the `after` cursor on every (re)connect, and tears down on unmount. Transport only — merge/dedup/order live in the store |
+| `components/MessageBubble.tsx` | Single message bubble (own vs counterparty, send state) |
+| `components/MessageComposer.tsx` | Text input + send action (validates against the client-side message max length; backend authoritative) |
 
 ### Planned (per `realtime-chat/design.md`)
 
 | File | Responsibility |
 |------|---------------|
-| `useChatChannel.ts` | WebSocket lifecycle mirroring `useCentrifugoChannel` (token fetch, connect to `chat:conversation:{id}`, push-envelope unwrap, bounded-backoff reconnect, foreground reconcile via `after`, teardown) |
 | `ChatScreen.tsx` | Conversation screen (own vs counterparty bubbles, send-state affordance, i18n) |
-| `components/MessageBubble.tsx` | Single message bubble (own vs counterparty, send state) |
-| `components/MessageComposer.tsx` | Text input + send action (validates against message max length) |
 | `components/ConversationHeader.tsx` | Counterparty header for the active conversation |
 
 ## Tests

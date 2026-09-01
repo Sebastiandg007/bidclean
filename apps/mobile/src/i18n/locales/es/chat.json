@@ -1,0 +1,25 @@
+{
+  "chat": {
+    "header": {
+      "title": "Chat"
+    },
+    "composer": {
+      "placeholder": "Escribe un mensaje",
+      "send": "Enviar"
+    },
+    "state": {
+      "sending": "Enviando",
+      "sent": "Enviado",
+      "failed": "No se pudo enviar"
+    },
+    "empty": "Aún no hay mensajes. Saluda para empezar.",
+    "closedNotice": "Esta conversación está cerrada. Puedes leer el historial pero no enviar mensajes nuevos.",
+    "loadError": "No se pudo cargar la conversación. Inténtalo de nuevo.",
+    "connection": {
+      "connected": "Conectado",
+      "connecting": "Conectando…",
+      "reconnecting": "Reconectando…",
+      "disconnected": "Sin conexión"
+    }
+  }
+}
