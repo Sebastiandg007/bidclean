@@ -23,6 +23,9 @@ export const CENTRIFUGO_WS_URL =
   process.env.EXPO_PUBLIC_CENTRIFUGO_WS_URL ??
   'wss://ws.bidclean.tech/connection/websocket';
 
+/** Navigation route name for the chat entry screen (mounted in both role stacks). */
+export const CHAT_ROUTE = 'Chat';
+
 /** Per-conversation channel prefix (matches the backend `CHAT_CHANNEL_PREFIX`). */
 export const CHAT_CHANNEL_PREFIX = 'chat:conversation:';
 
