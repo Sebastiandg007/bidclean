@@ -18,12 +18,12 @@ The display-ads feature module for the free tier. It fills the placeholder `AdSl
 | `useAds.ts` | Zustand store owning the provider lifecycle, consent, and impression reporting (`provider`, `providerReady`, `consent`, `personalizationMode`); `initialize` / `resolveConsent` / `reportImpression` / `reset`. Independent of the subscriptions lifecycle; eligibility is never read here |
 | `providers/mock.provider.ts` | `MockAdProvider` — deterministic `AdProvider` with no native SDK: stable placeholder view (`MOCK_AD_VIEW_TEST_ID`) plus `buildSyntheticImpression` for zero-real-request rendering in CI; selected under test or `EXPO_PUBLIC_ADS_PROVIDER=mock`, never a production fallback |
 | `providers/admob.provider.ts` | `AdMobAdProvider` — concrete provider backed by Google AdMob (`react-native-google-mobile-ads`, loaded defensively); renders a banner, forwards only paid impressions (ILRD), owns native ad lifecycle, collapses the slot on no-fill/error, imports no RevenueCat and never decides eligibility |
+| `useAdSlot.ts` | Per-slot lifecycle: request-once-per-mount guard, release on unmount, and the layered render decision (`adsEnabled AND providerReady AND placementAllowed AND consentResolved`). Reads eligibility only from `useAdVisibility` (never PRO/tier), asserts the Cleaner-only radar slot invariant, and wires `onPaidImpression` to `useAds.reportImpression` (never calls RevenueCat directly) |
 
 > The remaining files below are planned by `.kiro/specs/revenuecat-ads/design.md` and not yet implemented.
 
 | Planned file | Responsibility |
 |------|---------------|
-| `useAdSlot.ts` | Per-slot request-once lifecycle, release on unmount, layered render decision |
 | `components/AdBanner.tsx` | Renders the provider ad view; collapses on no-fill/error; imports no RevenueCat |
 
 ## Dependencies
