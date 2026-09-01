@@ -28,6 +28,7 @@ jest.mock('../ad-revenue-tracker', () => {
 const mockCreateAdProvider = jest.fn();
 jest.mock('../ad-provider.factory', () => ({
   createAdProvider: (...args: unknown[]) => mockCreateAdProvider(...args),
+  resolveAdEnvironment: () => 'production',
 }));
 
 const mockReadConsentState = jest.fn();
