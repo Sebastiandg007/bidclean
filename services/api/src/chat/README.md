@@ -52,6 +52,12 @@ This module does not issue Centrifugo tokens. Auth owns identity and token signi
 
 `validateChatConfig()` fails fast on a missing token secret or non-positive numeric tunables (skipped under `NODE_ENV=test`, consistent with the other modules).
 
+## Testing
+
+| Suite | Covers |
+|-------|--------|
+| `__tests__/chat.service.spec.ts` | `ChatService` orchestration with mocked repositories + publisher: open gated on a per-thread match (P1) and participant-only (P3); send validates the body (P7), persists before publishing (P4), treats an idempotent duplicate as no-publish and maps payload-mismatch/closed/not-found outcomes to the right HTTP errors (P5), and never throws when the Centrifugo publish fails (best-effort transport, P4). |
+
 ## Correctness Properties
 
 P1 conversation lifecycle follows match validity · P2 one conversation per thread · P3 participant-only access · P4 durable before realtime · P5 idempotent send (payload-checked) · P6 total order (gaps allowed) · P7 validated content, no verbatim logging · P8/P9 keyset history authoritative · P10/P11 token scoping, integrity & expiry · P12 fail-fast config · P16 atomic summary · P17 race-free close · P18 no cascade-from-users.
