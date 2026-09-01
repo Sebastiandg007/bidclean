@@ -33,7 +33,7 @@
 ### Sprint 4 — Communication
 | # | Spec | Status | Dependencies |
 |---|------|--------|-------------|
-| 13 | `realtime-chat` | ⬜ Pending | Spec 1, 8 |
+| 13 | `realtime-chat` | 🔄 In Progress | Spec 1, 8 |
 | 14 | `voice-notes` | ⬜ Pending | Spec 13 |
 | 15 | `voip-calls` | ⬜ Pending | Spec 13 |
 | 16 | `push-notifications` | ⬜ Pending | Spec 1 |
