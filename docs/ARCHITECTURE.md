@@ -222,8 +222,10 @@ graph TB
     Negotiation --> |"COMMISSION_RATES: resolveCleanerRate (match)"| Commission
     Payments --> DB
     Payments --> |"Stripe SDK"| Stripe["Stripe Connect"]
+    Chat --> DB
     Chat --> Cache
     Chat --> |"Centrifugo API"| Centrifugo["Centrifugo"]
+    Auth --> |"isParticipant (subscription-token gate)"| Chat
     Notifications --> |"OneSignal API"| OneSignal["OneSignal"]
     Subscriptions --> |"RevenueCat API"| RevenueCat["RevenueCat"]
     Events --> Notifications

@@ -15,8 +15,9 @@ This module does not issue Centrifugo tokens. Auth owns identity and token signi
 | `entities/chat-conversation.entity.ts` | `chat_conversations` table entity (conversation attached to a matched thread). |
 | `entities/chat-message.entity.ts` | `chat_messages` table entity (ordered, idempotent messages). |
 | `chat.repository.ts` | All reads/writes to `chat_conversations` / `chat_messages` via parameterized SQL. Idempotent open-or-get per thread (P2); serialized send under the conversation row lock — verify `OPEN`, dedup on `(conversation_id, client_message_id)` with payload check, allocate `sequence_number` from the locked `message_seq` counter, insert, and bump `last_message_at` atomically (P4/P5/P6/P16/P17); keyset history via `getMessagesBefore`/`getMessagesAfter` (P8/P9); inbox via `listConversationsForUser`; `isParticipant` check (P3); idempotent `closeConversationForThread` (P1). |
+| `chat-participation.service.ts` | Single source of the chat participation rule (`isParticipant(userId, conversationId)`, delegating to `ChatRepository`). Consumed by chat's own authorization and by the auth module's Centrifugo subscription-token endpoint (auth owns token issuance, chat owns participation). Identity is always the authenticated subject supplied by the caller, never a client-supplied value or channel string (P3). |
 
-> The remaining components (`chat.module.ts`, `chat.controller.ts`, `chat.service.ts`, `chat-participation.service.ts`, DTOs) are landing incrementally per the `realtime-chat` spec tasks. Update this table as each file is added.
+> The remaining components (`chat.module.ts`, `chat.controller.ts`, `chat.service.ts`, DTOs) are landing incrementally per the `realtime-chat` spec tasks. Update this table as each file is added.
 
 ## Dependencies
 
