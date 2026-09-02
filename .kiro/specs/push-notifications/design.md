@@ -41,7 +41,7 @@ OneSignal (transport) — device tokens, APNs/FCM, journeys/segments driven by t
 - **Emitting modules** keep emitting their existing domain events unchanged and gain **no** dependency on notifications. The one migration: `offers` stops calling `OneSignalClient` directly and instead writes an `offer` outbox row; the notifications listener maps `offer.*` to intents (behavior preserved).
 - **OneSignal** owns device tokens + OS delivery. It receives a localized payload + an external user id + a deep-link data blob; it never learns business rules.
 
-Dependency is one-directional (notifications → emitting-domain outbox tables, read-only via the relay). No business transaction depends on a push succeeding.
+Dependency is one-directional (notifications → emitting-domain outbox tables, read-only via the relay). No business transaction depends on a push succeeding. The only code shared across domains is the **domain-agnostic `OutboxWriter`** in `packages/shared` (pure row-writing infrastructure — `writeOutbox(tx, { eventId, aggregateType, aggregateId, type, payload, version })`); it carries no offer/payment/negotiation/chat/voip semantics, and both the per-domain `event_id`/payload shaping (in each emitting domain) and the domain→intent mapping (in the notifications per-domain mapper) live outside it.
 
 ## Architecture
 
@@ -142,7 +142,7 @@ graph TB
 **`OutboxRelayProcessor`** (BullMQ repeatable; interval/batch from config) — drains each `<domain>_outbox` for committed-but-unrelayed rows (`relayed_at IS NULL`), ordered by `created_at`, bounded batch. For each row: build the intent via a per-domain mapper, call `NotificationService.createIntent()`, then `markRelayed(event_id)`. At-least-once and idempotent (a re-drained row is deduped by `dedup_key`). A mapper/relay throw is isolated — it never touches the emitting transaction (already committed).
 
 **`NotificationService`** — the orchestrator.
-- `createIntent(intent)` — dedup by `dedup_key` (a caught unique-violation → return existing, no-op); resolve `NotificationTypeRegistry` metadata; evaluate `PreferenceService` (consent/quiet-hours/opt-out) → either persist `SUPPRESSED(reason)` (audit, no enqueue) or persist `PENDING` then enqueue delivery. Ledger write precedes enqueue (durable-first). Never throws into the relay in a way that stops the batch (per-row try/catch, failed rows retried).
+- `createIntent(intent)` — dedup by `dedup_key` (a caught unique-violation → return existing, no-op); resolve `NotificationTypeRegistry` metadata; **evaluate the `PreferenceService.decide(...)` decision BEFORE (or within the same DB transaction as) the ledger INSERT**, and insert the row **already in its final initial state**: `SUPPRESSED(reason)` when suppressed (audit only, never enqueued) or `PENDING` only when it will be enqueued. Because the suppression decision and the initial persisted status are one atomic step, **there is no window where a transient `PENDING` row is visible/enqueueable before the suppression decision is applied** — a row is never observable as `PENDING` and then flipped to `SUPPRESSED` in a way that lets the `DeliveryWorker` consume it in between. The enqueue happens **only AFTER the `PENDING` row is committed** (durable-first, unchanged). Exactly-once dedup (unique `dedup_key`) behavior is intact. Never throws into the relay in a way that stops the batch (per-row try/catch, failed rows retried).
 - `getLedger(id)` / `listForRecipient(userId)` — audit/reconciliation reads (self-scoped).
 - Functions ≤30 lines, SRP; no branching on specific type names (metadata-driven — REQ-NP5).
 
@@ -175,6 +175,11 @@ graph TB
 ### Outbox in emitting domains (additive, one migration)
 
 Each emitting domain gains a `<domain>_outbox` table and writes to it **inside the same transaction** as the business fact (a repository call added to the existing write path — no new source of truth, no dependency on notifications). Options: a per-domain outbox (chosen — keeps each bounded context owning its table, consistent with the "each context owns its tables" standard) with a shared `OutboxWriter` helper in `packages/shared` for the row shape. The `offers` migration additionally removes the direct `OneSignalClient.send` call from `OfferNotificationService`, replacing it with an `offer_outbox` write (behavior preserved via the notifications `offer.*` mapper — REQ-NP13).
+
+**The shared `OutboxWriter` is pure infrastructure, strictly domain-agnostic.** Its signature is `writeOutbox(tx, { eventId, aggregateType, aggregateId, type, payload, version })` (optionally with a target table-name parameter). It knows nothing about offer/payment/negotiation/chat/voip semantics — no domain mapping, no business logic, no type-specific branches — it only writes the given row into the outbox table (passed to it, or named via parameter) within the caller's transaction. Consequently:
+- **Each bounded context OWNS its own outbox schema/table and is the only writer to it.** The per-domain `event_id` derivation and payload shaping happen **inside the emitting domain (the caller)**, never in `packages/shared`.
+- **The domain→intent mapping** (deriving recipient, deep-link, `dedupKey`, priority from a `<domain>_outbox` row) lives **only in the notifications module's per-domain mapper**, never in shared.
+- **Invariant:** `packages/shared` MUST never gain knowledge of offers/payments/chat/voip/negotiation — it stays free of any domain semantics.
 
 ### Mobile (`apps/mobile/src/screens/notifications/` + bootstrap)
 
@@ -253,6 +258,8 @@ Indexes: `uq_notification_preferences_user (user_id)`.
 
 Indexes/constraints: `uq_notifications_dedup (dedup_key)` — the hard guarantee behind exactly-once intent; `idx_notifications_recipient_created (recipient_user_id, created_at DESC)`; `idx_notifications_status (status)` (delivery worker scan); `idx_notifications_pending (status, created_at) WHERE status='PENDING'` (bounded pick-up). `CHECK` constraints (VARCHAR + app validation) for `status`/`priority`/`channel`/`category`.
 
+**Ledger grain — per notification intent, not per device delivery.** One `notifications` row represents **one notification INTENT for a recipient**, NOT one row per `(notification, player_id)` device delivery. Consequently `SENT` means **"at least one successful provider submission for this intent"**, NOT "every targeted device was delivered exactly once". Because there is no per-device delivery state on the ledger, a `FAILED_RETRYABLE` retry MAY re-attempt player ids that already received the push on a prior attempt → **external duplicates are possible**. This is acceptable and consistent with the already-declared at-least-once/best-effort external-delivery contract (mitigated by the provider idempotency key where OneSignal supports it). *Future enhancement (OUT OF SCOPE for the MVP):* a `notification_deliveries` table keyed by `(notification_id, player_id)` could later track per-device delivery state, making retries device-scoped so they avoid re-hitting already-delivered devices.
+
 ### `onesignal_webhook_events` (webhook idempotency)
 | Column | Type | Notes |
 |---|---|---|
@@ -287,11 +294,15 @@ OutboxRelayProcessor (repeatable, bounded batch):
   for each row:
     intent = domainMapper(row)   -- { recipientUserId, type, dedupKey=derive(event_id,version,recipient), deepLink, ... }
     NotificationService.createIntent(intent):
-        INSERT notifications(status=PENDING, dedup_key=...) 
-           unique-violation on dedup_key => no-op (exactly-once intent)
+        -- compute decision FIRST, then INSERT the row already in its final initial status
         decision = PreferenceService.decide(metadata, prefs, hasConsentedDevice, foregroundKnown)
-        if SUPPRESS(reason): UPDATE ledger SET status=SUPPRESSED, suppression_reason=reason  (no enqueue)
-        else: enqueue delivery(ledgerId)     -- ledger PENDING already committed (durable-first)
+        initialStatus = (decision == SUPPRESS(reason)) ? SUPPRESSED(reason) : PENDING
+        INSERT notifications(status=initialStatus, suppression_reason=reason?, dedup_key=...)
+           unique-violation on dedup_key => no-op (exactly-once intent)
+        -- atomic: no transient PENDING is ever visible before suppression is applied;
+        --         a DeliveryWorker can never consume a row that should be SUPPRESSED
+        if initialStatus == PENDING: enqueue delivery(ledgerId)  -- only AFTER PENDING committed (durable-first)
+        -- SUPPRESSED rows are never enqueued
     markRelayed(event_id)   -- at-least-once; a re-drain is deduped
 ```
 
@@ -308,6 +319,9 @@ DeliveryWorker(ledgerId):
      for each playerId: OneSignalClient.send({ playerId, headings, contents, data=deepLink, idempotencyKey })
         invalid player id => DeviceRegistryService.markStale(playerId)  (not repeatedly retried)
      success => UPDATE status=SENT, sent_at=NOW()
+        -- SENT = at least one successful provider submission for THIS intent (not per-device);
+        --        the ledger is per-intent, so a retry may re-attempt already-delivered player ids
+        --        => external duplicates are possible (at-least-once, mitigated by idempotency key)
      OneSignal error/timeout => UPDATE status=FAILED_RETRYABLE => BullMQ retry (config backoff)
         retries exhausted => UPDATE status=FAILED_FINAL
   (never throws into any business flow; external delivery is at-least-once, mitigated by idempotency key)
@@ -455,6 +469,7 @@ Each property is testable and maps back to the requirements' REQ-NP invariants a
 | Opted-out / quiet-hours (RESPECT type) | Ledger `SUPPRESSED(opted-out|quiet-hours)`, no send |
 | Foreground status unknown | Fail-open → deliver (messages/calls always) |
 | OneSignal timeout/error/misconfig | Ledger `FAILED_RETRYABLE` → BullMQ retry → `FAILED_FINAL`; never throws into business flow |
+| Retry re-attempts already-delivered devices | Acceptable — the ledger is per-intent (not per-device), so `SENT` = "≥1 successful submission for this intent"; a retry may re-hit already-delivered player ids → external duplicates possible (at-least-once, mitigated by idempotency key). Device-scoped retries via a future `notification_deliveries` table are OUT OF SCOPE for the MVP |
 | OneSignal reports invalid player id | `markStale(playerId)`; excluded from future targeting; not repeatedly retried |
 | Device register for a non-subject user id | `403`, register nothing |
 | Unauthenticated device/preference request | `401` |
