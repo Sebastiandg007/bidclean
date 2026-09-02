@@ -27,7 +27,7 @@ The requirements make `checklist_completed_at` — the **authoritative finish ti
 ### Authority split (kept strict)
 
 - **PostgreSQL is the source of truth for the completion DECISION + ratings.** The `service_completions` row (state, who confirmed, when, the snapshotted deadline, the dispute links, the rating rows) is durable. It records the decision; it is **not** the money ledger.
-- **The escrow module (Spec 9) is the source of truth for money.** Whether funds are HELD/RELEASED/REFUNDED, the Transfer, the payout status — all live in payments and are authoritative there. `service-completion` never calls `release(...)` synchronously: it persists a durable release intent in the decision transaction, and a worker drives that intent into Spec 9's single-winner release with idempotent retries (or the dispute path suppresses it). The intent stays `PENDING` until Spec 9 confirms acceptance.
+- **The escrow module (Spec 9) is the source of truth for money.** Whether funds are HELD/RELEASED/REFUNDED, the Transfer, the payout status — all live in payments and are authoritative there. `service-completion` never calls `release(...)` synchronously: it persists a durable release intent in the decision transaction, and a worker drives that intent into Spec 9's single-winner release with idempotent retries (or the dispute path suppresses it). The intent stays `PENDING`/`DISPATCHED` until Spec 9 accepts the release COMMAND, at which point it is `ACCEPTED` — meaning Spec 9 durably accepted the command, not that the payout has settled (Spec 9 may leave `payout_status = PENDING` when the Cleaner is not yet `payouts_enabled`, and reconcile the payout later). The Cleaner UI's released / pending-payout / disputed distinction reflects exactly this: an `ACCEPTED` release whose payout is still pending is normal, not an error.
 - **checklist-photos (Spec 19) is the source of truth for what was done + the finish time.** `service-completion` reacts to `checklist_completed` (carrying `completedAt`); it never re-derives checklist state or the finish clock.
 - **The auto-release deadline is server-authoritative and durable.** The 24h (configurable) countdown is a persisted, snapshotted deadline swept by the server; a client "confirm" is the fast path, the sweep is the guarantee.
 - **Spec 21 owns dispute outcomes.** `service-completion` provides the entry point (pre-release `DISPUTED` + suppression, or post-release routing) and never weighs evidence, reverses Transfers, or issues refunds.
@@ -183,20 +183,20 @@ sequenceDiagram
         Dec-->>Ctrl: 409 conflict
     end
     Note over Worker,Escrow: OUT OF BAND — never in the request path
-    Worker->>Repo: drain PENDING/FAILED_RETRYABLE intents (bounded batch)
-    Worker->>Repo: mark intent DISPATCHED
+    Worker->>Repo: CLAIM intent (single-winner conditional UPDATE):<br/>SET status='DISPATCHED', dispatched_at=now, lease_until=now+RELEASE_INTENT_LEASE_MS<br/>WHERE status IN ('PENDING','FAILED_RETRYABLE') OR (status='DISPATCHED' AND lease_until <= now)
     Worker->>Escrow: release(payment_id, reason)  (idempotent; Spec 9 single-winner)
-    alt accepted
+    alt release COMMAND accepted (Spec 9 durably accepted; payout may be deferred)
         Escrow-->>Worker: ok
-        Worker->>Repo: intent ACCEPTED
+        Worker->>Repo: intent ACCEPTED (release command accepted, NOT funds settled)
     else transient failure
         Escrow-->>Worker: error
         Worker->>Repo: intent FAILED_RETRYABLE (attempt++), retried next drain
     end
+    Note over Worker,Repo: crash after CLAIM (DISPATCHED) but before ACCEPTED →<br/>lease expires → intent re-claimable by the next drain →<br/>release() re-called (Spec 9 single-winner → no-op)
 ```
 
-- The request path commits the decision + intent + outbox and returns. It **never** calls Stripe. A crash after commit but before the Stripe call is fully recoverable: the `PENDING` intent is drained on recovery (REQ-SC2). Spec 9's single-winner release makes a duplicated drain a no-op — at most one Transfer.
-- Deferred payout: if the Cleaner's account is not `payouts_enabled`, Spec 9's `release` returns having set `payout_status = PENDING` without failing; the intent is `ACCEPTED` (Spec 9 accepted the release; the payout completes when the account becomes eligible via Spec 9's own reconciliation). The completion stays `CONFIRMED` (REQ-SC7).
+- The request path commits the decision + intent + outbox and returns. It **never** calls Stripe. A crash after commit but before the Stripe call is fully recoverable via a **lease-based claim**: the worker claims an intent by conditionally setting `status='DISPATCHED', dispatched_at=now, lease_until=now+SERVICE_COMPLETION_RELEASE_INTENT_LEASE_MS` in the SAME conditional `UPDATE` that selects it (`WHERE status IN ('PENDING','FAILED_RETRYABLE') OR (status='DISPATCHED' AND lease_until <= now)`) — a single-winner claim. A crash after the claim (intent left `DISPATCHED`) but before `ACCEPTED` is not stuck: once its `lease_until` passes, the very next drain re-selects and re-claims it and re-calls `release(...)` (REQ-SC2). Spec 9's single-winner release makes the re-call a no-op — at most one Transfer.
+- `ACCEPTED` means **Spec 9 durably/idempotently accepted the release COMMAND** — NOT that the Stripe Transfer funds have settled. Deferred payout: if the Cleaner's account is not `payouts_enabled`, Spec 9's `release` returns having set `payout_status = PENDING` without failing; that is still an `ACCEPTED` release command (the payout completes later via Spec 9's own reconciliation when the account becomes eligible). The completion stays `CONFIRMED` (REQ-SC7).
 
 ### Data flow — auto-release sweep (server-authoritative, durable deadline, single-winner)
 
@@ -261,19 +261,21 @@ sequenceDiagram
 
     Host->>Ctrl: POST /service-completions/:id/post-release-dispute
     Ctrl->>Dec: openPostReleaseDispute(id, userId)
-    Dec->>Repo: assert caller is Host; assert state ∈ {CONFIRMED, AUTO_RELEASED}
-    Dec->>Repo: TX { UPDATE ... SET post_release_dispute_id=:generated\n           WHERE id=:id AND state IN ('CONFIRMED','AUTO_RELEASED') AND post_release_dispute_id IS NULL
-    alt rows = 1
+    Dec->>Repo: assert caller is Host
+    Dec->>Repo: TX { UPDATE service_completions c SET post_release_dispute_id=:generated<br/>WHERE c.id=:id AND c.state IN ('CONFIRMED','AUTO_RELEASED') AND c.post_release_dispute_id IS NULL<br/>AND EXISTS (SELECT 1 FROM release_intents i WHERE i.service_completion_id=c.id AND i.status='ACCEPTED')  (release ACCEPTED gate)
+    alt rows = 1 (release actually ACCEPTED — money has moved)
         Repo->>Repo: INSERT completion_outbox service_disputed { completionId, offerId, disputeId }
         Repo-->>Dec: committed (state UNCHANGED — terminal released state preserved)
         Dec-->>Ctrl: 200
-    else rows = 0
-        Dec-->>Ctrl: 409 (already post-disputed, or not released)
+    else release_status ≠ ACCEPTED (intent still PENDING/DISPATCHED/FAILED_RETRYABLE)
+        Dec-->>Ctrl: 409 release not yet executed — retry once release_status = ACCEPTED (still a PRE-release concern)
+    else rows = 0 for another reason
+        Dec-->>Ctrl: 409 (already post-disputed, or not in a released decision state)
     end
     PG-->>Dispute: service_disputed fan-out — Spec 21 handles reversal/refund/partial per Spec 9 post-release policy
 ```
 
-- A post-release dispute sets `post_release_dispute_id` and routes to Spec 21 **without** transitioning to `DISPUTED` (which is pre-release only) and **without** reversing the Transfer (Spec 21 does that via Spec 9's reversal primitive). The completion's terminal released state is preserved (REQ-SC12).
+- **A post-release dispute is allowed ONLY when the escrow release has actually been ACCEPTED by Spec 9** (the completion's `release_intent.status = ACCEPTED` — equivalently `release_status = ACCEPTED`, see the derived `release_status` in the `GET` contract). `CONFIRMED`/`AUTO_RELEASED` is only the DECISION state; while the completion is `CONFIRMED`/`AUTO_RELEASED` but the intent is still `PENDING`/`DISPATCHED` (not yet `ACCEPTED`), the money has not necessarily moved, so a dispute is still a **PRE-release** concern and MUST NOT be routed as post-release — the endpoint rejects it with `409` (release not yet executed) and the caller/Spec-21 entry retries once `release_status = ACCEPTED`. This `409`-until-`ACCEPTED` rule is the primary, money-safe design (no intent-cancellation race). Once accepted, a post-release dispute sets `post_release_dispute_id` and routes to Spec 21 **without** transitioning to `DISPUTED` (which is pre-release only, reachable solely from `AWAITING_CONFIRMATION`) and **without** reversing the Transfer (Spec 21 does that via Spec 9's reversal primitive). The completion's terminal released state is preserved (REQ-SC12).
 
 ### Data flow — rating (captured, never gating)
 
@@ -325,7 +327,7 @@ services/api/src/service-completion/
 **`CompletionDecisionService`** — the single-winner pre-release + post-release decisions.
 - `confirm(id, userId)` — assert caller is the Host (else `403`); in ONE transaction single-winner `UPDATE ... WHERE id=:id AND state='AWAITING_CONFIRMATION'` setting `confirmed_at` + `released_trigger='HOST_CONFIRMED'`, persist `release_intent { HOST_CONFIRMED, PENDING }`, write `service_confirmed`. `rows=0` + current `CONFIRMED` → idempotent no-op returning current state; `rows=0` + `DISPUTED`/terminal-different → `409`. Never calls Stripe in the request path.
 - `openDispute(id, userId)` — assert Host; single-winner `AWAITING_CONFIRMATION → DISPUTED` setting `dispute_id`, write `service_disputed`, **no intent** (auto-release suppressed). `rows=0` + already `DISPUTED` → idempotent; else `409`.
-- `openPostReleaseDispute(id, userId)` — assert Host; conditional `UPDATE ... WHERE state IN ('CONFIRMED','AUTO_RELEASED') AND post_release_dispute_id IS NULL` setting `post_release_dispute_id`, write `service_disputed`; state unchanged; no Transfer reversal. `rows=0` → `409`.
+- `openPostReleaseDispute(id, userId)` — assert Host; conditional `UPDATE ... WHERE state IN ('CONFIRMED','AUTO_RELEASED') AND post_release_dispute_id IS NULL AND EXISTS(release_intent for this completion WITH status='ACCEPTED')` setting `post_release_dispute_id`, write `service_disputed`; state unchanged; no Transfer reversal. **Gates on the release actually being `ACCEPTED`**, not merely on the decision state: `CONFIRMED`/`AUTO_RELEASED` is the DECISION, but the release may still be `PENDING`/`DISPATCHED` (money not necessarily moved). If the decision state matches but the release is not yet `ACCEPTED`, this is still a PRE-release concern → `409` (release not yet executed; the caller/Spec-21 retries once `release_status = ACCEPTED`). It does NOT route as post-release and does NOT cancel the in-flight intent (which may already be mid-flight). `rows=0` for any reason (not released-accepted, already post-disputed) → `409`.
 
 **`AutoReleaseService`** — the sweep transition (invoked by the sweep job).
 - `autoReleaseDue(id)` — single-winner `UPDATE ... WHERE id=:id AND state='AWAITING_CONFIRMATION'` setting `released_trigger='AUTO_RELEASE'`, persist `release_intent { AUTO_RELEASE, PENDING }`, write `service_confirmed { trigger: AUTO_RELEASE }`, all in ONE transaction. `rows=0` (confirmed/disputed first) → no-op. Idempotent.
@@ -339,12 +341,13 @@ services/api/src/service-completion/
 **`CompletionRepository`** (`service_completions` + `completion_outbox`, and coordinates `release_intents`)
 - `createCompletion(params, manager)` — idempotent `ON CONFLICT (service_session_id) DO NOTHING`.
 - `transition(id, expected, next, derivedFields, intent?, outboxEvents, manager)` — the single-winner `UPDATE ... WHERE id=:id AND state=:expected` that sets derived fields AND (when release-bearing) inserts exactly one `release_intent` AND writes the `completion_outbox` row(s), all in ONE transaction. Returns rows affected (winner=1).
-- `transitionPostReleaseDispute(id, disputeId, outboxEvents, manager)` — conditional `WHERE state IN ('CONFIRMED','AUTO_RELEASED') AND post_release_dispute_id IS NULL`; no state change, no intent.
+- `transitionPostReleaseDispute(id, disputeId, outboxEvents, manager)` — conditional `WHERE state IN ('CONFIRMED','AUTO_RELEASED') AND post_release_dispute_id IS NULL AND EXISTS (SELECT 1 FROM release_intents i WHERE i.service_completion_id = :id AND i.status = 'ACCEPTED')`; no state change, no intent. The `ACCEPTED` `EXISTS` clause makes the write succeed only when the release has actually executed (money moved); a matching decision state with a still-`PENDING`/`DISPATCHED` intent yields rows=0 → the service maps it to `409` (release not yet executed).
 - `findById(id)`, `findBySessionId`, `findDueForAutoRelease(now, limit)` (partial-index scan `state='AWAITING_CONFIRMATION' AND auto_release_deadline <= now`).
 
 **`ReleaseIntentRepository`** (`release_intents`)
-- `drainPending(limit)` — `status IN ('PENDING','FAILED_RETRYABLE')`, oldest first, bounded (partial-index scan).
-- `markDispatched(id, manager)` / `markAccepted(id, manager)` / `markFailedRetryable(id, manager)` (increments `attempt`). All idempotent per final state.
+- `drainClaimable(limit)` — selects intents eligible for a claim: `status IN ('PENDING','FAILED_RETRYABLE') OR (status = 'DISPATCHED' AND lease_until <= NOW())`, oldest first, bounded (partial-index scan matching the claim predicate). This is what makes an orphaned `DISPATCHED` durably reclaimable.
+- `claimForDispatch(id, leaseMs, manager)` — the **single-winner lease claim** (replaces the old `markDispatched`): `UPDATE ... SET status='DISPATCHED', dispatched_at=NOW(), lease_until=NOW() + :leaseMs WHERE id=:id AND (status IN ('PENDING','FAILED_RETRYABLE') OR (status='DISPATCHED' AND lease_until <= NOW()))`. Returns rows affected (winner=1); a concurrent worker or a not-yet-expired lease observes rows=0 and skips. Marking `DISPATCHED` is therefore a lease-claim, never an unconditional write.
+- `markAccepted(id, manager)` / `markFailedRetryable(id, manager)` (increments `attempt`, clears `lease_until`). All idempotent per final state.
 
 **`ServiceRatingRepository`** (`service_ratings`)
 - `insertOnePerSide(params, manager)` — `ON CONFLICT (service_completion_id, role) DO NOTHING`.
@@ -354,22 +357,29 @@ services/api/src/service-completion/
 
 **`AutoReleaseSweepProcessor`** (BullMQ repeatable; interval/batch from config) — selects `service_completions` where `state='AWAITING_CONFIRMATION' AND auto_release_deadline <= NOW()` (bounded batch, partial index), calls `AutoReleaseService.autoReleaseDue(id)` per row (single-winner, idempotent). A disputed/confirmed completion is not selected (state changed). Bounded and re-runnable.
 
-**`ReleaseIntentWorker`** (BullMQ repeatable; interval/batch from config) — drains `release_intents` with `status IN ('PENDING','FAILED_RETRYABLE')` (oldest first, batched): mark `DISPATCHED`, call `EscrowReleaseService.release(payment_id, reason)` (idempotent; Spec 9 single-winner), then mark `ACCEPTED` on success or `FAILED_RETRYABLE` (attempt++) on transient failure → retried next drain. This is the only path that calls Spec 9; it holds no Stripe keys. Recovery-safe: an intent left `DISPATCHED` by a crash is re-drained (a re-call is a Spec-9 no-op).
+**`ReleaseIntentWorker`** (BullMQ repeatable; interval/batch from config) — drains claimable `release_intents` (`status IN ('PENDING','FAILED_RETRYABLE') OR (status='DISPATCHED' AND lease_until <= NOW())`, oldest first, batched): **claims** each via the single-winner lease `claimForDispatch(id, SERVICE_COMPLETION_RELEASE_INTENT_LEASE_MS)` (sets `status='DISPATCHED', dispatched_at=NOW(), lease_until=NOW()+leaseMs`), calls `EscrowReleaseService.release(payment_id, reason)` (idempotent; Spec 9 single-winner), then marks `ACCEPTED` on success or `FAILED_RETRYABLE` (attempt++) on transient failure → retried next drain. `ACCEPTED` records that **Spec 9 durably accepted the release COMMAND** — not that funds have settled (Spec 9 may leave `payout_status = PENDING` when `payouts_enabled = false`; that is still `ACCEPTED`). This is the only path that calls Spec 9; it holds no Stripe keys. Recovery-safe **by lease, not by drain-selection alone**: an intent left `DISPATCHED` by a crash is stuck only until its `lease_until` passes, after which the next drain re-selects and re-claims it and re-calls `release(...)` (a Spec-9 no-op) — an orphaned `DISPATCHED` is never permanently lost.
 
 **`CompletionController`** (`@Controller('service-completions') @UseGuards(JwtAuthGuard)`, whitelisting `ValidationPipe`):
 
 | Method | Path | Actor | Description |
 |---|---|---|---|
-| `GET` | `/service-completions/:id` | Host or Cleaner | Authoritative state + snapshotted `auto_release_deadline` + rating status (reconcile path) |
+| `GET` | `/service-completions/:id` | Host or Cleaner | Authoritative state + snapshotted `auto_release_deadline` + rating status + derived `release_status` (`NOT_TRIGGERED`/`PENDING`/`ACCEPTED`) (reconcile path). Lets the Cleaner see a `CONFIRMED` completion whose payout order is still `PENDING` vs `ACCEPTED`; also what `openPostReleaseDispute` gates on. Internal intent fields (`attempt`, `dispatched_at`, `lease_until`, `last_error`) are NOT exposed |
 | `POST` | `/service-completions/:id/confirm` | Host only | Single-winner `→ CONFIRMED` + `release_intent(HOST_CONFIRMED)` + `service_confirmed` |
 | `POST` | `/service-completions/:id/dispute` | Host only | Single-winner `→ DISPUTED` + `service_disputed`; suppresses auto-release |
-| `POST` | `/service-completions/:id/post-release-dispute` | Host only | Sets `post_release_dispute_id` on a released completion + `service_disputed`; state preserved |
+| `POST` | `/service-completions/:id/post-release-dispute` | Host only | Sets `post_release_dispute_id` + `service_disputed`; state preserved. Allowed ONLY when the release is actually `ACCEPTED` (`release_status = ACCEPTED`); a decision state of `CONFIRMED`/`AUTO_RELEASED` with the intent still pending → `409` (release not yet executed) |
 | `POST` | `/service-completions/:id/ratings` | Host or Cleaner | One rating per side (1..5, optional comment) + `service_rated`; never gating |
 | `GET` | `/service-completions/:id/ratings` | Host or Cleaner | Participant-gated ratings read |
 
 Identity from `req.user.keycloakId → userId`; a non-participant receives `403` and learns nothing about the completion's existence. `release` is **not** a REST action — it is driven only by the release-intent worker.
 
-Status codes: `200` success/idempotent no-op, `400` validation (stars out of range, bad payload), `401` unauthenticated, `403` forbidden (non-participant, or Cleaner attempting confirm/dispute), `404` unknown completion (non-participant sees `403`/`404` with no disclosure), `409` conflict (confirm on `DISPUTED`/terminal-different, duplicate rating side, post-release dispute on non-released or already-disputed).
+**Derived `release_status` (GET reconciliation):** because the release is asynchronous, `GET` returns a derived `release_status` computed authoritatively from the completion's `release_intent`:
+- `NOT_TRIGGERED` — no `release_intent` exists yet (e.g. `AWAITING_CONFIRMATION` or `DISPUTED` — no release-bearing decision was made).
+- `PENDING` — an intent exists but is not yet `ACCEPTED` (covers intent status `PENDING`/`DISPATCHED`/`FAILED_RETRYABLE`).
+- `ACCEPTED` — the intent is `ACCEPTED` (Spec 9 durably accepted the release command; the payout may still be settling).
+
+This is derived server-side from the intent's status; it never exposes the internal intent fields (`attempt`, `dispatched_at`, `lease_until`, `last_error`). It is the value the Cleaner UI uses to distinguish "released / pending payout" and the exact condition `openPostReleaseDispute` gates on (post-release only when `release_status = ACCEPTED`).
+
+Status codes: `200` success/idempotent no-op, `400` validation (stars out of range, bad payload), `401` unauthenticated, `403` forbidden (non-participant, or Cleaner attempting confirm/dispute), `404` unknown completion (non-participant sees `403`/`404` with no disclosure), `409` conflict (confirm on `DISPUTED`/terminal-different, duplicate rating side, post-release dispute on non-released, on a release not yet `ACCEPTED` (release not yet executed), or already-disputed).
 
 ### Mobile (`apps/mobile/src/screens/completion/`)
 
@@ -391,12 +401,12 @@ apps/mobile/src/screens/completion/
 └── README.md
 ```
 
-- **`completion.types.ts`** — `ServiceCompletion` (`id`, `serviceSessionId`, `offerId`, `state`, `autoReleaseDeadline`, `releasedTrigger`, `confirmedAt`, `disputeId`, `postReleaseDisputeId`), `ServiceRating` (`role`, `stars`, `comment`), enums, `ConnectionStatus`.
+- **`completion.types.ts`** — `ServiceCompletion` (`id`, `serviceSessionId`, `offerId`, `state`, `autoReleaseDeadline`, `releasedTrigger`, `confirmedAt`, `disputeId`, `postReleaseDisputeId`, `releaseStatus`), where `releaseStatus: 'NOT_TRIGGERED' | 'PENDING' | 'ACCEPTED'` is the server-derived release-execution status from `GET` (no internal intent fields — attempt/lease/last_error — are exposed); `ServiceRating` (`role`, `stars`, `comment`), enums, `ConnectionStatus`.
 - **`completion.constants.ts`** — routes/endpoints, i18n keys, design tokens (`#00F5D4` accent for confirm/rating CTAs, `#0B0C10` background, `#1F2833` cards); no security-sensitive values embedded.
 - **`useAutoReleaseCountdown.ts`** — derives a display-only countdown from the durable `auto_release_deadline` returned by `GET`; it is a display of the server deadline, not an authoritative client timer (REQ-SC10). On expiry it re-fetches via `GET` rather than mutating state locally.
 - **`completion.store.ts`** (Zustand) — completion + rating status; optimistic confirm/dispute reconciled via `GET`; idempotent state application (ignore regressions/older/illegal transitions).
 - **`CompletionHostScreen`** — confirm-satisfaction action, dispute action, visible auto-release countdown (from the durable deadline, reconciled via `GET`); on confirm reflects `CONFIRMED` and prompts for a rating; if the Host does nothing, reflects `AUTO_RELEASED` after the deadline (reconciled via `GET`); on dispute reflects `DISPUTED` and hands off to Spec 21 clearly indicating auto-release is paused.
-- **`CompletionCleanerScreen`** — release status (released / pending payout / disputed) sourced from the completion + escrow state; prompts for a rating.
+- **`CompletionCleanerScreen`** — release status (released / pending payout / disputed) sourced from the completion's server-derived `release_status` (`NOT_TRIGGERED`/`PENDING`/`ACCEPTED`) returned by `GET`, so the Cleaner sees that a `CONFIRMED` completion's payout order is still `PENDING` vs `ACCEPTED`; prompts for a rating.
 - **i18n** `en`/`es` parity for all strings; BidClean dark tokens.
 
 ## Data Models
@@ -429,15 +439,19 @@ Indexes/constraints: `uq_service_completions_session (service_session_id)`; FK i
 | Column | Type | Notes |
 |---|---|---|
 | `id` | `UUID PK DEFAULT gen_random_uuid()` | |
-| `service_completion_id` | `UUID NOT NULL` | FK → `service_completions(id)` **ON DELETE CASCADE**; indexed |
-| `payment_id` | `UUID NOT NULL` | reference to the escrow payment (passed to `release`); indexed |
-| `reason` | `VARCHAR(20) NOT NULL` | app-validated `HOST_CONFIRMED/AUTO_RELEASE` (a subset of Spec 9's `ReleaseReason`) |
-| `status` | `VARCHAR(20) NOT NULL DEFAULT 'PENDING'` | app-validated `PENDING/DISPATCHED/ACCEPTED/FAILED_RETRYABLE` |
+| `service_completion_id` | `UUID` (nullable) | FK → `service_completions(id)` **ON DELETE SET NULL** (NOT CASCADE): the intent is a durable financial command that outlives the completion; if the originating completion is deleted, this reference is nulled but the intent is retained so the worker still drives the release. Indexed |
+| `payment_id` | `UUID NOT NULL` | reference to the escrow payment (passed to `release`); indexed. **Self-sufficient**: together with `reason`, it lets the worker complete the release even after the completion row is gone |
+| `reason` | `VARCHAR(20) NOT NULL` | app-validated `HOST_CONFIRMED/AUTO_RELEASE` (a subset of Spec 9's `ReleaseReason`); retained on the intent so the release command is complete independent of the completion |
+| `status` | `VARCHAR(20) NOT NULL DEFAULT 'PENDING'` | app-validated `PENDING/DISPATCHED/ACCEPTED/FAILED_RETRYABLE`. **`ACCEPTED` = Spec 9 durably/idempotently accepted the release COMMAND, NOT that the Stripe Transfer funds have settled** — Spec 9 may leave `payout_status = PENDING` when `payouts_enabled = false`; that is still an `ACCEPTED` release command, and the payout completes later via Spec 9's own reconciliation. `DISPATCHED` = a worker has claimed a lease and is (or was) mid-flight calling Spec 9. |
 | `attempt` | `INTEGER NOT NULL DEFAULT 0` | incremented on `FAILED_RETRYABLE` |
+| `dispatched_at` | `TIMESTAMPTZ` (nullable) | set when a worker claims the intent (`→ DISPATCHED`); null while `PENDING`/`FAILED_RETRYABLE`, and after a terminal `ACCEPTED` it records the last dispatch |
+| `lease_until` | `TIMESTAMPTZ` (nullable) | claim lease expiry (`= dispatched_at + SERVICE_COMPLETION_RELEASE_INTENT_LEASE_MS`); a `DISPATCHED` intent whose `lease_until <= NOW()` is an orphaned (crashed) dispatch and is durably re-claimable by the next drain — this is what gives `DISPATCHED` a real recovery path |
 | `last_error` | `TEXT` (nullable) | sanitized transient-failure reason (no secrets/PII) |
 | `created_at` / `updated_at` | `TIMESTAMPTZ DEFAULT NOW()` | |
 
-Indexes/constraints: `idx_release_intents_completion (service_completion_id)`, `idx_release_intents_payment (payment_id)`; the drain scan `idx_release_intents_drain (created_at) WHERE status IN ('PENDING','FAILED_RETRYABLE')`; `uq_release_intents_completion (service_completion_id)` — **exactly one intent per completion** (a completion has at most one release-bearing terminal decision, so one intent; this is the durable-intent single-winner backstop); `CHECK` on `reason` and `status`.
+**Note — durable financial command:** a `release_intent` is a **durable financial command / audit fact** that must SURVIVE the lifecycle of the completion that originated it. It carries its own `payment_id` and `reason`, so the worker can still complete the release even if the originating `service_completions` row is later deleted (see `service_completion_id` above and the Deletion-policy coherence subsection).
+
+Indexes/constraints: `idx_release_intents_completion (service_completion_id)`, `idx_release_intents_payment (payment_id)`; the drain/claim scan `idx_release_intents_drain (created_at) WHERE status IN ('PENDING','FAILED_RETRYABLE','DISPATCHED')` — the predicate now also matches `DISPATCHED` rows so the claim scan (`... OR (status='DISPATCHED' AND lease_until <= NOW())`) can find an expired-lease dispatch to reclaim (the `lease_until` comparison is applied by the query; the partial index scopes the scan to the claimable statuses); `uq_release_intents_completion (service_completion_id)` — **at most one intent per completion while the completion exists** (a completion has at most one release-bearing terminal decision, so one intent; this is the durable-intent single-winner backstop). Because `service_completion_id` is nullable (`ON DELETE SET NULL` — see below) and Postgres treats `NULL`s as distinct in a `UNIQUE`, retained intents whose completion was deleted (`service_completion_id = NULL`) do not collide with each other; the one-intent-per-completion invariant holds for every completion that still exists. `CHECK` on `reason` and `status`.
 
 ### `service_ratings` (new — mutual rating, captured not gating)
 
@@ -473,7 +487,11 @@ Indexes: `uq_completion_outbox_event (event_id)`; `idx_completion_outbox_created
 
 ### Deletion-policy coherence (Spec 13 invariant)
 
-Consistent with the siblings: user references (`host_id`/`cleaner_id`/`rater_id`/`ratee_id`) are **`ON DELETE SET NULL`**, never `CASCADE` from `users` — deleting/anonymizing a participant never destroys the completion + rating audit/reputation history (REQ-SC9). Only `service_session_id`/`offer_id` (→ `service_completions`) and `service_completion_id` (→ `release_intents`, `service_ratings`) **CASCADE**, so removing the parent session/offer removes the completion, its intents, and its ratings together. `payment_id` is a **reference by id** with **no cascade from payments** — payments is its own bounded context, its lifecycle unaffected by completion deletion and vice versa (REQ-SC9). The rows have **no `deleted_at`** — they persist as audit.
+Consistent with the siblings: user references (`host_id`/`cleaner_id`/`rater_id`/`ratee_id`) are **`ON DELETE SET NULL`**, never `CASCADE` from `users` — deleting/anonymizing a participant never destroys the completion + rating audit/reputation history (REQ-SC9). `service_session_id`/`offer_id` (→ `service_completions`) **CASCADE**, so removing the parent session/offer removes the completion itself; and `service_completion_id` (→ `service_ratings`) **CASCADES**, so ratings — which are audit/reputation data, NOT financial commands — are removed with their completion.
+
+**`release_intents.service_completion_id` is deliberately `ON DELETE SET NULL`, NOT `CASCADE`.** A `release_intent` is a **durable financial command / audit fact** that must survive the deletion of the completion that originated it: if the parent session/offer cascades the `service_completions` row away while the intent is still `PENDING`/`DISPATCHED`, cascading the intent too would destroy the only mechanism that drives the release to Spec 9 — leaving completion=gone, intent=gone, payment=still `HELD`, which would violate "a terminal completion can never be left with no release path." Instead, deleting the completion nulls `release_intents.service_completion_id` and **retains the intent**; because the intent carries its own `payment_id` and `reason`, the `ReleaseIntentWorker` still drives it into `EscrowReleaseService.release(...)` to completion. `payment_id` is a **reference by id** with **no cascade from payments** — payments is its own bounded context, its lifecycle unaffected by completion deletion and vice versa (REQ-SC9). The rows have **no `deleted_at`** — they persist as audit.
+
+> **Alternative considered (option C):** rather than retaining the intent, block/deny the completion cascade while a non-`ACCEPTED` intent exists (e.g. `ON DELETE RESTRICT` gated on intent status). This keeps the parent alive until the release is accepted, but couples the completion's deletability to Spec 9's async progress and complicates parent (session/offer) deletion. We adopt **option B (SET NULL, retain the intent as a durable command)** as the primary design — the intent completes independently and the release path is never lost regardless of parent deletion timing.
 
 ### State machine (durable, single-winner; pre-release only)
 
@@ -488,14 +506,18 @@ stateDiagram-v2
     DISPUTED --> [*]
 
     note right of CONFIRMED
-        Post-release dispute is NOT a transition:
-        it sets post_release_dispute_id on
-        CONFIRMED/AUTO_RELEASED, preserves the
-        released state, routes to Spec 21.
+        DECISION state ≠ RELEASE EXECUTION state.
+        The release runs asynchronously via the
+        release_intent (PENDING → DISPATCHED → ACCEPTED).
+        Post-release dispute is NOT a transition: it sets
+        post_release_dispute_id on CONFIRMED/AUTO_RELEASED
+        ONLY when the release_intent is ACCEPTED
+        (else 409 — release not yet executed), preserves
+        the released state, routes to Spec 21.
     end note
 ```
 
-Every transition is `UPDATE service_completions SET state=:next, <derived>=... WHERE id=:id AND state='AWAITING_CONFIRMATION'` — the winner (rows=1) sets the derived fields AND (when release-bearing) inserts exactly one `release_intent` AND writes the `completion_outbox` row in the SAME transaction; concurrent losers observe rows=0 and no-op. Confirm racing auto-release racing dispute-open resolves to exactly one of `CONFIRMED`/`AUTO_RELEASED`/`DISPUTED` (never two), and at most one `release_intent` per completion (`uq_release_intents_completion`). Terminal states are immutable; a second confirm is an idempotent no-op or `409`, never a second intent.
+Every transition is `UPDATE service_completions SET state=:next, <derived>=... WHERE id=:id AND state='AWAITING_CONFIRMATION'` — the winner (rows=1) sets the derived fields AND (when release-bearing) inserts exactly one `release_intent` AND writes the `completion_outbox` row in the SAME transaction; concurrent losers observe rows=0 and no-op. Confirm racing auto-release racing dispute-open resolves to exactly one of `CONFIRMED`/`AUTO_RELEASED`/`DISPUTED` (never two), and at most one `release_intent` per completion while the completion exists (`uq_release_intents_completion`). Terminal states are immutable; a second confirm is an idempotent no-op or `409`, never a second intent. The DECISION state (`CONFIRMED`/`AUTO_RELEASED`) is distinct from the release EXECUTION state carried on the `release_intent` (`PENDING`/`DISPATCHED`/`ACCEPTED`); a released decision does not by itself mean money has moved (see the post-release-dispute `ACCEPTED` gate). The `release_intent` is a durable financial command: if the completion is later deleted, the intent is retained (its `service_completion_id` nulled) and the release still completes.
 
 ## Correctness Properties
 
@@ -511,7 +533,7 @@ Each property is universally quantified, testable, and maps back to the requirem
 
 ### Property 2: Completion durably enqueues release, never performs it (crash-safe, only release path)
 
-*For any* release-bearing decision (`CONFIRMED` or `AUTO_RELEASED`), exactly one durable `release_intent { payment_id, reason, status: PENDING }` SHALL be committed in the SAME transaction as the decision, and `service-completion` SHALL NOT call `EscrowReleaseService.release(...)` synchronously in the request/sweep path. *For any* crash point between the committed decision and the Stripe call, the intent SHALL be recoverable: the worker SHALL drain `PENDING`/`FAILED_RETRYABLE` intents into `EscrowReleaseService.release(payment_id, reason)` with idempotent retries, marking `ACCEPTED` on Spec 9's confirmation and `FAILED_RETRYABLE` (retried) on transient failure — so a terminal completion is never left with no release path. The worker SHALL be the ONLY path that calls Spec 9; `service-completion` SHALL hold no Stripe keys, make no Stripe calls, and recompute no commission.
+*For any* release-bearing decision (`CONFIRMED` or `AUTO_RELEASED`), exactly one durable `release_intent { payment_id, reason, status: PENDING }` SHALL be committed in the SAME transaction as the decision, and `service-completion` SHALL NOT call `EscrowReleaseService.release(...)` synchronously in the request/sweep path. *For any* crash point between the committed decision and the Stripe call — **including a crash after the intent was claimed and left `DISPATCHED`** — the intent SHALL be recoverable: the worker SHALL claim intents via a single-winner lease (`status IN ('PENDING','FAILED_RETRYABLE') OR (status='DISPATCHED' AND lease_until <= now)`), then call `EscrowReleaseService.release(payment_id, reason)` with idempotent retries, marking `ACCEPTED` on Spec 9's confirmation and `FAILED_RETRYABLE` (retried) on transient failure — so a terminal completion is never left with no release path. Specifically, *for any* intent left `DISPATCHED` by a crash, once its `lease_until` elapses it SHALL be re-claimed and re-driven, and because Spec 9's release is single-winner the re-call SHALL be a no-op (at most one Transfer). `ACCEPTED` SHALL mean **Spec 9 durably accepted the release COMMAND**, NOT that funds have settled: a release for a Cleaner whose account is not `payouts_enabled` (Spec 9 leaves `payout_status = PENDING`) SHALL still be `ACCEPTED`. The worker SHALL be the ONLY path that calls Spec 9; `service-completion` SHALL hold no Stripe keys, make no Stripe calls, and recompute no commission.
 
 **Validates: Requirements 2.1, 2.2, 7.2** · REQ-SC2
 
@@ -553,7 +575,7 @@ Each property is universally quantified, testable, and maps back to the requirem
 
 ### Property 9: Pre-release vs post-release disputes are distinct
 
-*For any* completion in `CONFIRMED` or `AUTO_RELEASED`, opening a post-release dispute SHALL set `post_release_dispute_id`, emit `service_disputed`, and leave the completion's terminal released `state` unchanged — it SHALL NOT transition to `DISPUTED` (pre-release only), SHALL NOT reverse the Transfer, and SHALL NOT create a `release_intent`. A pre-release `DISPUTED` SHALL only ever be reachable from `AWAITING_CONFIRMATION`. The two dispute concepts SHALL never be conflated on the same field.
+*For any* completion and *for any* post-release-dispute attempt, the attempt SHALL be accepted **if and only if** the completion's `release_intent.status = ACCEPTED` (the release was actually executed by Spec 9). When accepted, it SHALL set `post_release_dispute_id`, emit `service_disputed`, and leave the completion's terminal released `state` unchanged — it SHALL NOT transition to `DISPUTED` (pre-release only), SHALL NOT reverse the Transfer, and SHALL NOT create or cancel a `release_intent`. *For any* completion whose decision is `CONFIRMED`/`AUTO_RELEASED` but whose intent is still `PENDING`/`DISPATCHED`/`FAILED_RETRYABLE` (release not yet `ACCEPTED`), the attempt SHALL be rejected with `409` (release not yet executed) and treated as a PRE-release concern — never routed as post-release. A pre-release `DISPUTED` SHALL only ever be reachable from `AWAITING_CONFIRMATION`. The two dispute concepts SHALL never be conflated on the same field, and the DECISION state SHALL never be mistaken for the RELEASE EXECUTION state.
 
 **Validates: Requirements 4.2, 4.3** · REQ-SC12
 
@@ -565,19 +587,19 @@ Each property is universally quantified, testable, and maps back to the requirem
 
 ### Property 11: Realtime is advisory; `GET` reconciliation is authoritative
 
-*For any* realtime/push publish outcome (success, failure, dropped/delayed frame), the durable `service_completions` state and snapshotted `auto_release_deadline` SHALL be unchanged, and `GET /service-completions/:id` SHALL return the authoritative PostgreSQL state + deadline + rating status independent of realtime delivery. The mobile auto-release countdown SHALL be a display of the durable server deadline, and a missed frame SHALL never change whether/when release fires.
+*For any* realtime/push publish outcome (success, failure, dropped/delayed frame), the durable `service_completions` state and snapshotted `auto_release_deadline` SHALL be unchanged, and `GET /service-completions/:id` SHALL return the authoritative PostgreSQL state + deadline + rating status + derived `release_status` independent of realtime delivery. The `release_status` returned by `GET` SHALL be the authoritative derivation from the completion's `release_intent` (`NOT_TRIGGERED` when no intent exists, `PENDING` while an intent is not yet `ACCEPTED`, `ACCEPTED` when the intent is `ACCEPTED`), exposing no internal intent fields. The mobile auto-release countdown SHALL be a display of the durable server deadline, and a missed frame SHALL never change whether/when release fires or the authoritative `release_status`.
 
 **Validates: Requirements 6.1, 6.2** · REQ-SC10
 
 ### Property 12: Deletion coherence (no cascade-from-users; session/offer cascades the completion)
 
-*For any* completion, deleting/anonymizing a participant SHALL null `host_id`/`cleaner_id`/`rater_id`/`ratee_id` (`ON DELETE SET NULL`) while retaining the completion, intents, and ratings as audit/reputation history — no user-cascade path SHALL destroy completion history. *For any* deletion of the parent session/offer, the `service_completions` row and its `release_intents` + `service_ratings` SHALL cascade, while the referenced escrow payment (`payment_id`, referenced by id, no FK cascade from payments) SHALL be unaffected — payments is its own bounded context.
+*For any* completion, deleting/anonymizing a participant SHALL null `host_id`/`cleaner_id`/`rater_id`/`ratee_id` (`ON DELETE SET NULL`) while retaining the completion, intents, and ratings as audit/reputation history — no user-cascade path SHALL destroy completion history. *For any* deletion of the parent session/offer, the `service_completions` row and its `service_ratings` SHALL cascade, while its `release_intents` SHALL **survive** (`service_completion_id` set to NULL via `ON DELETE SET NULL`, not cascaded) — because a `release_intent` is a durable financial command carrying its own `payment_id`/`reason`, the release path SHALL never be lost even when the originating completion is deleted, and the worker SHALL still be able to drive the retained intent to `ACCEPTED`. The referenced escrow payment (`payment_id`, referenced by id, no FK cascade from payments) SHALL be unaffected — payments is its own bounded context.
 
 **Validates: Requirements 8.2, 8.3** · REQ-SC9
 
 ### Property 13: No hardcoded config/secrets; no PII/secrets leaked
 
-*For any* tunable (`SERVICE_AUTO_RELEASE_WINDOW_MS`, sweep interval/batch, release-intent interval/batch, rating stars min/max), the value SHALL come from environment/config with none hardcoded, and `validateServiceCompletionConfig()` SHALL fail fast at startup for required/invalid values. `service-completion` SHALL hold no Stripe keys. *For any* log line or outbox payload, no payment secrets or PII SHALL be present (only ids/enums/amount-free routing fields), and rating comments SHALL be treated as user content (validated/escaped, never executed).
+*For any* tunable (`SERVICE_AUTO_RELEASE_WINDOW_MS`, sweep interval/batch, release-intent interval/batch, release-intent lease ms, rating stars min/max), the value SHALL come from environment/config with none hardcoded, and `validateServiceCompletionConfig()` SHALL fail fast at startup for required/invalid values (including `SERVICE_COMPLETION_RELEASE_INTENT_LEASE_MS > 0` and `> SERVICE_COMPLETION_RELEASE_INTENT_INTERVAL_MS`). `service-completion` SHALL hold no Stripe keys. *For any* log line or outbox payload, no payment secrets or PII SHALL be present (only ids/enums/amount-free routing fields), and rating comments SHALL be treated as user content (validated/escaped, never executed).
 
 **Validates: Requirements 7.1, 7.2, 7.4** · REQ-SC11
 
@@ -596,19 +618,20 @@ Each property is universally quantified, testable, and maps back to the requirem
 | Confirm on `DISPUTED` / terminal-different | `409`; no intent |
 | Confirm racing auto-release racing dispute-open | Single-winner conditional writes: exactly one of `CONFIRMED`/`AUTO_RELEASED`/`DISPUTED`; losers no-op; ≤ one intent |
 | Release intent drain transient failure | Intent `FAILED_RETRYABLE` (attempt++), retried next drain; never lost |
-| Release intent left `DISPATCHED` by a crash | Re-drained; `EscrowReleaseService.release` re-called (Spec 9 single-winner → no-op); marked `ACCEPTED` |
+| Release intent left `DISPATCHED` by a crash | Durably reclaimable via its lease: once `lease_until` passes, the next drain re-selects it (`status='DISPATCHED' AND lease_until <= NOW()`), re-claims it single-winner (`claimForDispatch`), and re-calls `EscrowReleaseService.release` (Spec 9 single-winner → no-op); marked `ACCEPTED`. Never permanently stuck |
 | Cleaner payout account not eligible | Spec 9 `release` defers (`payout_status = PENDING`) without failing; intent `ACCEPTED`; completion stays `CONFIRMED` |
 | Auto-release sweep on a `DISPUTED` completion | Not selected (state ≠ `AWAITING_CONFIRMATION`); never transitions, never creates an intent |
 | Dispute by the Cleaner / a non-participant | `403`, nothing changes |
 | Dispute on `AWAITING_CONFIRMATION` (winner) | `200 DISPUTED` + `dispute_id` + `service_disputed`; no intent; auto-release suppressed |
 | Dispute on already `DISPUTED` | `200` idempotent; else `409` |
-| Post-release dispute on `CONFIRMED`/`AUTO_RELEASED` | `200`; `post_release_dispute_id` set + `service_disputed`; state preserved; no reversal, no intent |
-| Post-release dispute on non-released / already post-disputed | `409`, nothing changes |
+| Post-release dispute on `CONFIRMED`/`AUTO_RELEASED` **with release_intent `ACCEPTED`** | `200`; `post_release_dispute_id` set + `service_disputed`; state preserved; no reversal, no intent |
+| Post-release dispute while `release_intent` **not yet `ACCEPTED`** (decision `CONFIRMED`/`AUTO_RELEASED` but intent still `PENDING`/`DISPATCHED`/`FAILED_RETRYABLE`) | `409` release not yet executed (still a PRE-release concern); the intent is NOT cancelled; the caller/Spec-21 retries once `release_status = ACCEPTED` |
+| Post-release dispute on non-released (state not `CONFIRMED`/`AUTO_RELEASED`) / already post-disputed | `409`, nothing changes |
 | Rating on a non-`CONFIRMED`/`AUTO_RELEASED` completion | `409`, nothing stored |
 | Rating with stars out of `[1,5]` | `400`, nothing stored |
 | Duplicate rating for the same side | `409` (`UNIQUE (service_completion_id, role)`), nothing stored |
 | Rating never blocks release | A release path outcome + timing is identical with or without a rating |
-| Parent session / offer cascades away | `service_completions` + `release_intents` + `service_ratings` cascade; the escrow payment (`payment_id`) untouched |
+| Parent session / offer cascades away | `service_completions` + `service_ratings` cascade; **`release_intents` are RETAINED** with `service_completion_id` set to NULL (durable financial command) so the release still completes via the worker; the escrow payment (`payment_id`) untouched |
 | Participant user deleted | `host_id`/`cleaner_id`/`rater_id`/`ratee_id` SET NULL; completion + ratings retained |
 | Best-effort realtime publish failure | Swallowed; durable rows + deadline intact; recoverable via `GET` |
 | Missing/invalid required config at boot | `validateServiceCompletionConfig()` throws (fail-fast) |
@@ -624,49 +647,49 @@ Library: `fast-check` (TypeScript, mirroring the sibling specs). Each test runs 
 | Property | What to Generate | What to Assert |
 |---|---|---|
 | P1 Idempotent creation + snapshotted deadline | Random `checklist_completed` payloads (varying `completedAt`) × N redeliveries × concurrent interleavings | Exactly one completion per session, `AWAITING_CONFIRMATION`; `deadline == completedAt + window`; redelivery is a no-op; anchored to `completedAt`, not consume time |
-| P2 Durable intent, crash-safe, only release path | Random release-bearing decisions × crash points between commit and Stripe × transient failures (mocked `release`) | Exactly one `PENDING` intent committed with the decision; no synchronous release; worker drains → `release(...)` idempotently; eventual `ACCEPTED`; `FAILED_RETRYABLE` retried; never lost; only the worker calls Spec 9; no Stripe keys |
+| P2 Durable intent, crash-safe (lease-reclaim), only release path | Random release-bearing decisions × crash points between commit and Stripe (including a crash leaving the intent `DISPATCHED` with an expired lease) × transient failures (mocked `release`) × deferred-payout (`payouts_enabled=false`) | Exactly one `PENDING` intent committed with the decision; no synchronous release; worker claims via single-winner lease; a `DISPATCHED`-with-expired-lease intent is re-claimed and re-driven, and the re-call is a Spec-9 no-op (at most one Transfer); eventual `ACCEPTED` = release COMMAND accepted (still `ACCEPTED` when payout deferred, not funds-settled); `FAILED_RETRYABLE` retried; never lost; only the worker calls Spec 9; no Stripe keys |
 | P3 Host-only + participant isolation | Random (user, endpoint, role) tuples | Access iff participant; confirm/dispute (pre/post) iff Host; else `403`, no disclosure; ratings participant-consistent |
 | P4 Single-winner decision + single-winner release | Random concurrent confirm/auto-release/dispute-open × mocked single-winner `release` | Exactly one of `CONFIRMED`/`AUTO_RELEASED`/`DISPUTED`; ≤ one `release_intent`; at most one Transfer per payment; no lost release; confirm on non-`AWAITING` → idempotent/`409`, never a second intent |
 | P5 Transition + outbox atomicity | Random transitions + random rating inserts | Every transition co-writes derived fields + exactly one `service_confirmed`/`service_disputed` in the same tx; every rating co-writes one `service_rated`; no `CONFIRMED`/`AUTO_RELEASED` without `released_trigger` |
 | P6 Server-authoritative auto-release | Random completions × deadlines × `now` | Due, non-disputed completions converge to `AUTO_RELEASED` (single-winner, one intent) using the snapshotted deadline; sweep bounded/idempotent; no Stripe call; a delayed queue grants no extra time |
 | P7 Dispute suppresses auto-release | Random `DISPUTED` completions past the deadline | Sweep never transitions, never creates an intent; no completion-side release trigger fires |
 | P8 Deadline invariance | Random creation + later `SERVICE_AUTO_RELEASE_WINDOW_MS` mutations | `auto_release_deadline` == the value snapshotted at creation, invariant to later config |
-| P9 Post-release dispute distinctness | Random `CONFIRMED`/`AUTO_RELEASED` completions | Post-release dispute sets `post_release_dispute_id`, emits `service_disputed`, leaves state unchanged; no `DISPUTED` transition, no intent, no reversal; `DISPUTED` only reachable from `AWAITING_CONFIRMATION` |
+| P9 Post-release dispute distinctness + ACCEPTED gate | Random `CONFIRMED`/`AUTO_RELEASED` completions × intent status ∈ {PENDING, DISPATCHED, FAILED_RETRYABLE, ACCEPTED} | Post-release dispute accepted **iff** `release_intent.status = ACCEPTED`: then sets `post_release_dispute_id`, emits `service_disputed`, leaves state unchanged (no `DISPUTED` transition, no intent, no reversal, no intent cancellation); while intent still PENDING/DISPATCHED/FAILED_RETRYABLE → `409` (release not yet executed), nothing changed; `DISPUTED` only reachable from `AWAITING_CONFIRMATION` |
 | P10 Ratings captured, never gating | Random states × stars (in/out of range) × sides × duplicates × with/without rating | Accept iff eligible state + participant + in-range + free side; else `403`/`409`/`400`; `UNIQUE` per side; release decision/intent/timing identical regardless of rating |
-| P11 Realtime advisory, GET authority | Random publish outcomes / dropped frames | Durable state + deadline + rating status identical; `GET` returns authoritative state independent of realtime |
-| P12 Deletion coherence | Random completion/intent/rating graphs + participant deletion + parent session/offer cascade | user FKs nulled + rows retained; session/offer delete cascades completion+intents+ratings; `payment_id` row untouched |
-| P13 No hardcoded config/secrets | Random config maps (missing/invalid/valid) | Validator throws iff required missing/invalid; no Stripe keys; logs/outbox carry no secrets/PII; comments escaped, never executed |
+| P11 Realtime advisory, GET authority (incl. derived `release_status`) | Random publish outcomes / dropped frames × intent statuses | Durable state + deadline + rating status identical; `GET` returns authoritative state + derived `release_status` (`NOT_TRIGGERED`/`PENDING`/`ACCEPTED`, no internal intent fields) independent of realtime |
+| P12 Deletion coherence (release path never lost) | Random completion/intent/rating graphs (intents in varied statuses) + participant deletion + parent session/offer cascade | user FKs nulled + rows retained; session/offer delete cascades completion + ratings but **`release_intents` survive** (`service_completion_id` → NULL) so the worker can still complete the release — the release path is never lost; `payment_id` row untouched |
+| P13 No hardcoded config/secrets | Random config maps (missing/invalid/valid, incl. lease ≤ drain interval) | Validator throws iff required missing/invalid (incl. `SERVICE_COMPLETION_RELEASE_INTENT_LEASE_MS ≤ 0` or `≤ interval`); no Stripe keys; logs/outbox carry no secrets/PII; comments escaped, never executed |
 
 ### Unit Tests (NestJS)
 
 - **`CompletionCreationService`**: creates from the event; snapshots `auto_release_deadline` from `completedAt`; rejects a missing `completedAt`; idempotent `ON CONFLICT`; resolves participants/`payment_id` from the offer; never re-reads Spec 19's run.
-- **`CompletionDecisionService`**: Host-only gates; single-winner confirm/dispute/post-release-dispute; confirm co-persists exactly one `PENDING` intent + `service_confirmed`; dispute persists no intent; post-release-dispute leaves state unchanged with no reversal; idempotent no-op vs `409`.
+- **`CompletionDecisionService`**: Host-only gates; single-winner confirm/dispute/post-release-dispute; confirm co-persists exactly one `PENDING` intent + `service_confirmed`; dispute persists no intent; post-release-dispute succeeds only when `release_intent.status = ACCEPTED` (leaves state unchanged, no reversal) and returns `409` when the decision is `CONFIRMED`/`AUTO_RELEASED` but the release is not yet `ACCEPTED` (release not yet executed); idempotent no-op vs `409`.
 - **`AutoReleaseService`**: single-winner `→ AUTO_RELEASED` + one intent + `service_confirmed`; no-op on non-`AWAITING`; never calls Stripe.
 - **`RatingService`**: eligibility (state, participant), stars bounds from config, one-per-side `ON CONFLICT`, `service_rated` co-write; never touches `state`/intents.
-- **`ReleaseIntentWorker`** (mocked `EscrowReleaseService`): drains `PENDING`/`FAILED_RETRYABLE`; marks `DISPATCHED`→`ACCEPTED`; `FAILED_RETRYABLE` on transient error (attempt++); re-drains a `DISPATCHED` intent after a crash; the only path calling Spec 9; holds no Stripe keys.
+- **`ReleaseIntentWorker`** (mocked `EscrowReleaseService`): drains claimable intents (`PENDING`/`FAILED_RETRYABLE`/expired-lease `DISPATCHED`); claims via single-winner `claimForDispatch` lease → `ACCEPTED`; `FAILED_RETRYABLE` on transient error (attempt++); re-claims and re-drives a `DISPATCHED` intent only after its lease expires (a live, unexpired dispatch is not stolen); a re-call is a Spec-9 no-op; `ACCEPTED` recorded when the release command is accepted even if payout is deferred; the only path calling Spec 9; holds no Stripe keys.
 - **`AutoReleaseSweepProcessor`**: selects only due `AWAITING_CONFIRMATION` rows (partial index); bounded batch; idempotent; excludes `DISPUTED`.
 - **`CompletionCreatedConsumer`**: idempotent creation via its own `'completion'` checkpoint; row-scoped try/catch; failure isolated from the upstream flow.
 - **`CompletionParticipationService`**: host/cleaner resolution; Host-only checks; nulled participant → non-participant, row retained.
 - **`CompletionRepository`** / **`ReleaseIntentRepository`** / **`ServiceRatingRepository`**: parameterized SQL; single-winner transition co-writing intent + outbox in one tx; `uq_release_intents_completion` enforced; drain scans select only eligible rows; one-per-side rating insert.
-- **`validateServiceCompletionConfig()`**: fail-fast on missing/invalid.
-- **Auth/exposure & negative**: `GET` payload exposes state/deadline/rating status only; no Stripe SDK imported anywhere in the module; no commission call.
+- **`validateServiceCompletionConfig()`**: fail-fast on missing/invalid, including `SERVICE_COMPLETION_RELEASE_INTENT_LEASE_MS > 0` and `> SERVICE_COMPLETION_RELEASE_INTENT_INTERVAL_MS`.
+- **Auth/exposure & negative**: `GET` payload exposes state/deadline/rating status + derived `release_status` only (never internal intent fields `attempt`/`dispatched_at`/`lease_until`/`last_error`); `release_status` derived correctly (`NOT_TRIGGERED`/`PENDING`/`ACCEPTED`) across intent statuses; no Stripe SDK imported anywhere in the module; no commission call.
 
 ### DDL / Migration Tests
 
-- Constraints/indexes present: `UNIQUE service_session_id`; `uq_release_intents_completion`; `uq_service_ratings_completion_role`; FK indexes on every FK; the sweep partial index (`WHERE state='AWAITING_CONFIRMATION'`); the intent drain partial index (`WHERE status IN ('PENDING','FAILED_RETRYABLE')`); `CHECK` on `state`/`released_trigger`/`reason`/`status`/`role`/`stars (1..5)`; the `released_trigger` coherence `CHECK`; no `deleted_at` on any table.
-- Deletion coherence: user FKs (`host_id`/`cleaner_id`/`rater_id`/`ratee_id`) are `ON DELETE SET NULL`; `service_session_id`/`offer_id`/`service_completion_id` are `ON DELETE CASCADE`; `payment_id` has no FK cascade from payments.
+- Constraints/indexes present: `UNIQUE service_session_id`; `uq_release_intents_completion`; `uq_service_ratings_completion_role`; FK indexes on every FK; the sweep partial index (`WHERE state='AWAITING_CONFIRMATION'`); the intent drain/claim partial index (`WHERE status IN ('PENDING','FAILED_RETRYABLE','DISPATCHED')`, supporting the expired-lease reclaim scan); `dispatched_at`/`lease_until` columns present and nullable; `CHECK` on `state`/`released_trigger`/`reason`/`status`/`role`/`stars (1..5)`; the `released_trigger` coherence `CHECK`; no `deleted_at` on any table.
+- Deletion coherence: user FKs (`host_id`/`cleaner_id`/`rater_id`/`ratee_id`) are `ON DELETE SET NULL`; `service_session_id`/`offer_id` (→ `service_completions`) and `service_ratings.service_completion_id` are `ON DELETE CASCADE`; **`release_intents.service_completion_id` is `ON DELETE SET NULL`** (durable financial command, retained on completion deletion); `payment_id` has no FK cascade from payments.
 - Migration reversible: `up()` + `down()` both run; `IF NOT EXISTS`; table/column comments present.
 
 ### Integration Tests
 
 - `checklist_completed` (with `completedAt`) → completion created (`AWAITING_CONFIRMATION`) via the `'completion'` checkpoint; redelivery → still one completion; fan-out coexistence with the Spec 21 dispute-evidence consumer.
-- Confirm → `CONFIRMED` + `PENDING` intent + `service_confirmed`; worker drains → `EscrowReleaseService.release(HOST_CONFIRMED)` (mocked) → intent `ACCEPTED`; crash between commit and drain → intent still drained on recovery (no double, no lost).
+- Confirm → `CONFIRMED` + `PENDING` intent + `service_confirmed`; worker claims (lease) + drains → `EscrowReleaseService.release(HOST_CONFIRMED)` (mocked) → intent `ACCEPTED`; crash between commit and drain → intent still drained on recovery; crash leaving the intent `DISPATCHED` → after `lease_until` passes it is re-claimed and re-driven (no double, no lost).
 - Deferred payout: `release` reports not-eligible → confirm stays `CONFIRMED`, intent `ACCEPTED`, no failure.
 - Auto-release: unconfirmed past the snapshotted deadline → sweep `AUTO_RELEASED` + intent + `service_confirmed { AUTO_RELEASE }`; disputed-before-deadline → never auto-released.
 - Three-way race: concurrent confirm/auto-release/dispute → exactly one terminal, ≤ one intent, at most one Transfer.
-- Pre-release dispute → `DISPUTED` + `service_disputed`, auto-release suppressed; post-release dispute on a released completion → `post_release_dispute_id` set, state preserved, `service_disputed` emitted, no reversal.
+- Pre-release dispute → `DISPUTED` + `service_disputed`, auto-release suppressed; post-release dispute on a completion whose intent is `ACCEPTED` → `post_release_dispute_id` set, state preserved, `service_disputed` emitted, no reversal; post-release dispute while the intent is still `PENDING`/`DISPATCHED` → `409` (release not yet executed), then succeeds after the worker drives the intent to `ACCEPTED`.
 - Ratings: one per side on a released completion; duplicate side → `409`; rating on non-released → `409`; a release never waits on a rating.
-- Non-participant denied on every endpoint; Cleaner denied on confirm/dispute; user deletion → FKs SET NULL, rows retained; session/offer cascade removes completion+intents+ratings, payment untouched.
+- Non-participant denied on every endpoint; Cleaner denied on confirm/dispute; user deletion → FKs SET NULL, rows retained; session/offer cascade removes completion + ratings but retains `release_intents` (`service_completion_id` nulled) and the worker still drives the retained intent to `ACCEPTED`; payment untouched.
 
 ### Mobile Tests
 
@@ -685,10 +708,11 @@ Backend (`services/api`, via `ConfigService`; `validateServiceCompletionConfig()
 - `SERVICE_COMPLETION_SWEEP_BATCH_SIZE` — max completions processed per sweep pass.
 - `SERVICE_COMPLETION_RELEASE_INTENT_INTERVAL_MS` — release-intent drain interval.
 - `SERVICE_COMPLETION_RELEASE_INTENT_BATCH_SIZE` — max intents drained per pass.
+- `SERVICE_COMPLETION_RELEASE_INTENT_LEASE_MS` — the claim lease held on an intent when a worker marks it `DISPATCHED`. A `DISPATCHED` intent is durably re-claimable once its `lease_until` (`= dispatched_at + this`) passes, giving an orphaned (crashed) dispatch a real recovery path. Must exceed the drain interval so a live, in-flight dispatch is never stolen by a concurrent drain pass.
 - `SERVICE_RATING_MIN_STARS` — rating floor (default `1`).
 - `SERVICE_RATING_MAX_STARS` — rating ceiling (default `5`).
 
-Startup validation (fail-fast): `SERVICE_AUTO_RELEASE_WINDOW_MS > 0`; all sweep/intent interval + batch values `> 0`; `1 <= SERVICE_RATING_MIN_STARS <= SERVICE_RATING_MAX_STARS <= 5`.
+Startup validation (fail-fast): `SERVICE_AUTO_RELEASE_WINDOW_MS > 0`; all sweep/intent interval + batch values `> 0`; `SERVICE_COMPLETION_RELEASE_INTENT_LEASE_MS > 0` AND `SERVICE_COMPLETION_RELEASE_INTENT_LEASE_MS > SERVICE_COMPLETION_RELEASE_INTENT_INTERVAL_MS` (a lease shorter than the drain interval could let a concurrent pass reclaim a still-live dispatch); `1 <= SERVICE_RATING_MIN_STARS <= SERVICE_RATING_MAX_STARS <= 5`.
 
 Mobile (`EXPO_PUBLIC_*`): no security-sensitive values; the auto-release countdown is derived entirely from the server-returned durable `auto_release_deadline`, not a client-embedded window.
 
@@ -699,6 +723,6 @@ Security: `service-completion` holds no Stripe keys and makes no Stripe calls (t
 - **READMEs**: new `services/api/src/service-completion/README.md` (module purpose, endpoints, the confirm→intent→worker→release flow, the auto-release sweep, the dispute + post-release-dispute routing, the rating capture, env vars); new `apps/mobile/src/screens/completion/README.md` (Host confirm/dispute/countdown/rating + Cleaner release-status/rating, i18n, tokens). Note the new `checklist_outbox` `consumer_name = 'completion'` checkpoint usage in the checklist-photos README, and the additive `completedAt` field on `checklist_completed`.
 - **`docs/ARCHITECTURE.md`**: add the service-completion module and a **completion/release flow diagram** (`checklist_completed` (carrying `completedAt`) → create + snapshot deadline → Host confirm / deadline sweep / dispute-open → single-winner transition + `release_intent` → release-intent worker → `EscrowReleaseService.release` → Spec 9 Transfer; the dispute + post-release-dispute routing edges; the `service_confirmed`/`service_disputed`/`service_rated` fan-out to Push/reputation). Update the system Mermaid diagram(s) for the new module and its edges to Spec 19 (`checklist_outbox`) and Spec 9 (`EscrowReleaseService`).
 - **`docs/CHANGELOG.md`**: `[Unreleased]` entries per task group (feature `service-completion`).
-- **ADR**: new **ADR-010** recording: the **completion-decision-vs-escrow-authority split** (service-completion owns the WHEN/decision + ratings; Spec 9 owns the money/HOW); the **durable-release-intent pattern** (persist a `release_intent` in the same transaction as the `CONFIRMED`/`AUTO_RELEASED` decision, drained out-of-band by a worker into Spec 9's single-winner `release` with idempotent retries — closing the crash gap between the committed decision and the Stripe call); the **server-authoritative, snapshotted auto-release deadline from the authoritative finish time** (`completedAt` carried on `checklist_completed`, an additive backward-safe payload extension mirroring Spec 19's `service_started` extension); **single-winner conditional transitions** combined with Spec 9's single-winner release for at-most-one-Transfer; and the **pre-release `DISPUTED` vs post-release `post_release_dispute_id`** distinction (never overloading the state, never reversing the Transfer here).
-- **`.env.example`**: document `SERVICE_AUTO_RELEASE_WINDOW_MS`, `SERVICE_COMPLETION_SWEEP_INTERVAL_MS`, `SERVICE_COMPLETION_SWEEP_BATCH_SIZE`, `SERVICE_COMPLETION_RELEASE_INTENT_INTERVAL_MS`, `SERVICE_COMPLETION_RELEASE_INTENT_BATCH_SIZE`, `SERVICE_RATING_MIN_STARS`, `SERVICE_RATING_MAX_STARS` (no Stripe keys added by this spec).
+- **ADR**: new **ADR-010** recording: the **completion-decision-vs-escrow-authority split** (service-completion owns the WHEN/decision + ratings; Spec 9 owns the money/HOW); the **durable-release-intent pattern** (persist a `release_intent` in the same transaction as the `CONFIRMED`/`AUTO_RELEASED` decision, drained out-of-band by a worker into Spec 9's single-winner `release` with idempotent retries — closing the crash gap between the committed decision and the Stripe call) with a **lease-based `DISPATCHED` reclaim** (a claimed intent carries `dispatched_at`/`lease_until`; an intent orphaned `DISPATCHED` by a crash is durably re-claimable once its lease expires, so a `DISPATCHED` intent always has a real recovery path); the **`ACCEPTED` = release-COMMAND-accepted semantics** (`ACCEPTED` means Spec 9 durably accepted the release command, NOT that the payout funds have settled — a deferred `payout_status = PENDING` is still `ACCEPTED`); the **server-authoritative, snapshotted auto-release deadline from the authoritative finish time** (`completedAt` carried on `checklist_completed`, an additive backward-safe payload extension mirroring Spec 19's `service_started` extension); **single-winner conditional transitions** combined with Spec 9's single-winner release for at-most-one-Transfer; the **pre-release `DISPUTED` vs post-release `post_release_dispute_id`** distinction (never overloading the state, never reversing the Transfer here), with the **post-release dispute gated on the release actually being `ACCEPTED`** (a dispute while the release is still `PENDING`/`DISPATCHED` is a pre-release concern → `409` until `release_status = ACCEPTED`, separating the DECISION state from the RELEASE EXECUTION state); and the **release_intent as a durable financial command that survives completion deletion** (`release_intents.service_completion_id` is `ON DELETE SET NULL`, not `CASCADE`, so a cascaded completion never destroys a still-pending release path — the intent, carrying its own `payment_id`/`reason`, completes independently; ratings still cascade).
+- **`.env.example`**: document `SERVICE_AUTO_RELEASE_WINDOW_MS`, `SERVICE_COMPLETION_SWEEP_INTERVAL_MS`, `SERVICE_COMPLETION_SWEEP_BATCH_SIZE`, `SERVICE_COMPLETION_RELEASE_INTENT_INTERVAL_MS`, `SERVICE_COMPLETION_RELEASE_INTENT_BATCH_SIZE`, `SERVICE_COMPLETION_RELEASE_INTENT_LEASE_MS` (the `DISPATCHED` claim lease; must be `> SERVICE_COMPLETION_RELEASE_INTENT_INTERVAL_MS`), `SERVICE_RATING_MIN_STARS`, `SERVICE_RATING_MAX_STARS` (no Stripe keys added by this spec).
 - **`.kiro/specs/ROADMAP.md`**: mark Spec 20 status on completion.
