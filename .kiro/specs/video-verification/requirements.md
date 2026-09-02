@@ -11,7 +11,7 @@ The `video-verification` module adds an **on-arrival identity check**: once the 
 **Authority split (kept strict):**
 - **PostgreSQL is the source of truth for the verification as an event.** The `verification_sessions` row (participants, `serviceSessionId`, state, timestamps, the derived match result + score, retention/deletion bookkeeping) is durable. It never holds video bytes.
 - **MinIO is the source of truth for the arrival-video bytes**, in a private bucket with short retention. **Access is deliberately minimal (biometric-adjacent artifact): the Cleaner has upload-only (a short-lived, grant-gated pre-signed PUT); the API worker has server-side read for processing; NO client — Cleaner or Host — ever receives a playback/download URL, and there is no playback endpoint in v1.** Possession of an object key is never authorization (the `voice-notes` upload-grant rule applies). After upload, the only reader is the server-side worker.
-- **A verification is a single per-arrival attempt.** There is exactly one `verification_sessions` per service session (`UNIQUE service_session_id`), representing the single arrival-verification attempt for that arrival in v1. At most **one active capture attempt** exists at a time; *processing* retries reuse `processing_attempt` (they never create a new session). If re-recording is ever needed it is an explicit `capture_attempt` counter within the same session — never a second `verification_sessions` row.
+- **A verification is a single per-arrival attempt.** There is exactly one `verification_sessions` per service session (`UNIQUE service_session_id`), representing the single arrival-verification attempt for that arrival in v1. *Processing* retries reuse `processing_attempt` (they never create a new session). There is NO re-recording after a finalized capture in v1 (a future manual retry would be a separately-versioned design).
 - **The face-comparison result is derived data — never authoritative and never a hard service gate.** DeepFace (in the AI/FastAPI service) produces a similarity score/decision asynchronously; it annotates the verification, informs the Host, and can flag for review, but a low score or a failed/never-run comparison **does not by itself block the service or seize the escrow** (that is a dispute/human decision, Spec 20/21). The KYC identity (Spec 3) remains the authoritative identity; this is an at-the-door confirmation, not a re-KYC.
 - **The arrival event owns the trigger.** Verification is created in reaction to the durable `service_arrived` fact (Spec 17 outbox), not by service-tracking calling video-verification directly.
 
@@ -39,7 +39,6 @@ verification_sessions (new — the durable record; never the video bytes)
         state (PENDING_UPLOAD | UPLOADED | PROCESSING | MATCH | NO_MATCH | INCONCLUSIVE | FAILED | DISABLED | EXPIRED),
         match_score (nullable; derived similarity 0..1 — INTERNAL, not exposed raw to the Host),
         match_threshold (snapshot of config threshold used; validated 0 < threshold <= 1),
-        capture_attempt (default 0; increments only if re-recording is allowed — same session, never a new row),
         processing_attempt (default 0; monotonic, stale-safe like voice-notes transcript_attempt),
         reference_source (KYC_SELFIE; which verified face was compared against),
         uploaded_at (nullable; RETENTION CLOCK starts here), processed_at (nullable), video_deleted_at (nullable),
@@ -99,19 +98,19 @@ RECONCILE PATH:
 
 ## Requirements
 
-### Requirement 1 — A verification exists for, and only for, an arrived service session
+### Requirement 1: A verification exists for, and only for, an arrived service session
 
 **User Story:** As a Host, I want the arriving Cleaner's identity confirmed at my door, so that I can trust the verified professional I matched with is the one who showed up.
 
 #### Acceptance Criteria
 
-1. WHEN `service_arrived` fires for a service session (Spec 17) THEN the system SHALL create exactly one `verification_sessions` row for that session (`UNIQUE service_session_id`) with `state = PENDING_UPLOAD`, participants copied from the session, and `match_threshold` snapshotted from config — idempotently (a redelivered event never creates a second verification). This one row is the single arrival-verification attempt for that arrival; processing retries reuse `processing_attempt` and re-recording (if enabled) increments `capture_attempt` within the same row — a second `verification_sessions` for the same service session SHALL NEVER be created.
+1. WHEN `service_arrived` fires for a service session (Spec 17) THEN the system SHALL create exactly one `verification_sessions` row for that session (`UNIQUE service_session_id`) with `state = PENDING_UPLOAD`, participants copied from the session, and `match_threshold` snapshotted from config — idempotently (a redelivered event never creates a second verification). This one row is the single arrival-verification attempt for that arrival; processing retries reuse `processing_attempt` within the same row, no re-recording occurs after a finalized capture in v1 — a second `verification_sessions` for the same service session SHALL NEVER be created.
 2. WHEN face-verification is disabled by config THEN the verification SHALL be created in `state = DISABLED`, and — privacy-by-design — NO upload grant SHALL be issued, NO video SHALL be captured or stored, NO comparison job SHALL be enqueued, and nothing SHALL be gated (the service continues).
 3. WHEN any verification endpoint is accessed THEN authorization SHALL be resolved server-side from the service session's `hostId`/`cleanerId`; a non-participant SHALL receive `403` and learn nothing.
 4. WHEN there is no arrived service session THEN no verification SHALL exist and no upload SHALL be accepted.
 5. WHEN more than one verification creation is attempted for the same service session THEN the `UNIQUE service_session_id` constraint SHALL guarantee at most one (idempotent).
 
-### Requirement 2 — Arrival video upload (ephemeral, grant-gated, key ≠ credential)
+### Requirement 2: Arrival video upload (ephemeral, grant-gated, key ≠ credential)
 
 **User Story:** As the arriving Cleaner, I want to record a quick arrival video, so that my presence and identity are confirmed without friction.
 
@@ -124,7 +123,7 @@ RECONCILE PATH:
 5. WHEN any client (Cleaner or Host) requests to view/download the arrival video after upload THEN there SHALL be NO such endpoint in v1: only the Cleaner's upload PUT and the server-side worker's read exist; no playback/download pre-signed URL is ever issued to any client (biometric-adjacent minimization).
 6. WHEN the Cleaner never uploads within the configured window THEN a bounded sweep SHALL transition `PENDING_UPLOAD → EXPIRED` (best-effort, idempotent), so no verification is stuck awaiting an upload.
 
-### Requirement 3 — Face comparison (async, best-effort, stale-safe, advisory)
+### Requirement 3: Face comparison (async, best-effort, stale-safe, advisory)
 
 **User Story:** As the platform, I want to compare the arrival face to the verified KYC selfie without blocking the service, so that the Host gets confidence while the job proceeds smoothly.
 
@@ -139,7 +138,7 @@ RECONCILE PATH:
 7. WHEN a verification is left UPLOADED/PROCESSING beyond the configured window (lost enqueue) THEN a bounded stuck-processing sweep SHALL re-enqueue with a new attempt (mirroring voice-notes stuck-PENDING), marking `FAILED` after max attempts, so nothing stays stuck forever.
 8. WHEN the decision is written THEN `verification_completed { decision, score? }` SHALL be emitted (outbox); the score SHALL be compared against the snapshotted `match_threshold`, not a live config value; the Host is surfaced only a derived classification (verified / needs-review / unavailable), never the raw `match_score`.
 
-### Requirement 4 — Video retention & privacy
+### Requirement 4: Video retention & privacy
 
 **User Story:** As a user, I want my arrival video kept only as long as needed, so that my privacy is protected.
 
@@ -151,7 +150,7 @@ RECONCILE PATH:
 4. WHEN video bytes or frames are handled THEN they SHALL NOT be logged, and no face embeddings or biometric templates SHALL be persisted beyond what the derived result requires (a score + decision, not a stored biometric template).
 5. WHEN a verification record's video is deleted by retention THEN the verification record itself SHALL be retained as an audit fact (no `deleted_at` on the record; only the video object is removed).
 
-### Requirement 5 — Mobile verification UX for both roles
+### Requirement 5: Mobile verification UX for both roles
 
 **User Story:** As the arriving Cleaner I want to record a quick clip, and as the Host I want to see the confirmation, so that the door hand-off feels safe and smooth.
 
@@ -163,7 +162,7 @@ RECONCILE PATH:
 4. WHEN a `NO_MATCH`/`INCONCLUSIVE` is surfaced THEN the Host UI SHALL present it as "needs review" with a path toward a dispute (Spec 21), not as an automatic accusation or auto-cancel.
 5. WHEN any UI text is rendered THEN it SHALL come from i18n keys with `en`/`es` parity and follow BidClean dark design tokens.
 
-### Requirement 6 — Configuration, security, and no hardcoded values
+### Requirement 6: Configuration, security, and no hardcoded values
 
 **User Story:** As an operator, I want verification behavior, thresholds, and retention driven by configuration, so that the feature is portable, private, and leaks no secrets.
 
@@ -175,7 +174,7 @@ RECONCILE PATH:
 4. WHEN video/biometric data is handled THEN it SHALL never be logged, and the match threshold used SHALL be the value snapshotted on the verification (validated `0 < threshold <= 1` at config load, consistent with the score range), so config changes do not retroactively re-decide an existing verification.
 5. WHEN a new backend module, migration, AI endpoint, MinIO bucket, or mobile feature is introduced THEN it SHALL be documented (module READMEs, ARCHITECTURE diagram + a verification flow, CHANGELOG, and an ADR for the on-arrival-face-verification decision, incl. the advisory-not-a-gate and 24-48h retention decisions) per the project documentation rules.
 
-### Requirement 7 — Persistence, lifecycle, and integrity
+### Requirement 7: Persistence, lifecycle, and integrity
 
 **User Story:** As the platform, I want verification data modeled coherently and cleaned up correctly, so that history is truthful and privacy-respecting.
 
@@ -191,7 +190,7 @@ RECONCILE PATH:
 
 The design defines concrete, testable properties (its own numbering) mapping back to these.
 
-- **REQ-VV1 — One verification per arrival; retries in-session.** Exactly one `verification_sessions` per service session (`UNIQUE service_session_id`), created idempotently in reaction to `service_arrived`; it is the single arrival attempt — processing retries reuse `processing_attempt`, re-recording (if enabled) increments `capture_attempt`, and a second session row is never created. Inherits participant isolation; never re-runs or mutates KYC. *(Req 1.1, 1.5, 7.1)*
+- **REQ-VV1 — One verification per arrival, created idempotently.** Exactly one `verification_sessions` per service session (`UNIQUE service_session_id`), created idempotently in reaction to `service_arrived`; it is the single arrival attempt — processing retries reuse `processing_attempt`, a second session row is never created, and there is no re-recording after a finalized capture in v1. Inherits participant isolation; never re-runs or mutates KYC. *(Req 1.1, 1.5, 7.1)*
 - **REQ-VV2 — Participant isolation & key ≠ credential.** Upload/finalize/read authorized server-side from the session's parties; a single-use grant binds the object key; possession of a key never authorizes; a non-participant learns nothing. *(Req 1.3, 2.1, 2.4)*
 - **REQ-VV3 — Video isolation, no playback, short retention.** Bytes live only in a private, encrypted MinIO bucket; the Cleaner has upload-only, the worker has server-side read, and NO client (Cleaner or Host) ever gets a playback/download URL (no playback endpoint in v1); bytes never touch the API hot path or PostgreSQL; hard-deleted after the retention window measured from `uploaded_at`; only a derived result persists; the Host sees a derived classification, never raw footage or the raw score. *(Req 2.2, 2.5, 4.1, 4.2, 4.3, 4.5, 3.8)*
 - **REQ-VV13 — Disabled ⇒ no video.** When verification is disabled, the record is `DISABLED`, no grant is issued, no video is captured/stored, no job runs, and nothing is gated — biometric-adjacent data is never captured when it cannot be used. *(Req 1.2)*

@@ -89,7 +89,7 @@ graph TB
         Storage["VerificationStorageService<br/>(minio: presign PUT, inspect, read, delete)"]
         Participation["VerificationParticipationService<br/>isParticipant()"]
         ArrivalConsumer["VerificationArrivalConsumer<br/>(drains service_arrived, consumer_name='video')"]
-        Worker["FaceComparisonProcessor<br/>(BullMQ: claim attempt → read → compare → write)"]
+        Worker["FaceComparisonProcessor<br/>(BullMQ: begin (atomic) → read → compare → write)"]
         AiClient["FaceVerifyClient (axios, bounded retry)"]
         RetentionJob["RetentionCleanupProcessor<br/>(hard-delete past retention)"]
         TombstoneJob["TombstoneDrainProcessor<br/>(drain PENDING deletions)"]
@@ -166,12 +166,14 @@ graph TB
 2. Cleaner PUTs the video directly to MinIO (the API never sees the bytes).
 3. `POST /video-verifications/:id/finalize` verifies the grant inside a transaction (exists, `issuedTo` = caller, matching session, unexpired, `status = ISSUED`), server-inspects the object (exists, real `size ≤ max`, content-type is an allowed video, real `duration ≤ max` — server-authoritative; client metadata advisory), single-winner `PENDING_UPLOAD → UPLOADED` (sets `object_key`, `uploaded_at`), marks the grant `CONSUMED`, and enqueues the comparison. Invalid grant → `403`/`409`; over-limit/wrong-type object → `400`, nothing persisted.
 
+> **Known limitation (v1) — finalize↔MinIO inspection is not a single cross-system transaction.** finalize inspects the MinIO object and then writes PostgreSQL, but MinIO is outside the DB transaction and the presigned PUT may still be valid, so the object could be overwritten after inspection but before the retention delete (a TOCTOU window). For v1 this is **acceptable** because the presigned PUT is short-lived and bound to a single Cleaner/grant (small, time-boxed, single-writer blast radius). Production hardening would make the inspection and the persisted object provably the same bytes — e.g. capturing an object version/ETag at inspection and verifying it, or a write-once/immutable-upload object — tracked as a follow-up (see Documentation Impact / ADR).
+
 **Data flow — face comparison (async, best-effort, stale-safe, Option A):**
-1. Worker claims a monotonic `processing_attempt` and single-winner `UPLOADED → PROCESSING`.
+1. Worker performs a single atomic `beginProcessing` — one conditional write that fuses `UPLOADED → PROCESSING` with a `processing_attempt` increment (`... SET state='PROCESSING', processing_attempt = processing_attempt + 1 WHERE id=:id AND state='UPLOADED' RETURNING processing_attempt`). The single winner receives the freshly-created attempt; concurrent losers get zero rows, no-op, and **never bump the counter** (so a loser can never invalidate the winner's in-flight result).
 2. Worker reads the video object from MinIO (Option A) and reads the Cleaner's **VERIFIED** KYC selfie via `KycReferenceReader`.
 3. Worker POSTs both byte streams to AI `POST /verify-face` → `{ score, decision }`.
 4. Worker writes `{ decision, match_score }` and transitions `PROCESSING → MATCH | NO_MATCH | INCONCLUSIVE` **only if its attempt is the latest** (stale-update guard); the decision compares `match_score` against the **snapshotted** `match_threshold`. Missing reference → `INCONCLUSIVE`/`FAILED`; deleted video → `FAILED` (no re-upload, no loop); AI failure/timeout → `FAILED` (bounded retries).
-5. Every terminal write emits `verification_completed { decision, score? }` in the same transaction; `NO_MATCH`/`INCONCLUSIVE` additionally emits `verification_flagged`.
+5. Emission is decision-bearing only, and emitted in the same transaction as the terminal transition: a `MATCH`/`NO_MATCH`/`INCONCLUSIVE` write emits `verification_completed { decision, score? }`; a `NO_MATCH`/`INCONCLUSIVE` write ALSO emits `verification_flagged`. A `FAILED`/`EXPIRED`/`DISABLED` terminal has no decision and emits NO `verification_completed` (and no `verification_flagged`).
 
 **Data flow — result fan-out & Host surface:**
 1. `verification_outbox` rows are drained by push-notifications (Spec 16) via its own checkpoint.
@@ -255,16 +257,18 @@ services/api/src/video-verification/
 **`VerificationRepository`** (`verification_sessions` + `verification_outbox`)
 - `createFromArrival(params)` — idempotent `INSERT ... ON CONFLICT (service_session_id) DO NOTHING`.
 - `transition(id, expected, next, derivedFields, outboxEvents, manager)` — single-winner `UPDATE ... WHERE id=:id AND state=:expected` that sets derived fields (`object_key`/`uploaded_at`/`processed_at`/`match_score`/`decision`/`video_deleted_at`) AND writes the `verification_outbox` row(s) in ONE transaction.
-- `claimProcessingAttempt(id): attempt` — monotonic increment when the worker starts/retries.
-- `writeResultGuarded(id, attempt, { decision, matchScore }, next, outboxEvents)` — applies the result + `PROCESSING → terminal` transition **only if `attempt` is the latest** `processing_attempt` (stale-update guard); an older attempt's result is discarded.
+- `beginProcessing(id): { attempt } | null` — the single atomic conditional write that fuses the state transition with the attempt increment: `UPDATE verification_sessions SET state='PROCESSING', processing_attempt = processing_attempt + 1, updated_at = NOW() WHERE id=:id AND state='UPLOADED' RETURNING processing_attempt`. Returns the freshly-created attempt to the single winner; returns `null` when it did not win (zero rows — the loser does NOT bump the counter). There is no state-independent attempt claim: the increment only ever happens as part of winning a controlled transition.
+- `retryProcessing(id, stuckBefore): { attempt } | null` — the StuckProcessingSweep's explicit controlled retry FROM `PROCESSING`: `UPDATE verification_sessions SET processing_attempt = processing_attempt + 1, updated_at = NOW() WHERE id=:id AND state='PROCESSING' AND updated_at < :stuckBefore RETURNING processing_attempt`. Invalidates the previous (stuck) attempt and creates the next one in one conditional write; the sweep re-enqueues with the returned attempt. Returns `null` (no bump) when it is not eligible.
+- `writeResultGuarded(id, attempt, { decision, matchScore }, next, outboxEvents)` — applies the result + `PROCESSING → terminal` transition **only if `attempt` is the latest** `processing_attempt` (stale-update guard); an older attempt's result is discarded. Composes correctly with `beginProcessing`/`retryProcessing`: only the winner of a transition ever holds the latest attempt.
 - `findByServiceSessionId`, `findById`, and the sweep/retention scans: `findExpirableUploads(before)`, `findStuckProcessing(before)`, `findRetentionEligible(before, limit)`.
 
 **`VerificationArrivalConsumer`** (relay) — drains `service_arrived` rows unacked for `consumer_name = 'video'` (reusing Spec 17's `ServiceOutboxConsumerCheckpoint.drainUnacked('video', batch)`), calls `createFromArrival`, then `ack(eventId, 'video')`. At-least-once + idempotent (dedup by `UNIQUE service_session_id`). Row-scoped try/catch so one bad row never stalls the batch.
 
 **`FaceComparisonProcessor`** (BullMQ `video-face-comparison` queue) + **`FaceVerifyClient`** (mirrors `AiClientService`, axios + bounded retry/backoff):
 ```
-attempt = repo.claimProcessingAttempt(id)         # monotonic
-single-winner UPLOADED → PROCESSING (else no-op)
+begun = repo.beginProcessing(id)                  # ONE atomic write: UPLOADED → PROCESSING + attempt+1, RETURNING attempt
+if begun is null: return                           # lost the transition (loser did NOT bump the counter) → no-op
+attempt = begun.attempt                            # the freshly-created attempt, held only by the winner
 video = storage.readObject(objectKey)             # Option A; if deleted → FAILED (video-unavailable), no loop
 reference = kycReader.getVerifiedSelfie(cleanerId) # if null → INCONCLUSIVE/FAILED (non-fatal)
 { score, decision } = faceVerify.compare(video, reference)   # AI failure/timeout → FAILED (bounded retries)
@@ -278,7 +282,7 @@ repo.writeResultGuarded(id, attempt, { decision', matchScore: score }, terminal,
 
 **`UploadWindowSweep`** (BullMQ repeatable) — single-winner `PENDING_UPLOAD → EXPIRED` for rows older than `VIDEO_VERIFICATION_UPLOAD_WINDOW_MS` with no upload (best-effort, idempotent), so a never-uploaded verification is never stuck awaiting an upload. Emits `verification_completed { decision: EXPIRED-classified as unavailable }`? No — EXPIRED is a lifecycle terminal, surfaced as `unavailable`; it emits no flagged event.
 
-**`StuckProcessingSweep`** (BullMQ repeatable) — mirrors voice-notes' stuck-PENDING sweep. Finds rows in `UPLOADED`/`PROCESSING` older than `VIDEO_VERIFICATION_STUCK_THRESHOLD_MS`, re-enqueues a comparison job (which claims a newer `processing_attempt`) bounded by `VIDEO_VERIFICATION_MAX_RETRIES`; after max attempts → single-winner `FAILED`. So a lost enqueue never leaves a verification stuck forever.
+**`StuckProcessingSweep`** (BullMQ repeatable) — mirrors voice-notes' stuck-PENDING sweep. For rows stuck in `UPLOADED` past `VIDEO_VERIFICATION_STUCK_THRESHOLD_MS`, it re-enqueues (the job's own `beginProcessing` performs the atomic `UPLOADED → PROCESSING` + attempt bump). For rows stuck in `PROCESSING` past the threshold, it performs an **explicit controlled transition** via `retryProcessing(id, stuckBefore)` — a single conditional write (`... SET processing_attempt = processing_attempt + 1 WHERE id=:id AND state='PROCESSING' AND updated_at < :stuckBefore RETURNING processing_attempt`) that invalidates the previous attempt and creates the next one, then re-enqueues the comparison with that returned attempt. Bounded by `VIDEO_VERIFICATION_MAX_RETRIES`; after max attempts → single-winner `FAILED`. So a lost enqueue never leaves a verification stuck forever, and the attempt counter is only ever bumped as part of winning a controlled transition.
 
 **`VideoVerificationController`** (`@Controller('video-verifications') @UseGuards(JwtAuthGuard)`, whitelisting `ValidationPipe`):
 - `GET /video-verifications/:id` → participant-gated reconciliation: authoritative `state` + derived classification (`verified`/`needs-review`/`unavailable`); never `match_score`, never a video URL.
@@ -349,8 +353,7 @@ All tables follow the project database standards: `UUID` PK (`gen_random_uuid()`
 | `match_score` | `NUMERIC(5,4)` (nullable) | derived similarity `0..1` — **INTERNAL, never exposed raw to the Host** |
 | `match_threshold` | `NUMERIC(5,4) NOT NULL` | snapshot of config threshold at creation; validated `0 < threshold <= 1`; the decision uses THIS, not live config |
 | `reference_source` | `VARCHAR(20) NOT NULL DEFAULT 'KYC_SELFIE'` | app-validated; which verified face was compared against |
-| `capture_attempt` | `INTEGER NOT NULL DEFAULT 0` | increments only if re-recording is allowed (same row, never a new session) |
-| `processing_attempt` | `INTEGER NOT NULL DEFAULT 0` | monotonic; stale-update guard (mirrors voice-notes `transcript_attempt`) |
+| `processing_attempt` | `INTEGER NOT NULL DEFAULT 0` | monotonic async-comparison retry counter; bumped only by the winner of a controlled transition (`beginProcessing`/`retryProcessing`); stale-update guard (mirrors voice-notes `transcript_attempt`) |
 | `failure_reason` | `VARCHAR(40)` (nullable) | app-validated (`NO_REFERENCE`/`VIDEO_UNAVAILABLE`/`AI_UNAVAILABLE`/`AI_TIMEOUT`/`MAX_ATTEMPTS`); never a stack trace, never biometric data |
 | `uploaded_at` | `TIMESTAMPTZ` (nullable) | **the retention clock starts here** |
 | `processed_at` | `TIMESTAMPTZ` (nullable) | set on the terminal comparison transition |
@@ -440,12 +443,13 @@ stateDiagram-v2
     [*] --> DISABLED : service_arrived (config disabled — no grant, no video, no job)
     PENDING_UPLOAD --> UPLOADED : finalize (grant verified + object inspected)
     PENDING_UPLOAD --> EXPIRED : upload-window sweep (never uploaded)
-    UPLOADED --> PROCESSING : worker claims attempt (single-winner)
+    UPLOADED --> PROCESSING : beginProcessing (atomic: single-winner transition + attempt+1)
     PROCESSING --> MATCH : score >= snapshot threshold (latest attempt)
     PROCESSING --> NO_MATCH : score < snapshot threshold (latest attempt) [+ flagged]
     PROCESSING --> INCONCLUSIVE : no reference / no face [+ flagged]
     PROCESSING --> FAILED : video deleted / AI unavailable / max attempts
-    UPLOADED --> PROCESSING : stuck sweep re-enqueue (newer attempt)
+    UPLOADED --> PROCESSING : stuck sweep re-enqueue via beginProcessing (still UPLOADED)
+    PROCESSING --> PROCESSING : stuck sweep retryProcessing (atomic: attempt+1, invalidates stuck attempt)
     MATCH --> [*]
     NO_MATCH --> [*]
     INCONCLUSIVE --> [*]
@@ -454,7 +458,7 @@ stateDiagram-v2
     EXPIRED --> [*]
 ```
 
-Every transition is `UPDATE verification_sessions SET state=:next, <derived fields>=... WHERE id=:id AND state=:expected` — the winner (rows=1) sets the derived fields AND writes the `verification_outbox` row(s) in the same transaction; concurrent losers observe rows=0 and no-op. Terminal states (`MATCH`, `NO_MATCH`, `INCONCLUSIVE`, `FAILED`, `DISABLED`, `EXPIRED`) are immutable. Result writes are additionally attempt-guarded: `PROCESSING → terminal` applies only if `processing_attempt` is the latest.
+Every transition is `UPDATE verification_sessions SET state=:next, <derived fields>=... WHERE id=:id AND state=:expected` — the winner (rows=1) sets the derived fields AND, for a **decision-bearing** terminal, writes the `verification_outbox` row(s) in the same transaction; concurrent losers observe rows=0 and no-op. Emission is decision-bearing only: `MATCH`/`NO_MATCH`/`INCONCLUSIVE` emit `verification_completed { decision, score? }` (and `NO_MATCH`/`INCONCLUSIVE` additionally emit `verification_flagged`), while `FAILED`/`EXPIRED`/`DISABLED` are lifecycle terminals that emit no `verification_completed` and no `verification_flagged`. Terminal states (`MATCH`, `NO_MATCH`, `INCONCLUSIVE`, `FAILED`, `DISABLED`, `EXPIRED`) are immutable. Result writes are additionally attempt-guarded: `PROCESSING → terminal` applies only if `processing_attempt` is the latest.
 
 ### Verification / upload / comparison flow
 
@@ -486,14 +490,14 @@ sequenceDiagram
     API->>DB: single-winner PENDING_UPLOAD → UPLOADED (object_key, uploaded_at), grant CONSUMED
     API->>W: enqueue comparison
 
-    W->>DB: claim processing_attempt + UPLOADED → PROCESSING
+    W->>DB: beginProcessing (atomic UPLOADED → PROCESSING + attempt+1, RETURNING attempt; loser no-ops without bumping)
     W->>M: read video (Option A)
     alt video already deleted
-        W->>DB: FAILED (VIDEO_UNAVAILABLE) — no re-upload, no loop
+        W->>DB: FAILED (VIDEO_UNAVAILABLE) — no re-upload, no loop; emits NO event
     else
         W->>KYC: read VERIFIED selfie
         alt no VERIFIED selfie
-            W->>DB: INCONCLUSIVE/FAILED (NO_REFERENCE) — non-fatal
+            W->>DB: INCONCLUSIVE (+ verification_completed + verification_flagged) OR FAILED (NO_REFERENCE, emits NO event) — non-fatal
         else
             W->>AI: POST /verify-face { candidate, reference }
             AI-->>W: { score, decision }
@@ -501,6 +505,7 @@ sequenceDiagram
         end
     end
     DB-->>PUSH: verification_completed / verification_flagged (fan-out)
+    Note over DB: emit only for MATCH/NO_MATCH/INCONCLUSIVE · FAILED/EXPIRED/DISABLED emit nothing
     Note over PUSH: Host surfaced derived classification only (verified/needs-review/unavailable)
 ```
 
@@ -510,9 +515,9 @@ sequenceDiagram
 
 Each property is universally quantified, testable, and maps back to the requirements' REQ-VV invariants and acceptance criteria.
 
-### Property 1: One verification per arrival, created idempotently, retries in-session
+### Property 1: One verification per arrival, created idempotently
 
-*For any* `service_arrived` event delivered N ≥ 1 times, and *for any* interleaving of concurrent creation attempts for the same `service_session_id`, the store SHALL contain exactly one `verification_sessions` row for that session — in `PENDING_UPLOAD` (enabled) or `DISABLED` (disabled), with participants copied and `match_threshold` snapshotted at creation. Every redelivery or concurrent attempt SHALL be a no-op; a second `verification_sessions` row for the same service session SHALL never exist; processing retries reuse `processing_attempt` and re-recording increments `capture_attempt` within the same row.
+*For any* `service_arrived` event delivered N ≥ 1 times, and *for any* interleaving of concurrent creation attempts for the same `service_session_id`, the store SHALL contain exactly one `verification_sessions` row for that session — in `PENDING_UPLOAD` (enabled) or `DISABLED` (disabled), with participants copied and `match_threshold` snapshotted at creation. Every redelivery or concurrent attempt SHALL be a no-op; a second `verification_sessions` row for the same service session SHALL never exist. PROCESSING retries reuse the single row's `processing_attempt`. There SHALL be NO re-recording after a finalized capture in v1 (a future manual retry would be a separately-versioned design), and terminal states SHALL remain immutable.
 
 **Validates: Requirements 1.1, 1.5, 7.1** · REQ-VV1
 
@@ -536,13 +541,13 @@ Each property is universally quantified, testable, and maps back to the requirem
 
 ### Property 5: Comparison is derived, best-effort, advisory — never a gate
 
-*For any* comparison outcome (`MATCH`, `NO_MATCH`, `INCONCLUSIVE`, `FAILED`, or `DISABLED`), the service SHALL proceed unblocked, the escrow SHALL NOT be seized, and the KYC status SHALL NOT change — the comparison never hard-gates. A `NO_MATCH`/`INCONCLUSIVE` result SHALL emit exactly one `verification_flagged` event for Host awareness / dispute seed and SHALL have no other enforcement effect; the KYC identity remains authoritative.
+*For any* comparison outcome (`MATCH`, `NO_MATCH`, `INCONCLUSIVE`, `FAILED`, or `DISABLED`), the service SHALL proceed unblocked, the escrow SHALL NOT be seized, and the KYC status SHALL NOT change — the comparison never hard-gates. A `NO_MATCH`/`INCONCLUSIVE` result SHALL emit exactly one `verification_flagged` event for Host awareness / dispute seed and SHALL have no other enforcement effect; a `FAILED`/`EXPIRED`/`DISABLED` outcome SHALL emit no `verification_flagged` (and no `verification_completed`); the KYC identity remains authoritative.
 
 **Validates: Requirements 3.1, 3.5, 3.6** · REQ-VV5
 
 ### Property 6: Stale-safe monotonic attempts
 
-*For any* sequence of concurrent or out-of-order processing attempts on one verification, `processing_attempt` SHALL be monotonically increasing, and a comparison result SHALL be written (transitioning `PROCESSING → terminal`) only if its attempt is the latest; an older attempt's result SHALL be discarded and SHALL never overwrite a newer one.
+*For any* sequence of concurrent or out-of-order processing attempts on one verification, `processing_attempt` SHALL be incremented **only by the single winner of a controlled state transition** — `beginProcessing` (the atomic `UPLOADED → PROCESSING`) or `retryProcessing` (the explicit `PROCESSING`-stuck retry) — so a caller that loses the transition SHALL NOT bump the counter and SHALL never invalidate the legitimate winner's in-flight result. `processing_attempt` SHALL be monotonically increasing, and a comparison result SHALL be written (transitioning `PROCESSING → terminal`) only if its attempt is the latest; an older attempt's result SHALL be discarded and SHALL never overwrite a newer one.
 
 **Validates: Requirements 3.1, 3.4** · REQ-VV6
 
@@ -560,7 +565,7 @@ Each property is universally quantified, testable, and maps back to the requirem
 
 ### Property 9: Single-winner transitions + outbox atomicity
 
-*For any* state transition and *for any* N concurrent actors, exactly one conditional write (`... WHERE id=:id AND state=:expected`) SHALL succeed and, in one transaction, set the derived fields (`object_key`/`uploaded_at`/`processed_at`/`match_score`/`decision`/`video_deleted_at`) AND write the corresponding `verification_outbox` event; concurrent losers observe rows=0 and no-op, and terminal states are immutable. History SHALL never observe a `MATCH` without a `match_score`, nor a `verification_completed` event without a committed decision.
+*For any* state transition and *for any* N concurrent actors, exactly one conditional write (`... WHERE id=:id AND state=:expected`) SHALL succeed and, in one transaction, set the derived fields (`object_key`/`uploaded_at`/`processed_at`/`match_score`/`decision`/`video_deleted_at`) AND write the corresponding `verification_outbox` event **for a decision-bearing terminal only**; concurrent losers observe rows=0 and no-op, and terminal states are immutable. A `MATCH`/`NO_MATCH`/`INCONCLUSIVE` transition SHALL emit `verification_completed` in the same transaction (and `NO_MATCH`/`INCONCLUSIVE` SHALL additionally emit `verification_flagged`); a `FAILED`/`EXPIRED`/`DISABLED` transition SHALL emit no `verification_completed` and no `verification_flagged`. History SHALL never observe a `MATCH` without a `match_score`, nor a `verification_completed` event without a committed decision, nor a `verification_completed` event for a `FAILED`/`EXPIRED`/`DISABLED` terminal.
 
 **Validates: Requirements 7.4** · REQ-VV9
 
@@ -609,13 +614,16 @@ Each property is universally quantified, testable, and maps back to the requirem
 | finalize with over-limit, wrong-type, or unprobeable object | `400`, no transition, grant left unconsumed → cleanup-eligible orphan |
 | finalize on a `DISABLED` verification | `409` (no upload path exists when disabled) |
 | Any client requests playback/download of the video | No such endpoint exists in v1 (route absent) |
-| No VERIFIED KYC selfie for the Cleaner | `INCONCLUSIVE`/`FAILED` (`NO_REFERENCE`); never throws; service unblocked |
-| Worker reads a video already deleted (retention/tombstone) | `FAILED` (`VIDEO_UNAVAILABLE`); no re-upload, no loop |
-| AI unavailable / timeout / error | `FAILED` (`AI_UNAVAILABLE`/`AI_TIMEOUT`) after bounded retries; service unblocked |
-| Older processing attempt returns after a newer one | Discarded by the attempt guard; newer result preserved |
-| `NO_MATCH`/`INCONCLUSIVE` decision | `verification_flagged` emitted; no escrow seizure, no cancel, no KYC change |
-| Never-uploaded verification past the window | Upload-window sweep → `EXPIRED` (idempotent, single-winner) |
-| Verification stuck `UPLOADED`/`PROCESSING` past the window | Stuck sweep re-enqueues (newer attempt); `FAILED` after max attempts |
+| No VERIFIED KYC selfie for the Cleaner | `INCONCLUSIVE` (emits `verification_completed` + `verification_flagged`) or `FAILED` (`NO_REFERENCE`, emits no event); never throws; service unblocked |
+| Worker reads a video already deleted (retention/tombstone) | `FAILED` (`VIDEO_UNAVAILABLE`); no re-upload, no loop; emits no `verification_completed`/`verification_flagged` |
+| AI unavailable / timeout / error | `FAILED` (`AI_UNAVAILABLE`/`AI_TIMEOUT`) after bounded retries; service unblocked; emits no `verification_completed`/`verification_flagged` |
+| Concurrent workers race to process one `UPLOADED` verification | `beginProcessing` is a single atomic write: exactly one wins `UPLOADED → PROCESSING` and gets the incremented attempt; losers get zero rows and no-op **without bumping `processing_attempt`**, so a loser can never make the winner's in-flight result stale |
+| Older processing attempt returns after a newer one | Discarded by the attempt guard; newer result preserved (only a transition winner ever holds the latest attempt) |
+| `MATCH` decision | `verification_completed { decision, score? }` emitted (no `verification_flagged`); no escrow/cancel/KYC effect |
+| `NO_MATCH`/`INCONCLUSIVE` decision | `verification_completed { decision, score? }` AND exactly one `verification_flagged` emitted; no escrow seizure, no cancel, no KYC change |
+| Never-uploaded verification past the window | Upload-window sweep → `EXPIRED` (idempotent, single-winner); lifecycle terminal, emits no `verification_completed`/`verification_flagged` |
+| `DISABLED` verification | Lifecycle terminal (config disabled at creation); emits no `verification_completed`/`verification_flagged` |
+| Verification stuck `UPLOADED`/`PROCESSING` past the window | Stuck sweep re-enqueues (newer attempt); `FAILED` after max attempts (emits no `verification_completed`/`verification_flagged`) |
 | Concurrent transition on one verification | Single-winner: exactly one write succeeds; losers observe rows=0 and no-op |
 | Parent service session / offer cascades away | Row cascades; `BEFORE DELETE` trigger tombstones `object_key`; drain job deletes idempotently |
 | Participant user deleted | `cleaner_id`/`host_id` SET NULL; record + result retained |
@@ -637,11 +645,11 @@ Library: `fast-check` (TypeScript, mirroring the sibling specs). Each test runs 
 | P2 Participant isolation & key ≠ credential | Random (user, verification) pairs across endpoints; foreign/valid/expired/consumed grants | Access iff participant; finalize iff caller-issued unexpired ISSUED grant; bare key authorizes nothing |
 | P3 Video isolation + retention | Random uploaded verifications × `uploaded_at` ages | Bytes only in MinIO; no playback presign minted anywhere; delete iff past horizon (clock = `uploaded_at`); `video_deleted_at` set once; result persists |
 | P4 Server-authoritative validation | Random real (size, type, duration) vs arbitrary declared metadata | Accept iff server-observed within bounds; declared never overrides; else `400`, nothing persisted, grant unconsumed |
-| P5 Advisory, never a gate | Random terminal decisions incl. FAILED/INCONCLUSIVE/DISABLED/NO_MATCH | Service/escrow/KYC untouched in all cases; NO_MATCH/INCONCLUSIVE emits exactly one `verification_flagged` |
-| P6 Stale-safe attempts | Random interleaved/concurrent attempt sequences | Attempts monotonic; only latest attempt's result applied; older discarded |
+| P5 Advisory, never a gate | Random terminal decisions incl. FAILED/INCONCLUSIVE/DISABLED/EXPIRED/NO_MATCH/MATCH | Service/escrow/KYC untouched in all cases; NO_MATCH/INCONCLUSIVE emits exactly one `verification_flagged`; FAILED/EXPIRED/DISABLED emit no `verification_flagged` and no `verification_completed` |
+| P6 Stale-safe attempts | Random interleaved/concurrent `beginProcessing`/`retryProcessing` sequences | `processing_attempt` bumped only by the transition winner (losers no-op without bumping, so a loser never invalidates the winner); attempts monotonic; only latest attempt's result applied; older discarded |
 | P7 No stuck verification | Random ages/attempt counts/thresholds | PENDING_UPLOAD→EXPIRED past window; UPLOADED/PROCESSING re-enqueued then FAILED after max; idempotent |
 | P8 Threshold snapshot & range | Random scores × snapshot thresholds × later config mutations | MATCH iff `s ≥ snapshot t`; decision invariant to live config; ranges in [0,1] |
-| P9 Single-winner + outbox atomicity | Random (from,to) edges × N concurrent actors | One winner sets derived fields + outbox atomically; illegal edges rejected; terminal immutable; MATCH⇒score, completed⇒committed decision |
+| P9 Single-winner + outbox atomicity | Random (from,to) edges × N concurrent actors | One winner sets derived fields + (for decision-bearing terminals) outbox atomically; illegal edges rejected; terminal immutable; MATCH⇒score, completed⇒committed decision; MATCH/NO_MATCH/INCONCLUSIVE emit `verification_completed` (NO_MATCH/INCONCLUSIVE also `verification_flagged`); FAILED/EXPIRED/DISABLED emit neither |
 | P10 Deletion coherence | Random verification graphs + participant deletion + parent cascade | host/cleaner nulled + record retained; cascade tombstones the key (rolled back with a rolled-back delete); drain idempotent |
 | P11 Disabled ⇒ no video | Random payloads with enabled=false | DISABLED; grant repo never called; queue never called; nothing gated |
 | P12 Missing-ref / deleted-video non-fatal | Random comparisons with null reference / deleted object | Terminal INCONCLUSIVE/FAILED with reason; no exception; deleted → FAILED, zero re-enqueue |
@@ -656,8 +664,8 @@ Library: `fast-check` (TypeScript, mirroring the sibling specs). Each test runs 
 - **`VerificationStorageService`** (mocked `minio` as in `kyc-storage.service.spec`): upload presign + object inspection incl. real-duration probe; `deleteObjectSafe` idempotent; **asserts no playback presign method exists**.
 - **`KycReferenceReader`**: returns VERIFIED selfie bytes; returns `null` when none (drives P12); read-only.
 - **`UploadGrantRepository`**: grant-persisted-before-URL; `findConsumable` rejects expired/consumed/foreign; `markConsumed` in-tx.
-- **`VerificationRepository`**: parameterized SQL; single-winner conditional write with `verification_outbox` row in the same transaction; `claimProcessingAttempt` monotonic; `writeResultGuarded` latest-attempt-only; sweep/retention scans select only eligible rows.
-- **`FaceComparisonProcessor`**: claim → PROCESSING; deleted-video → FAILED (no loop); null reference → INCONCLUSIVE/FAILED; AI error/timeout → FAILED bounded; decision vs snapshot threshold; stale-attempt discard.
+- **`VerificationRepository`**: parameterized SQL; single-winner conditional write with `verification_outbox` row in the same transaction; `beginProcessing` atomic `UPLOADED → PROCESSING` + attempt bump returns the attempt to the winner and `null` (no bump) to losers; `retryProcessing` bumps only from `PROCESSING` when stuck; no state-independent attempt claim exists; `writeResultGuarded` latest-attempt-only; sweep/retention scans select only eligible rows.
+- **`FaceComparisonProcessor`**: `beginProcessing` atomic transition (null → no-op/return without side effects); deleted-video → FAILED (no loop); null reference → INCONCLUSIVE/FAILED; AI error/timeout → FAILED bounded; decision vs snapshot threshold; stale-attempt discard.
 - **`FaceVerifyClient`** (mocked axios): request shape (bytes not refs), bounded retry/backoff, typed errors.
 - **`RetentionCleanupProcessor`** / **`TombstoneDrainProcessor`**: idempotent delete; `video_deleted_at`/`processed_at` set once; clock from `uploaded_at`.
 - **`UploadWindowSweep`** / **`StuckProcessingSweep`**: correct terminal on age; bounded re-enqueue then FAILED.
@@ -724,6 +732,6 @@ Security: MinIO creds live only in server config, shipped only as time-boxed pre
 - **READMEs**: new `services/api/src/video-verification/README.md` (module purpose, endpoints, storage/grant/worker/sweeps, env vars, Option A); new `apps/mobile/src/screens/verification/README.md` (recorder/indicator, i18n, tokens); a note in the AI service README for `POST /verify-face` (DeepFace, no storage creds). Note the new `service_outbox` `consumer_name = 'video'` checkpoint usage in the service-tracking README, and the new `verification_*` events consumed in the push-notifications README.
 - **`docs/ARCHITECTURE.md`**: add the video-verification module and a **verification-flow diagram** (service_arrived → create → request-upload/grant → PUT MinIO → finalize → comparison worker → AI → decision + outbox → Host derived indicator; retention/tombstone edges), the new MinIO `verification-videos` bucket node, and the AI `/verify-face` edge. Update the system Mermaid diagram(s) to reflect the new module, bucket, and AI endpoint.
 - **`docs/CHANGELOG.md`**: `[Unreleased]` entries per task group (feature `video-verification`).
-- **ADR**: a new ADR `on-arrival-face-verification` (assign the next free number at merge time; sibling specs currently reserve up to 010) recording: on-arrival face verification against the VERIFIED KYC selfie; **advisory-not-a-gate** (never blocks service/escrow/KYC — enforcement is Spec 20/21); arrival-video-in-MinIO (not DB, not API) with **no playback endpoint** and **short 24–48h retention from `uploaded_at`**; key-as-grant (not credential); server-authoritative object inspection incl. real duration; **AI contract Option A** (worker sends bytes; AI has no storage access); async best-effort comparison with attempt-versioning + stuck sweep; deletion-tombstone-trigger for eventual/idempotent orphan cleanup after CASCADE; and the explicit **not-certified-liveness** scope limit (REQ-VV11).
+- **ADR**: a new ADR `on-arrival-face-verification` (assign the next free number at merge time; sibling specs currently reserve up to 010) recording: on-arrival face verification against the VERIFIED KYC selfie; **advisory-not-a-gate** (never blocks service/escrow/KYC — enforcement is Spec 20/21); arrival-video-in-MinIO (not DB, not API) with **no playback endpoint** and **short 24–48h retention from `uploaded_at`**; key-as-grant (not credential); server-authoritative object inspection incl. real duration; **AI contract Option A** (worker sends bytes; AI has no storage access); async best-effort comparison with attempt-versioning (the atomic `beginProcessing` fuses the `UPLOADED → PROCESSING` transition with the attempt increment so only the transition winner bumps the counter) + stuck sweep; deletion-tombstone-trigger for eventual/idempotent orphan cleanup after CASCADE; the explicit **not-certified-liveness** scope limit (REQ-VV11); and the **known v1 limitation** that finalize's MinIO object inspection and the PostgreSQL transition are not a single cross-system transaction (TOCTOU window — accepted for v1 given the short-lived, Cleaner/grant-bound presigned PUT; production hardening via object version/ETag verification or write-once uploads is a tracked follow-up).
 - **`.env.example`**: document all `VIDEO_VERIFICATION_*` keys and `EXPO_PUBLIC_VIDEO_VERIFICATION_MAX_DURATION_MS` (MINIO_* already present).
 - **`.kiro/specs/ROADMAP.md`**: mark Spec 18 status on completion.
