@@ -125,7 +125,7 @@ RECONCILE PATH (authoritative state, independent of realtime):
 
 ## Requirements
 
-### Requirement 1 — A session exists for, and only for, a matched + charged offer
+### Requirement 1: A session exists for, and only for, a matched + charged offer
 
 **User Story:** As a matched Host and Cleaner, I want a tracking session to begin automatically once the job is locked in, so that the Cleaner can head over and I can follow along — with exactly the person I matched with.
 
@@ -137,7 +137,7 @@ RECONCILE PATH (authoritative state, independent of realtime):
 4. WHEN an offer never reached `MATCHED` (or is not charged) THEN no session SHALL exist, and any attempt to start tracking SHALL be rejected.
 5. WHEN more than one session creation is attempted for the same offer THEN the `UNIQUE offer_id` constraint SHALL guarantee at most one session (idempotent), never two.
 
-### Requirement 2 — Live position: ephemeral, participant-gated, best-effort
+### Requirement 2: Live position: ephemeral, participant-gated, best-effort
 
 **User Story:** As a Host, I want to watch the Cleaner approach in real time, so that I know when to expect them — without the platform building a permanent trail of their movements.
 
@@ -150,20 +150,21 @@ RECONCILE PATH (authoritative state, independent of realtime):
 5. WHEN a non-participant attempts to post position, subscribe, or read a session THEN it SHALL be denied (`403` / no token), and no position data SHALL be exposed.
 6. WHEN position frames or the relay are dropped/delayed THEN session correctness SHALL be unaffected (the authoritative state is the DB state machine, reconciled via `GET`); realtime delivery is never a correctness guarantee.
 
-### Requirement 3 — Server-authoritative geofence arrival
+### Requirement 3: Server-authoritative geofence arrival
 
 **User Story:** As the platform, I want arrival to be decided by the server based on real proximity, so that the "arrived" state is trustworthy and can gate video verification.
 
 #### Acceptance Criteria
 
 1. WHEN the Cleaner reports a coordinate near the property THEN the system SHALL decide arrival on the SERVER using PostGIS (`ST_DWithin` between the session's `property_location_snapshot` and the reported point, within the session's snapshotted `geofence_radius_m`); a client-sent "arrived" claim SHALL be advisory only and SHALL NOT by itself set the arrival fact. The reported coordinate is **client telemetry, not proof of physical presence** (see threat model); this criterion guarantees server-owned *computation*, not anti-spoofing.
-2. WHEN a position sample is evaluated for arrival THEN it SHALL only be **eligible** if `accuracy ≤ SERVICE_POSITION_MAX_ACCURACY_M` AND its age (`server_now − at`) `≤ SERVICE_POSITION_MAX_AGE_MS`; an ineligible (low-accuracy or stale) sample SHALL be ignored for the arrival decision (never sets ARRIVED, never errors), so a 20m-distance / 150m-accuracy or a minutes-old sample cannot declare arrival.
+2. WHEN a position sample is evaluated for arrival THEN it SHALL only be **eligible** if `accuracy ≤ SERVICE_POSITION_MAX_ACCURACY_M` AND its age (`server_now − at`) `≤ SERVICE_POSITION_MAX_AGE_MS` AND it is not future-dated beyond tolerated clock skew (`at ≤ server_now + SERVICE_POSITION_MAX_CLOCK_SKEW_MS`); an ineligible (low-accuracy, stale, or future-dated) sample SHALL be ignored for the arrival decision (never sets ARRIVED, never errors), so a 20m-distance / 150m-accuracy sample, a minutes-old sample, or a sample bearing a future `at` timestamp cannot declare arrival.
 3. WHEN an eligible sample passes the geofence check for an EN_ROUTE session THEN the system SHALL transition `EN_ROUTE → ARRIVED` via a single-winner conditional write, set `arrived_at` (the **server** timestamp, not the client `at`) and the server-observed `arrival_distance_m`, and write a `service_arrived` outbox event in the same transaction.
 4. WHEN the geofence check does not pass (or the sample is ineligible) THEN the session SHALL remain EN_ROUTE and no arrival fact SHALL be written, regardless of any client claim.
 5. WHEN arrival is evaluated THEN it SHALL use the `property_location_snapshot` and `geofence_radius_m` captured on the session at creation, so neither a radius change in config nor a mid-session property edit/deletion retroactively alters an in-flight session's geofence.
 6. WHEN the `service_arrived` event is emitted THEN it SHALL be the durable signal that on-arrival video verification (Spec 18) reacts to; service-tracking SHALL NOT itself start video verification (no direct coupling).
+7. WHERE a sample carries a reported `accuracy` value, THE system SHALL treat `accuracy` solely as an eligibility gate (a sample is rejected when `accuracy > SERVICE_POSITION_MAX_ACCURACY_M`) and SHALL NOT use `accuracy` to mathematically widen, narrow, or otherwise correct the geofence radius; `arrival_distance_m` SHALL be the geometric geodesic distance from the reported point to the property, not an error-bounded distance. This is an accepted MVP simplification, documented rather than corrected.
 
-### Requirement 4 — Authoritative session state machine (single-winner, no stuck sessions)
+### Requirement 4: Authoritative session state machine (single-winner, no stuck sessions)
 
 **User Story:** As a participant, I want the session's state to be reliable and to always reach a resolution, so that both sides agree on where the job stands.
 
@@ -178,32 +179,32 @@ RECONCILE PATH (authoritative state, independent of realtime):
 7. WHEN the property is deleted while the session is non-terminal THEN because the geofence uses `property_location_snapshot` (not the live property row), arrival evaluation SHALL continue to work; the session SHALL NOT break. Only if the snapshot is unavailable/unusable SHALL the session be force-expired with `ended_reason = EXPIRED_PROPERTY_REMOVED`. (`property_id` remains `ON DELETE SET NULL` for referential coherence; the snapshot is what the geofence depends on.)
 8. WHEN session state is read via `GET` THEN it SHALL reflect the authoritative PostgreSQL state machine independent of realtime delivery, so both clients can always reconcile after a dropped connection.
 
-### Requirement 5 — Mobile tracking UX for both roles
+### Requirement 5: Mobile tracking UX for both roles
 
 **User Story:** As a Cleaner I want to share my approach and mark that I've started, and as a Host I want to watch the Cleaner arrive, so that the hand-off is smooth and clear.
 
 #### Acceptance Criteria
 
-1. WHEN the session is EN_ROUTE and the Cleaner has granted location permission THEN the Cleaner app SHALL publish position to the session channel and show the destination and (optionally) a live ETA; a live ETA MAY be shown but is not a durable fact.
+1. WHEN the session is EN_ROUTE and the Cleaner has granted location permission THEN the Cleaner app SHALL send position samples to the backend position endpoint (`POST /service-sessions/:id/position`) — the server re-publishes to the Host — and show the destination and (optionally) a live ETA; a live ETA MAY be shown but is not a durable fact. The Cleaner app SHALL NOT publish position directly to the session channel.
 2. WHEN the Host opens the active job THEN the Host app SHALL render the Cleaner's live position on the map (Mapbox rendering the position transported by Centrifugo) and the current session state (on the way / arrived / started), reconciling via `GET`.
 3. WHEN location permission is denied or unavailable on the Cleaner device THEN the app SHALL degrade gracefully with an i18n explanation (never crash), the session SHALL still function via server-side geofence checks on any coordinates the Cleaner does provide, and the Host SHALL see a clear "location unavailable" state rather than a stale position.
 4. WHEN the geofence confirms arrival THEN both apps SHALL reflect the `ARRIVED` state promptly (realtime, reconciled by `GET`), and the Host SHALL see a clear "Cleaner has arrived" indication.
 5. WHEN any UI text is rendered THEN it SHALL come from i18n keys with `en` and `es` in parity, and colors/spacing SHALL follow the BidClean dark design tokens (consistent with the radar/chat screens).
 6. WHEN the map is shown THEN it SHALL use Mapbox for rendering only; the platform SHALL NOT treat Mapbox as the source of truth for position or arrival (that is Centrifugo transport + the server geofence).
 
-### Requirement 6 — Configuration, security, and no hardcoded values
+### Requirement 6: Configuration, security, and no hardcoded values
 
 **User Story:** As an operator, I want tracking behavior and thresholds driven by configuration, so that the feature is portable, private, and leaks no secrets.
 
 #### Acceptance Criteria
 
-1. WHEN service-tracking reads any tunable (`SERVICE_GEOFENCE_RADIUS_M`, `SERVICE_POSITION_MIN_INTERVAL_MS` (server-side rate limit), `SERVICE_POSITION_MAX_ACCURACY_M`, `SERVICE_POSITION_MAX_AGE_MS`, `SERVICE_POSITION_CHANNEL_PREFIX`, `SERVICE_POSITION_TOKEN_TTL_SECONDS`, `SERVICE_EN_ROUTE_STALE_MS`, `SERVICE_SESSION_ABANDON_MS`, `SERVICE_SWEEP_INTERVAL_MS`, `SERVICE_SWEEP_BATCH_SIZE`, and mobile `EXPO_PUBLIC_SERVICE_POSITION_MIN_INTERVAL_MS` (client-side send cadence)) THEN it SHALL come from environment/config constants with none hardcoded in logic, and a fail-fast `validateServiceTrackingConfig()` SHALL run at startup for required values (consistent with `validateChatConfig`). Note the min-interval exists on both sides: the client throttles sending, and the **server independently rate-limits** (never trusting the client to self-limit).
-2. WHEN a session channel token is minted THEN the Centrifugo signing secret SHALL be read from server configuration (reusing `CENTRIFUGO_TOKEN_SECRET`), never shipped to the client except as the time-boxed token, and the token SHALL scope the Cleaner to publish + the Host to subscribe on that one session channel.
+1. WHEN service-tracking reads any tunable (`SERVICE_GEOFENCE_RADIUS_M`, `SERVICE_POSITION_MIN_INTERVAL_MS` (server-side rate limit), `SERVICE_POSITION_MAX_ACCURACY_M`, `SERVICE_POSITION_MAX_AGE_MS`, `SERVICE_POSITION_MAX_CLOCK_SKEW_MS`, `SERVICE_POSITION_CHANNEL_PREFIX`, `SERVICE_POSITION_TOKEN_TTL_SECONDS`, `SERVICE_EN_ROUTE_STALE_MS`, `SERVICE_SESSION_ABANDON_MS`, `SERVICE_SWEEP_INTERVAL_MS`, `SERVICE_SWEEP_BATCH_SIZE`, and mobile `EXPO_PUBLIC_SERVICE_POSITION_MIN_INTERVAL_MS` (client-side send cadence)) THEN it SHALL come from environment/config constants with none hardcoded in logic, and a fail-fast `validateServiceTrackingConfig()` SHALL run at startup for required values (consistent with `validateChatConfig`). Note the min-interval exists on both sides: the client throttles sending, and the **server independently rate-limits** (never trusting the client to self-limit).
+2. WHEN a session channel token is minted THEN the Centrifugo signing secret SHALL be read from server configuration (reusing `CENTRIFUGO_TOKEN_SECRET`), never shipped to the client except as the time-boxed token, and the token SHALL scope only the Host to subscribe (read-only) on that one session channel; no publish grant SHALL be issued to the Cleaner (the server is the sole publisher).
 3. WHEN live position is handled THEN coordinates SHALL NOT be persisted or logged as a trail, and no participant PII (phone/email) SHALL be placed in position payloads or logs; the only durable location datum is `arrival_distance_m`.
 4. WHEN the mobile client needs realtime config THEN it SHALL read Centrifugo/Mapbox config from `EXPO_PUBLIC_*` or server responses, never from hardcoded literals or embedded secrets (Mapbox token handling consistent with the radar screen).
 5. WHEN a new backend entity, migration, realtime channel, auth token surface, or mobile feature is introduced THEN it SHALL be documented (module READMEs, ARCHITECTURE diagram + a service-tracking lifecycle flow, CHANGELOG, and an ADR for the ephemeral-position + server-authoritative-geofence decision) per the project documentation rules.
 
-### Requirement 7 — Persistence, lifecycle, and integrity
+### Requirement 7: Persistence, lifecycle, and integrity
 
 **User Story:** As the platform, I want session data modeled correctly and coherently with the rest of the system, so that history is truthful and privacy-respecting.
 
@@ -222,14 +223,14 @@ The design defines concrete, testable properties (its own numbering) mapping bac
 - **REQ-ST1 — Session is a matched+charged-offer lifecycle, from one durable fact.** Exactly one `service_sessions` row per offer (`UNIQUE offer_id`), created idempotently in reaction to the single durable `service_activation_ready` fact (offer MATCHED AND escrow CAPTURED — not two cross-context queries); it inherits the offer's participant isolation and never alters the offer's own state machine. *(Req 1.1, 1.2, 1.5, 4.4)*
 - **REQ-ST2 — Participant isolation.** Every session read/action and every channel subscription is authorized server-side from the matched offer's parties; a non-participant is denied and learns nothing; a session id / channel name never authorizes. *(Req 1.3, 2.3, 2.4)*
 - **REQ-ST3 — Position ingress via API; position is ephemeral.** Position is sent to the backend endpoint (Option A), evaluated server-side, then re-published by the server to the Host over Centrifugo (the Cleaner never publishes to the channel). Coordinates are never persisted as history; the sole durable location datum is `arrival_distance_m`. *(Req 2.1, 2.2, 2.4, 6.3, 7.5)*
-- **REQ-ST4 — Server-authoritative geofence (computation), accuracy/staleness gated.** Arrival is set only by the server's PostGIS `ST_DWithin` against the session's `property_location_snapshot` + snapshotted radius, only for an *eligible* sample (`accuracy ≤ max` and age `≤ max`), stamped with the server timestamp; a client claim is advisory. *(Req 3.1, 3.2, 3.3, 3.4, 3.5)*
+- **REQ-ST4 — Server-authoritative geofence (computation), accuracy/staleness/skew gated.** Arrival is set only by the server's PostGIS `ST_DWithin` against the session's `property_location_snapshot` + snapshotted radius, only for an *eligible* sample (`accuracy ≤ max`, age `≤ max`, and not future-dated beyond tolerated clock skew), stamped with the server timestamp; `accuracy` is an eligibility gate only (never a radius correction) and `arrival_distance_m` is the geometric distance; a client claim is advisory. *(Req 3.1, 3.2, 3.3, 3.4, 3.5, 3.7)*
 - **REQ-ST4b — GPS threat model (no over-promise).** The server owns the geofence *computation*, but reported coordinates are client telemetry, not cryptographic proof of physical location; this spec does not claim anti-spoofing (human presence is complemented by Spec 18). *(Introduction threat model, Req 3.1)*
 - **REQ-ST5 — Durable-first transitions + outbox.** Every state transition is committed with its derived timestamps and its outbox event in one transaction; `service_arrived` is the durable signal Spec 18 reacts to; a realtime failure never loses a transition. *(Req 3.2, 4.1, 4.2, 7.4)*
 - **REQ-ST6 — Single-winner, monotonic state machine.** Lifecycle follows `MATCHED → EN_ROUTE → ARRIVED → IN_PROGRESS` plus terminal `CANCELED|EXPIRED`; illegal transitions rejected; terminal-for-tracking immutable; every terminal/advancing write is single-winner. *(Req 4.1–4.4)*
 - **REQ-ST7 — No stuck session, differentiated causes.** A stale EN_ROUTE (`EXPIRED_NO_PROGRESS`), a never-started session (`EXPIRED_NEVER_STARTED`), a terminal offer (`CANCELED_OFFER_TERMINAL`), an explicit cancel (`CANCELED_BY_PARTICIPANT`), or an unusable-snapshot property removal (`EXPIRED_PROPERTY_REMOVED`) each converge via a bounded single-winner sweep with a distinct `ended_reason`; state is always recoverable via `GET`. *(Req 4.5, 4.6, 4.7, 4.8)*
 - **REQ-ST11 — Server-side rate limiting.** Position samples faster than the configured min interval per `(user, session)` are throttled/ignored server-side (never trusting the client to self-limit), bounding CPU/PostGIS/Centrifugo load. *(Req 2.3, 6.1)*
 - **REQ-ST12 — Geofence survives property deletion.** Because the geofence uses `property_location_snapshot`, deleting the property mid-session does not break arrival evaluation; only an unusable snapshot expires the session. *(Req 3.5, 4.7)*
-- **REQ-ST8 — Cleaner-only broadcast.** Only the Cleaner may publish position; the Host is a read-only subscriber, enforced by token grants. *(Req 2.6)*
+- **REQ-ST8 — Server-only broadcast (read-only Host).** Only the server publishes position to the session channel (after ingesting the Cleaner's `POST`); the Cleaner is not a channel publisher, and the Host is a read-only subscriber — enforced by token grants that issue no publish scope. *(Req 2.1, 2.4, 6.2)*
 - **REQ-ST9 — Deletion coherence.** Deleting/anonymizing a participant nulls `host_id`/`cleaner_id`/`property_id` but never destroys session history; no user-cascade path (Spec 13 invariant). *(Req 7.3)*
 - **REQ-ST10 — No hardcoded config/secrets.** Radius, TTLs, timeouts, sweep tuning come from config with fail-fast validation; Centrifugo secret/Mapbox token never shipped to the client; coordinates never logged/persisted as a trail. *(Req 6.1–6.4)*
 

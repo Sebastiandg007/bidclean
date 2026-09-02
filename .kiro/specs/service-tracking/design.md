@@ -8,7 +8,7 @@ The design rests on four seams, each mirroring a pattern already proven in sibli
 
 1. **A durable domain event is the creation trigger — never two cross-context status queries.** service-tracking creates a session in reaction to the single `service_activation_ready` fact (offer `MATCHED` AND escrow `CAPTURED`, emitted as one outbox event by the offer/escrow path). It **does not** read `offer.status` and `payment.status` independently. Creation is idempotent (a redelivered activation event never creates a second session), off the same outbox seam other consumers use, and a failure to create the session never rolls back or blocks the match/escrow.
 2. **Position ingress puts the backend on the path (Option A) — the control plane / media plane split.** The Cleaner does **not** publish position to Centrifugo. Position samples are POSTed to `POST /service-sessions/:id/position`; the server rate-limits, gates eligibility (accuracy + staleness), runs the PostGIS geofence, transitions durably if arrived, then **re-publishes** the position to the session's Centrifugo channel `service:session:{id}` for the Host. The channel is an **output** transport (server → Host), never the geofence input. Live position is ephemeral and **never persisted** — the sole durable location datum is `arrival_distance_m`.
-3. **PostgreSQL is the source of truth for the session lifecycle + the arrival geofence-crossing fact.** The `service_sessions` row (participants, `offerId`, state, timestamps, `arrival_distance_m`) is authoritative. Every transition is a single-winner conditional write (`UPDATE ... WHERE id=:id AND state=:expected`) that, in the SAME transaction, sets the derived timestamps and writes a durable outbox event. Live coordinates are never authoritative and never persisted as a trail.
+3. **PostgreSQL is the source of truth for the session lifecycle + the arrival geofence-crossing fact.** The `service_sessions` row (participants, `offerId`, state, timestamps, `arrival_distance_m`) is authoritative. Every transition is a single-winner conditional write (`UPDATE ... WHERE id=:id AND state=:expected`) that, in the SAME transaction, sets the derived timestamps and writes a durable outbox event. Live coordinates are never authoritative and never persisted as a trail. **The outbox is drained by multiple independent consumers (Spec 16 notifications, Spec 18 video), each with its own per-consumer checkpoint — never a single shared processing marker** (see the fan-out seam below), so one consumer acking `service_arrived` can never starve the other.
 4. **Realtime tokens stay owned by auth.** Auth mints the `service:session:{id}` channel token (reusing `CENTRIFUGO_TOKEN_SECRET`) only after service-tracking's participation rule passes — the exact ownership boundary chat/voip use for Centrifugo/LiveKit tokens. service-tracking owns only the participation rule.
 
 **Authority split (kept strict):**
@@ -48,11 +48,20 @@ offer/escrow path                         service-tracking module               
   emits ONE durable event                   ServiceSessionParticipationService          GET /auth/centrifugo/token
   service_activation_ready  ──outbox──►        .isParticipant(userId, sessionId)  ◄──── (consulted for sub tokens)
    (MATCHED AND CAPTURED)                     creates session idempotently                mints service:session:{id}
-  offer terminal ──────────────────────────► force-cancel session (idempotent)           token IFF isParticipant
+   drained via service-tracking's OWN         (service_activation_consumed cursor over    token IFF isParticipant
+   consumer checkpoint (never a shared         the upstream outbox; UNIQUE offer_id backstop)
+   relayed_at on a table it doesn't own)
+  offer terminal ──────────────────────────► force-cancel session (idempotent)
+
+service_outbox (owned by service-tracking) ── FAN-OUT to N independent consumers ──►
+  service_en_route / service_arrived / service_started
+        ├─ notifications consumer (Spec 16)  ── drains via service_outbox_consumers(event_id, 'notifications')
+        └─ video consumer       (Spec 18)  ── drains via service_outbox_consumers(event_id, 'video')
+  each acks ONLY its own (event_id, consumer_name) row; one acking never starves the other
 ```
 
-- **The offer/escrow path is the source of truth for the activation fact.** It emits `service_activation_ready` as one outbox event; service-tracking reacts, never queries the two contexts separately.
-- **service-tracking owns** the session state machine, the participation rule, the server-side geofence computation, position ingress + rate limiting, and the durable `service_*` outbox events.
+- **The offer/escrow path is the source of truth for the activation fact.** It emits `service_activation_ready` as one outbox event; service-tracking reacts, never queries the two contexts separately. **service-tracking is one of several consumers of that upstream outbox, so it drains it via its OWN checkpoint** (its `service_activation_consumed` cursor over the offer/escrow outbox) — it never mutates a shared `relayed_at` on a table it does not own — with idempotent creation on `UNIQUE offer_id` as the backstop.
+- **service-tracking owns** the session state machine, the participation rule, the server-side geofence computation, position ingress + rate limiting, and the durable `service_*` outbox events. **Its own `service_outbox` is a fan-out source**: both the Spec 16 notifications consumer and the Spec 18 video consumer drain it independently, each tracking its own progress in `service_outbox_consumers` keyed by `(event_id, consumer_name)`. There is no single shared marker, so `service_arrived` is delivered to BOTH consumers regardless of the order in which they ack.
 - **Auth owns** identity resolution (Keycloak JWT `sub`), HMAC signing (`CENTRIFUGO_TOKEN_SECRET`), and token TTL/expiry. It consults service-tracking's participation rule to mint a session channel token; it learns no tracking business rules.
 - Dependency is one-directional (auth → service-tracking participation check; service-tracking → offer/escrow outbox, read-only). No business transaction depends on tracking; no duplicated auth surface.
 
@@ -77,7 +86,7 @@ graph TB
         PosRateLimiter["PositionRateLimiter<br/>(per user+session, Redis)"]
         SessionRepo["ServiceSessionRepository<br/>(parameterized SQL + outbox)"]
         Participation["ServiceSessionParticipationService<br/>isParticipant()"]
-        ActivationListener["ServiceActivationListener<br/>(relay: service_activation_ready)"]
+        ActivationListener["ServiceActivationConsumer<br/>(own checkpoint over upstream<br/>service_activation_ready)"]
         OfferTermListener["OfferTerminalSessionListener<br/>(force-cancel)"]
         Sweep["ServiceSweepProcessor<br/>(BullMQ repeatable: stale + abandon)"]
         CentrifugoClient["CentrifugoClient (existing, reused)"]
@@ -85,9 +94,14 @@ graph TB
     end
 
     subgraph Infra["🗄️ Infra"]
-        PG[("PostgreSQL + PostGIS<br/>service_sessions, service_outbox")]
+        PG[("PostgreSQL + PostGIS<br/>service_sessions, service_outbox,<br/>service_outbox_consumers,<br/>service_activation_consumed")]
         Redis["Redis + BullMQ<br/>(sweep, rate-limit counters)"]
         Cent["Centrifugo (service:session:{id})"]
+    end
+
+    subgraph Consumers["Downstream outbox consumers (independent per-consumer checkpoints)"]
+        NotifConsumer["notifications consumer (Spec 16)"]
+        VideoConsumer["video consumer (Spec 18)"]
     end
 
     subgraph Emitters["Emitting domains (sources of truth)"]
@@ -107,9 +121,14 @@ graph TB
     TrackChannel -->|GET sub token| AuthToken
 
     OfferEscrow --> PG
-    ActivationListener -->|drain activation| PG
+    ActivationListener -->|drain activation via own checkpoint| PG
     ActivationListener --> SessionSvc
     OfferTermListener --> SessionSvc
+
+    PG -->|service_outbox fan-out| NotifConsumer
+    PG -->|service_outbox fan-out| VideoConsumer
+    NotifConsumer -->|ack event_id,'notifications'| PG
+    VideoConsumer -->|ack event_id,'video'| PG
 
     SessionCtrl --> SessionSvc
     SessionCtrl --> PosRateLimiter
@@ -128,22 +147,28 @@ graph TB
     Cent -->|live position + state| TrackChannel
 ```
 
-**Data flow — activation → session creation (durable-first, idempotent):**
-1. The offer/escrow path commits the match + escrow capture and, in the same transaction, writes a `service_activation_ready` outbox row (`event_id UNIQUE`, `payload = { offerId, hostId, cleanerId, propertyId }`).
-2. `ServiceActivationListener` (relay) drains committed-but-unrelayed activation rows and calls `ServiceSessionService.createFromActivation()`.
-3. `createFromActivation` snapshots the property point (`property_location_snapshot`) and the configured radius (`geofence_radius_m`), then `INSERT ... ON CONFLICT (offer_id) DO NOTHING` — `UNIQUE offer_id` guarantees at most one session; a redelivered event is a no-op (idempotent).
+**Data flow — activation → session creation (durable-first, idempotent, per-consumer checkpoint):**
+1. The offer/escrow path commits the match + escrow capture and, in the same transaction, writes a `service_activation_ready` outbox row (`event_id UNIQUE`, `payload = { offerId, hostId, cleanerId, propertyId }`) into **its own** outbox table.
+2. `ServiceActivationConsumer` drains that upstream outbox for rows service-tracking has **not yet acknowledged as its own consumer** (`NOT EXISTS` against its own `service_activation_consumed` cursor for that upstream `event_id`, ordered by `created_at`, bounded batch) — it never mutates a shared `relayed_at` on a table it does not own, so other consumers of the same upstream outbox are unaffected. It calls `ServiceSessionService.createFromActivation()` and then records its own ack row in `service_activation_consumed`.
+3. `createFromActivation` snapshots the property point (`property_location_snapshot`) and the configured radius (`geofence_radius_m`), then `INSERT ... ON CONFLICT (offer_id) DO NOTHING` — `UNIQUE offer_id` guarantees at most one session; a redelivered event (or a re-drained-but-not-yet-acked row) is a no-op (idempotent), the backstop behind at-least-once delivery.
 
 **Data flow — position ingress → geofence → arrival (Option A):**
 1. Cleaner POSTs `{ lat, lng, accuracy, heading?, at }` to `POST /service-sessions/:id/position`.
 2. `ServiceSessionController` authorizes the caller as the session's Cleaner, then `PositionRateLimiter` drops/coalesces samples faster than `SERVICE_POSITION_MIN_INTERVAL_MS` per `(user, session)` (ignored, not errored).
-3. `GeofenceService` computes **eligibility** (`accuracy ≤ SERVICE_POSITION_MAX_ACCURACY_M` AND `server_now − at ≤ SERVICE_POSITION_MAX_AGE_MS`). An ineligible sample is ignored for arrival (never errors).
-4. For an eligible sample on an `EN_ROUTE` session, PostGIS `ST_DWithin(property_location_snapshot, ST_MakePoint(lng, lat)::geography, geofence_radius_m)` runs. On pass, a single-winner `EN_ROUTE → ARRIVED` write sets `arrived_at` (server timestamp), `arrival_distance_m`, and writes a `service_arrived` outbox event in the SAME transaction.
+3. `GeofenceService` computes **eligibility** (`accuracy ≤ SERVICE_POSITION_MAX_ACCURACY_M` AND `server_now − at ≤ SERVICE_POSITION_MAX_AGE_MS` AND `at ≤ server_now + SERVICE_POSITION_MAX_CLOCK_SKEW_MS`, so a future-dated sample cannot pass). An ineligible (low-accuracy, stale, or future-dated) sample is ignored for arrival (never errors). `accuracy` is used **solely as an eligibility gate** — never to widen, narrow, or correct the geofence radius.
+4. For an eligible sample on an `EN_ROUTE` session, PostGIS `ST_DWithin(property_location_snapshot, ST_MakePoint(lng, lat)::geography, geofence_radius_m)` runs. On pass, a single-winner `EN_ROUTE → ARRIVED` write sets `arrived_at` (server timestamp), `arrival_distance_m` (the **geometric geodesic distance** of the reported point to the property, not an error-bounded distance), and writes a `service_arrived` outbox event in the SAME transaction.
 5. Regardless of arrival, the server best-effort re-publishes the position to `service:session:{id}` for the Host. A publish failure is swallowed; correctness is unaffected.
 
 **Data flow — connect/subscribe (Host, read-only):**
 1. `useTrackingChannel` GETs a subscription token from `/auth/centrifugo/token?channel=service:session:{id}`.
 2. Auth asks `ServiceSessionParticipationService.isParticipant(sub, id)`; issues a subscription token only if true, else `403`.
 3. The Host connects and subscribes read-only; identity is always the JWT subject — the id in the channel string is never trusted. The Cleaner is not a channel publisher at all.
+
+**Data flow — `service_outbox` fan-out to independent consumers (no shared marker):**
+1. Every state transition writes its `service_outbox` row (`event_id UNIQUE`, e.g. `service_arrived:{sessionId}`) in the SAME transaction as the single-winner state change — the atomicity invariant is preserved unchanged.
+2. Each downstream consumer runs its own bounded relay: it selects `service_outbox` rows for which **no `service_outbox_consumers` row exists for its own `consumer_name`** (`LEFT JOIN ... WHERE c.event_id IS NULL`, or the equivalent `NOT EXISTS`), ordered by `created_at`.
+3. After durably handling a row, the consumer inserts its own ack `(event_id, consumer_name, processed_at)` — `ON CONFLICT (event_id, consumer_name) DO NOTHING`, so re-draining is idempotent per consumer (at-least-once).
+4. Because each consumer tracks progress in its own `(event_id, consumer_name)` row, the notifications consumer acking `service_arrived` does **not** mark it processed for the video consumer, and vice versa: the same event is independently delivered to BOTH. There is no shared `relayed_at` that one consumer can flip to starve the other.
 
 ## Components and Interfaces
 
@@ -160,16 +185,19 @@ graph TB
 - Functions ≤30 lines, SRP; the geofence and rate-limit concerns live in dedicated collaborators.
 
 **`GeofenceService`** — the pure eligibility + arrival decision.
-- `isEligible(sample, serverNow, config): boolean` — `accuracy ≤ MAX_ACCURACY_M` AND `(serverNow − at) ≤ MAX_AGE_MS`. Pure, unit/property-testable.
+- `isEligible(sample, serverNow, config): boolean` — eligible iff `accuracy ≤ MAX_ACCURACY_M` AND `(serverNow − at) ≤ MAX_AGE_MS` AND `at ≤ serverNow + MAX_CLOCK_SKEW_MS` (the clock-skew bound rejects future-dated samples). Pure, unit/property-testable.
 - `isWithinGeofence(snapshotPoint, sample, radiusM): Promise<{ within: boolean; distanceM: number }>` — PostGIS `ST_DWithin` + `ST_Distance` over the session's **snapshot** (not the live property row), returning the server-observed distance. Uses the session's snapshotted radius so a config change or mid-session property edit never retroactively alters an in-flight session.
+- **Accuracy semantics (accepted MVP simplification):** `accuracy` is an **eligibility gate ONLY** — a sample is rejected when `accuracy > MAX_ACCURACY_M`, but `accuracy` is **never** used to widen, narrow, or otherwise mathematically correct the geofence radius. Correspondingly, `arrival_distance_m` is the **geometric geodesic distance** from the reported point to the property, not an error-bounded distance. This is documented rather than corrected; robust error-modelling is out of scope.
 
 **`PositionRateLimiter`** — server-side throttle per `(user, session)` backed by Redis (never trusting the client to self-limit). `shouldAccept(userId, sessionId, now): boolean` — rejects (drops/coalesces) samples faster than `SERVICE_POSITION_MIN_INTERVAL_MS`; over-frequent samples are ignored, not errored.
 
 **`ServiceSessionParticipationService`** — `isParticipant(userId, sessionId): Promise<boolean>`, a thin lookup resolving the session's `host_id`/`cleaner_id`, used by both service-tracking authorization and the auth subscription-token endpoint. Single source of the participation rule.
 
-**`ServiceSessionRepository`** — parameterized SQL only. `createSession(payload)` (idempotent upsert on `offer_id`), single-winner `transition(id, expected, next, derivedFields, outboxEvent)` (state change + timestamps + outbox row in ONE transaction), `findById`, `findExpirableEnRoute(before)` / `findAbandonedMatched(before)` (bounded sweep queries), `findByOfferId`. The geofence `ST_DWithin`/`ST_Distance` run through this repository against `property_location_snapshot`.
+**`ServiceSessionRepository`** — parameterized SQL only. `createSession(payload)` (idempotent upsert on `offer_id`), single-winner `transition(id, expected, next, derivedFields, outboxEvent)` (state change + timestamps + `service_outbox` row in ONE transaction), `findById`, `findExpirableEnRoute(before)` / `findAbandonedMatched(before)` (bounded sweep queries), `findByOfferId`, and the per-consumer outbox queries `findOutboxUnackedFor(consumerName, batch)` (`NOT EXISTS` against `service_outbox_consumers`) + `ackOutboxFor(eventId, consumerName)` (`ON CONFLICT DO NOTHING`). The geofence `ST_DWithin`/`ST_Distance` run through this repository against `property_location_snapshot`.
 
-**`ServiceActivationListener`** (relay) — drains committed-but-unrelayed `service_activation_ready` outbox rows (`relayed_at IS NULL`, ordered by `created_at`, bounded batch), calls `createFromActivation`, then marks the row relayed. At-least-once and idempotent (a re-drained row is deduped by `UNIQUE offer_id`).
+**`ServiceActivationConsumer`** (relay) — drains the upstream `service_activation_ready` outbox rows service-tracking has **not yet acked as its own consumer** (`NOT EXISTS` against `service_activation_consumed` for that upstream `event_id`, ordered by `created_at`, bounded batch), calls `createFromActivation`, then inserts its own ack row into `service_activation_consumed` (`ON CONFLICT (upstream_event_id) DO NOTHING`). It **never** mutates a shared `relayed_at` on the offer/escrow-owned table, so co-consumers of that upstream outbox are unaffected. This is the exact same per-consumer-checkpoint discipline `service_outbox_consumers` applies downstream, but tracked in service-tracking's own small cursor table because the upstream `event_id` is not an FK target here. At-least-once and idempotent (a re-drained row is deduped by `UNIQUE offer_id`).
+
+**`ServiceOutboxConsumerCheckpoint`** — the per-consumer draining primitive over `service_outbox`. `drainUnacked(consumerName, batch)` selects rows with no `service_outbox_consumers` row for `consumerName` (`LEFT JOIN`/`NOT EXISTS`), and `ack(eventId, consumerName)` inserts the ack (`ON CONFLICT (event_id, consumer_name) DO NOTHING`). This is the fan-out seam that lets the Spec 16 notifications consumer and the Spec 18 video consumer each receive `service_arrived` independently, with no shared processing marker.
 
 **`OfferTerminalSessionListener`** — mirrors voip's `OfferTerminalCallListener`: on offer terminal (cancelled/expired/completed) or match invalidation, `forceCancelForOffer(offerId, CANCELED_OFFER_TERMINAL)` idempotently. Wired via the existing offer-terminal path (event listener or direct call), introducing no new coupling.
 
@@ -233,27 +261,51 @@ Indexes / constraints:
 - `CHECK` constraints (VARCHAR + app validation, not PG enums) for `state` and `ended_reason`.
 - **No breadcrumb / location-history column** — only the single scalar `arrival_distance_m` persists.
 
-Migration: `services/api/src/migrations/<timestamp>-CreateServiceSessions.ts`, reversible `up()`/`down()`, `IF NOT EXISTS`, table/column comments.
+Migration: `services/api/src/migrations/<timestamp>-CreateServiceSessions.ts`, reversible `up()`/`down()`, `IF NOT EXISTS`, table/column comments. The `service_outbox`, `service_outbox_consumers` (with its FK to `service_outbox` + composite unique), and `service_activation_consumed` tables (below) are created in the same reversible migration (or a paired one), each with `IF NOT EXISTS`, indexes, and comments; `down()` drops them in dependency order (`service_outbox_consumers` before `service_outbox`).
 
-### `service_outbox` (durable events consumed by Spec 16 push / Spec 18 video)
+### `service_outbox` (durable events fanned out to Spec 16 push / Spec 18 video)
 
-Mirrors the per-domain outbox convention (push-notifications). Written in the SAME transaction as the state transition; the notifications relay and the video verification listener consume it.
+Mirrors the per-domain outbox convention (push-notifications). Written in the SAME transaction as the state transition. It is a **fan-out source drained by multiple independent consumers**; the row itself carries **no shared processing marker** — per-consumer progress lives in `service_outbox_consumers` (below), so one consumer can never starve another.
 
 | Column | Type | Notes |
 |---|---|---|
 | `id` | `UUID PK DEFAULT gen_random_uuid()` | |
-| `event_id` | `VARCHAR(255) NOT NULL` | **`UNIQUE`** — deterministic per transition (e.g. `service_arrived:{sessionId}`) |
+| `event_id` | `VARCHAR(255) NOT NULL` | **`UNIQUE`** — deterministic per transition (e.g. `service_arrived:{sessionId}`); the fan-out join key |
 | `aggregate_type` | `VARCHAR(30) NOT NULL DEFAULT 'service_session'` | app-validated |
 | `aggregate_id` | `UUID NOT NULL` | the `service_sessions.id` |
 | `type` | `VARCHAR(50) NOT NULL` | `service_en_route` / `service_arrived` / `service_started` |
 | `payload` | `JSONB NOT NULL` | minimal ids (e.g. `{ sessionId, offerId, cleanerId, hostId }`; `service_arrived` adds `arrivalDistanceM`) — no coordinate stream, no PII |
 | `version` | `INTEGER NOT NULL DEFAULT 1` | payload version |
 | `created_at` | `TIMESTAMPTZ NOT NULL DEFAULT NOW()` | committed WITH the transition |
-| `relayed_at` | `TIMESTAMPTZ` (nullable) | set by a consumer's relay after durable handling |
 
-Indexes: `uq_service_outbox_event (event_id)`; `idx_service_outbox_unrelayed (created_at) WHERE relayed_at IS NULL`.
+> **No `relayed_at`.** A single shared marker would be a fan-out data race (whichever consumer set it first would starve the other of `service_arrived`, the event that unlocks Spec 18). Per-consumer acknowledgement is tracked in `service_outbox_consumers` instead.
 
-> **Consumes `service_activation_ready`.** service-tracking does not own the activation outbox table (the offer/escrow domain owns it, per "each context owns its tables"); `ServiceActivationListener` reads it read-only via the shared relay seam and dedups creation on `UNIQUE offer_id`.
+Indexes: `uq_service_outbox_event (event_id)`; `idx_service_outbox_created (created_at)` (ordered per-consumer drain scan).
+
+### `service_outbox_consumers` (per-consumer acknowledgement — the fan-out checkpoint)
+
+One row per `(event_id, consumer_name)` records that a specific consumer has durably processed that outbox event. Each consumer drains only events with **no** row here for its own `consumer_name`, then inserts one — making delivery at-least-once and idempotent **per consumer**, independent of every other consumer.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | `UUID PK DEFAULT gen_random_uuid()` | |
+| `event_id` | `VARCHAR(255) NOT NULL` | FK → `service_outbox(event_id)` **ON DELETE CASCADE**; part of the composite ack key |
+| `consumer_name` | `VARCHAR(50) NOT NULL` | app-validated (e.g. `notifications`, `video`) — the consumer identity |
+| `processed_at` | `TIMESTAMPTZ NOT NULL DEFAULT NOW()` | set when this consumer durably handled the event |
+
+Indexes/constraints: `uq_service_outbox_consumers_event_consumer (event_id, consumer_name)` — the ack idempotency guarantee and the fan-out join key; `idx_service_outbox_consumers_consumer (consumer_name)`. Each consumer's "unacked" query is `service_outbox LEFT JOIN service_outbox_consumers ON event_id AND consumer_name=:c WHERE consumers.event_id IS NULL` (equivalently `NOT EXISTS`), so the "unrelayed" scan is **per-consumer aware** rather than driven by a shared column.
+
+### `service_activation_consumed` (upstream consumption cursor — service-tracking's own checkpoint)
+
+service-tracking does not own the upstream `service_activation_ready` outbox table (the offer/escrow domain owns it, per "each context owns its tables"), and its `event_id` is therefore not an FK target here. So service-tracking records its own consumption progress in this small cursor table — the same per-consumer-checkpoint discipline `service_outbox_consumers` applies downstream, kept in a table it owns rather than mutating a shared `relayed_at` on the upstream table.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | `UUID PK DEFAULT gen_random_uuid()` | |
+| `upstream_event_id` | `VARCHAR(255) NOT NULL` | **`UNIQUE`** — the offer/escrow outbox `event_id` service-tracking has consumed (no cross-context FK) |
+| `consumed_at` | `TIMESTAMPTZ NOT NULL DEFAULT NOW()` | set when `createFromActivation` durably ran |
+
+Index/constraint: `uq_service_activation_consumed_event (upstream_event_id)`. `ServiceActivationConsumer`'s "unconsumed" query is a `NOT EXISTS` against this table; `createFromActivation` remains idempotent on `UNIQUE offer_id` as the backstop.
 
 ### Deletion-policy coherence (Spec 13 invariant)
 
@@ -313,9 +365,9 @@ Each property is testable and maps back to the requirements' REQ-ST invariants a
 
 ### Property 5: Server-authoritative geofence over the snapshot (eligibility-gated)
 
-*For any* reported sample and *for any* session with `property_location_snapshot` L and snapshotted radius R, an `EN_ROUTE → ARRIVED` transition (with `arrival_distance_m`) SHALL occur if and only if the sample is **eligible** (`accuracy ≤ SERVICE_POSITION_MAX_ACCURACY_M` AND `server_now − at ≤ SERVICE_POSITION_MAX_AGE_MS`) AND the geodesic distance between L and the reported point ≤ R. The evaluation SHALL use the creation-time snapshot L and R, invariant to any later config or property mutation. A client "arrived" claim without a passing eligible sample SHALL never set the arrival fact, and an ineligible sample SHALL be ignored for arrival without erroring.
+*For any* reported sample and *for any* session with `property_location_snapshot` L and snapshotted radius R, an `EN_ROUTE → ARRIVED` transition (with `arrival_distance_m`) SHALL occur if and only if the sample is **eligible** (`accuracy ≤ SERVICE_POSITION_MAX_ACCURACY_M` AND `server_now − at ≤ SERVICE_POSITION_MAX_AGE_MS` AND `at ≤ server_now + SERVICE_POSITION_MAX_CLOCK_SKEW_MS`, so a future-dated sample is ineligible) AND the geodesic distance between L and the reported point ≤ R. The evaluation SHALL use the creation-time snapshot L and R, invariant to any later config or property mutation. `accuracy` SHALL act as an eligibility gate ONLY — never widening, narrowing, or correcting R — and `arrival_distance_m` SHALL be the geometric geodesic distance, not an error-bounded distance. A client "arrived" claim without a passing eligible sample SHALL never set the arrival fact, and an ineligible (low-accuracy, stale, or future-dated) sample SHALL be ignored for arrival without erroring.
 
-**Validates: Requirements 3.1, 3.2, 3.4, 3.5, 4.7** · REQ-ST4, REQ-ST12
+**Validates: Requirements 3.1, 3.2, 3.4, 3.5, 3.7, 4.7** · REQ-ST4, REQ-ST12
 
 ### Property 6: Single-winner, atomic, monotonic state machine
 
@@ -353,6 +405,12 @@ Each property is testable and maps back to the requirements' REQ-ST invariants a
 
 **Validates: Requirements 7.3** · REQ-ST9
 
+### Property 12: Independent fan-out delivery to every outbox consumer
+
+*For any* committed `service_outbox` event (in particular `service_arrived`) and *for any* set of independent consumers (notifications = Spec 16, video = Spec 18) draining in any interleaving, the event SHALL be delivered to EVERY consumer that has not yet acked it, tracked per `(event_id, consumer_name)` in `service_outbox_consumers`: one consumer recording its ack SHALL NEVER prevent, consume, or otherwise mark the event processed for any other consumer. Each consumer's delivery SHALL be at-least-once and idempotent for its own `consumer_name`, independent of every other consumer, and the event row itself SHALL carry no shared processing marker that a single consumer could flip. The `service_outbox` row SHALL have been written in the same transaction as its single-winner state transition.
+
+**Validates: Requirements 3.6, 7.4** · REQ-ST5
+
 ## Error Handling
 
 | Condition | Response |
@@ -360,9 +418,11 @@ Each property is testable and maps back to the requirements' REQ-ST invariants a
 | Non-participant / unauthenticated on any session endpoint | `403`, no existence disclosure, no position data |
 | Subscription-token request by a non-participant | `403`, no token minted |
 | Redelivered `service_activation_ready` / concurrent create | `UNIQUE offer_id` (`ON CONFLICT DO NOTHING`) → idempotent no-op |
-| Activation-listener / create-path failure | Row-scoped catch; activation row not marked relayed; retried next drain; match/escrow tx unaffected |
+| Activation-consumer / create-path failure | Row-scoped catch; no ack row inserted for `service_tracking_activation`; retried next drain via its own checkpoint; match/escrow tx unaffected |
+| `service_outbox` event fanned out to multiple consumers | Each consumer drains via `service_outbox_consumers` (`NOT EXISTS` for its own `consumer_name`) and acks only its own `(event_id, consumer_name)`; one consumer acking never starves another; no shared `relayed_at` |
+| Consumer re-drains an already-acked event | `ON CONFLICT (event_id, consumer_name) DO NOTHING` → idempotent no-op per consumer |
 | Position sample faster than min interval | Rate-limited: dropped/coalesced, ignored (never errored) |
-| Ineligible sample (low accuracy / stale) | Ignored for arrival, never sets `ARRIVED`, never errors; still best-effort re-published |
+| Ineligible sample (low accuracy / stale / future-dated beyond clock-skew) | Ignored for arrival, never sets `ARRIVED`, never errors; still best-effort re-published |
 | Geofence check does not pass | Session stays `EN_ROUTE`; no arrival fact regardless of any client claim |
 | Concurrent transition on one session | Single-winner: exactly one write succeeds; losers observe rows=0 and no-op |
 | Illegal state transition attempted | Rejected (`409`); state unchanged; terminal states immutable |
@@ -387,13 +447,14 @@ Library: `fast-check` (TypeScript). Each test runs **minimum 100 iterations** an
 | P2 Non-blocking isolation | Random failures injected into listener/create path | Source match/escrow fact unchanged; activation row re-drainable |
 | P3 Participant isolation | Random (user, session) pairs across all endpoints | Access iff user ∈ {host_id, cleaner_id}; else `403`, no disclosure |
 | P4 Token scoping | Random participant/non-participant pairs + channels | Sub token iff participant; read-only Host scope; no publish grant; secret never shipped |
-| P5 Geofence + eligibility + snapshot | Random points, accuracy, sample age, radii, post-creation config/property mutations | ARRIVED iff eligible AND distance ≤ snapshot radius; snapshot values used; claim/ineligible never arrives |
+| P5 Geofence + eligibility + snapshot | Random points, accuracy, sample age, **future-dated `at` beyond/within clock-skew**, radii, post-creation config/property mutations | ARRIVED iff eligible (accuracy ≤ max AND age ≤ max AND `at ≤ server_now + MAX_CLOCK_SKEW_MS`) AND distance ≤ snapshot radius; snapshot values used; accuracy only gates (never corrects radius); `arrival_distance_m` is geometric geodesic; a future-dated sample never arrives; claim/ineligible never arrives |
 | P6 State machine single-winner + atomicity | Random (from,to) pairs + N concurrent actors per transition | One winner sets derived fields + outbox atomically; illegal edges rejected; terminal immutable |
 | P7 No-stuck sweep | Random session ages/progress/thresholds + terminal signals | Correct differentiated `ended_reason`; bounded, idempotent, single-winner |
 | P8 Rate limiting | Random sample arrival-time sequences per (user, session) | Accepted samples spaced ≥ MIN_INTERVAL; excess ignored, not errored |
 | P9 Ephemeral position | Random sequences of position samples | Persisted location data == {arrival_distance_m} only; no trail; no PII in logs |
 | P10 Best-effort + reconciliation | Random publish outcomes / dropped frames | Durable state + arrival fact identical; `GET` returns authoritative state |
 | P11 Deletion coherence | Random session graphs + participant deletion | host/cleaner/property nulled; session + arrival fact retained; no user-cascade |
+| P12 Independent fan-out delivery | Random `service_outbox` events × arbitrary consumer sets (notifications, video) × arbitrary drain/ack interleavings | Every not-yet-acked consumer receives each event; one consumer's ack never marks it processed for another; per-`(event_id, consumer_name)` at-least-once + idempotent; no shared marker |
 
 ### Unit Tests (NestJS)
 
@@ -401,14 +462,17 @@ Library: `fast-check` (TypeScript). Each test runs **minimum 100 iterations** an
 - **`ServiceSessionService`**: participant + state gates; single-winner transition (rows=1 winner vs rows=0 no-op); atomic persist + outbox; best-effort publish failure non-blocking; server-timestamp on `arrived_at`.
 - **`PositionRateLimiter`**: accept/drop decisions across arrival cadences; per-(user,session) isolation.
 - **`ServiceSessionParticipationService`**: host/cleaner resolution; non-participant denial.
-- **`ServiceSessionRepository`**: parameterized SQL; single-winner conditional write; sweep queries select only aged non-terminal rows; `ST_DWithin`/`ST_Distance` over the snapshot; idempotent `ON CONFLICT` create.
-- **`ServiceActivationListener`** / **`OfferTerminalSessionListener`**: idempotent creation off the activation event; idempotent force-cancel; failures isolated from the source flow.
+- **`ServiceSessionRepository`**: parameterized SQL; single-winner conditional write with the `service_outbox` row in the same transaction; sweep queries select only aged non-terminal rows; per-consumer outbox queries (`findOutboxUnackedFor` `NOT EXISTS`, idempotent `ackOutboxFor`); `ST_DWithin`/`ST_Distance` over the snapshot; idempotent `ON CONFLICT` create.
+- **`ServiceActivationConsumer`** / **`OfferTerminalSessionListener`**: idempotent creation off the activation event drained via its own consumer checkpoint (no shared `relayed_at` mutation on the upstream table); idempotent force-cancel; failures isolated from the source flow.
+- **`ServiceOutboxConsumerCheckpoint`**: `drainUnacked` selects only rows lacking an ack for the given `consumer_name`; `ack` is idempotent (`ON CONFLICT (event_id, consumer_name) DO NOTHING`); two consumer names drain the same event independently.
 - **`validateServiceTrackingConfig()`**: fail-fast when required config missing.
 - **Auth session token**: participant-gated mint; read-only Host scope; expiry/signature.
 
 ### Integration Tests
 
-- Activation event → session created (`MATCHED`); redelivery → still one session.
+- Activation event → session created (`MATCHED`) via service-tracking's own consumer checkpoint; redelivery → still one session (`UNIQUE offer_id`).
+- **Fan-out:** one `service_outbox` event (e.g. `service_arrived`) → notifications consumer acks → video consumer still receives it; and vice versa (video acks first → notifications still receives it) — each acks only its own `(event_id, consumer_name)`, neither starves the other.
+- Future-dated position sample (`at` beyond `SERVICE_POSITION_MAX_CLOCK_SKEW_MS`) → ineligible, stays `EN_ROUTE`, no arrival fact.
 - Full flow: en-route → eligible position within radius → `ARRIVED` (server ts + `arrival_distance_m` + `service_arrived`) → start → `IN_PROGRESS` (`service_started`).
 - Ineligible/out-of-radius samples → stays `EN_ROUTE`, no arrival fact.
 - Rate limiting: burst of samples → only spaced ones evaluated.
@@ -432,8 +496,9 @@ Library: `fast-check` (TypeScript). Each test runs **minimum 100 iterations** an
 Backend (`services/api`, via `ConfigService`; `validateServiceTrackingConfig()` fail-fast at startup):
 - `SERVICE_GEOFENCE_RADIUS_M` (default ~50) — geofence radius snapshotted at session creation.
 - `SERVICE_POSITION_MIN_INTERVAL_MS` — **server-side** rate limit per `(user, session)`.
-- `SERVICE_POSITION_MAX_ACCURACY_M` — eligibility: max reported accuracy.
+- `SERVICE_POSITION_MAX_ACCURACY_M` — eligibility: max reported accuracy (a gate only; never a radius correction).
 - `SERVICE_POSITION_MAX_AGE_MS` — eligibility: max sample age (`server_now − at`).
+- `SERVICE_POSITION_MAX_CLOCK_SKEW_MS` — eligibility: max tolerated future-dating (`at ≤ server_now + this`); rejects future-dated samples.
 - `SERVICE_POSITION_CHANNEL_PREFIX` (default `service:session:`).
 - `SERVICE_POSITION_TOKEN_TTL_SECONDS` — session channel token TTL.
 - `SERVICE_EN_ROUTE_STALE_MS`, `SERVICE_SESSION_ABANDON_MS` — sweep thresholds.
@@ -449,7 +514,7 @@ Security: the Centrifugo secret lives only in server config, shipped only as a t
 ## Documentation Impact
 
 - New module READMEs: `services/api/src/service-tracking/README.md`, `apps/mobile/src/screens/tracking/README.md`; note the new `auth/centrifugo` `service:session:{id}` channel token in the auth module README.
-- `docs/ARCHITECTURE.md`: add the service-tracking module + a **service-tracking lifecycle flow** diagram (activation → session → en-route → position ingress → geofence → arrived → started) and the position-ingress (Option A) control-plane/media-plane split; the Centrifugo node already exists.
+- `docs/ARCHITECTURE.md`: add the service-tracking module + a **service-tracking lifecycle flow** diagram (activation → session → en-route → position ingress → geofence → arrived → started), the position-ingress (Option A) control-plane/media-plane split, and the **`service_outbox` fan-out to independent per-consumer checkpoints** (`service_outbox_consumers`) for Spec 16 / Spec 18; the Centrifugo node already exists.
 - `docs/CHANGELOG.md`: `[Unreleased]` entries per task group.
-- `.env.example`: add all `SERVICE_*` keys and `EXPO_PUBLIC_SERVICE_POSITION_MIN_INTERVAL_MS`.
-- **ADR:** a new ADR for *ephemeral live position + server-authoritative geofence over a creation-time snapshot, with position ingress on the backend path (Option A)* (per Req 6.5).
+- `.env.example`: add all `SERVICE_*` keys (including `SERVICE_POSITION_MAX_CLOCK_SKEW_MS`) and `EXPO_PUBLIC_SERVICE_POSITION_MIN_INTERVAL_MS`.
+- **ADR:** a new ADR for *ephemeral live position + server-authoritative geofence over a creation-time snapshot, with position ingress on the backend path (Option A), and a fan-out outbox drained by independent per-consumer checkpoints (`service_outbox_consumers`) — never a single shared `relayed_at`* (per Req 6.5).
