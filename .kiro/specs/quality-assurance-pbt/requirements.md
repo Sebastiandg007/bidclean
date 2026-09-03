@@ -41,7 +41,11 @@ feature specs (1–24) — each declares testable correctness properties (source
 correctness-properties catalog (the single verification index)
    { propertyId (P#/REQ-VP*/REQ-NP*/REQ-ST*/REQ-VV*/REQ-CP*/REQ-SC*/REQ-DS*/REQ-FV*/REQ-TH*/REQ-SM* + S1–3),
      owningSpec, statement, → mapped to one or more executable tests }
-   coverage rule: every declared property maps to ≥1 automated test; unmapped property = reported gap
+   coverage rule: every declared property maps to ≥1 automated test; an UNMAPPED property (zero mapped tests)
+     FAILS CI unless covered by an ACCEPTED, time-boxed governance exception
+     { status, owner, expiresAt, approvalRef } — an accepted exception is surfaced as an EXCEPTION,
+     never counted as "covered"; property coverage = a floor of 100% mapped-or-explicitly-accepted-exception.
+     A DISCOVERED GAP (a PBT-found behavior no requirement covers) is a separate finding against the owning spec.
 
 verification tiers (what runs, where):
   1. Property-based (fast-check TS + hypothesis Py): 100+ cases + shrinking per property; deterministic by seed
@@ -87,33 +91,39 @@ CI enforcement:
 
 ## Requirements
 
-### Requirement 1 — Consolidated correctness-properties catalog with full traceability
+### Requirement 1: Consolidated correctness-properties catalog with full traceability
 
 **User Story:** As the platform, I want every declared correctness property tracked and mapped to a test, so that I know the whole system is actually verified, not just claimed.
 
 #### Acceptance Criteria
 
-1. WHEN the QA suite is defined THEN it SHALL consolidate every feature spec's declared correctness properties (Sprint 1–3 properties + `P*`/`REQ-VP*`/`REQ-NP*`/`REQ-ST*`/`REQ-VV*`/`REQ-CP*`/`REQ-SC*`/`REQ-DS*`/`REQ-FV*`/`REQ-TH*`/`REQ-SM*`) into a single traceable catalog `{ propertyId, owningSpec, statement, statementVersion, verification_type, tests[] (stable test ids) }`.
-2. WHEN the catalog is built THEN every declared property SHALL map to at least one executable test (PBT, integration, unit, or E2E per its `verification_type`) referenced by a **stable test identifier**; a property with no mapped test SHALL be reported as a coverage gap, not silently omitted.
-3. WHEN a property's `statement`/`statementVersion` changes in its owning spec without a corresponding review of its mapped tests THEN CI SHALL fail or report the mapping as **stale** — so a property cannot appear "covered" by a test that no longer verifies its current definition (traceability integrity, not just presence of a link).
-4. WHEN QA reports coverage THEN it SHALL report **two distinct metrics**: (a) **property coverage** — declared properties mapped to passing executable tests — and (b) **code coverage** — lines/branches/functions; and it SHALL state explicitly that code-coverage floors do NOT substitute for property coverage (95% lines can still miss a concurrent-release/double-refund invariant).
+1. WHEN the QA suite is defined THEN it SHALL consolidate every feature spec's declared correctness properties (Sprint 1–3 properties + `P*`/`REQ-VP*`/`REQ-NP*`/`REQ-ST*`/`REQ-VV*`/`REQ-CP*`/`REQ-SC*`/`REQ-DS*`/`REQ-FV*`/`REQ-TH*`/`REQ-SM*`) into a single traceable catalog where each entry contains `{ propertyId, owningSpec, statement, statementVersion, verification_type, tests[] (stable test ids) }` and every listed field is non-empty.
+1a. IF a declared property is missing any required catalog field (`propertyId`, `owningSpec`, `statement`, `statementVersion`, or `verification_type`) or its `verification_type` is not one of {PBT, integration, unit, E2E} THEN CI SHALL fail, THE System SHALL emit a finding identifying the offending property and the missing or invalid field, and THE System SHALL NOT admit the malformed property into the catalog.
+2. WHEN the catalog is built THEN every declared property SHALL map to at least one executable test (PBT, integration, unit, or E2E per its `verification_type`) referenced by a **stable test identifier**; and QA SHALL distinguish an **unmapped property** (a declared property with zero mapped executable tests) from a **discovered gap** (a PBT-found behavior no requirement covers), reporting the two as separate, non-interchangeable finding categories.
+2a. IF a declared property has no mapped passing test AND has no `ACCEPTED`, unexpired **governance exception** THEN CI SHALL fail; and emitting the unmapped property as a reported finding SHALL NOT by itself cause CI to pass ("we know it is uncovered" is not equivalent to "it is verified").
+2b. WHERE an unmapped property is covered by a **governance exception** record `{ status: OPEN | ACCEPTED, owner, expiresAt, approvalRef }`, WHEN the exception's `status` is `ACCEPTED`, all four fields are non-empty, and `expiresAt` is later than the CI run's evaluation timestamp (UTC) THEN CI SHALL treat the property as a permitted, time-boxed exception and SHALL NOT fail on it; IF `expiresAt` is at or before the CI run's evaluation timestamp THEN CI SHALL fail on the property as an unmapped property; IF `status` is `ACCEPTED` but `owner`, `expiresAt`, or `approvalRef` is empty or unparseable THEN CI SHALL fail and THE System SHALL emit a finding indicating the governance exception is invalid.
+2c. WHEN QA emits coverage output THEN each valid `ACCEPTED` governance exception SHALL be surfaced as an explicit **EXCEPTION** line item, SHALL NOT be counted toward the covered-property count, and SHALL NOT be reported as full or complete property coverage.
+3. WHEN a property's `statement` or `statementVersion` changes in its owning spec AND no review acknowledgment referencing the new `statementVersion` is recorded against its mapped tests THEN CI SHALL fail or report the mapping as **stale**, and THE System SHALL emit a finding identifying the property, its previous and current `statementVersion`, and the affected mapped test identifiers.
+4. WHEN QA reports coverage THEN it SHALL report **two distinct metrics**: (a) **property coverage**, expressed as the ratio of declared properties mapped to at least one **passing** executable test to the total count of declared properties, with **unmapped properties** and **ACCEPTED governance exceptions** broken out as separate line items that are never folded into the covered count, and (b) **code coverage**; and it SHALL state explicitly that code-coverage floors do NOT substitute for property coverage.
 5. WHEN a property test and its owning spec disagree THEN the spec SHALL be authoritative — the discrepancy is resolved by fixing the code or the spec (or filing a gap), never by weakening the test to pass.
+6. IF two or more consolidated catalog entries share the same `propertyId` THEN CI SHALL fail and THE System SHALL emit a finding listing the conflicting `propertyId` and its `owningSpec` values, so that catalog identity remains unique.
 
-### Requirement 2 — Property-based testing (fast-check + Hypothesis, 100+ iterations, shrinking)
+### Requirement 2: Property-based testing (fast-check + Hypothesis, 100+ iterations, shrinking)
 
 **User Story:** As the platform, I want the tricky invariants generated-and-shrunk, so that edge cases no human enumerated are caught.
 
 #### Acceptance Criteria
 
-1. WHEN a business/correctness invariant is testable by generation THEN it SHALL have a property-based test: `fast-check` for TypeScript (API + mobile) and **`hypothesis` for Python** (the AI/FastAPI service).
-2. WHEN a property-based test runs THEN it SHALL execute a configured minimum of iterations (**100+ per property**) and SHALL use shrinking so any failure is minimized to its simplest reproducer.
-3. WHEN a property test fails THEN it SHALL be reproducible from a recorded seed (deterministic given the seed) so the failure can be re-run and debugged.
-4. WHEN money/state invariants are tested THEN PBT SHALL cover the high-risk ones already declared: single-winner transitions (voip/completion/disputes), no-double-pay / no-double-refund, idempotent intents (outbox, release, dispute financial), server-authoritative validation (geofence, object inspection), stale-safe attempts (transcription, verification), tier/limit enforcement (favorites, commission), and ordering/idempotency (chat/voice sequence, push dedup).
-5. WHEN each module is covered THEN there SHALL be per-module PBT for auth, roles, KYC, profile, offers, negotiation, escrow, commission, subscriptions, ads, chat, voice-notes, voip-calls, push, service-tracking, video-verification, checklist, completion, disputes, favorites, theme, and samsung adaptivity.
-6. WHEN a PBT surfaces a case no requirement covers THEN QA SHALL file it as an ambiguity/gap against the owning spec and SHALL NOT invent a behavior to make the test pass.
-7. WHEN a property's iteration count is set THEN 100+ SHALL be the floor, but the count SHALL be **configurable per property/risk** (complex state machines — escrow, disputes, concurrency, idempotency — MAY require far more), and not every property SHALL be PBT: the catalog SHALL record a `verification_type ∈ { PBT, unit, integration, E2E }` per property so a property is verified by the appropriate method, not forced into generation.
+1. WHEN a property in the catalog has `verification_type = PBT` THEN it SHALL have a property-based test implemented with `fast-check` for TypeScript properties (API + mobile) and with `hypothesis` for Python properties (the AI/FastAPI service).
+2. WHEN a property-based test executes THEN it SHALL run at least the property's configured iteration count (floor of 100 iterations per property, default 100 when unspecified) and SHALL enable shrinking so any failing case is reduced to a minimal reproducer before being reported.
+3. IF a property-based test fails THEN the test SHALL report the generator seed used, and re-running the same property with that recorded seed SHALL reproduce the identical failing case (deterministic given the seed).
+4. WHEN money or state invariants are tested THEN PBT SHALL cover the high-risk properties already declared: single-winner transitions (voip/completion/disputes), no-double-pay / no-double-refund, idempotent intents (outbox, release, dispute financial), server-authoritative validation (geofence, object inspection), stale-safe attempts (transcription, verification), tier/limit enforcement (favorites, commission), and ordering/idempotency (chat/voice sequence, push dedup).
+5. WHEN the QA suite is evaluated for module coverage THEN every named module (auth, roles, KYC, profile, offers, negotiation, escrow, commission, subscriptions, ads, chat, voice-notes, voip-calls, push, service-tracking, video-verification, checklist, completion, disputes, favorites, theme, and samsung adaptivity) SHALL have at least one executable verification test of a type matching each covered property's `verification_type` (PBT, unit, integration, or E2E); module coverage SHALL NOT require every module to use PBT.
+6. IF a property classified as generation-suitable / high-risk has no corresponding PBT in the suite THEN the coverage evaluation SHALL flag that property as uncovered and SHALL fail the QA gate.
+7. WHEN a property-based test surfaces a failing case not addressed by any existing requirement THEN QA SHALL record it as an ambiguity/gap against the owning spec and SHALL NOT define new behavior to force the test to pass.
+8. WHEN a property is registered in the catalog THEN it SHALL record exactly one `verification_type` value from the set { PBT, unit, integration, E2E } and MAY specify an iteration count greater than or equal to the floor of 100; properties whose `verification_type` is not PBT SHALL NOT be required to have a property-based test.
 
-### Requirement 3 — Integration with real infrastructure (Docker)
+### Requirement 3: Integration with real infrastructure (Docker)
 
 **User Story:** As the platform, I want the DB/queue/auth/storage-touching code tested against real services, so that migrations, transactions, and cascades are proven, not mocked away.
 
@@ -125,7 +135,7 @@ CI enforcement:
 4. WHEN genuinely external services are involved (Stripe, RevenueCat, OneSignal, LiveKit, AWS Bedrock) THEN they SHALL be exercised via sandbox or **contract-tested** mocks/self-hosted instances — never real production credentials, never real money. A "faithful mock" is not a mock that merely returns 200: each such mock SHALL be **contract-tested against the documented provider responses/events the application actually consumes**, covering success, retry, **duplicate**, timeout, and failure cases (Stripe webhooks, RevenueCat events, OneSignal delivery callbacks, LiveKit call-lifecycle webhooks, Bedrock AI responses), so a mock cannot pass while the real provider would behave differently.
 5. WHEN integration tests complete THEN they SHALL clean up their infra/state so runs are repeatable and isolated.
 
-### Requirement 4 — End-to-end critical journeys
+### Requirement 4: End-to-end critical journeys
 
 **User Story:** As the platform, I want the core user journeys tested end to end, so that the happy paths (and key failure paths) actually work together.
 
@@ -137,7 +147,7 @@ CI enforcement:
 4. WHEN E2E runs on mobile THEN it SHALL use Detox or Maestro against a simulator, and cover both Host and Cleaner role flows.
 5. WHEN at least 5 critical E2E flows are required THEN the split journeys (A–E + favorites-first) SHALL meet or exceed that, and each SHALL be documented as to what journey it verifies; a shared setup/fixtures layer MAY chain them for a full smoke run, but each SHALL also run independently.
 
-### Requirement 5 — Load testing (k6)
+### Requirement 5: Load testing (k6)
 
 **User Story:** As the platform, I want the hot paths tested under concurrency, so that launch traffic doesn't break matching, payments, or realtime.
 
@@ -149,7 +159,7 @@ CI enforcement:
 4. WHEN load tests run THEN they SHALL run against a realistic (Dockerized) environment, not production, and never move real money.
 5. WHEN load results are produced THEN they SHALL be recorded/comparable across runs so regressions are visible.
 
-### Requirement 6 — Cross-module conflict detection & ambiguity analysis
+### Requirement 6: Cross-module conflict detection & ambiguity analysis
 
 **User Story:** As the platform, I want contradictions between specs and uncovered cases surfaced, so that the system is coherent and gaps are known.
 
@@ -161,7 +171,7 @@ CI enforcement:
 4. WHEN deletion/lifecycle coherence is checked THEN QA SHALL verify the deliberate cross-spec policy (user-owned data CASCADE from users — favorites/notifications; shared history SET NULL — chat/calls/completions/disputes/tracking) holds consistently, flagging any violation.
 5. WHEN the analysis completes THEN its output SHALL feed back to the owning specs (and, where relevant, to the `full-audit` spec) rather than being discarded.
 
-### Requirement 7 — CI enforcement, cadence, and coverage floors
+### Requirement 7: CI enforcement, cadence, and coverage floors
 
 **User Story:** As the platform, I want the verification to actually gate merges and releases, so that quality is enforced, not aspirational.
 
@@ -169,11 +179,11 @@ CI enforcement:
 
 1. WHEN the formal suite (PBT + unit + integration) runs THEN it SHALL run in CI on the relevant jobs, and a broken invariant/failed property SHALL fail the build (no merge on red).
 2. WHEN a test tier is too heavy for every-commit CI (full E2E, k6 load, full real-infra matrix) THEN it SHALL run on a defined, documented cadence (nightly/pre-release), never silently skipped.
-3. WHEN coverage is measured THEN **two separate coverage kinds** SHALL be reported: (a) **property coverage** — 100% of declared correctness properties mapped to passing tests (any gap reported) — and (b) **code coverage** — the plan's floors: business logic 90%+, API endpoints 80%+, critical UI 70%+, and the 5+ critical E2E flows. Both are measured minimums; the code-coverage floors SHALL NOT be treated as a substitute for property coverage (the concurrency/money invariants are covered by properties, not by line count).
+3. WHEN coverage is measured THEN **two separate coverage kinds** SHALL be reported: (a) **property coverage** — a floor of 100% of declared correctness properties **mapped-or-explicitly-accepted-exception**, where every property is either mapped to a passing test or covered by an `ACCEPTED`, time-boxed governance exception (surfaced as an EXCEPTION, never counted as covered), and any unmapped property with no accepted exception fails CI — and (b) **code coverage** — the plan's floors: business logic 90%+, API endpoints 80%+, critical UI 70%+, and the 5+ critical E2E flows. Both are measured minimums; the code-coverage floors SHALL NOT be treated as a substitute for property coverage (the concurrency/money invariants are covered by properties, not by line count).
 4. WHEN the CI jobs are extended THEN they SHALL fit the existing pipeline (API lint/typecheck, API tests, AI tests) and add the AI Hypothesis PBT + the heavier cadence tiers without breaking the green-HEAD rule.
 5. WHEN tests are added THEN they SHALL be deterministic (seeded), isolated, and not flaky-by-design; time/randomness/external calls SHALL be controlled so CI is trustworthy.
 
-### Requirement 8 — Configuration, standards, and no hardcoded values
+### Requirement 8: Configuration, standards, and no hardcoded values
 
 **User Story:** As a maintainer, I want the QA layer to follow the project's own standards, so that the tests are themselves maintainable and honest.
 
@@ -189,13 +199,13 @@ CI enforcement:
 
 These are the invariants of the QA system itself (meta-properties); its tests verify the *product's* properties, and these ensure the QA is honest.
 
-- **REQ-QA1 — Full traceability with staleness detection.** Every declared property maps to ≥1 executable test by stable id and carries a `statementVersion` + `verification_type`; a property whose statement changes without test review is flagged **stale** (not silently "covered"); any unmapped property is a reported gap. *(Req 1.1, 1.2, 1.3)*
-- **REQ-QA1b — Property coverage ≠ code coverage.** Two distinct metrics are reported; 100% property coverage is required (gaps reported), code-coverage floors (90/80/70) are separate minimums and never a substitute for property coverage. *(Req 1.4, 7.3)*
+- **REQ-QA1 — Full traceability with staleness detection, and unmapped ≠ acceptable.** Every declared property maps to ≥1 executable test by stable id and carries a `statementVersion` + `verification_type`; a property whose statement changes without test review is flagged **stale** (not silently "covered"). An **unmapped property** (zero mapped tests) FAILS CI — merely reporting it does not make CI pass — unless it carries an `ACCEPTED`, time-boxed **governance exception** `{ status, owner, expiresAt, approvalRef }`, which is surfaced as an EXCEPTION and is never counted as covered and expires back to failing. This is kept distinct from a **discovered gap** (a PBT-found behavior no requirement covers), which is a separate reported finding against the owning spec. *(Req 1.1, 1.2, 1.2a, 1.2b, 1.2c, 1.3)*
+- **REQ-QA1b — Property coverage ≠ code coverage; exceptions never masquerade as coverage.** Two distinct metrics are reported; property coverage is a floor of 100% **mapped-or-explicitly-accepted-exception** (unmapped and exception broken out separately, exceptions never counted as covered), code-coverage floors (90/80/70) are separate minimums and never a substitute for property coverage. *(Req 1.4, 7.3)*
 - **REQ-QA2 — Spec is authoritative; claim is bounded.** A test never overrides a spec (discrepancy → fix code/spec or file a gap, never weaken the test); and QA claims only coverage-bounded verification + reporting of gaps/contradictions/limits, not proof that the whole system is correct. *(Req 1.5, 2.6, Introduction)*
 - **REQ-QA3 — Generated + shrunk, risk-configurable, right-method.** PBT runs a 100+ floor with shrinking in fast-check (TS) and hypothesis (Py), configurable higher per property/risk; and each property is verified by its appropriate `verification_type` (PBT/unit/integration/E2E), not everything forced into generation. *(Req 2.1, 2.2, 2.7)*
 - **REQ-QA4 — Deterministic + reproducible.** Every PBT/integration failure reproduces from a recorded seed; time/randomness/external calls are controlled; no flaky-by-design tests. *(Req 2.3, 7.5)*
 - **REQ-QA5 — Real infra where it matters; mocks are contract-tested.** DB/Redis/Keycloak/MinIO run real (Docker) for the paths that depend on them; external/paid services use sandbox or **contract-tested** mocks (success/retry/duplicate/timeout/failure against documented provider responses/events), never real money or prod secrets — so a mock can't pass while the real provider diverges. *(Req 3.1, 3.4, 8.2)*
-- **REQ-QA6 — High-risk invariants covered.** Single-winner, no-double-pay/refund, idempotent intents, server-authoritative validation, stale-safe attempts, tier limits, and ordering/idempotency all have PBT coverage. *(Req 2.4, 5.3)*
+- **REQ-QA6 — High-risk invariants get PBT; every module gets executable coverage.** The generation-suitable / high-risk invariants — single-winner, no-double-pay/refund, idempotent intents, server-authoritative validation, stale-safe attempts, tier limits, and ordering/idempotency — all have PBT coverage; every named module has executable verification coverage by the appropriate method (PBT/unit/integration/E2E), so module coverage is not a blanket PBT mandate and does not conflict with the right-method principle (Req 2.7 / REQ-QA3). *(Req 2.4, 2.5, 2.7, 5.3)*
 - **REQ-QA7 — Critical journeys E2E.** ≥5 critical E2E journeys (incl. the full service lifecycle, dispute, auto-release, subscription→PRO) pass in a simulator for both roles. *(Req 4.1–4.5)*
 - **REQ-QA8 — Load-proven hot paths.** k6 ≥100 VUs on hot paths with pass/fail thresholds, stressing concurrency-sensitive single-winner logic, against non-prod infra with no real money. *(Req 5.1–5.4)*
 - **REQ-QA9 — Conflicts + gaps reported via a defined artifact, not patched.** Conflict detection runs against a versioned **cross-module contract matrix** (producer/consumer/event/pre/post/ownership/lifecycle) + the property catalog; contradictions and PBT-found uncovered cases are reported with reproducers to owning specs; QA never invents behavior; cross-spec deletion/lifecycle coherence (CASCADE user-owned vs SET NULL shared-history) is verified. *(Req 6.1–6.5)*
