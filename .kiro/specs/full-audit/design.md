@@ -242,11 +242,11 @@ graph TB
     API --> LT
     API --> WSP
     API --> PIP
-    API --> PROM
-    API --> SEN
+    API -. metrics .-> PROM
+    API -. telemetry/logs .-> SEN
 ```
 
-Every node above is a **component-presence + service-health** item; every arrow is an **inter-service-edge** item (reachable + authenticated). Each is probed in both environments.
+Every node above is a **component-presence + service-health** item; every **solid** arrow is a functional **inter-service-edge** item (reachable + authenticated), probed in both environments. The **dotted** edges to the observability stack are **telemetry/export edges** — the API emits metrics/logs/telemetry to Prometheus/Sentry rather than depending on them on the request path (consistent with how the diagram already uses dotted edges for mobile→Centrifugo/LiveKit/MinIO). They are verified as "monitoring is wired + receiving data" under `DEVOPS_SECURITY`, and observability remains a **component-presence + devops-security** item; modeling them as export edges only keeps the registry from treating observability as an artificial functional runtime dependency of the API.
 
 ## Components and Interfaces
 
@@ -272,12 +272,20 @@ export interface ProbeRef {
   readonly probeId: string; // stable id, referenced by checklist items
 }
 
+/** A durable event a component consumes or produces (kept minimal). */
+export interface EventRef {
+  readonly eventName: string; // e.g. 'offer.matched', 'service_arrived', 'outbox.push'
+  readonly channel?: string;  // queue/topic/channel it flows on, e.g. 'radar', 'escrow'
+}
+
 export interface ComponentEntry {
   readonly componentId: string;         // e.g. 'api.bullmq.radar-worker', 'ai.verify-face'
   readonly owner: string;               // owning spec/module accountable for it
   readonly surface: Surface;
   readonly entryPoint: string;          // how it is reached/registered (route, queue name, consumer, cron)
   readonly dependencies: readonly string[]; // other componentIds it depends on
+  readonly consumes?: readonly EventRef[]; // OPTIONAL: durable events this component consumes
+  readonly produces?: readonly EventRef[]; // OPTIONAL: durable events this component emits
   readonly requiredInEnvironment: RequiredInEnvironment;
   readonly healthProbe: ProbeRef;       // liveness signal (NOT integration proof)
   readonly integrationProbe: ProbeRef;  // wired-into-the-system proof (edge/consumer/emitter)
@@ -285,6 +293,21 @@ export interface ComponentEntry {
 ```
 
 The registry covers, at minimum: the top-level services + infra in the topology diagram; the API's Nest modules, BullMQ workers, outbox/event consumers, scheduled jobs, and webhook ingresses (Stripe/RevenueCat/OneSignal/LiveKit); the AI endpoints (`/transcribe`, `/verify-face`); the mobile feature modules; and the notification consumers.
+
+**Why `consumes`/`produces` (event producer/consumer detail).** For an event-driven component (a BullMQ worker, an outbox/event consumer, a webhook ingress, a notification consumer), `dependencies` + a single `integrationProbe` is insufficient to prove integration completeness: "worker A depends on Redis" does not prove worker A actually consumes queue X, emits event Y, and has correct ack/retry semantics. So an event-driven entry explicitly declares the events it `consumes` and `produces`, and **those declared events are exactly what the `integrationProbe` verifies** — the probe confirms the component actually consumes/emits its declared events end-to-end on the running system (an `UNWIRED_COMPONENT`/`CHAIN_NOT_FIRING` FAIL if a declared event never fires), not merely that a dependency is reachable. Both fields are optional because not every component is event-driven — a stateless HTTP module declares neither, and its `integrationProbe` remains the edge/reachability check.
+
+#### Registry reconciliation (the closed registry must not silently drift)
+
+The registry is authoritative — "a component is real only because the registry declares it" — but that authority is only safe if the registry stays **in sync with its own source of truth**: the owning specs (1–24) and the `ARCHITECTURE.md` topology. The risk is real: a new worker is added and its feature spec updated, but the `component-registry.yaml` is *not* — so full-audit would never audit that worker and would still report `READY`. A closed-but-stale registry is a silent hole.
+
+Mirroring the reconciliation rule already used in `secrets-inventory` (owning-artifact ↔ inventory), full-audit adds a **registry reconciliation step** that compares the registry against the components declared by the owning specs / `ARCHITECTURE.md` topology and flags any divergence:
+
+- a component present in a spec/architecture but **missing from the registry** (an un-audited component), or
+- a registry entry with **no owning spec/architecture declaration** (a stale/removed component),
+
+each becomes a **blocking `REGISTRY_STALE` finding**, routed to the owner, forcing `NOT_READY` until the registry is reconciled.
+
+This reconciliation is **initially a documented manual review/check** — exactly as `secrets-inventory` treats its owning-artifact reconciliation — run by the operator against the spec set + `ARCHITECTURE.md` before an audit, and captured on the runbook as the first step ("reconcile registry before auditing"). It MAY later be automated into a reconciliation probe, but the manual review is the day-one bar and is stated explicitly so it is never assumed to be automatic. Because reconciliation guards the registry that Property 1 (completeness) is defined against, it runs **before** the checklist is built.
 
 ### 2. Checklist model (`checklist/checklist.model.ts`)
 
@@ -339,6 +362,7 @@ export type FindingReason =
   | 'DEAD_EDGE'               // edge configured but unreachable/unauthenticated
   | 'UNWIRED_COMPONENT'       // present but not integrated (no consume/emit)
   | 'CHAIN_NOT_FIRING'        // durable event chain never fires end-to-end
+  | 'REGISTRY_STALE'          // registry diverges from owning specs'/ARCHITECTURE's declared components
   | 'LIVE_JOURNEY_FAILED'
   | 'PARITY_BREAK'            // PASS local, FAIL vps (or vice-versa) on a mandatory+applicable item
   | 'UNJUSTIFIED_NA'          // N/A on a mandatory item without a justification
@@ -457,15 +481,15 @@ Items only meaningful in one environment (real Let's Encrypt certs, production d
 
 *A property is a characteristic or behavior that should hold true across all valid executions of a system — essentially, a formal statement about what the system should do. Properties serve as the bridge between human-readable specifications and machine-verifiable correctness guarantees.*
 
-full-audit is an operational spec: the *act* of probing 16 live services, exercising real event chains, running live journeys, inspecting real certs/backups/CI, and building store artifacts is **integration/E2E** work (it tests deployed/external behavior, is high-cost, and does not vary meaningfully with generated input — see the Testing Strategy). But the spec also has a genuine **pure logic core** — the registry→checklist builder, the readiness evaluator (two environments → verdict + parity), the tri-state / `N/A`-justification integrity rule, the findings reporter (routing, no-drop, no-patch), the payment-mode policy, and the no-secret-in-evidence rule. These are pure, deterministic functions over structured inputs (checklist item sets with per-environment tri-state statuses, registries, probe results) with universal invariants, so property-based testing is the right tool for them. Each property below is universally quantified and maps back to the acceptance criteria and the `REQ-FA*` invariants.
+full-audit is an operational spec: the *act* of probing 16 live services, exercising real event chains, running live journeys, inspecting real certs/backups/CI, and building store artifacts is **integration/E2E** work (it tests deployed/external behavior, is high-cost, and does not vary meaningfully with generated input — see the Testing Strategy). But the spec also has a genuine **pure logic core** — the registry→checklist builder, the registry↔specs reconciliation, the readiness evaluator (two environments → verdict + parity), the tri-state / `N/A`-justification integrity rule, the findings reporter (routing, no-drop, no-patch), the payment-mode policy, and the no-secret-in-evidence rule. These are pure, deterministic functions over structured inputs (checklist item sets with per-environment tri-state statuses, registries, probe results) with universal invariants, so property-based testing is the right tool for them. Each property below is universally quantified and maps back to the acceptance criteria and the `REQ-FA*` invariants.
 
 Redundant candidates from the prework were consolidated: every "a FAIL blocks readiness and routes a finding" criterion collapses into the **readiness-verdict equivalence** (Property 5) plus the **findings-reporter** (Property 6); all per-environment tri-state/justification criteria collapse into **tri-state integrity** (Property 3); all parity criteria into **parity** (Property 4); all completeness criteria into **registry→checklist completeness** (Property 1).
 
 ### Property 1: Registry→checklist completeness (every component, no silent drop)
 
-*For any* component registry (services and internal modules across all four surfaces `{API, AI, MOBILE, INFRA}`), the checklist builder SHALL produce, for **every** registry entry, both a component-presence checklist item and an integration checklist item, each referencing a **defined, non-trivial probe** (a component with no native health endpoint still gets a minimal liveness probe, never an "assume up") — no registry entry is ever silently absent from the checklist, and every catalogued item carries an owner.
+*For any* component registry (services and internal modules across all four surfaces `{API, AI, MOBILE, INFRA}`), the checklist builder SHALL produce, for **every** registry entry, both a component-presence checklist item and an integration checklist item, each referencing a **defined, non-trivial probe** (a component with no native health endpoint still gets a minimal liveness probe, never an "assume up") — no registry entry is ever silently absent from the checklist, and every catalogued item carries an owner. **Extension for event-driven entries:** *for any* registry entry declaring `consumes` and/or `produces`, its integration checklist item's probe SHALL verify those declared events actually fire (are consumed / emitted) on the running system — dependency reachability alone SHALL never satisfy an event-driven entry's integration item, and a declared event that never fires is a `CHAIN_NOT_FIRING`/`UNWIRED_COMPONENT` FAIL.
 
-**Validates: Requirements 1.1, 1.4, 3.1, 3.5** · REQ-FA1b
+**Validates: Requirements 1.1, 1.4, 3.1, 3.2, 3.5** · REQ-FA1b, REQ-FA4
 
 ### Property 2: Health is liveness only — never integration proof
 
@@ -521,11 +545,18 @@ Redundant candidates from the prework were consolidated: every "a FAIL blocks re
 
 **Validates: Requirements 2.1, 2.3** · REQ-FA3
 
+### Property 11: Registry reconciliation (the closed registry cannot silently drift)
+
+*For any* divergence between the component registry and the components declared by the owning specs / `ARCHITECTURE.md` topology — a component declared in a spec/architecture but absent from the registry, or a registry entry with no owning declaration — the audit SHALL emit a **blocking** `REGISTRY_STALE` finding and the verdict SHALL be `NOT_READY`; and *for any* registry that is fully reconciled (every declared component present, no orphan entries) no `REGISTRY_STALE` finding SHALL be emitted. A closed registry therefore cannot silently drift out of sync with its source of truth, so Property 1's completeness guarantee is defined over a registry that is itself verified complete.
+
+**Validates: Requirements 3.1, 3.5** · REQ-FA1b
+
 ## Error Handling
 
 - **Required component missing/down/unhealthy:** `component-presence`/`service-health` returns `FAIL` (`MISSING_OR_DOWN`); a blocking finding with evidence + owner is produced and readiness is `NOT_READY` — never declared ready with a hole (Req 1.3).
 - **Edge configured but unreachable/unauthenticated:** `inter-service-edge` returns `FAIL` (`DEAD_EDGE`); configured-but-dead never counts as ready (Req 2.3, Property 10).
-- **Present-but-unwired component / event chain that never fires:** `UNWIRED_COMPONENT` / `CHAIN_NOT_FIRING` FAIL → blocking finding routed to the owner (Req 3.3).
+- **Present-but-unwired component / event chain that never fires:** `UNWIRED_COMPONENT` / `CHAIN_NOT_FIRING` FAIL → blocking finding routed to the owner. For an event-driven registry entry, the integration probe verifies the declared `consumes`/`produces` events actually fire end-to-end; a declared event that never fires is one of these FAILs (Req 3.2, 3.3).
+- **Registry out of sync with the owning specs / architecture:** the reconciliation step (manual review day-one) raises a blocking `REGISTRY_STALE` finding — a component declared in a spec/`ARCHITECTURE.md` but missing from the registry, or a registry entry with no owning declaration — routed to the owner; readiness is `NOT_READY` until reconciled. Reconciliation runs **before** the checklist is built so completeness is defined over a verified-complete registry (Req 3.1, 3.5).
 - **Probe cannot run (target unreachable, tooling error):** treated as `FAIL` with the error captured as evidence — **never** silently converted to `N/A` or `PASS`. An environment where a mandatory probe cannot execute cannot assert readiness.
 - **`N/A` without justification on a mandatory item:** the evaluator raises an `UNJUSTIFIED_NA` finding — an item cannot be waved to `N/A` to force readiness (Req 8.2).
 - **Local-PASS / VPS-FAIL on a mandatory+applicable item:** `PARITY_BREAK` blocking finding; local success alone never declares readiness (Req 5.3).
@@ -539,17 +570,18 @@ Redundant candidates from the prework were consolidated: every "a FAIL blocks re
 
 ### Property-based tests (the pure logic core)
 
-PBT applies to the deterministic core: the registry→checklist builder, the readiness evaluator (parity + verdict), the tri-state/justification integrity rule, the findings reporter, the payment-mode policy, the no-secret-in-evidence rule, and the edge-vs-config invariant. Use **fast-check** (the repo's established TypeScript PBT choice, as in the sibling `secrets-inventory` and `quality-assurance-pbt` specs). Do **not** implement PBT from scratch.
+PBT applies to the deterministic core: the registry→checklist builder, the registry↔specs reconciliation, the readiness evaluator (parity + verdict), the tri-state/justification integrity rule, the findings reporter, the payment-mode policy, the no-secret-in-evidence rule, and the edge-vs-config invariant. Use **fast-check** (the repo's established TypeScript PBT choice, as in the sibling `secrets-inventory` and `quality-assurance-pbt` specs). Do **not** implement PBT from scratch.
 
-- Each of Properties 1–10 is implemented by a **single** property-based test.
+- Each of Properties 1–11 is implemented by a **single** property-based test.
 - Minimum **100 iterations** per property test.
 - Each test is tagged: `// Feature: full-audit, Property {n}: {property text}`.
-- Generators produce: arbitrary component registries (varied surfaces, entries with/without native health endpoints, internal modules); arbitrary checklists with independently-chosen per-environment tri-state statuses, mandatory flags, justified/unjustified `N/A`s, and applicable/inapplicable-per-environment items; arbitrary probe-result sets (health vs edge vs integration) to exercise Property 2; synthetic evidence/finding strings seeded with and without secret-shaped substrings for Property 7; and inputs carrying/not-carrying a `SECRET_EXPOSURE` for Property 9 — so edge cases (empty registry, all-FAIL, all-`N/A`, single-environment-only items, parity disagreement) are covered by generation.
+- Generators produce: arbitrary component registries (varied surfaces, entries with/without native health endpoints, internal modules, and event-driven entries carrying arbitrary `consumes`/`produces` `EventRef` sets to exercise Property 1's event-verification extension); arbitrary checklists with independently-chosen per-environment tri-state statuses, mandatory flags, justified/unjustified `N/A`s, and applicable/inapplicable-per-environment items; arbitrary probe-result sets (health vs edge vs integration) to exercise Property 2; synthetic evidence/finding strings seeded with and without secret-shaped substrings for Property 7; inputs carrying/not-carrying a `SECRET_EXPOSURE` for Property 9; and arbitrary registry-vs-declared-component set pairs (overlapping / missing / orphaned) to exercise Property 11's `REGISTRY_STALE` reconciliation — so edge cases (empty registry, all-FAIL, all-`N/A`, single-environment-only items, parity disagreement, registry drift in either direction) are covered by generation.
 - For Property 6 (no-patch), the test asserts the evaluator/reporter inputs are deep-equal before and after (purity).
 
 ### Example-based unit tests
 
-- **Checklist builder:** a fixed small registry produces the expected presence + integration items with owners; an entry lacking a native health endpoint still gets a minimal liveness probe.
+- **Checklist builder:** a fixed small registry produces the expected presence + integration items with owners; an entry lacking a native health endpoint still gets a minimal liveness probe; an event-driven entry declaring `consumes`/`produces` yields an integration item whose probe targets those declared events (not just dependency reachability).
+- **Registry reconciliation:** a registry matching the declared-component set yields no finding; a declared component absent from the registry (and, conversely, an orphan registry entry) each yield a blocking `REGISTRY_STALE` finding routed to the owner.
 - **Evaluator edges:** all-PASS both envs + valid store → `READY`; one mandatory `FAIL` → `NOT_READY`; justified `N/A` on a VPS-only item in `local` → still `READY`; unjustified `N/A` on a mandatory item → finding.
 - **Payment-mode policy:** `assertAutomaticModeAllowed` permits `sandbox`/`live-readiness`, throws on `operator-live-money`.
 - **Findings reporter routing:** a `DEAD_EDGE` on the API→Keycloak item routes to the auth owner; an `INVALID_STORE_ARTIFACT` routes to the mobile-build owner.
@@ -576,6 +608,7 @@ Every applicable check runs in **both** environments with the same invariant and
 
 ### Boundary discipline (verified by review)
 
+- **Registry reconciliation runs first:** before an audit, the operator reconciles the component registry against the owning specs / `ARCHITECTURE.md` (manual review day-one); any divergence is a blocking `REGISTRY_STALE` finding, so the checklist is always built over a verified-complete registry (Req 3.1, 3.5).
 - The audit invokes **no** Spec 25 unit/property suite — it references their results (Req 3.4).
 - The audit performs **no** deploy/submit/live-money action — it declares readiness only; the operator executes the irreversible actions in order local-GREEN → VPS-GREEN → package → submit (Req 8.4).
 
@@ -590,8 +623,8 @@ Every applicable check runs in **both** environments with the same invariant and
 
 - **READMEs:** new `tools/full-audit/README.md` — the audit's purpose, the registry + checklist model, the seven probe types (and why health ≠ integration), the two-environment discipline, the three payment modes, the readiness gate ordering, and the clean boundaries with `quality-assurance-pbt` and `secrets-inventory`.
 - **`docs/deployment/READINESS-CHECKLIST.md`:** the single maintained auditable artifact — every component, edge, integration, live journey, store artifact, and DevOps item with its invariant, per-environment probe, and tri-state status; a re-audit artifact, not a one-off.
-- **`docs/deployment/READINESS-RUNBOOK.md`:** the operator runbook — run local audit → all green → deploy to VPS → run VPS audit → all green → package mobile → submit to stores; how to run the audit per environment; how findings are routed and re-audited; how the operator-gated live-money validation is performed outside the automatic audit.
+- **`docs/deployment/READINESS-RUNBOOK.md`:** the operator runbook — **reconcile the component registry against the owning specs / `ARCHITECTURE.md` (any `REGISTRY_STALE` divergence blocks and is resolved first)** → run local audit → all green → deploy to VPS → run VPS audit → all green → package mobile → submit to stores; how to run the audit per environment; how findings are routed and re-audited; how the operator-gated live-money validation is performed outside the automatic audit.
 - **`docs/ARCHITECTURE.md`:** add a "Deployment-Readiness Audit (full-audit)" section with the audited-topology Mermaid diagram and the two-environment parity flow. Clarify this is a verification/operational module — no new product services, tables, or endpoints.
 - **`docs/CHANGELOG.md`:** `[Unreleased]` entries for feature `full-audit`: component registry, readiness checklist + probe library, readiness evaluator + findings reporter, two-environment parity, three payment modes, readiness runbook.
-- **`docs/ADR/011-full-audit-live-readiness.md`:** a new ADR recording the decisions — **(1)** audit the **live assembled system** (health ≠ integration; not reducible to `GET /health`); **(1b)** "every component" is **registry-defined** (services + internal modules); **(2)** **two-environment parity** (same invariant, environment-appropriate probe, tri-state with justified `N/A`, local-PASS/VPS-FAIL is blocking); **(3)** **three separated payment modes** (sandbox / non-transacting live-readiness / operator-gated live-money never in the automatic audit); **(4)** **report-and-gate, never patch** (findings routed to owners; the operator executes the irreversible ship actions); and the **clean boundaries** with Spec 25 (correctness, referenced not re-run) and `secrets-inventory` (config + secret handling; `SECRET_EXPOSURE` carried forward as blocking).
+- **`docs/ADR/011-full-audit-live-readiness.md`:** a new ADR recording the decisions — **(1)** audit the **live assembled system** (health ≠ integration; not reducible to `GET /health`); **(1b)** "every component" is **registry-defined** (services + internal modules), with event-driven entries declaring the events they `consumes`/`produces` so the integration probe verifies those events actually fire (not just dependency reachability); **(1c)** the closed registry is **reconciled against the owning specs / `ARCHITECTURE.md`** before each audit (manual review day-one, mirroring `secrets-inventory`); a divergence is a blocking `REGISTRY_STALE` finding so the registry cannot silently drift; **(2)** **two-environment parity** (same invariant, environment-appropriate probe, tri-state with justified `N/A`, local-PASS/VPS-FAIL is blocking); **(3)** **three separated payment modes** (sandbox / non-transacting live-readiness / operator-gated live-money never in the automatic audit); **(4)** **report-and-gate, never patch** (findings routed to owners; the operator executes the irreversible ship actions); **(5)** **observability is modeled as telemetry/export edges**, not functional runtime dependencies of the API (verified as monitoring-wired under `DEVOPS_SECURITY`); and the **clean boundaries** with Spec 25 (correctness, referenced not re-run) and `secrets-inventory` (config + secret handling; `SECRET_EXPOSURE` carried forward as blocking).
 - **`.kiro/specs/ROADMAP.md`:** mark the `full-audit` spec status on completion.
