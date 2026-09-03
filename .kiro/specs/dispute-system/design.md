@@ -9,22 +9,28 @@
 It **invents almost nothing** — it composes patterns already proven in the sibling specs, narrowed to the dispute case:
 
 1. **Creation is triggered by a durable event, never a synchronous call.** `dispute-system` consumes the `service_disputed` outbox fact Spec 20 emits, draining it via its **own per-consumer checkpoint** (`consumer_name = 'dispute'`) over Spec 20's `completion_outbox` fan-out, and creates the dispute idempotently. This is the exact fan-out / per-consumer-checkpoint discipline Spec 20's own consumers (Push/Spec 16, reputation/Spec 22) share. service-completion never calls this module; a dispute-creation failure never rolls back the completion.
-2. **Every money-bearing transition is single-winner + durable-intent.** `OPEN`, `UNDER_REVIEW`, `RESOLVED`, `EXPIRED` are conditional writes (`WHERE state = :expected`) so exactly one wins. Opening persists a durable **escrow-block intent** in the same transaction as the dispute row; resolving/expiring persists exactly one durable **financial-action intent** in the same transaction as the terminal transition. Separate workers drain those intents into Spec 9 with idempotent retries. A crash never leaves a dispute OPEN with an unblocked escrow, and never leaves a resolved dispute with no money effect. This is the durable-release-intent pattern from service-completion (Spec 20), applied twice (block + settle).
-3. **Clear-escrow-LAST.** `disputeStatus = OPEN` is set durably on open and cleared to `NONE` only **after** Spec 9 has durably accepted the resolution's (or fallback's) financial action. There is never a window where the payment is unblocked while the refund/release has not yet landed.
+2. **Every money-bearing transition is single-winner + durable-intent.** `OPEN`, `UNDER_REVIEW`, `RESOLVED`, `EXPIRED` are conditional writes (`WHERE state = :expected`) so exactly one wins. Opening persists a durable **escrow-block intent** in the same transaction as the dispute row; resolving/expiring persists exactly one durable **financial-action intent** in the same transaction as the terminal transition. Separate workers drain those intents into Spec 9 with idempotent retries. A dispute **MAY** exist in `OPEN` while its escrow-block intent is still `PENDING` (the block lands out of band) — but Spec 9 **cannot accept/execute a release for a payment while a pending dispute block exists for it**, because `setDisputeStatus(OPEN)` is an atomic operation on Spec 9's payment aggregate that **wins against any not-yet-accepted release** (see the Spec 9 contract below). So the escrow is never actually released out from under an open dispute, even though the block is asynchronous. A crash never leaves a resolved dispute with no money effect. This is the durable-release-intent pattern from service-completion (Spec 20), applied twice (block + settle).
+3. **Clear-escrow-LAST.** `disputeStatus = OPEN` is requested durably on open (and enforced atomically by Spec 9 against concurrent release) and cleared to `NONE` only **after** Spec 9 has durably **applied** the resolution's (or fallback's) financial action (`APPLIED`/`CEILING_CLAMPED`/accepted `NO_OP`). A `BLOCKED` financial outcome does **not** clear the escrow — the block stays `OPEN` and the intent moves to a durable needs-review terminal (Blocker-3 handling below). There is never a window where the payment is unblocked while the refund/release has not actually landed.
 4. **Evidence is referenced, never re-derived.** The dispute links typed references to the durable facts already recorded upstream — the checklist + its before/after photos (Spec 19), the on-arrival video-verification decision (Spec 18), the service-tracking arrival fact (Spec 17), plus the Host/Cleaner's own submitted reason + photos. Only the Host/Cleaner's own uploaded photos use the grant-gated MinIO upload pattern (Spec 19/14); everything else is a reference resolved to a short-lived pre-signed URL (visual) or gated structured data (structured). It never mutates the checklist, the verification, or the payment ledger.
 5. **Time-bounded, never stuck.** Evidence and resolution windows are snapshotted, durable, and server-swept. A dispute past its resolution SLA converges to `EXPIRED` with a configured fallback resolution and its financial intent, so the escrow block is always eventually cleared. This mirrors service-completion's server-authoritative auto-release sweep.
 6. **`GET` reconciliation is authority; realtime is advisory.** Dispute state + durable intents + `GET /disputes/:id` are authoritative; a missed push never changes a resolution or a money effect.
 
-### Phase is derived from Spec 9's ACTUAL payment state (not the completion decision)
+### Phase is derived from ONE explicit Spec 9 payment state (not the completion decision)
 
-A completion being `CONFIRMED`/`AUTO_RELEASED` (Spec 20) only means a release **intent** exists — the money may not yet be released (Spec 20's `release_status` can still be `PENDING`/`DISPATCHED`). So `phase` (`PRE_RELEASE` vs `POST_RELEASE`) is derived from **Spec 9's authoritative payment state** — whether the escrow release has actually been accepted/executed — via a small read on the payment, never from `CONFIRMED`/`AUTO_RELEASED` as a proxy. This matters because the resolution's financial action differs: `PRE_RELEASE` → refund only (funds still HELD); `POST_RELEASE` → refund + proportional transfer-reversal (funds already paid). Spec 20 already enforces the money-safe boundary by only routing a **post-release** dispute once `release_status = ACCEPTED`; `dispute-system` re-derives the phase from Spec 9 at creation as the authoritative source and stores it as a snapshot on the dispute (the resolution uses the derived phase; Spec 9 still computes the exact amounts + ceilings at drain time).
+A completion being `CONFIRMED`/`AUTO_RELEASED` (Spec 20) only means a release **intent** exists — the money may not yet be released (Spec 20's `release_status` can still be `PENDING`/`DISPATCHED`). So `phase` is pinned to **one explicit, authoritative Spec 9 state**: a payment is `POST_RELEASE` **if and only if** Spec 9's payment `payout_status = TRANSFER_CREATED` or `PAID` (equivalently, the funds-released boundary — the escrow release Transfer has been **created**), and `PRE_RELEASE` otherwise (funds still `HELD`/`PARTIALLY_REFUNDED` on the platform balance, no Transfer yet). This single field — not a mixed "accepted or executed" notion — defines the `HELD → POST_RELEASE` transition. `dispute-system` reads it once at creation via `EscrowClient.readPaymentPhase(paymentId)` and snapshots it on the dispute. This matters because the resolution's financial action differs: `PRE_RELEASE` → refund only (funds still HELD); `POST_RELEASE` → refund + proportional transfer-reversal (funds already paid). Spec 20 already enforces the money-safe boundary by only routing a **post-release** dispute once its release is `ACCEPTED`; `dispute-system` re-derives the phase from Spec 9's `payout_status` at creation as the authoritative source and snapshots it (the resolution uses the derived phase; Spec 9 still computes the exact amounts + ceilings at drain time).
 
 ### The Spec 9 contract this spec relies on (small additive extension)
 
-Spec 9 already exposes `applyDisputeEvent(...)`, `RefundService.refund(...)`, `EscrowReleaseService.release(...)`, `decideRefund` / proportional reversal, ceilings, and idempotency, and models an escrow `disputeStatus` (`NONE|OPEN|WON|LOST`). This spec relies on two things from Spec 9, treated as a **cross-module contract** (documented below), both of which are additive and do not change Spec 9's money math:
+Spec 9 already exposes `applyDisputeEvent(...)`, `RefundService.refund(...)`, `EscrowReleaseService.release(...)`, `decideRefund` / proportional reversal, ceilings, and idempotency, and models an escrow `disputeStatus` (`NONE|OPEN|WON|LOST`) plus the three orthogonal lifecycles (`payment_status`/`dispute_status`/`payout_status`). This spec relies on the following from Spec 9, treated as a **cross-module contract** (documented below). All are additive and do not change Spec 9's money math:
 
 - **`setDisputeStatus(paymentId, OPEN | NONE)`** — idempotently set/clear the platform-driven dispute block that suppresses auto-release + ad-hoc refunds. (Spec 9 already reaches `OPEN` via Stripe `charge.dispute.*`; this is the platform-initiated setter for a BidClean dispute. It is the same `disputeStatus` guard, not a new mechanism.)
-- **A read of the authoritative payment state** to derive `phase` (release accepted? funds HELD vs RELEASED) — exposed via the existing `PaymentView` / `getPaymentForOffer`-style read.
+- **A read of one authoritative payment field** to derive `phase` — Spec 9's `payout_status` (`POST_RELEASE` iff `TRANSFER_CREATED`/`PAID`, else `PRE_RELEASE`) — exposed via the existing `PaymentView` / `getPaymentForOffer`-style read.
+
+Three **additive guarantees** are now required from Spec 9 (all inside Spec 9's money authority — `dispute-system` never reimplements them):
+
+- **(a) `setDisputeStatus(OPEN)` atomically wins against a not-yet-accepted release.** Setting the block is an atomic operation on Spec 9's payment aggregate (e.g. a conditional guard on release acceptance under `SELECT ... FOR UPDATE`): once the block is set, Spec 9 **cannot accept/execute a release** for that payment; and if a release is being accepted concurrently, exactly one wins deterministically. This closes the pre-release race — a dispute may sit `OPEN` with a still-`PENDING` block, but the money cannot be released while a pending dispute block exists for the payment. (Spec 20 already only routes a **post-release** dispute once its release is `ACCEPTED`, so the race window only exists pre-release, and this guard closes it.)
+- **(b) Accepted no-op result for an already-paid release.** For `FAVOR_CLEANER` in `POST_RELEASE` (funds already paid), Spec 9 formally returns an **accepted `NO_OP`** outcome (not an error, not silence), so `dispute-system` can treat it as a legitimate applied effect and clear the escrow. This is explicit in the `EscrowActionOutcome` contract, never implicit.
+- **(c) Reject a second dispute-driven financial effect on an already-settled payment.** Once a payment has a durably **applied** dispute-driven financial effect (a settled refund/reversal, or a release), Spec 9 marks the payment as dispute-settled and **rejects** any further dispute-driven financial action on it with an explicit `BLOCKED` (reason `PAYMENT_ALREADY_SETTLED`) outcome. This makes "at most one financial effect per payment across all its disputes" an authority-level guarantee (P15), not merely a per-case one.
 
 `dispute-system` holds no Stripe keys and makes no Stripe calls; it only calls these internal Spec 9 methods via a thin, injectable, mockable client.
 
@@ -181,9 +187,11 @@ graph TB
 
 ### Data flow — creation (durable-first, idempotent, own checkpoint, phase from actual payment state)
 
+> **Trigger ownership (explicit):** the dispute case is **never** created by a mobile call into `dispute-system` — this module exposes **no `POST /disputes`**. The full trigger path is: **Mobile → Spec 20 completion/dispute trigger → Spec 20 commits routing + writes `service_disputed` into `completion_outbox` → `dispute-system`'s consumer creates the case.** The Host's "open dispute" UX drives Spec 20's completion flow; Spec 20 owns the trigger; `dispute-system` reacts to the durable fact.
+
 1. Spec 20 commits its dispute-routing transition and, in the same transaction, writes a `service_disputed` `completion_outbox` row carrying `{ completionId, offerId, disputeId }`. (`disputeId` is Spec 20's generated correlation id; this module uses it for deterministic idempotency, see below.)
 2. `DisputeCreatedConsumer` drains `service_disputed` rows with **no `completion_outbox_consumers` row for `consumer_name = 'dispute'`** (`NOT EXISTS`, ordered by `created_at`, bounded batch), reusing Spec 20's checkpoint table. For each it calls `DisputeCreationService.createFromRouting(payload)`, then acks its own `(event_id, 'dispute')` row (`ON CONFLICT DO NOTHING`).
-3. `createFromRouting` resolves participants (`host_id`/`cleaner_id`), `initiator`/`initiator_role`, and `payment_id` server-side from the offer bound to the completion; **reads Spec 9's authoritative payment state via `EscrowClient` to derive `phase`** (`POST_RELEASE` iff the release has actually been accepted/executed, else `PRE_RELEASE`) and snapshots it on the dispute; snapshots `evidence_deadline = now + DISPUTE_EVIDENCE_WINDOW_MS` and `resolution_deadline = now + DISPUTE_RESOLUTION_SLA_MS`; then, in ONE transaction: `INSERT ... ON CONFLICT (service_completion_id) WHERE state IN ('OPEN','UNDER_REVIEW') DO NOTHING` the `disputes` row (`state = OPEN`), auto-links the typed upstream references as `dispute_evidence` rows, and persists a `dispute_escrow_intent { payment_id, target = OPEN, status = PENDING }` — all atomically. It also writes a `dispute_opened` `dispute_outbox` row in the same transaction. The partial-unique guarantees at most one **active** dispute per completion; a redelivered event (or a concurrent create) is a no-op.
+3. `createFromRouting` resolves participants (`host_id`/`cleaner_id`), `initiator`/`initiator_role`, and `payment_id` server-side from the offer bound to the completion; **reads Spec 9's authoritative `payout_status` via `EscrowClient.readPaymentPhase` to derive `phase`** (`POST_RELEASE` iff `payout_status IN ('TRANSFER_CREATED','PAID')`, else `PRE_RELEASE`) and snapshots it on the dispute; snapshots `evidence_deadline = now + DISPUTE_EVIDENCE_WINDOW_MS` and `resolution_deadline = now + DISPUTE_RESOLUTION_SLA_MS`; then, in ONE transaction: `INSERT ... ON CONFLICT (service_completion_id) WHERE state IN ('OPEN','UNDER_REVIEW') DO NOTHING` the `disputes` row (`state = OPEN`), auto-links the typed upstream references as `dispute_evidence` rows, and persists a `dispute_escrow_intent { payment_id, target = OPEN, status = PENDING }` — all atomically. It also writes a `dispute_opened` `dispute_outbox` row in the same transaction. The partial-unique guarantees at most one **active** dispute per completion; a redelivered event (or a concurrent create) is a no-op.
 
 > The partial-unique cannot be expressed as `ON CONFLICT` directly (it is a partial index, not a full constraint). Creation therefore runs the insert guarded by the partial-unique inside a `SERIALIZABLE`/advisory-locked transaction keyed by `service_completion_id`: the index makes a second active insert fail, which the service maps to an idempotent no-op. Deterministic dedup uses `disputeId` (from the routing payload) as the `dispute_outbox` `event_id`.
 
@@ -209,7 +217,7 @@ sequenceDiagram
     end
 ```
 
-- The open transaction commits the dispute, the auto-linked evidence references, the `OPEN` escrow-block intent, and the `dispute_opened` outbox event **atomically**. A crash between committing the dispute and blocking the escrow is fully recoverable: the `EscrowIntentWorker` claims the intent via a single-winner lease and drives `setDisputeStatus(OPEN)` to `ACCEPTED` idempotently. The payment is treated as **truly protected** only once Spec 9 accepts `OPEN` — so a dispute is never OPEN while the payment is still auto-release-eligible (REQ-DS2).
+- The open transaction commits the dispute, the auto-linked evidence references, the `OPEN` escrow-block intent, and the `dispute_opened` outbox event **atomically**. A crash between committing the dispute and blocking the escrow is fully recoverable: the `EscrowIntentWorker` claims the intent via a single-winner lease and drives `setDisputeStatus(OPEN)` to `ACCEPTED` idempotently. A dispute **MAY** sit in `OPEN` while its block intent is still `PENDING` (the block lands out of band). What makes this safe is **not** that the block is synchronous — it is that Spec 9 guarantees `setDisputeStatus(OPEN)` **atomically wins against any not-yet-accepted release** on the payment aggregate (contract (a)): while a pending dispute block exists for a payment, Spec 9 cannot accept/execute a release for it, and a concurrent release-vs-block resolves to exactly one deterministic winner. So the money is never released out from under an open dispute even before the block is `ACCEPTED`. Spec 20 only routes a **post-release** dispute once its release is `ACCEPTED`, so the release-vs-block race exists only in the pre-release window, which contract (a) closes. The corrected invariant is therefore: **a dispute may exist `OPEN` with a `PENDING` block, but the payment cannot execute/accept a release while a pending dispute block exists for it** (REQ-DS2). The block is treated as fully materialized once Spec 9 accepts `OPEN`.
 
 ### Data flow — resolution (single-winner decision → durable financial intent → worker → Spec 9 → clear-escrow-LAST)
 
@@ -238,19 +246,28 @@ sequenceDiagram
     FinWorker->>Repo: claim financial intent (lease)
     FinWorker->>Escrow: FAVOR_CLEANER → release(payment_id) · FAVOR_HOST/PARTIAL → refund(payment_id, amount?)
     Note over Escrow: Spec 9 computes exact amounts, applies ceilings, proportional reversal if POST_RELEASE
-    alt accepted
-        Escrow-->>FinWorker: ok (or ceiling-clamped outcome surfaced)
-        FinWorker->>Repo: financial intent ACCEPTED
+    alt APPLIED / CEILING_CLAMPED / NO_OP (applied terminal)
+        Escrow-->>FinWorker: applied (effective_amount_cents surfaced; NO_OP = accepted no-op)
+        FinWorker->>Repo: financial intent ACCEPTED (+ effective_amount_cents/outcome)
         FinWorker->>Repo: ONLY NOW INSERT dispute_escrow_intent { target=NONE, PENDING }
         EscrowWorker->>Escrow: setDisputeStatus(payment_id, NONE)  (escrow unblocked LAST)
+    else BLOCKED (money effect did NOT happen — e.g. PAYMENT_ALREADY_SETTLED)
+        Escrow-->>FinWorker: BLOCKED { reason }
+        FinWorker->>Repo: financial intent ACTION_BLOCKED (needs-review); NO NONE intent
+        Note over FinWorker,Escrow: disputeStatus STAYS OPEN; surfaced to operator; money not moved, escrow not cleared
     else transient failure
         FinWorker->>Repo: FAILED_RETRYABLE (attempt++) → retried; disputeStatus STAYS OPEN
     end
 ```
 
 - Resolution is a single-winner conditional write that co-persists the resolution fields AND exactly one `dispute_financial_intent` AND the `dispute_resolved` outbox, all in one transaction; it **never** calls Stripe in the request path (REQ-DS4).
-- The `FinancialIntentWorker` maps the resolution to a Spec 9 call — `FAVOR_CLEANER → EscrowReleaseService.release`, `FAVOR_HOST → full refund`, `PARTIAL → partial refund(amount)` — with idempotent retries. Spec 9 computes exact amounts, enforces ceilings, and performs the proportional reversal for `POST_RELEASE` (REQ-DS5). `dispute-system` never overrides a ceiling; a clamp/block outcome is surfaced on the intent.
-- **Clear-escrow-LAST:** the `NONE` escrow-block intent is enqueued **only after** the financial intent is `ACCEPTED`. `disputeStatus` therefore stays `OPEN` until the refund/release has durably landed — there is never an unblocked window (REQ-DS2b).
+- The `FinancialIntentWorker` maps the resolution to a Spec 9 call — `FAVOR_CLEANER → EscrowReleaseService.release`, `FAVOR_HOST → full refund`, `PARTIAL → partial refund(amount)` — with idempotent retries. Spec 9 computes exact amounts, enforces ceilings, and performs the proportional reversal for `POST_RELEASE` (REQ-DS5). `dispute-system` never overrides a ceiling; it only records the outcome Spec 9 returns.
+- **Outcome-dependent clearing (Blocker 3):** the worker distinguishes Spec 9's outcomes and does **not** treat them alike:
+  - `APPLIED` → intent `ACCEPTED`; enqueue the `NONE` escrow-clear intent.
+  - `CEILING_CLAMPED` → intent `ACCEPTED`; record `effective_amount_cents`; enqueue the `NONE` clear.
+  - `NO_OP` (accepted no-op, `FAVOR_CLEANER` + `POST_RELEASE` already paid — Spec 9 contract (b)) → intent `ACCEPTED`; enqueue the `NONE` clear.
+  - `BLOCKED` (e.g. `PAYMENT_ALREADY_SETTLED` from contract (c), or a hard ceiling-block) → the money effect **did NOT happen**, so the worker marks the intent `ACTION_BLOCKED` (a durable needs-review terminal) and **does NOT enqueue the `NONE` clear**. `disputeStatus` stays `OPEN`; the dispute row stays `RESOLVED`/`EXPIRED` but its money effect is flagged blocked-needs-review for an operator; the escrow is never left unblocked with money-not-moved.
+- **Clear-escrow-LAST:** the `NONE` escrow-block intent is enqueued **only after** the financial intent reaches an *applied* terminal (`APPLIED`/`CEILING_CLAMPED`/`NO_OP`), never on `BLOCKED`/`FAILED_RETRYABLE`. `disputeStatus` therefore stays `OPEN` until the refund/release has durably landed — there is never an unblocked window (REQ-DS2b).
 
 ### Data flow — SLA sweep (never stuck; EXPIRED always fully settled)
 
@@ -343,7 +360,7 @@ services/api/src/dispute-system/
 ```
 
 **`DisputeCreationService`** — idempotent creation off the `service_disputed` fact.
-- `createFromRouting(payload)` — resolve participants + `payment_id` from the offer; **derive `phase` from Spec 9's authoritative payment state** via `EscrowClient.readPaymentPhase(paymentId)` and snapshot it; snapshot `evidence_deadline`/`resolution_deadline`; in ONE transaction insert the `disputes` row (guarded by the partial-unique active constraint), auto-link the typed upstream evidence references, persist the `OPEN` escrow-block intent, and write the `dispute_opened` outbox. Never throws into the consumer batch (per-row try/catch); a creation failure never touches the committed completion routing. Functions ≤30 lines, SRP.
+- `createFromRouting(payload)` — resolve participants + `payment_id` from the offer; **derive `phase` from Spec 9's `payout_status`** via `EscrowClient.readPaymentPhase(paymentId)` (`POST_RELEASE` iff `TRANSFER_CREATED`/`PAID`) and snapshot it; snapshot `evidence_deadline`/`resolution_deadline`; in ONE transaction insert the `disputes` row (guarded by the partial-unique active constraint), auto-link the typed upstream evidence references, persist the `OPEN` escrow-block intent, and write the `dispute_opened` outbox. Never throws into the consumer batch (per-row try/catch); a creation failure never touches the committed completion routing. Functions ≤30 lines, SRP.
 
 **`DisputeLifecycleService`** — single-winner lifecycle transitions.
 - `open(...)` — used only via the creation path (a dispute is born `OPEN`).
@@ -351,7 +368,7 @@ services/api/src/dispute-system/
 - `resolve(id, resolverId, dto)` — assert resolver; validate `(resolution, refundCents?)`; delegate to `DisputeResolutionService` which performs the single-winner `{OPEN|UNDER_REVIEW} → RESOLVED` + financial intent + outbox in one transaction. `rows=0` + same terminal → idempotent; terminal-different → `409`.
 
 **`DisputeResolutionService`** — decision → durable financial intent.
-- `resolve(id, resolverId, dto)` — in ONE transaction: single-winner conditional write to `RESOLVED` setting `resolution`/`resolution_refund_cents`/`resolved_at`/`resolved_by`, INSERT exactly one `dispute_financial_intent` (action from `resolution-mapping`), INSERT `dispute_resolved` outbox. `disputeStatus` is **not** cleared here (clear-escrow-LAST). Never calls Stripe.
+- `resolve(id, resolverId, dto)` — in ONE transaction: single-winner conditional write to `RESOLVED` setting `resolution`/`resolution_refund_cents`/`resolved_at`/`resolved_by`, INSERT exactly one `dispute_financial_intent` (action from `resolution-mapping`), INSERT `dispute_resolved` outbox. `disputeStatus` is **not** cleared here (clear-escrow-LAST). Never calls Stripe. **`resolution_refund_cents` is the resolver's REQUESTED amount, not the final one** — Spec 9 computes and applies the actual amount (subject to ceilings + proportional reversal); the amount Spec 9 actually applied is surfaced back on the intent as `effective_amount_cents`.
 
 **`DisputeSlaService`** — never-stuck fallback.
 - `expireDue(id)` — single-winner `{OPEN|UNDER_REVIEW} → EXPIRED` setting the configured fallback `resolution` (+ amount), persist the fallback `dispute_financial_intent`, write `dispute_resolved` outbox — all in ONE transaction; `rows=0` → no-op. An `EXPIRED` dispute is never `resolution = NULL`/intent-less.
@@ -370,14 +387,21 @@ services/api/src/dispute-system/
 **`EscrowClient`** (thin, injectable, mockable — the ONLY bridge to Spec 9)
 ```typescript
 interface EscrowClient {
-  readPaymentPhase(paymentId: string): Promise<DisputePhase>;         // POST_RELEASE iff release accepted, else PRE_RELEASE
-  setDisputeStatus(paymentId: string, target: 'OPEN' | 'NONE'): Promise<void>;  // idempotent
+  // POST_RELEASE iff Spec 9 payout_status IN ('TRANSFER_CREATED','PAID'); else PRE_RELEASE
+  readPaymentPhase(paymentId: string): Promise<DisputePhase>;
+  // Atomically sets/clears the block; setDisputeStatus(OPEN) WINS against a not-yet-accepted release (contract (a))
+  setDisputeStatus(paymentId: string, target: 'OPEN' | 'NONE'): Promise<void>;   // idempotent
   release(paymentId: string, reason: 'DISPUTE_FAVOR_CLEANER'): Promise<EscrowActionOutcome>;
   refund(paymentId: string, amountCents: number | null): Promise<EscrowActionOutcome>; // null = full
 }
-// EscrowActionOutcome carries { accepted, ceilingClamped?, effectiveAmountCents?, blocked?, reason? }
+// EscrowActionOutcome.result is one of:
+//   'APPLIED'         — effect applied (effectiveAmountCents set)
+//   'CEILING_CLAMPED' — applied but clamped to a Spec 9 ceiling (effectiveAmountCents = clamped amount)
+//   'NO_OP'           — accepted no-op (FAVOR_CLEANER + POST_RELEASE, already paid) — contract (b)
+//   'BLOCKED'         — NOT applied; reason e.g. 'PAYMENT_ALREADY_SETTLED' (contract (c)) or ceiling-block
+// interface EscrowActionOutcome { result: 'APPLIED'|'CEILING_CLAMPED'|'NO_OP'|'BLOCKED'; effectiveAmountCents?: number; reason?: string }
 ```
-Holds no Stripe keys; delegates to Spec 9's `setDisputeStatus` / `EscrowReleaseService.release` / `RefundService.refund`, which own amounts, ceilings, and idempotency.
+Holds no Stripe keys; delegates to Spec 9's `setDisputeStatus` / `EscrowReleaseService.release` / `RefundService.refund`, which own amounts, ceilings, idempotency, the atomic block-vs-release guard, the accepted-no-op result, and the already-settled rejection.
 
 **`UpstreamEvidenceReader`** — resolves structured references read-only: checklist state + completion summary (Spec 19), verification decision (Spec 18), arrival fact (Spec 17). Never mutates upstream; returns gated data, not URLs.
 
@@ -397,13 +421,16 @@ Holds no Stripe keys; delegates to Spec 9's `setDisputeStatus` / `EscrowReleaseS
 
 **`DisputeCreatedConsumer`** (relay) — drains `service_disputed` rows unacked for `consumer_name = 'dispute'` (reusing Spec 20's `CompletionOutboxConsumerCheckpoint.drainUnacked('dispute', batch)`), calls `createFromRouting`, then `ack(eventId, 'dispute')`. At-least-once + idempotent (dedup by the partial-unique + `disputeId`). Row-scoped try/catch so one bad row never stalls the batch.
 
-**`EscrowIntentWorker`** (BullMQ repeatable) — drains claimable `dispute_escrow_intents`, claims via lease, calls `EscrowClient.setDisputeStatus(payment_id, target)` (`OPEN` on open, `NONE` on clear), marks `ACCEPTED`/`FAILED_RETRYABLE`. The only path that sets the escrow block; holds no Stripe keys.
+**`EscrowIntentWorker`** (BullMQ repeatable) — drains claimable `dispute_escrow_intents`, claims via lease, calls `EscrowClient.setDisputeStatus(payment_id, target)` (`OPEN` on open, `NONE` on clear), marks `ACCEPTED`/`FAILED_RETRYABLE`. The only path that sets the escrow block; holds no Stripe keys. **It keys off `payment_id` + the intent row, never the dispute row**, so it drains/completes correctly even when `dispute_id` has been nulled by a cascade (see deletion-policy coherence): a `PENDING` `NONE` intent still clears the block on the correct payment after its dispute row is gone.
 
-**`FinancialIntentWorker`** (BullMQ repeatable) — drains claimable `dispute_financial_intents`, claims via lease, maps to `EscrowClient.release`/`refund`, marks `ACCEPTED` on Spec 9 acceptance (surfacing any ceiling clamp/block) or `FAILED_RETRYABLE`. **On `ACCEPTED` it enqueues the `NONE` escrow-block intent** — the single point that begins clearing the escrow, guaranteeing clear-escrow-LAST.
+**`FinancialIntentWorker`** (BullMQ repeatable) — drains claimable `dispute_financial_intents`, claims via lease, maps to `EscrowClient.release`/`refund`. **It keys off `payment_id` + the intent row, never the dispute row**, so it drives the money effect to completion even when `dispute_id` has been nulled by a cascade (the effect must never be lost). It interprets the Spec 9 `EscrowActionOutcome.result`:
+- `APPLIED`/`CEILING_CLAMPED`/`NO_OP` → mark `ACCEPTED` (record `outcome` + `effective_amount_cents`), **then enqueue the `NONE` escrow-block intent** — the single point that begins clearing the escrow, guaranteeing clear-escrow-LAST.
+- `BLOCKED` (money not moved — e.g. `PAYMENT_ALREADY_SETTLED` per contract (c), or a hard ceiling-block) → mark `ACTION_BLOCKED` (durable needs-review terminal), record `outcome`/`outcome_reason`, **do NOT enqueue the `NONE` clear** (escrow stays `OPEN`), surface for operator review.
+- transient failure → `FAILED_RETRYABLE` (attempt++), retried; `disputeStatus` stays `OPEN`.
 
 **`DisputeSlaSweepProcessor`** (BullMQ repeatable; interval/batch from config) — selects due non-terminal disputes (partial index), calls `DisputeSlaService.expireDue(id)` per row (single-winner, idempotent).
 
-**`EvidenceRetentionProcessor` / `TombstoneDrainProcessor` / `StaleGrantCleanupProcessor`** (BullMQ repeatable) — the checklist-photos/voice-notes storage-cleanup trio: retention hard-deletes evidence objects past `DISPUTE_EVIDENCE_RETENTION_DAYS` (clock from `uploaded_at`, metadata retained); the tombstone drain deletes objects whose owning row cascaded away; stale-grant cleanup deletes orphan objects from never-finalized uploads and closes stale `ISSUED` grants. Bounded, idempotent.
+**`EvidenceRetentionProcessor` / `TombstoneDrainProcessor` / `StaleGrantCleanupProcessor`** (BullMQ repeatable) — the checklist-photos/voice-notes storage-cleanup trio: retention hard-deletes evidence objects **only for disputes that are already TERMINAL (`RESOLVED`/`EXPIRED`) AND past `DISPUTE_EVIDENCE_RETENTION_DAYS`** (clock from `uploaded_at`, metadata retained) — evidence for a **non-terminal** dispute is **never** deleted, even if its upload is older than the horizon, so evidence still needed for an in-flight resolution is never destroyed; `DISPUTE_EVIDENCE_RETENTION_DAYS` is additionally validated to be `>= (DISPUTE_EVIDENCE_WINDOW_MS + DISPUTE_RESOLUTION_SLA_MS)` plus an audit buffer. The tombstone drain deletes objects whose owning row cascaded away; stale-grant cleanup deletes orphan objects from never-finalized uploads and closes stale `ISSUED` grants. Bounded, idempotent.
 
 **`DisputeController`** (`@Controller('disputes') @UseGuards(JwtAuthGuard)`, whitelisting `ValidationPipe`):
 
@@ -444,7 +471,8 @@ apps/mobile/src/screens/dispute/
 - **`dispute.types.ts`** — `Dispute` (`id`, `serviceCompletionId`, `offerId`, `state`, `phase`, `initiatorRole`, `reasonCode`, `resolution?`, `resolutionRefundCents?`, `resolutionDeadline`, `evidenceDeadline`), `DisputeEvidence` (`id`, `kind`, `submittedBy?`, `createdAt` — never a raw key), enums, `ConnectionStatus`. No internal intent fields are exposed.
 - **`useResolutionCountdown.ts`** — display-only countdown derived from the durable `resolution_deadline`; on expiry re-fetches via `GET`, never an authoritative client timer.
 - **`dispute.store.ts`** (Zustand) — dispute + evidence refs; optimistic open/evidence reconciled via `GET`; idempotent state application (ignore regressions/older/illegal transitions); never persists a bare object key.
-- **`DisputeHostScreen`** — open a dispute (reason + optional text + grant-gated photos), reflect `OPEN` with a visible resolution deadline, and the outcome once resolved.
+- **Trigger ownership (explicit, NB1):** the "open dispute" UX does **not** call `dispute-system` to create the case — this module exposes **no `POST /disputes`**. The Host's action drives **Spec 20's completion/dispute trigger**, which commits the routing and emits `service_disputed` into `completion_outbox`; `dispute-system`'s consumer then creates the case. The mobile screens read/reconcile the dispute via `GET /disputes/:id` and supplement evidence via the evidence endpoints, but never create the dispute directly. Flow: **Mobile → Spec 20 trigger → `completion_outbox(service_disputed)` → dispute-system consumer creates the case → GET reconcile.**
+- **`DisputeHostScreen`** — start a dispute via the Spec 20 completion flow (reason + optional text + grant-gated photos are gathered here but the case is created by the consumer, not a direct POST), reflect `OPEN` with a visible resolution deadline, and the outcome once resolved.
 - **`DisputeCleanerScreen`** — see the dispute state, add counter-evidence within the window, an explicit "auto-release paused" indicator, and the outcome + payment effect.
 - **`EvidenceGallery`** — participant-gated viewing: visual via fresh pre-signed URLs, structured via gated data; never public.
 - **i18n** `en`/`es` parity for all strings; BidClean dark tokens (`#00F5D4` accent for the dispute/submit CTAs, `#0B0C10` background, `#1F2833` cards). Evidence photos are only viewable by authorized parties.
@@ -470,7 +498,7 @@ All tables follow the project database standards: `UUID` PK (`gen_random_uuid()`
 | `reason_text` | `TEXT` (nullable) | user content — validated/escaped, never executed |
 | `state` | `VARCHAR(15) NOT NULL DEFAULT 'OPEN'` | app-validated `OPEN/UNDER_REVIEW/RESOLVED/EXPIRED` |
 | `resolution` | `VARCHAR(15)` (nullable) | app-validated `FAVOR_CLEANER/FAVOR_HOST/PARTIAL`; **NOT NULL once terminal** (data invariant) |
-| `resolution_refund_cents` | `INTEGER` (nullable) | requested refund for `FAVOR_HOST`/`PARTIAL`; Spec 9 ceilings it; `CHECK (>= 0)` |
+| `resolution_refund_cents` | `INTEGER` (nullable) | the **REQUESTED** refund for `FAVOR_HOST`/`PARTIAL` — **not** the final amount; Spec 9 computes/ceilings the actual amount, surfaced as `effective_amount_cents` on the financial intent; `CHECK (>= 0)` |
 | `evidence_deadline` | `TIMESTAMPTZ NOT NULL` | `= created + DISPUTE_EVIDENCE_WINDOW_MS`; snapshotted, server-swept |
 | `resolution_deadline` | `TIMESTAMPTZ NOT NULL` | `= created + DISPUTE_RESOLUTION_SLA_MS`; snapshotted, server-swept |
 | `resolved_at` | `TIMESTAMPTZ` (nullable) | set on `→ RESOLVED`/`EXPIRED` |
@@ -506,11 +534,13 @@ Indexes/constraints: `idx_dispute_evidence_dispute (dispute_id)`, `idx_dispute_e
 
 ### `dispute_escrow_intents` (new — durable escrow-block intent; open never leaves the escrow unblocked)
 
+**The intent survives its dispute (Blocker 2).** `dispute_id` is **`ON DELETE SET NULL`** (nullable), NOT cascade: a `PENDING` `NONE` intent (needed to clear the block after an accepted financial effect) must never vanish when the parent completion/offer cascades the dispute away. `payment_id` stays `NOT NULL` so the `EscrowIntentWorker` can complete the block/clear on the correct payment keyed off the intent row alone.
+
 | Column | Type | Notes |
 |---|---|---|
 | `id` | `UUID PK DEFAULT gen_random_uuid()` | |
-| `dispute_id` | `UUID NOT NULL` | FK → `disputes(id)` **ON DELETE CASCADE**; indexed |
-| `payment_id` | `UUID NOT NULL` | passed to `setDisputeStatus`; indexed |
+| `dispute_id` | `UUID` (nullable) | FK → `disputes(id)` **ON DELETE SET NULL**; indexed — nulled (not deleted) if the dispute cascades away so a pending clear survives |
+| `payment_id` | `UUID NOT NULL` | passed to `setDisputeStatus`; **never nulled** — the worker keys off this; indexed |
 | `target` | `VARCHAR(10) NOT NULL` | app-validated `OPEN/NONE` |
 | `status` | `VARCHAR(20) NOT NULL DEFAULT 'PENDING'` | app-validated `PENDING/DISPATCHED/ACCEPTED/FAILED_RETRYABLE` |
 | `attempt` | `INTEGER NOT NULL DEFAULT 0` | incremented on `FAILED_RETRYABLE` |
@@ -519,27 +549,30 @@ Indexes/constraints: `idx_dispute_evidence_dispute (dispute_id)`, `idx_dispute_e
 | `last_error` | `TEXT` (nullable) | sanitized (no secrets/PII) |
 | `created_at` / `updated_at` | `TIMESTAMPTZ DEFAULT NOW()` | |
 
-Indexes: `idx_dispute_escrow_intents_dispute (dispute_id)`, `idx_dispute_escrow_intents_payment (payment_id)`; `idx_dispute_escrow_intents_drain (created_at) WHERE status IN ('PENDING','FAILED_RETRYABLE','DISPATCHED')` (drain/claim scan). Constraint: `uq_dispute_escrow_intent_target ON (dispute_id, target)` — at most one `OPEN` and one `NONE` intent per dispute (idempotent enqueue backstop). `CHECK` on `target`/`status`.
+Indexes: `idx_dispute_escrow_intents_dispute (dispute_id)`, `idx_dispute_escrow_intents_payment (payment_id)`; `idx_dispute_escrow_intents_drain (created_at) WHERE status IN ('PENDING','FAILED_RETRYABLE','DISPATCHED')` (drain/claim scan). Constraint: `uq_dispute_escrow_intent_target ON (dispute_id, target) WHERE dispute_id IS NOT NULL` — a **partial** unique (dispute_id may be nulled by cascade) enforcing at most one `OPEN` and one `NONE` intent per dispute while it exists (idempotent enqueue backstop); once nulled, the row's uniqueness is no longer enforced but the worker still completes it by `payment_id`. `CHECK` on `target`/`status`.
 
 ### `dispute_financial_intents` (new — durable money-effect intent; a crash never loses the resolution's effect)
+
+**The intent survives its dispute (Blocker 2).** `dispute_id` is **`ON DELETE SET NULL`** (nullable), NOT cascade: a still-`PENDING` financial intent must never be deleted before the worker executes it (that would lose the money effect). If the parent completion/offer cascades the dispute away, the intent's `dispute_id` is nulled but the row survives with `payment_id NOT NULL`, and the `FinancialIntentWorker` drives it to completion keyed off `payment_id` + the intent row. Only after the effect is an *applied* terminal (`ACCEPTED`) is it safe for the row to be orphaned. In practice completion/offer deletion should be rare/guarded while a financial effect is pending, but `SET NULL` guarantees no loss regardless.
 
 | Column | Type | Notes |
 |---|---|---|
 | `id` | `UUID PK DEFAULT gen_random_uuid()` | |
-| `dispute_id` | `UUID NOT NULL` | FK → `disputes(id)` **ON DELETE CASCADE**; indexed |
-| `payment_id` | `UUID NOT NULL` | passed to `release`/`refund`; indexed |
+| `dispute_id` | `UUID` (nullable) | FK → `disputes(id)` **ON DELETE SET NULL**; indexed — nulled (not deleted) if the dispute cascades away so a pending money effect is never lost |
+| `payment_id` | `UUID NOT NULL` | passed to `release`/`refund`; **never nulled** — the worker keys off this; indexed |
 | `action` | `VARCHAR(20) NOT NULL` | app-validated `RELEASE/FULL_REFUND/PARTIAL_REFUND` |
-| `amount_cents` | `INTEGER` (nullable) | for `PARTIAL_REFUND`; Spec 9 ceilings it; `CHECK (amount_cents IS NULL OR amount_cents >= 0)` |
-| `status` | `VARCHAR(20) NOT NULL DEFAULT 'PENDING'` | app-validated `PENDING/DISPATCHED/ACCEPTED/FAILED_RETRYABLE` |
+| `amount_cents` | `INTEGER` (nullable) | REQUESTED amount for `PARTIAL_REFUND`; Spec 9 ceilings it; `CHECK (amount_cents IS NULL OR amount_cents >= 0)` |
+| `status` | `VARCHAR(20) NOT NULL DEFAULT 'PENDING'` | app-validated `PENDING/DISPATCHED/ACCEPTED/FAILED_RETRYABLE/ACTION_BLOCKED` — `ACTION_BLOCKED` is the durable needs-review terminal for a Spec 9 `BLOCKED` outcome (money NOT moved) |
 | `attempt` | `INTEGER NOT NULL DEFAULT 0` | incremented on `FAILED_RETRYABLE` |
 | `dispatched_at` | `TIMESTAMPTZ` (nullable) | set on claim (`→ DISPATCHED`) |
 | `lease_until` | `TIMESTAMPTZ` (nullable) | claim lease expiry; crash-orphaned `DISPATCHED` re-claimable |
-| `outcome` | `VARCHAR(20)` (nullable) | Spec 9 outcome surfaced (`APPLIED/CEILING_CLAMPED/BLOCKED`) — never override, only surface |
-| `effective_amount_cents` | `INTEGER` (nullable) | the amount Spec 9 actually applied (may be clamped) |
+| `outcome` | `VARCHAR(20)` (nullable) | Spec 9 outcome surfaced (`APPLIED/CEILING_CLAMPED/NO_OP/BLOCKED`) — never override, only surface |
+| `outcome_reason` | `VARCHAR(40)` (nullable) | Spec 9 `BLOCKED` reason surfaced (e.g. `PAYMENT_ALREADY_SETTLED`) for operator review; sanitized |
+| `effective_amount_cents` | `INTEGER` (nullable) | the amount Spec 9 actually applied (may be clamped); the AUTHORITATIVE final amount |
 | `last_error` | `TEXT` (nullable) | sanitized (no secrets/PII) |
 | `created_at` / `updated_at` | `TIMESTAMPTZ DEFAULT NOW()` | |
 
-Indexes: `idx_dispute_financial_intents_dispute (dispute_id)`, `idx_dispute_financial_intents_payment (payment_id)`; `idx_dispute_financial_intents_drain (created_at) WHERE status IN ('PENDING','FAILED_RETRYABLE','DISPATCHED')`. Constraint: `uq_dispute_financial_intent_dispute ON (dispute_id)` — **at most one financial intent per dispute** (single-winner resolution/expiry ⇒ one intent; REQ-DS6). `CHECK` on `action`/`status`/`outcome`; `CHECK (action <> 'PARTIAL_REFUND' OR amount_cents IS NOT NULL)`.
+Indexes: `idx_dispute_financial_intents_dispute (dispute_id)`, `idx_dispute_financial_intents_payment (payment_id)`; `idx_dispute_financial_intents_drain (created_at) WHERE status IN ('PENDING','FAILED_RETRYABLE','DISPATCHED')`; `idx_dispute_financial_intents_blocked (created_at) WHERE status = 'ACTION_BLOCKED'` (operator needs-review scan). Constraint: `uq_dispute_financial_intent_dispute ON (dispute_id) WHERE dispute_id IS NOT NULL` — a **partial** unique (dispute_id may be nulled by cascade) enforcing **at most one financial intent per dispute** while it exists (single-winner resolution/expiry ⇒ one intent; REQ-DS6). At-most-one-effect *per payment across all its disputes* is guaranteed by Spec 9 contract (c), not this constraint (P15). `CHECK` on `action`/`status`/`outcome`; `CHECK (action <> 'PARTIAL_REFUND' OR amount_cents IS NOT NULL)`.
 
 ### `dispute_object_deletions` (deletion tombstone — the voice-notes lesson, for `HOST_PHOTO` bytes)
 
@@ -592,7 +625,9 @@ Indexes: `uq_dispute_outbox_event (event_id)`; `idx_dispute_outbox_created (crea
 
 ### Deletion-policy coherence (Spec 13 invariant)
 
-Consistent with the siblings: user references (`initiator_id`/`host_id`/`cleaner_id`/`submitted_by`) are **`ON DELETE SET NULL`**, never `CASCADE` from `users` — deleting/anonymizing a participant never destroys the dispute + resolution audit history (REQ-DS10). `service_completion_id`/`offer_id` (→ `disputes`) and `dispute_id` (→ `dispute_evidence`/`dispute_escrow_intents`/`dispute_financial_intents`) **CASCADE**, so removing the parent completion/offer removes the dispute, evidence, and intents — and the evidence cascade fires the tombstone trigger so any remaining `HOST_PHOTO` object is queued for idempotent eventual deletion. `payment_id` is a **reference by id** with **no cascade from payments** — payments is its own bounded context, unaffected. The rows have **no `deleted_at`** — they persist as audit; only `HOST_PHOTO` bytes are ever removed (by retention/tombstone).
+Consistent with the siblings: user references (`initiator_id`/`host_id`/`cleaner_id`/`submitted_by`) are **`ON DELETE SET NULL`**, never `CASCADE` from `users` — deleting/anonymizing a participant never destroys the dispute + resolution audit history (REQ-DS10). `service_completion_id`/`offer_id` (→ `disputes`) and `dispute_id` (→ `dispute_evidence`) **CASCADE**, so removing the parent completion/offer removes the dispute and its evidence — and the evidence cascade fires the tombstone trigger so any remaining `HOST_PHOTO` object is queued for idempotent eventual deletion.
+
+**The two intent tables are the deliberate exception (Blocker 2).** `dispute_escrow_intents.dispute_id` and `dispute_financial_intents.dispute_id` are **`ON DELETE SET NULL`**, NOT `CASCADE`. A money command must never be destroyed before it lands: a `PENDING` financial intent that a cascade deleted would mean the resolution's refund/release never happens, and a `PENDING` `NONE` escrow intent that a cascade deleted would leave the block un-cleared. So when a dispute cascades away, these rows survive with `dispute_id = NULL` and `payment_id` intact; the `FinancialIntentWorker`/`EscrowIntentWorker` key off `payment_id` + the intent row and drive them to completion regardless. Only after a financial intent reaches an applied terminal (`ACCEPTED`) — or an escrow clear is `ACCEPTED` — is it safe for the row to be orphaned. `payment_id` on both intent tables (and on `disputes`) is a **reference by id** with **no cascade from payments** — payments is its own bounded context, unaffected. The rows have **no `deleted_at`** — they persist as audit; only `HOST_PHOTO` bytes are ever removed (by retention/tombstone).
 
 ### TypeScript enums (`dispute.types.ts`)
 
@@ -608,7 +643,12 @@ export enum DisputeEvidenceKind {
 }
 export enum EscrowIntentTarget { OPEN = 'OPEN', NONE = 'NONE' }
 export enum FinancialIntentAction { RELEASE = 'RELEASE', FULL_REFUND = 'FULL_REFUND', PARTIAL_REFUND = 'PARTIAL_REFUND' }
-export enum IntentStatus { PENDING = 'PENDING', DISPATCHED = 'DISPATCHED', ACCEPTED = 'ACCEPTED', FAILED_RETRYABLE = 'FAILED_RETRYABLE' }
+export enum IntentStatus {
+  PENDING = 'PENDING', DISPATCHED = 'DISPATCHED', ACCEPTED = 'ACCEPTED', FAILED_RETRYABLE = 'FAILED_RETRYABLE',
+  ACTION_BLOCKED = 'ACTION_BLOCKED',   // durable needs-review terminal: Spec 9 returned BLOCKED (money NOT moved)
+}
+// Spec 9 outcome surfaced on a financial intent (dispute-system never overrides, only records)
+export enum EscrowActionResult { APPLIED = 'APPLIED', CEILING_CLAMPED = 'CEILING_CLAMPED', NO_OP = 'NO_OP', BLOCKED = 'BLOCKED' }
 ```
 
 ### Resolution → financial-action mapping (`resolution-mapping.ts`, pure)
@@ -616,7 +656,7 @@ export enum IntentStatus { PENDING = 'PENDING', DISPATCHED = 'DISPATCHED', ACCEP
 | `resolution` | `phase` | `dispute_financial_intents.action` | Spec 9 call | Notes |
 |---|---|---|---|---|
 | `FAVOR_CLEANER` | `PRE_RELEASE` | `RELEASE` | `EscrowReleaseService.release` | release held funds to Cleaner |
-| `FAVOR_CLEANER` | `POST_RELEASE` | `RELEASE` (no-op) | `release` (idempotent) | already paid → Spec 9 no-op |
+| `FAVOR_CLEANER` | `POST_RELEASE` | `RELEASE` | `release` (idempotent) | already paid → Spec 9 returns an **accepted `NO_OP`** (contract (b)), treated as applied → escrow cleared |
 | `FAVOR_HOST` | `PRE_RELEASE` | `FULL_REFUND` | `RefundService.refund(null)` | refund held funds |
 | `FAVOR_HOST` | `POST_RELEASE` | `FULL_REFUND` | `RefundService.refund(null)` | Spec 9 refund + proportional reversal |
 | `PARTIAL` | any | `PARTIAL_REFUND(amount)` | `RefundService.refund(amount)` | Spec 9 ceilings + proportional reversal if `POST_RELEASE` |
@@ -637,9 +677,11 @@ stateDiagram-v2
     EXPIRED --> [*]
 
     note right of RESOLVED
-        Clear-escrow-LAST: disputeStatus stays OPEN
-        until the financial intent is ACCEPTED by Spec 9.
+        Clear-escrow-LAST: disputeStatus stays OPEN until Spec 9
+        APPLIES the financial action (APPLIED/CEILING_CLAMPED/NO_OP).
         ONLY THEN is a NONE escrow-block intent enqueued.
+        A BLOCKED outcome → intent ACTION_BLOCKED, escrow STAYS OPEN,
+        operator review; the dispute stays terminal but money not moved.
         Terminal states are immutable.
     end note
 ```
@@ -650,17 +692,17 @@ Every transition is `UPDATE disputes SET state=:next, <derived>=... WHERE id=:id
 
 *A property is a characteristic or behavior that should hold true across all valid executions of a system — essentially, a formal statement about what the system should do. Properties serve as the bridge between human-readable specifications and machine-verifiable correctness guarantees.*
 
-Each property is universally quantified, testable, and maps back to the requirements' acceptance criteria and REQ-DS invariants. Redundant candidates from the prework were consolidated: idempotent creation + partial-unique + phase-derivation into P1; participant/role isolation + initiation policy into P3; evidence key≠credential + reference gating + window gate into P5/P6; single-winner terminality + atomicity + one-financial-intent into P8; clear-escrow-last (open block + resolve/expire clear) into P4; SLA fallback + never-stuck into P7.
+Each property is universally quantified, testable, and maps back to the requirements' acceptance criteria and REQ-DS invariants. Redundant candidates from the prework were consolidated: idempotent creation + partial-unique + phase-derivation into P1; participant/role isolation + initiation policy into P3; evidence key≠credential + reference gating + window gate into P5/P6; single-winner terminality + atomicity + one-financial-intent into P8; clear-escrow-last (open block + resolve/expire clear) into P4; SLA fallback + never-stuck into P7. P15 (added) states at-most-one-financial-effect **per payment** across all its disputes — an authority-level guarantee distinct from P11's within-dispute idempotency.
 
-### Property 1: One active dispute per completion, created idempotently, phase from actual payment state
+### Property 1: One active dispute per completion, created idempotently, phase from one explicit payment state
 
-*For any* `service_disputed` routing event delivered N ≥ 1 times, and *for any* interleaving of concurrent creation attempts for the same `service_completion_id`, the store SHALL contain at most one **active** dispute (`state IN ('OPEN','UNDER_REVIEW')`) for that completion (partial-unique `uq_disputes_active_completion`), in state `OPEN`, with participants + `payment_id` resolved server-side, `phase` derived from **Spec 9's authoritative payment state** (`POST_RELEASE` iff the release was actually accepted, never from the completion's `CONFIRMED`/`AUTO_RELEASED`), and `evidence_deadline`/`resolution_deadline` snapshotted from config. Every redelivery or concurrent attempt SHALL be a no-op — a second active dispute SHALL never exist — while a new dispute MAY open only after the prior one is terminal.
+*For any* `service_disputed` routing event delivered N ≥ 1 times, and *for any* interleaving of concurrent creation attempts for the same `service_completion_id`, the store SHALL contain at most one **active** dispute (`state IN ('OPEN','UNDER_REVIEW')`) for that completion (partial-unique `uq_disputes_active_completion`), in state `OPEN`, with participants + `payment_id` resolved server-side, `phase` derived from **exactly one authoritative Spec 9 field — `payout_status`** (`POST_RELEASE` iff `payout_status IN ('TRANSFER_CREATED','PAID')`, else `PRE_RELEASE`), never from the completion's `CONFIRMED`/`AUTO_RELEASED` and never from a mixed "accepted or executed" notion, and `evidence_deadline`/`resolution_deadline` snapshotted from config. Every redelivery or concurrent attempt SHALL be a no-op — a second active dispute SHALL never exist — while a new dispute MAY open only after the prior one is terminal.
 
 **Validates: Requirements 1.1, 1.5** · REQ-DS1, REQ-DS2c
 
-### Property 2: Opening durably blocks the escrow (crash-safe)
+### Property 2: Opening durably blocks the escrow; release cannot win against a pending block (crash-safe)
 
-*For any* dispute creation, a durable `dispute_escrow_intent { target = OPEN, PENDING }` SHALL be committed in the SAME transaction as the `disputes` row, and the escrow SHALL NOT be blocked synchronously in the consumer path. *For any* crash point between the committed dispute and the block — including an intent left `DISPATCHED` — the `EscrowIntentWorker` SHALL claim it via a single-winner lease and drive `setDisputeStatus(payment_id, OPEN)` to `ACCEPTED` with idempotent retries; a dispute SHALL never be `OPEN` while its payment is still auto-release-eligible. The payment SHALL be treated as protected only once Spec 9 has accepted the `OPEN` transition.
+*For any* dispute creation, a durable `dispute_escrow_intent { target = OPEN, PENDING }` SHALL be committed in the SAME transaction as the `disputes` row, and the escrow SHALL NOT be blocked synchronously in the consumer path. A dispute **MAY** exist in `OPEN` while its escrow-block intent is still `PENDING`; the safety guarantee is **not** synchronous blocking but Spec 9's atomicity: *for any* interleaving of `setDisputeStatus(OPEN)` with a not-yet-accepted release on the same payment, Spec 9 SHALL resolve to exactly one deterministic winner and SHALL NOT accept/execute a release while a pending dispute block exists for that payment (contract (a)). Therefore *for any* crash point between the committed dispute and the block — including an intent left `DISPATCHED` — the `EscrowIntentWorker` SHALL claim it via a single-winner lease and drive `setDisputeStatus(payment_id, OPEN)` to `ACCEPTED` with idempotent retries, and the payment's funds SHALL NOT be released out from under the open dispute in the meantime. The corrected invariant: **a dispute may be `OPEN` with a `PENDING` block, but the payment cannot execute/accept a release while a pending dispute block exists for it.** (Spec 20 only routes a post-release dispute once release is `ACCEPTED`, so this race exists only pre-release, and contract (a) closes it.)
 
 **Validates: Requirements 1.2, 4.5** · REQ-DS2
 
@@ -670,11 +712,11 @@ Each property is universally quantified, testable, and maps back to the requirem
 
 **Validates: Requirements 1.3, 1.4** · REQ-DS1
 
-### Property 4: Clear-escrow-LAST
+### Property 4: Clear-escrow-LAST, and only on an applied outcome (never on BLOCKED)
 
-*For any* resolution or fallback, the escrow `disputeStatus` SHALL remain `OPEN` until Spec 9 has durably **accepted** the resolution's financial action; a `NONE` escrow-block intent SHALL be enqueued **only after** the `dispute_financial_intent` is `ACCEPTED`. *For any* interleaving of the financial-intent drain and the escrow-clear, there SHALL be no window where the payment is unblocked while the refund/release has not yet landed, and a RESOLVED/EXPIRED dispute SHALL be immutable (a subsequent grievance is a new dispute).
+*For any* resolution or fallback, the escrow `disputeStatus` SHALL remain `OPEN` until Spec 9 has durably **applied** the resolution's financial action; a `NONE` escrow-block intent SHALL be enqueued **only after** the `dispute_financial_intent` reaches an *applied* terminal — Spec 9 result `APPLIED`, `CEILING_CLAMPED`, or accepted `NO_OP`. *For any* Spec 9 `BLOCKED` outcome (money NOT moved — e.g. `PAYMENT_ALREADY_SETTLED` or a hard ceiling-block), the intent SHALL move to the durable `ACTION_BLOCKED` needs-review terminal, the `NONE` clear SHALL NOT be enqueued, `disputeStatus` SHALL stay `OPEN`, and the dispute SHALL be surfaced for operator review (never silently closed as settled). *For any* interleaving of the financial-intent drain and the escrow-clear, there SHALL be no window where the payment is unblocked while the refund/release has not actually landed, and a RESOLVED/EXPIRED dispute SHALL be immutable (a subsequent grievance is a new dispute).
 
-**Validates: Requirements 3.4, 4.2, 4.4** · REQ-DS2b, REQ-DS9
+**Validates: Requirements 3.4, 3.5, 4.2, 4.4** · REQ-DS2b, REQ-DS9
 
 ### Property 5: Evidence key ≠ credential; bytes isolated
 
@@ -706,15 +748,15 @@ Each property is universally quantified, testable, and maps back to the requirem
 
 **Validates: Requirements 3.1, 3.2, 3.3** · REQ-DS4
 
-### Property 10: Spec 9 owns amounts + ceilings; dispute-system never overrides
+### Property 10: Spec 9 owns amounts + ceilings; dispute-system never overrides; BLOCKED ≠ applied
 
-*For any* requested resolution amount and *for any* Spec 9 ceiling, `dispute-system` SHALL forward the requested action/amount and SHALL surface Spec 9's outcome (`APPLIED`/`CEILING_CLAMPED`/`BLOCKED`, with the effective amount) on the intent — it SHALL never itself clamp, recompute, or bypass a ceiling, and SHALL never over-refund. The exact refund/proportional-reversal amounts SHALL be computed by Spec 9's `decideRefund`/reversal.
+*For any* requested resolution amount and *for any* Spec 9 ceiling/settlement outcome, `dispute-system` SHALL forward the requested action/amount and SHALL surface Spec 9's outcome distinctly on the intent — `APPLIED`/`CEILING_CLAMPED`/`NO_OP` (with `effective_amount_cents`, the AUTHORITATIVE final amount) vs `BLOCKED` (with `outcome_reason`) — it SHALL never itself clamp, recompute, or bypass a ceiling, and SHALL never over-refund. A `BLOCKED` outcome SHALL NOT be treated as an applied financial action (no escrow clear, intent → `ACTION_BLOCKED`); `resolution_refund_cents` is the requested amount only and never overrides Spec 9's `effective_amount_cents`. The exact refund/proportional-reversal amounts SHALL be computed by Spec 9's `decideRefund`/reversal.
 
 **Validates: Requirements 3.3, 3.5** · REQ-DS5
 
 ### Property 11: Single-winner + idempotent Spec 9 ⇒ at most one financial effect per dispute
 
-*For any* dispute and *for any* interleaving of resolve-racing-SLA and duplicate/retried financial-intent drains, the combination of the single-winner terminal transition (exactly one financial intent) and Spec 9's idempotent refund/reversal/release SHALL produce **at most one** financial effect per dispute — a resolution racing an SLA expiry SHALL never double-refund or double-release.
+*For any* dispute and *for any* interleaving of resolve-racing-SLA and duplicate/retried financial-intent drains, the combination of the single-winner terminal transition (exactly one financial intent) and Spec 9's idempotent refund/reversal/release SHALL produce **at most one** financial effect per dispute — a resolution racing an SLA expiry SHALL never double-refund or double-release. This is the *within-dispute* guarantee; the *across-disputes, per-payment* guarantee is P15.
 
 **Validates: Requirements 3.6, 7.5** · REQ-DS6
 
@@ -724,9 +766,9 @@ Each property is universally quantified, testable, and maps back to the requirem
 
 **Validates: Requirements 4.3** · REQ-DS8
 
-### Property 13: Deletion coherence (no cascade-from-users; cascade tombstones evidence keys)
+### Property 13: Deletion coherence (no cascade-from-users; cascade tombstones evidence keys; intents survive via SET NULL)
 
-*For any* dispute, deleting/anonymizing a participant SHALL null `initiator_id`/`host_id`/`cleaner_id`/`submitted_by` (`ON DELETE SET NULL`) while retaining the dispute, resolution, evidence metadata, and intents as audit history — no user-cascade path SHALL destroy dispute history. *For any* deletion of the parent completion/offer, the `disputes`/`dispute_evidence`/`dispute_escrow_intents`/`dispute_financial_intents` SHALL cascade and a `BEFORE DELETE` trigger SHALL insert each freed `HOST_PHOTO` `object_key` into `dispute_object_deletions` in the same transaction (rolled back with a rolled-back delete); object removal SHALL be eventual and idempotent via the tombstone drain. The referenced escrow `payment_id` (no FK cascade from payments) SHALL be unaffected.
+*For any* dispute, deleting/anonymizing a participant SHALL null `initiator_id`/`host_id`/`cleaner_id`/`submitted_by` (`ON DELETE SET NULL`) while retaining the dispute, resolution, evidence metadata, and intents as audit history — no user-cascade path SHALL destroy dispute history. *For any* deletion of the parent completion/offer, the `disputes` and `dispute_evidence` rows SHALL cascade and a `BEFORE DELETE` trigger SHALL insert each freed `HOST_PHOTO` `object_key` into `dispute_object_deletions` in the same transaction (rolled back with a rolled-back delete); object removal SHALL be eventual and idempotent via the tombstone drain. **The two intent tables SHALL NOT cascade: `dispute_escrow_intents.dispute_id` and `dispute_financial_intents.dispute_id` are `ON DELETE SET NULL`**, so *for any* such cascade with a still-un-`ACCEPTED` intent, the intent row SHALL survive with `dispute_id = NULL` and `payment_id` intact, and its worker SHALL drive it to completion keyed off `payment_id` + the intent row — a pending money effect or a pending escrow-clear SHALL never be lost to a cascade. The referenced escrow `payment_id` (no FK cascade from payments) SHALL be unaffected.
 
 **Validates: Requirements 7.2, 7.3** · REQ-DS10
 
@@ -735,6 +777,12 @@ Each property is universally quantified, testable, and maps back to the requirem
 *For any* realtime/push publish outcome (success, failure, dropped/delayed frame), the durable `disputes` state + intents SHALL be unchanged, and `GET /disputes/:id` SHALL return the authoritative PostgreSQL state + phase + resolution + evidence refs + snapshotted deadlines independent of realtime delivery. *For any* tunable (`DISPUTE_EVIDENCE_WINDOW_MS`, `DISPUTE_RESOLUTION_SLA_MS`, `DISPUTE_FALLBACK_RESOLUTION`, `DISPUTE_REASON_CODES`, `DISPUTE_EVIDENCE_MINIO_BUCKET`, photo size/mime/TTL/grant limits, retention days, sweep + intent-drain interval/batch/lease), the value SHALL come from environment/config with none hardcoded, and `validateDisputeConfig()` SHALL fail fast at startup for required/invalid values. `dispute-system` SHALL hold no Stripe keys; MinIO credentials SHALL never reach the client except as time-boxed pre-signed URLs; and no payment secrets or PII SHALL be logged or placed in outbox payloads (ids/enums only), with reason text validated/escaped and evidence references carrying ids, not sensitive content.
 
 **Validates: Requirements 5.2, 6.1, 6.2, 6.3, 6.4** · REQ-DS11, REQ-DS12
+
+### Property 15: At most one financial effect per payment across ALL its disputes
+
+*For any* payment and *for any* sequence of disputes opened on it over time (one active at a time, a new one opening only after the prior terminates), **at most one** dispute-driven financial effect SHALL ever be applied to that payment. Once a dispute on a payment has a durably **applied** financial effect (a settled refund/reversal, or a release), Spec 9 SHALL mark the payment dispute-settled and **reject** any subsequent dispute-driven financial action on it with a `BLOCKED` outcome (`reason = PAYMENT_ALREADY_SETTLED`, contract (c)); a second dispute MAY open (grievance) but its financial intent, when drained, SHALL surface `BLOCKED` → `ACTION_BLOCKED` (P4 handling: escrow stays `OPEN`, operator review) and SHALL NOT produce a second refund/release. The authoritative guard SHALL live in Spec 9 (the money authority), not merely in the per-dispute `uq_dispute_financial_intent_dispute` constraint.
+
+**Validates: Requirements 3.6, 7.5** · REQ-DS5, REQ-DS6
 
 ## Error Handling
 
@@ -745,6 +793,7 @@ Each property is universally quantified, testable, and maps back to the requirem
 | Create while an active dispute already exists for the completion | No second active dispute (partial-unique); idempotent no-op |
 | Dispute-creation / consumer failure | Row-scoped catch; no `(event_id,'dispute')` ack inserted; retried next drain; the completion routing tx unaffected |
 | Escrow-block intent left `DISPATCHED` by a crash | Lease expiry → re-claimed by the next drain → `setDisputeStatus(OPEN)` re-called (idempotent) → `ACCEPTED` |
+| Concurrent release attempt while a dispute block is `PENDING` (pre-release window) | Spec 9's atomic block-vs-release guard (contract (a)) resolves to one winner; a release cannot be accepted/executed while a pending dispute block exists — no release out from under the open dispute |
 | Initiation policy denies `(role, reason_code, phase)` | `403`, nothing created |
 | Evidence request-upload while terminal / after `evidence_deadline` | `409`, no grant minted |
 | Evidence finalize with invalid grant (missing / wrong caller / wrong dispute / expired / consumed) | `403`/`409`, nothing persisted |
@@ -759,10 +808,13 @@ Each property is universally quantified, testable, and maps back to the requirem
 | Resolve racing SLA-expiry | Single-winner: exactly one of `RESOLVED`/`EXPIRED`; the loser no-ops; one financial intent |
 | Financial-intent drain transient failure | `FAILED_RETRYABLE` (attempt++), retried; `disputeStatus` STAYS `OPEN` (clear-escrow-last) |
 | Financial-intent left `DISPATCHED` by a crash | Lease expiry → re-claimed → Spec 9 refund/release re-called (idempotent no-op) → `ACCEPTED` |
-| Requested amount exceeds a Spec 9 ceiling | Spec 9 clamps/blocks; the intent `outcome` surfaces `CEILING_CLAMPED`/`BLOCKED` (`422` on the resolve response if pre-validated); dispute-system never overrides |
+| Requested amount exceeds a Spec 9 ceiling | Spec 9 clamps (`CEILING_CLAMPED`, applied → escrow cleared, `effective_amount_cents` recorded) or hard-blocks (`BLOCKED` → see BLOCKED row); dispute-system never overrides |
+| Spec 9 returns `BLOCKED` (money NOT moved — hard ceiling-block or `PAYMENT_ALREADY_SETTLED`) | Intent → `ACTION_BLOCKED` (durable needs-review terminal); `NONE` clear NOT enqueued; `disputeStatus` STAYS `OPEN`; surfaced to operator; dispute stays terminal but its money effect flagged blocked-needs-review |
+| `FAVOR_CLEANER` + `POST_RELEASE` (already paid) | Spec 9 returns accepted `NO_OP` (contract (b)); treated as applied → escrow cleared to `NONE` |
+| Second dispute's financial effect on an already-settled payment | Spec 9 rejects with `BLOCKED` (`PAYMENT_ALREADY_SETTLED`, contract (c)) → `ACTION_BLOCKED`; at most one financial effect per payment (P15); no double refund/release across disputes |
 | Unresolved past `resolution_deadline` | SLA sweep → single-winner `EXPIRED` + fallback resolution + financial intent (never null) |
 | Fallback financial effect | Same durable-intent → Spec 9 path; escrow cleared to `NONE` only after Spec 9 accepts |
-| Parent completion / offer cascades away | `disputes`/`dispute_evidence`/intents cascade; `BEFORE DELETE` trigger tombstones each `HOST_PHOTO` key; drain deletes idempotently |
+| Parent completion / offer cascades away | `disputes`/`dispute_evidence` cascade; `BEFORE DELETE` trigger tombstones each `HOST_PHOTO` key; drain deletes idempotently. The two intent tables do NOT cascade — `dispute_id` is `SET NULL`, so a still-un-`ACCEPTED` financial/escrow intent survives (with `payment_id`) and its worker drives it to completion — no money effect or escrow-clear lost |
 | Participant user deleted | `initiator_id`/`host_id`/`cleaner_id`/`submitted_by` SET NULL; dispute + resolution retained |
 | Evidence photo past retention horizon | Retention job hard-deletes the object, sets `object_deleted_at`; metadata retained |
 | Uploaded-but-never-finalized evidence object (orphan) | `StaleGrantCleanupProcessor` deletes the object and closes the stale `ISSUED` grant (idempotent) |
@@ -776,24 +828,25 @@ Property-based testing **applies** to this feature: the core logic is a pure dec
 
 ### Property-Based Tests (fast-check)
 
-Library: `fast-check` (TypeScript, mirroring the sibling specs). Each test runs **minimum 100 iterations** and is tagged with a comment: `// Feature: dispute-system, Property N: <text>`.
+Library: `fast-check` (TypeScript, mirroring the sibling specs). Each of P1–P15 is implemented by a SINGLE property-based test, runs **minimum 100 iterations**, and is tagged with a comment: `// Feature: dispute-system, Property N: <text>`.
 
 | Property | What to Generate | What to Assert |
 |---|---|---|
 | P1 Idempotent creation + phase | Random routing payloads × N redeliveries × concurrent interleavings × injected payment states | ≤ one active dispute per completion, `OPEN`; `phase` from injected payment state (not completion decision); deadlines snapshotted; redelivery no-op; reopen only after terminal |
-| P2 Open blocks escrow (crash-safe) | Random crash points between commit and `setDisputeStatus` × transient failures × `DISPATCHED` lease expiry | `OPEN` escrow intent committed atomically; worker drives `setDisputeStatus(OPEN)` to `ACCEPTED` idempotently; never OPEN-with-unblocked-payment |
+| P2 Open blocks escrow; release can't win vs pending block | Random crash points between commit and `setDisputeStatus` × transient failures × `DISPATCHED` lease expiry × concurrent release-vs-block interleavings (mocked Spec 9 atomic guard) | `OPEN` escrow intent committed atomically; worker drives `setDisputeStatus(OPEN)` to `ACCEPTED` idempotently; a release is never accepted while a pending dispute block exists (contract (a) winner); dispute may be OPEN with a PENDING block but funds not released |
 | P3 Authz + initiation policy | Random (user, endpoint, role) tuples × `(role, reason_code, phase)` × policy config | Access iff participant/resolver else `403`; initiation accepted iff policy allows; resolve iff resolver; server-enforced |
-| P4 Clear-escrow-LAST | Random interleavings of financial-intent acceptance vs escrow-clear | `NONE` intent enqueued only after financial intent `ACCEPTED`; no unblocked window; RESOLVED/EXPIRED immutable |
+| P4 Clear-escrow-LAST; BLOCKED never clears | Random interleavings of financial-intent drain vs escrow-clear × Spec 9 outcomes including `APPLIED`/`CEILING_CLAMPED`/`NO_OP`/**`BLOCKED`** | `NONE` intent enqueued only on an applied terminal (`APPLIED`/`CEILING_CLAMPED`/`NO_OP`); on `BLOCKED` intent → `ACTION_BLOCKED`, escrow NOT cleared (`disputeStatus` stays `OPEN`), operator-surfaced; no unblocked window; RESOLVED/EXPIRED immutable |
 | P5 Key ≠ credential | Foreign/valid/expired/consumed grants × callers | Grant persisted before URL; bytes only in MinIO; finalize iff caller-issued unexpired ISSUED matching grant; bare key authorizes nothing |
 | P6 Referenced + gated evidence | Random evidence rows across kinds × viewers × submission times | Visual → gated pre-signed URL (key from DB); structured → gated data (never URL); never copies/mutates upstream; after-deadline rejected/flagged |
 | P7 Never stuck; EXPIRED settled | Random disputes past deadline × fallback config | Single-winner `EXPIRED` + non-null fallback resolution + one financial intent atomically; escrow cleared only after Spec 9 accepts |
 | P8 Single-winner terminality + one intent | Random concurrent resolve/expiry/under-review actors | Exactly one of RESOLVED/EXPIRED; derived fields + exactly one financial intent + `dispute_resolved` in one tx; never two intents; no terminal without resolution |
 | P9 Durable financial intent (crash-safe) | Random resolutions × crash points × transient failures × `DISPATCHED` lease expiry (mocked Spec 9) | One `PENDING` intent committed with the terminal; no synchronous Stripe; worker maps to correct Spec 9 call; re-claim + re-drive idempotent; `ACCEPTED` eventual |
-| P10 Ceilings owned by Spec 9 | Random requested amounts × injected Spec-9 ceiling outcomes | dispute-system forwards + surfaces `APPLIED/CEILING_CLAMPED/BLOCKED`; never clamps/recomputes/over-refunds |
-| P11 At-most-one financial effect | Resolve-racing-SLA × duplicate/retried drains × idempotent Spec 9 | At most one financial effect per dispute; never double-refund/double-release |
+| P10 Ceilings owned by Spec 9; BLOCKED ≠ applied | Random requested amounts × injected Spec-9 outcomes incl. `APPLIED`/`CEILING_CLAMPED`/`NO_OP`/`BLOCKED` | dispute-system forwards + surfaces the distinct outcome + `effective_amount_cents`/`outcome_reason`; never clamps/recomputes/over-refunds; `BLOCKED` not treated as applied (no clear) |
+| P11 At-most-one financial effect per dispute | Resolve-racing-SLA × duplicate/retried drains × idempotent Spec 9 | At most one financial effect per dispute; never double-refund/double-release |
 | P12 Deadline snapshot invariance | Random creation + later config mutations | Deadlines equal the values snapshotted at creation; sweep uses snapshot, not live config |
-| P13 Deletion coherence | Random dispute/evidence/intent graphs + participant deletion + parent cascade | user FKs nulled + rows retained; cascade tombstones every `HOST_PHOTO` key (rolled back with a rolled-back delete); drain idempotent; payment untouched |
-| P14 Realtime advisory + no hardcoded config/secrets | Random publish outcomes × random config maps (missing/invalid/valid) | Durable state identical; `GET` authoritative; validator throws on missing/invalid; no Stripe keys; client payloads only pre-signed URLs; no PII/secrets in logs/outbox |
+| P13 Deletion coherence; intents survive cascade | Random dispute/evidence/intent graphs + participant deletion + parent cascade (with un-`ACCEPTED` intents) | user FKs nulled + rows retained; evidence cascades + tombstones every `HOST_PHOTO` key (rolled back with a rolled-back delete); **both intent tables' `dispute_id` SET NULL (not cascade)** so a pending financial/escrow intent survives with `payment_id` and its worker completes it; drain idempotent; payment untouched |
+| P14 Realtime advisory + no hardcoded config/secrets | Random publish outcomes × random config maps (missing/invalid/valid, incl. retention < window+SLA+buffer) | Durable state identical; `GET` authoritative; validator throws on missing/invalid and on retention-too-short; no Stripe keys; client payloads only pre-signed URLs; no PII/secrets in logs/outbox |
+| P15 At-most-one financial effect per payment | Random sequences of multiple sequential disputes on ONE payment × injected Spec 9 settled-state × drains | At most one applied financial effect across all disputes of a payment; second dispute's intent → Spec 9 `BLOCKED` (`PAYMENT_ALREADY_SETTLED`) → `ACTION_BLOCKED`; never a second refund/release at the payment level |
 
 ### Unit Tests (NestJS)
 
@@ -804,20 +857,20 @@ Library: `fast-check` (TypeScript, mirroring the sibling specs). Each test runs 
 - **`resolution-mapping`** (pure): resolution × phase → action + Spec 9 call.
 - **`DisputeEvidenceService`**: grant-persisted-before-URL; finalize re-checks grant + window + participant + server-inspect; structured vs visual resolution; playback key from DB only; after-deadline rejection.
 - **`DisputeParticipationService`**: host/cleaner/resolver resolution; nulled-participant → non-participant, row retained.
-- **`EscrowClient`** (mocked): maps to Spec 9 `setDisputeStatus`/`release`/`refund`/payment read; surfaces ceiling outcome; holds no Stripe keys; **no Stripe SDK imported anywhere in the module**.
+- **`EscrowClient`** (mocked): maps to Spec 9 `setDisputeStatus`/`release`/`refund`; `readPaymentPhase` derives phase from `payout_status` only; surfaces the distinct `APPLIED`/`CEILING_CLAMPED`/`NO_OP`/`BLOCKED` outcome; holds no Stripe keys; **no Stripe SDK imported anywhere in the module**.
 - **`UpstreamEvidenceReader`**: read-only resolution of checklist/verification/arrival refs; never mutates upstream.
 - **`DisputeEvidenceStorageService`** (mocked `minio`): upload/playback presign; object inspection incl. dimension probe; `deleteObjectSafe` idempotent.
 - **Repositories**: parameterized SQL; single-winner transition co-writing intent + outbox in one tx; `uq_dispute_financial_intent_dispute` enforced; `uq_dispute_escrow_intent_target`; lease claim/reclaim; drain scans select only eligible rows.
-- **`EscrowIntentWorker` / `FinancialIntentWorker`**: lease claim; `setDisputeStatus`/refund/release drive; `FinancialIntentWorker` enqueues `NONE` **only** after `ACCEPTED` (clear-escrow-last); `FAILED_RETRYABLE` retry.
+- **`EscrowIntentWorker` / `FinancialIntentWorker`**: lease claim; both key off `payment_id` + intent row (drain correctly when `dispute_id` is NULL after a cascade); `setDisputeStatus`/refund/release drive; `FinancialIntentWorker` enqueues `NONE` **only** on an applied terminal (`APPLIED`/`CEILING_CLAMPED`/`NO_OP`) — never on `BLOCKED` (→ `ACTION_BLOCKED`, escrow stays OPEN, operator-surfaced) or `FAILED_RETRYABLE` (retry); records `outcome`/`outcome_reason`/`effective_amount_cents`.
 - **`DisputeCreatedConsumer`**: idempotent creation via its own `'dispute'` checkpoint; row-scoped try/catch; failure isolated from the routing flow.
-- **`validateDisputeConfig()`**: fail-fast on missing/invalid (windows, fallback resolution, reason codes, bucket, limits, lease > drain interval).
+- **`validateDisputeConfig()`**: fail-fast on missing/invalid (windows, fallback resolution, reason codes, bucket, limits, lease > drain interval, **`DISPUTE_EVIDENCE_RETENTION_DAYS` >= evidence window + resolution SLA + audit buffer**).
 - **Auth/exposure**: `GET` payload exposes state/phase/resolution/evidence refs only (never keys, never internal intent fields); no commission recompute.
 
 ### DDL / Migration Tests
 
-- Constraints/indexes present: partial-unique `uq_disputes_active_completion`; `uq_dispute_financial_intent_dispute`; `uq_dispute_escrow_intent_target`; FK indexes on every FK; SLA partial index (`WHERE state IN ('OPEN','UNDER_REVIEW')`); intent drain partial indexes (`WHERE status IN ('PENDING','FAILED_RETRYABLE','DISPATCHED')`); evidence retention partial index; `dispatched_at`/`lease_until` present; `CHECK` on `state`/`phase`/`resolution`/`reason_code`/evidence `kind`/intent `action`/`target`/`status`; the terminal-non-null-resolution `CHECK`; `PARTIAL`-amount `CHECK`; no `deleted_at` on any table.
+- Constraints/indexes present: partial-unique `uq_disputes_active_completion`; partial-unique `uq_dispute_financial_intent_dispute` (`WHERE dispute_id IS NOT NULL`); partial-unique `uq_dispute_escrow_intent_target` (`WHERE dispute_id IS NOT NULL`); FK indexes on every FK; SLA partial index (`WHERE state IN ('OPEN','UNDER_REVIEW')`); intent drain partial indexes (`WHERE status IN ('PENDING','FAILED_RETRYABLE','DISPATCHED')`); financial-intent `ACTION_BLOCKED` needs-review partial index; evidence retention partial index; `dispatched_at`/`lease_until` present; `CHECK` on `state`/`phase`/`resolution`/`reason_code`/evidence `kind`/intent `action`/`target`/`status` (status incl. `ACTION_BLOCKED`)/financial `outcome`; the terminal-non-null-resolution `CHECK`; `PARTIAL`-amount `CHECK`; no `deleted_at` on any table.
 - `BEFORE DELETE` trigger tombstones the `HOST_PHOTO` `object_key` on direct delete AND on CASCADE from `disputes`/`service_completions`/`offers`; the tombstone rolls back with a rolled-back delete (P13).
-- Deletion coherence: user FKs (`initiator_id`/`host_id`/`cleaner_id`/`submitted_by`) are `ON DELETE SET NULL`; `service_completion_id`/`offer_id`/`dispute_id` are `ON DELETE CASCADE`; `payment_id` has no FK cascade from payments.
+- Deletion coherence: user FKs (`initiator_id`/`host_id`/`cleaner_id`/`submitted_by`) are `ON DELETE SET NULL`; `service_completion_id`/`offer_id` (→ `disputes`) and `dispute_id` (→ `dispute_evidence`) are `ON DELETE CASCADE`; **`dispute_id` on BOTH intent tables (`dispute_escrow_intents`, `dispute_financial_intents`) is `ON DELETE SET NULL` (asserted explicitly, NOT cascade), while `payment_id` on both remains `NOT NULL`**; `payment_id` has no FK cascade from payments.
 - Migration reversible: `up()` + `down()`; `IF NOT EXISTS`; table/column comments present.
 
 ### Integration Tests
@@ -826,10 +879,14 @@ Library: `fast-check` (TypeScript, mirroring the sibling specs). Each test runs 
 - Escrow-block: worker drives `setDisputeStatus(OPEN)` (mocked Spec 9) to `ACCEPTED`; crash before block → recovered on next drain; `DISPATCHED` lease expiry → re-claimed.
 - Full resolve flow: resolve `FAVOR_HOST`/`PARTIAL`/`FAVOR_CLEANER` → single-winner `RESOLVED` + financial intent + `dispute_resolved`; worker → Spec 9 refund/release (mocked) → `ACCEPTED` → `NONE` escrow intent enqueued LAST → `setDisputeStatus(NONE)`; crash between resolve and Spec 9 → intent still drained; `DISPATCHED` lease reclaim.
 - Phase: pre-release payment → refund-only path; post-release payment → refund + proportional reversal (Spec 9 mock verifies the call), phase derived from the injected payment state, not the completion decision.
-- Ceiling: requested amount over the injected ceiling → Spec 9 clamps/blocks; intent `outcome` surfaces it; dispute-system does not override.
+- Ceiling: requested amount over the injected ceiling → Spec 9 clamps (`CEILING_CLAMPED`, escrow cleared, `effective_amount_cents` recorded) or hard-blocks; dispute-system does not override.
+- BLOCKED: injected Spec 9 `BLOCKED` → intent `ACTION_BLOCKED`, `NONE` clear NOT enqueued, `disputeStatus` stays `OPEN`, needs-review surfaced; escrow NEVER cleared on a blocked money effect.
+- No-op: `FAVOR_CLEANER` + `POST_RELEASE` → Spec 9 accepted `NO_OP` → treated as applied → escrow cleared to `NONE`.
+- Multi-dispute per payment (P15): resolve dispute A with an applied refund; open dispute B on the same terminated completion/payment; B's financial intent drained → Spec 9 rejects with `BLOCKED` (`PAYMENT_ALREADY_SETTLED`) → `ACTION_BLOCKED`; at most one financial effect at the payment level.
+- Intent survives cascade (P13): resolve a dispute (financial intent `PENDING`) then cascade-delete the parent completion → intent row survives with `dispute_id = NULL`, `payment_id` intact; `FinancialIntentWorker` still drives it to Spec 9 and (on applied) enqueues the `NONE` clear which the `EscrowIntentWorker` completes.
 - SLA: unresolved past the snapshotted deadline → sweep `EXPIRED` + fallback resolution + financial intent → same clear-escrow-last path; resolve-racing-SLA → exactly one terminal, one financial intent.
 - Evidence: Host photo request-upload → PUT MinIO → finalize (server inspect) → gated playback (participant + resolver); structured refs resolve to data; after-deadline submission rejected; non-participant denied; cross-dispute evidence id → not served.
-- Retention past horizon → object deleted, `object_deleted_at` set, metadata retained; tombstone drain after cascade; stale-grant cleanup of a never-finalized upload.
+- Retention: an evidence object of a **terminal** dispute past the horizon → object deleted, `object_deleted_at` set, metadata retained; an object of a **non-terminal** dispute past the horizon is **NOT** deleted (still needed for the in-flight resolution); tombstone drain after cascade; stale-grant cleanup of a never-finalized upload.
 - User deletion → participant FKs SET NULL, dispute retained; parent completion/offer cascade removes dispute + evidence + intents and tombstones evidence keys; payment untouched.
 
 ### Mobile Tests
@@ -856,14 +913,15 @@ Backend (`services/api`, via `ConfigService`; `validateDisputeConfig()` fail-fas
 - `DISPUTE_EVIDENCE_UPLOAD_URL_TTL_SECONDS` — pre-signed PUT TTL.
 - `DISPUTE_EVIDENCE_PLAYBACK_URL_TTL_SECONDS` — pre-signed GET TTL.
 - `DISPUTE_EVIDENCE_UPLOAD_GRANT_TTL_SECONDS` — single-use grant TTL.
-- `DISPUTE_EVIDENCE_RETENTION_DAYS` — evidence retention horizon (clock from `uploaded_at`).
+- `DISPUTE_EVIDENCE_RETENTION_DAYS` — evidence retention horizon (clock from `uploaded_at`); retention only ever targets evidence of **terminal** disputes past this horizon. Validated to be `>= DISPUTE_EVIDENCE_WINDOW_MS + DISPUTE_RESOLUTION_SLA_MS + DISPUTE_EVIDENCE_RETENTION_AUDIT_BUFFER_MS` so evidence needed for an in-flight resolution is never deletable.
+- `DISPUTE_EVIDENCE_RETENTION_AUDIT_BUFFER_MS` — the audit buffer added on top of the evidence + resolution windows in the retention-floor validation.
 - `DISPUTE_SLA_SWEEP_INTERVAL_MS`, `DISPUTE_SLA_SWEEP_BATCH_SIZE` — bounded SLA-sweep tuning.
 - `DISPUTE_INTENT_DRAIN_INTERVAL_MS`, `DISPUTE_INTENT_DRAIN_BATCH_SIZE` — escrow/financial intent drain tuning.
 - `DISPUTE_INTENT_LEASE_MS` — claim lease held on an intent when `DISPATCHED`; a crash-orphaned dispatch is re-claimable once the lease passes. **Must exceed `DISPUTE_INTENT_DRAIN_INTERVAL_MS`** so a live in-flight dispatch is never stolen.
 - `DISPUTE_CLEANUP_INTERVAL_MS`, `DISPUTE_CLEANUP_BATCH_SIZE`, `DISPUTE_STALE_GRANT_INTERVAL_MS`, `DISPUTE_STALE_GRANT_BATCH_SIZE` — bounded retention/tombstone/stale-grant tuning.
 - Reused: `MINIO_*` (endpoint/keys — server-only, shipped only as time-boxed pre-signed URLs).
 
-Startup validation (fail-fast): windows/SLA/intervals/batches `> 0`; `DISPUTE_INTENT_LEASE_MS > DISPUTE_INTENT_DRAIN_INTERVAL_MS`; `DISPUTE_FALLBACK_RESOLUTION` a valid resolution; `DISPUTE_REASON_CODES` non-empty; `DISPUTE_EVIDENCE_MINIO_BUCKET` present; size/TTL/retention `> 0`.
+Startup validation (fail-fast): windows/SLA/intervals/batches `> 0`; `DISPUTE_INTENT_LEASE_MS > DISPUTE_INTENT_DRAIN_INTERVAL_MS`; `DISPUTE_FALLBACK_RESOLUTION` a valid resolution; `DISPUTE_REASON_CODES` non-empty; `DISPUTE_EVIDENCE_MINIO_BUCKET` present; size/TTL/retention `> 0`; **`DISPUTE_EVIDENCE_RETENTION_DAYS` (in ms) `>= DISPUTE_EVIDENCE_WINDOW_MS + DISPUTE_RESOLUTION_SLA_MS + DISPUTE_EVIDENCE_RETENTION_AUDIT_BUFFER_MS`** so evidence is never deletable before a dispute can terminate.
 
 Mobile (`EXPO_PUBLIC_*`):
 - `EXPO_PUBLIC_DISPUTE_EVIDENCE_MAX_SIZE_BYTES` — UX pre-check only; everything security-sensitive comes from server responses; no secrets embedded.
@@ -872,9 +930,9 @@ Security: `dispute-system` holds no Stripe keys and makes no Stripe calls (the i
 
 ## Documentation Impact
 
-- **READMEs**: new `services/api/src/dispute-system/README.md` (module purpose, endpoints, the create→open-block→resolve→financial-intent→Spec-9→clear-escrow-last flow, the SLA sweep, evidence grant/reference/gating, retention/tombstone/stale-grant jobs, env vars); new `apps/mobile/src/screens/dispute/README.md` (Host open/evidence, Cleaner counter-evidence/paused, evidence gallery, i18n, tokens). Note the new `completion_outbox` `consumer_name = 'dispute'` checkpoint usage in the service-completion README, and the new `dispute_opened`/`dispute_resolved` events consumed in the push-notifications README. Note the `setDisputeStatus(paymentId, OPEN|NONE)` contract in the stripe-escrow README.
+- **READMEs**: new `services/api/src/dispute-system/README.md` (module purpose, endpoints, the create→open-block→resolve→financial-intent→Spec-9→clear-escrow-last flow, the SLA sweep, evidence grant/reference/gating, retention/tombstone/stale-grant jobs, env vars); new `apps/mobile/src/screens/dispute/README.md` (Host open/evidence, Cleaner counter-evidence/paused, evidence gallery, i18n, tokens). Note the new `completion_outbox` `consumer_name = 'dispute'` checkpoint usage in the service-completion README, and the new `dispute_opened`/`dispute_resolved` events consumed in the push-notifications README. Note the three additive Spec 9 contract points in the stripe-escrow README: `setDisputeStatus(paymentId, OPEN|NONE)` with the **atomic block-vs-release guarantee**, the **accepted `NO_OP`** result for an already-paid release, and the **reject-second-dispute-financial-effect** (`PAYMENT_ALREADY_SETTLED`) guarantee.
 - **`docs/ARCHITECTURE.md`**: add the dispute-system module and a **dispute lifecycle / resolution flow diagram** (`service_disputed` → create + phase-derive + auto-link evidence + `OPEN` escrow intent → evidence gather → resolve/expire single-winner + financial intent → `FinancialIntentWorker` → Spec 9 refund/reversal/release → clear-escrow-LAST `setDisputeStatus(NONE)`; SLA-sweep, retention/tombstone edges), the new MinIO `dispute-evidence` bucket node, the `completion_outbox` fan-out edge to the `'dispute'` consumer, and the edges to Spec 9 (`setDisputeStatus`/`refund`/`release`/payment read) and to the upstream evidence facts (Spec 17/18/19). Update the system Mermaid diagram(s) for the new module + bucket.
 - **`docs/CHANGELOG.md`**: `[Unreleased]` entries per task group (feature `dispute-system`).
-- **ADR**: a new ADR (next free number at merge time) recording: the **dispute-case-vs-escrow-authority split** (dispute-system owns the case + resolution; Spec 9 owns money — no Stripe calls, no commission, no ceiling override here); **phase derived from Spec 9's actual payment state**, not the completion decision; the **durable-intent pattern applied twice** (escrow-block intent on open + financial-action intent on resolve/expire), each drained by a lease-based worker with idempotent retries; **clear-escrow-LAST** (`disputeStatus` cleared only after Spec 9 accepts the financial action); **single-winner conditional transitions** + at-most-one-financial-intent combined with Spec 9's idempotency for at-most-one-financial-effect; the **SLA sweep with a mandatory fallback resolution** (never `resolution = NULL`, never stuck); **evidence-as-typed-references** (never copies, visual→gated URL, structured→gated data) plus grant-gated Host/Cleaner photo uploads with the **deletion-tombstone trigger** + **stale-grant cleanup** (the checklist-photos/voice-notes lesson); and the **v1 resolution mechanism** (rule-assisted operator resolution and/or a deterministic policy — no ML evidence-scoring / AI judge).
-- **`.env.example`**: document all `DISPUTE_*` keys and `EXPO_PUBLIC_DISPUTE_EVIDENCE_MAX_SIZE_BYTES` (MINIO_* already present).
+- **ADR**: a new ADR (next free number at merge time) recording: the **dispute-case-vs-escrow-authority split** (dispute-system owns the case + resolution; Spec 9 owns money — no Stripe calls, no commission, no ceiling override here); **phase derived from one explicit Spec 9 field (`payout_status`)**, not the completion decision and not a mixed accepted/executed notion; the **durable-intent pattern applied twice** (escrow-block intent on open + financial-action intent on resolve/expire), each drained by a lease-based worker with idempotent retries; **clear-escrow-LAST** (`disputeStatus` cleared only after Spec 9 *applies* the financial action); the **SLA sweep with a mandatory fallback resolution** (never `resolution = NULL`, never stuck); **evidence-as-typed-references** (never copies, visual→gated URL, structured→gated data) plus grant-gated Host/Cleaner photo uploads with the **deletion-tombstone trigger** + **stale-grant cleanup** (the checklist-photos/voice-notes lesson); the **v1 resolution mechanism** (rule-assisted operator resolution and/or a deterministic policy — no ML evidence-scoring / AI judge); and, explicitly recording the four review decisions: **(1) atomic block-vs-release in Spec 9** (`setDisputeStatus(OPEN)` wins against a not-yet-accepted release; the OPEN-with-pending-block invariant is safe because of it, not because the block is synchronous); **(2) intents survive the case via `ON DELETE SET NULL`** (both `dispute_escrow_intents` and `dispute_financial_intents` keep `dispute_id` nullable + `payment_id` NOT NULL so a cascade never destroys a pending money command); **(3) BLOCKED-needs-review terminal** (`ACTION_BLOCKED` intent state; a `BLOCKED` money effect never clears the escrow and never counts as applied, distinct from `APPLIED`/`CEILING_CLAMPED`/accepted `NO_OP`); **(4) one-financial-effect-per-payment authority in Spec 9** (contract (c): a payment already dispute-settled rejects any second dispute-driven financial effect → `BLOCKED`/`PAYMENT_ALREADY_SETTLED`).
+- **`.env.example`**: document all `DISPUTE_*` keys (including `DISPUTE_EVIDENCE_RETENTION_AUDIT_BUFFER_MS`) and `EXPO_PUBLIC_DISPUTE_EVIDENCE_MAX_SIZE_BYTES` (MINIO_* already present).
 - **`.kiro/specs/ROADMAP.md`**: mark Spec 21 status on completion.
