@@ -8,7 +8,7 @@
 
 The authority split, stated precisely (it drives the whole design):
 
-- **PostgreSQL is the source of truth for the favorite relationship.** The `favorites` row is the durable record and the single source the delivery consults. favorites exposes the **authoritative membership at query time**; any read cache is derived and invalidated on add/remove. favorites does NOT promise that a `DELETE` racing an in-flight delivery is atomically observed — that read↔deliver atomicity belongs to Spec 7.
+- **PostgreSQL is the source of truth for the favorite relationship.** The `favorites` row is the durable record and the single source the delivery consults. favorites exposes the **authoritative membership at query time** (a query reflects the committed rows at the moment it runs). v1 has no cache; any *future* read cache is derived and MUST guarantee freshness through a durable/versioned/non-authoritative strategy (see Key Design Decision 6) — favorites does NOT promise a derived cache is "never stale" from a best-effort post-commit invalidation alone. favorites also does NOT promise that a `DELETE` racing an in-flight delivery is atomically observed — that read↔deliver atomicity belongs to Spec 7.
 - **subscriptions (Spec 11) owns the PRO entitlement.** favorites reads the Host's tier via the existing `SUBSCRIPTION_TIER` contract (`getRoleTier(hostId, HOST)`) to choose the count cap; it never re-derives entitlement state and holds no entitlement logic of its own.
 - **offer-radar (Spec 7) owns tiered delivery AND Cleaner-eligibility filtering.** favorites returns ids; Spec 7 decides who is deliverable.
 
@@ -32,7 +32,7 @@ The design rests on six hard rules:
 3. **Tier read through the existing contract, not re-derived.** favorites imports only the `SUBSCRIPTION_TIER` token/interface (extended in Spec 11 with `getRoleTier`) and calls `getRoleTier(hostId, HOST)`. No new coupling, no entitlement logic (REQ-FV2).
 4. **Delivery query returns ids only.** `listFavoriteCleanerIds(hostId)` is a single indexed scan on `host_id` returning `cleaner_id[]`; Spec 7 applies eligibility (REQ-FV12). favorites never performs delivery, filters eligibility, or guarantees read↔deliver atomicity (REQ-FV3, REQ-FV7).
 5. **CASCADE from users is correct here.** Both FKs are `ON DELETE CASCADE` because a favorite is a *live relationship*, not shared history — the deliberate contrast with chat/calls/completions which preserve history via `SET NULL` (REQ-FV8).
-6. **Cache is optional and derived.** v1 ships without a cache (the `host_id`-indexed read is cheap). If a cache is later introduced it is strictly derived and invalidated on every add/remove so delivery never reads a stale membership (REQ-FV7); the design leaves a documented seam (`FavoritesCacheService`) but binds a no-op pass-through by default.
+6. **Cache is optional and derived — v1 reads PostgreSQL directly.** v1 ships without a cache (the `host_id`-indexed read is cheap) via a no-op pass-through, so the authoritative row is always read (REQ-FV7). The design leaves a documented seam (`FavoritesCacheService`), but a future cache MUST NOT rely on a bare post-`COMMIT` `invalidate()` to guarantee freshness — a post-commit invalidation can fail after the write committed, leaving a stale membership. A future cache MUST instead use one of: (a) **durable invalidation** driven by an outbox/event (the invalidation is itself persisted and retried, not a best-effort call), (b) a **versioned cache** where each entry carries a membership version and delivery falls back to the DB on a version miss/mismatch, or (c) the rule that **the cache is never the source of truth for a delivery decision** — Spec 7 always validates the authoritative membership (DB or version) before acting. favorites' own contract remains only "the query reflects committed rows at the moment it runs"; it does not by itself promise a derived cache is never stale.
 
 ### Responsibility Matrix
 
@@ -85,10 +85,11 @@ flowchart LR
 
 ```
 services/api/src/favorites/
-├── favorites.module.ts               (imports SubscriptionsModule for the tier contract; provides FavoritesService)
+├── favorites.module.ts               (imports SubscriptionsModule for the tier contract + the Spec 20 qualifying-service query contract used by the eligibility policy; provides FavoritesService)
 ├── favorites.controller.ts           (Host CRUD + Cleaner-facing aggregate-count; JWT-guarded, role/participant-gated)
-├── favorites.service.ts              (add-under-lock, remove, query; tier resolution; cache invalidation seam)
-├── favorites.repository.ts           (parameterized SQL: advisory lock, count, insert, delete, list, is-favorite, aggregate-count)
+├── favorites.service.ts              (add-under-lock, remove, query; tier resolution; add-eligibility gate; cache invalidation seam)
+├── favorite-eligibility.policy.ts    (FavoriteEligibilityPolicy — config-driven add gate; consults Spec 20 when service required)
+├── favorites.repository.ts           (parameterized SQL: advisory lock, exists-then-count, insert, delete, list, is-favorite, aggregate-count)
 ├── favorites.cache.ts                (FavoritesCacheService — derived cache seam; no-op pass-through default)
 ├── favorites.types.ts                (FavoriteView, FavoriteLimit, internal query result types)
 ├── favorites.constants.ts            (env config + validateFavoritesConfig(); i18n-free server constants)
@@ -138,25 +139,27 @@ sequenceDiagram
     Svc->>Svc: reject self-favorite / non-Host caller (403/422)
     Svc->>Tier: getRoleTier(hostId, HOST) → FREE | PRO
     Svc->>Svc: resolveLimit(tier) → null (unlimited) | integer > 0
+    Svc->>Svc: eligibilityPolicy.assertMayAdd(hostId, cleanerId) — allow if FAVORITES_ALLOW_ADD_WITHOUT_SERVICE, else require a qualifying service (422)
     Svc->>Repo: addUnderLock(hostId, cleanerId, limit)
     Note over Repo,DB: ONE transaction
     Repo->>DB: SELECT pg_advisory_xact_lock(hashtextextended(host_id))
-    Repo->>DB: INSERT ... ON CONFLICT (host_id, cleaner_id) DO NOTHING RETURNING id
-    alt row already existed (conflict, 0 rows returned)
+    Repo->>DB: SELECT EXISTS(... WHERE host_id=:h AND cleaner_id=:c) — duplicate check FIRST, before the limit
+    alt pair already exists (evaluated before the limit check)
         Repo-->>Svc: ALREADY_EXISTS
-        Svc-->>Ctrl: 204 (idempotent)
-    else limit reached (only when limit not null)
-        Repo->>DB: (before insert) SELECT count(*) WHERE host_id=:h — if count >= limit → abort
+        Svc-->>Ctrl: 204 (idempotent — takes precedence even when count >= limit)
+    else new pair, limit reached (only when limit not null AND count >= limit)
+        Repo->>DB: SELECT count(*) WHERE host_id=:h — count >= limit → abort, no insert
         Repo-->>Svc: OVER_LIMIT
         Svc-->>Ctrl: 422 (clear reason)
-    else created
+    else new pair, under limit
+        Repo->>DB: INSERT ... ON CONFLICT (host_id, cleaner_id) DO NOTHING RETURNING id (belt-and-suspenders guard)
         Repo-->>Svc: CREATED
         Svc->>Svc: cache.invalidate(hostId)
         Svc-->>Ctrl: 201
     end
 ```
 
-> The lock is `pg_advisory_xact_lock` keyed on the `host_id` (via `hashtextextended`), held for the transaction and auto-released on commit/rollback. Ordering inside the transaction: acquire lock → (if capped) count → `INSERT ... ON CONFLICT DO NOTHING`. The `ON CONFLICT` makes a duplicate a `204` without a second row even under the lock; the count-then-insert under the lock makes the cap a hard guarantee (REQ-FV5, REQ-FV9). PRO/unlimited (`limit === null`) skips the count entirely and just does the idempotent insert.
+> The lock is `pg_advisory_xact_lock` keyed on the `host_id` (via `hashtextextended`), held for the transaction and auto-released on commit/rollback. Ordering inside the transaction: acquire lock → **check existence first** → if the pair already exists return `ALREADY_EXISTS` (`204`) *before* any limit check → else (if capped) count and abort `OVER_LIMIT` when `count >= limit` → else `INSERT ... ON CONFLICT DO NOTHING`. Checking existence before the count is what makes a re-add of an existing favorite a `204` **even when the Host is at cap** (`count >= limit`), so a duplicate never surfaces as `422`. The `ON CONFLICT` remains as a belt-and-suspenders guard against a concurrent insert of the same pair; the existence-check-then-count-then-insert under the lock keeps the cap a hard guarantee for *new* pairs (REQ-FV5, REQ-FV9). PRO/unlimited (`limit === null`) skips the count entirely: existence check → idempotent insert.
 
 ### Downgrade (PRO → FREE) — non-destructive
 
@@ -199,7 +202,7 @@ favorites exposes committed rows at query time and invalidates any derived cache
 |--------|------|-------|-------------|
 | `POST` | `/favorites` | Host only | Add `{ cleanerId }` under the host-scoped lock+limit → `201` created / `204` already a favorite / `422` over-limit / `404`\|`422` invalid Cleaner |
 | `DELETE` | `/favorites/:cleanerId` | Host only | Hard-delete the `(caller, cleanerId)` row → `204` (idempotent, incl. non-existent) |
-| `GET` | `/favorites` | Host only | The caller's favorite Cleaners, paginated (`?limit&cursor`), deterministically ordered, with minimal safe Cleaner display info + an `unavailable` flag |
+| `GET` | `/favorites` | Host only | The caller's favorite Cleaners, paginated (`?limit&cursor`), deterministically ordered, with minimal safe Cleaner display info + a **display-only `unavailable` hint**. This hint is derived from a **shared user/role/KYC eligibility reader** (owned by users/roles/KYC, consumed — not owned — by favorites); favorites replicates none of Spec 7's eligibility rules. The hint is presentation only and does NOT affect `listFavoriteCleanerIds` (which always returns all ids, ids-only) |
 | `GET` | `/favorites/is-favorite/:cleanerId` | Host only | `{ isFavorite: boolean }` for the UI toggle state |
 | `GET` | `/favorites/aggregate-count` | Cleaner only | `{ count }` of Hosts who favorited the CALLER — ONLY if `FAVORITES_EXPOSE_AGGREGATE_COUNT = true` (else `404`); NEVER host identities |
 
@@ -226,6 +229,7 @@ export class FavoritesService implements FavoritesQuery {
   constructor(
     private readonly repo: FavoritesRepository,
     @Inject(SUBSCRIPTION_TIER) private readonly tier: SubscriptionTierContract,
+    private readonly eligibility: FavoriteEligibilityPolicy,
     private readonly cache: FavoritesCacheService,
   ) {}
 
@@ -246,7 +250,21 @@ export class FavoritesService implements FavoritesQuery {
 }
 ```
 
-- `add`: reject self-favorite and non-Cleaner target (`422`), unknown user (`404`); resolve `getRoleTier(hostId, HOST)` → limit; call `repo.addUnderLock(hostId, cleanerId, limit)`; on `CREATED` invalidate the cache. Functions ≤30 lines, single responsibility.
+### FavoriteEligibilityPolicy (config-driven add gate)
+
+```typescript
+export interface FavoriteEligibilityPolicy {
+  // Deterministic, server-side gate consulted by FavoritesService.add before addUnderLock.
+  // FAVORITES_ALLOW_ADD_WITHOUT_SERVICE === true  → resolve to allowed (no service required).
+  // FAVORITES_ALLOW_ADD_WITHOUT_SERVICE === false → require a prior qualifying/completed service
+  //   between (hostId, cleanerId), read through the Spec 20 query contract; else throw 422.
+  assertMayAdd(hostId: string, cleanerId: string): Promise<void>; // rejects with 422 (clear reason) when disallowed
+}
+```
+
+The policy is the single place the `FAVORITES_ALLOW_ADD_WITHOUT_SERVICE` flag actually drives a decision. When the flag is `true` the check is a constant `allow` (no external read). When `false`, favorites **consults** service-completion (Spec 20) for a qualifying-service predicate `hasQualifyingService(hostId, cleanerId)` — favorites reads it, never re-derives or owns completion logic. The decision is deterministic given the flag and the service-completion answer, so it is straightforwardly testable as a property.
+
+- `add`: reject self-favorite and non-Cleaner target (`422`), unknown user (`404`); resolve `getRoleTier(hostId, HOST)` → limit; **enforce the add-eligibility policy** via `eligibility.assertMayAdd(hostId, cleanerId)` — when `FAVORITES_ALLOW_ADD_WITHOUT_SERVICE === true` the policy allows the add unconditionally; when `false` it requires a prior qualifying/completed service between the Host and the Cleaner (read through the service-completion/Spec 20 query contract — favorites consults it and owns no completion logic) and rejects with `422` and a clear reason otherwise; then call `repo.addUnderLock(hostId, cleanerId, limit)`; on `CREATED` invalidate the cache. Functions ≤30 lines, single responsibility.
 - `remove`: `repo.deleteFavorite` then `cache.invalidate` — always `204`, no error on a missing row (REQ-FV5).
 - The tier lookup reuses Spec 11's bounded-timeout + FREE-degradation semantics; favorites adds no entitlement logic (REQ-FV2). A tier read that degrades to FREE simply applies the FREE cap — a safe, non-destructive default.
 
@@ -254,9 +272,9 @@ export class FavoritesService implements FavoritesQuery {
 
 Parameterized SQL only; no string concatenation (REQ-FV10).
 
-- `addUnderLock(hostId, cleanerId, limit)` — ONE transaction: `pg_advisory_xact_lock(hashtextextended($hostId))`; if `limit !== null`, `SELECT count(*) FROM favorites WHERE host_id = $hostId` and abort with `OVER_LIMIT` when `count >= limit`; then `INSERT INTO favorites (host_id, cleaner_id) VALUES ($h,$c) ON CONFLICT (host_id, cleaner_id) DO NOTHING RETURNING id`. Returns `CREATED` (row returned), `ALREADY_EXISTS` (no row, conflict), or `OVER_LIMIT`.
+- `addUnderLock(hostId, cleanerId, limit)` — ONE transaction, in this order: `pg_advisory_xact_lock(hashtextextended($hostId))`; **then check existence FIRST** — `SELECT EXISTS(SELECT 1 FROM favorites WHERE host_id=$h AND cleaner_id=$c)`; if it exists return `ALREADY_EXISTS` immediately (before any count/limit check, so a duplicate is `204` even when the Host is at cap); otherwise, if `limit !== null`, `SELECT count(*) FROM favorites WHERE host_id = $hostId` and abort with `OVER_LIMIT` when `count >= limit`; otherwise `INSERT INTO favorites (host_id, cleaner_id) VALUES ($h,$c) ON CONFLICT (host_id, cleaner_id) DO NOTHING RETURNING id` (the `ON CONFLICT` is a belt-and-suspenders guard against a concurrent duplicate insert). Returns `ALREADY_EXISTS` (pair already present — evaluated before `OVER_LIMIT`), `OVER_LIMIT` (new pair, capped, `count >= limit`), or `CREATED` (row inserted). The duplicate-before-limit ordering is what satisfies Property 1: a re-add of an existing favorite at cap yields `204`, never `422`.
 - `deleteFavorite(hostId, cleanerId)` — `DELETE FROM favorites WHERE host_id=$h AND cleaner_id=$c`; idempotent (0 rows is fine).
-- `listByHost(hostId, limit, cursor)` — `WHERE host_id=$h` ordered by `(created_at DESC, id DESC)` (deterministic, keyset pagination on the cursor); joins minimal safe Cleaner display fields.
+- `listByHost(hostId, limit, cursor)` — `WHERE host_id=$h` ordered by `(created_at DESC, id DESC)` (deterministic, keyset pagination on the cursor); joins minimal safe Cleaner display fields. The per-row `unavailable` hint is populated from the **shared user/role/KYC eligibility reader** (a lightweight active/role/KYC status read exposed by users/roles/KYC), not from any favorites-owned eligibility logic; it is display-only and never filters or removes rows.
 - `existsFavorite(hostId, cleanerId)` — `SELECT EXISTS(...)`.
 - `listCleanerIds(hostId)` — `SELECT cleaner_id FROM favorites WHERE host_id=$h` (delivery; ids only, uses `idx_favorites_host`).
 - `countByCleaner(cleanerId)` — `SELECT count(*) FROM favorites WHERE cleaner_id=$c` (aggregate-count; uses `idx_favorites_cleaner`).
@@ -272,13 +290,21 @@ export interface FavoritesCacheService {
 }
 ```
 
-Default binding is a pass-through (`getCleanerIds` → `null`, `set`/`invalidate` → no-op), so v1 always reads PostgreSQL — the authoritative membership at query time. If a Redis-backed cache is later introduced, `invalidate(hostId)` on every add/remove keeps it strictly derived and never stale for delivery (REQ-FV7). The seam exists so introducing a cache is a binding swap, not a service rewrite.
+Default binding is a pass-through (`getCleanerIds` → `null`, `set`/`invalidate` → no-op), so v1 always reads PostgreSQL — the authoritative membership at query time (REQ-FV7). The seam exists so introducing a cache is a binding swap, not a service rewrite.
+
+**A future Redis-backed cache MUST NOT depend on this `invalidate(hostId)` alone for freshness.** A bare `invalidate` called after the transaction commits can fail *after* the `DELETE`/`INSERT` is durable — leaving the cache holding a stale membership that delivery would then read. So `invalidate` here is best-effort only, and a real cache implementation MUST additionally adopt one of:
+
+- **(a) Durable invalidation** — the invalidation is persisted (outbox/event) in the same transaction as the add/remove and applied by a retried consumer, so a crashed/failed invalidation is re-driven rather than lost.
+- **(b) Versioned cache** — each cached membership carries a version bumped on every change; a reader that observes a version mismatch (or miss) falls back to the DB, so a stale entry can never be silently trusted.
+- **(c) Cache-is-not-authority** — the cache is a pure read accelerator and never the source of truth for a delivery decision; Spec 7 validates the authoritative membership (DB or version) before acting.
+
+Absent one of these, the cache MUST stay the v1 no-op. This keeps favorites from overpromising "never stale" from an imperative post-commit call.
 
 ### Mobile — useFavoritesStore + screens
 
 - `useFavoritesStore` (Zustand): holds the paginated favorites list and an `isFavorite` map keyed by `cleanerId`; `toggle(cleanerId)` applies an **optimistic** flip then reconciles via the API, reverting on failure (limit/network) with an i18n message (REQ-FV, Req 5.1/5.5).
 - `FavoriteToggle`: heart control reflecting `is-favorite`; on tap optimistically updates and calls `add`/`remove`; on a `422` limit it surfaces `FavoritesLimitBanner` (clear message + optional PRO upsell) and reverts (Req 5.2).
-- `FavoritesListScreen`: paginated list (view + remove) in the Host area; a currently-ineligible Cleaner is shown with an `unavailable` badge rather than hidden (Req 3.5); `en`/`es` parity; BidClean dark tokens (`#00F5D4` accent for the active heart/CTA, `#0B0C10` background, `#1F2833` cards).
+- `FavoritesListScreen`: paginated list (view + remove) in the Host area; a currently-ineligible Cleaner is shown with an `unavailable` badge rather than hidden (Req 3.5). The badge reflects the backend's display-only `unavailable` hint (sourced from the shared user/role/KYC eligibility reader), not any client- or favorites-owned eligibility logic; the row is never auto-removed. `en`/`es` parity; BidClean dark tokens (`#00F5D4` accent for the active heart/CTA, `#0B0C10` background, `#1F2833` cards).
 - Publish "offer to favorites first" (existing Spec 7 UX) is disabled/hinted when the Host has no favorites (Req 5.4); favorites only supplies the has-favorites signal.
 - The client is convenience only; membership authority is the backend (`is-favorite`/list reconcile the optimistic state).
 
@@ -354,7 +380,9 @@ export interface FavoriteView {
   displayName: string;        // minimal safe Cleaner display info
   avatarUrl: string | null;
   favoritedAt: string;        // ISO 8601 (created_at)
-  unavailable: boolean;       // Cleaner currently ineligible (per UX policy); row NOT deleted
+  unavailable: boolean;       // DISPLAY-ONLY hint from a SHARED user/role/KYC eligibility reader (consumed, not owned).
+                              // favorites owns no eligibility logic; the row is NEVER deleted, and this flag
+                              // does NOT affect listFavoriteCleanerIds (which returns ALL ids, ids-only).
 }
 
 export interface CursorPage {
@@ -380,7 +408,7 @@ Each property is universally quantified, testable, and maps back to the requirem
 
 ### Property 1: Idempotent add with limit boundary
 
-*For any* Host, target Cleaner, and prior favorites state, calling `add(host, cleaner)` under a limit `L` (`L = null` unlimited, or an integer `> 0`) SHALL result in **exactly one** `favorites` row for `(host, cleaner)` and return `CREATED` (`201`) when the pair did not previously exist and the count was below the limit; `ALREADY_EXISTS` (`204`) when the pair already existed (never a second row, backed by `UNIQUE (host_id, cleaner_id)`); and `OVER_LIMIT` (`422`) when the pair was new and `L !== null AND currentCount >= L`. A rejected (`422`) add SHALL create no row.
+*For any* Host, target Cleaner, and prior favorites state, calling `add(host, cleaner)` under a limit `L` (`L = null` unlimited, or an integer `> 0`) SHALL result in **exactly one** `favorites` row for `(host, cleaner)` and SHALL evaluate the duplicate case **before** the limit case: it returns `ALREADY_EXISTS` (`204`) whenever the pair already exists — **including when `L !== null AND currentCount >= L`** (a duplicate at cap is `204`, never `422`; never a second row, backed by `UNIQUE (host_id, cleaner_id)`); returns `OVER_LIMIT` (`422`) **only** when the pair is new and `L !== null AND currentCount >= L`; and returns `CREATED` (`201`) when the pair is new and the count is below the limit. Thus `ALREADY_EXISTS` strictly takes precedence over `OVER_LIMIT`. A rejected (`422`) add SHALL create no row.
 
 **Validates: Requirements 1.1, 1.2** · REQ-FV2, REQ-FV5
 
@@ -390,9 +418,9 @@ Each property is universally quantified, testable, and maps back to the requirem
 
 **Validates: Requirements 7.4** · REQ-FV9
 
-### Property 3: Membership round-trip and authoritative query with cache invalidation
+### Property 3: Membership round-trip and authoritative query
 
-*For any* sequence of `add`/`remove` operations, `isFavorite(host, cleaner)` and `listFavoriteCleanerIds(host)` SHALL reflect exactly the committed rows at call time: after `add(h,c)` (or when the pair exists) `isFavorite(h,c)` is `true` and `c ∈ listFavoriteCleanerIds(h)`; after `remove(h,c)` `isFavorite(h,c)` is `false` and `c ∉ listFavoriteCleanerIds(h)`. `remove` SHALL be idempotent — removing a non-existent pair yields the same absent state and never errors — and every `add`/`remove` SHALL invalidate any derived cache so no query returns a stale membership. favorites SHALL NOT guarantee atomicity versus an in-flight Spec 7 delivery; its contract is only "the query reflects committed rows at the moment it runs".
+*For any* sequence of `add`/`remove` operations, `isFavorite(host, cleaner)` and `listFavoriteCleanerIds(host)` SHALL reflect exactly the committed rows at call time: after `add(h,c)` (or when the pair exists) `isFavorite(h,c)` is `true` and `c ∈ listFavoriteCleanerIds(h)`; after `remove(h,c)` `isFavorite(h,c)` is `false` and `c ∉ listFavoriteCleanerIds(h)`. `remove` SHALL be idempotent — removing a non-existent pair yields the same absent state and never errors. favorites' contract is exactly "a query reflects the committed rows at the moment it runs" (the authoritative read is PostgreSQL in v1). favorites SHALL NOT guarantee atomicity versus an in-flight Spec 7 delivery, and SHALL NOT claim that a *derived cache* is never stale purely from a best-effort post-commit `invalidate`: a never-stale derived cache holds only when the cache uses durable invalidation (a), a versioned entry with DB fallback (b), or is treated as non-authoritative with Spec 7 validating against the DB/version (c). The v1 no-op cache reads PostgreSQL directly and is trivially non-stale.
 
 **Validates: Requirements 2.1, 2.4, 3.2, 4.5, 7.5** · REQ-FV5, REQ-FV7
 
@@ -410,7 +438,7 @@ Each property is universally quantified, testable, and maps back to the requirem
 
 ### Property 6: Row set is invariant to Cleaner eligibility
 
-*For any* favorites set and *for any* sequence of changes to a favorited Cleaner's eligibility (role change, deactivation, re-activation), the set of `favorites` rows SHALL be unchanged — favorites SHALL never auto-delete or auto-prune a row for a now-ineligible Cleaner — and neither `listFavorites` nor `listFavoriteCleanerIds` SHALL error on such a row (the id is still returned; the list MAY mark it `unavailable`). The link SHALL reappear automatically as eligible when eligibility returns, because favorites stored it unchanged throughout.
+*For any* favorites set and *for any* sequence of changes to a favorited Cleaner's eligibility (role change, deactivation, re-activation), the set of `favorites` rows SHALL be unchanged — favorites SHALL never auto-delete or auto-prune a row for a now-ineligible Cleaner — and neither `listFavorites` nor `listFavoriteCleanerIds` SHALL error on such a row. `listFavoriteCleanerIds` SHALL ALWAYS return the id (ids-only, unfiltered) regardless of eligibility. The Host list MAY mark the row `unavailable`, but that flag SHALL be a **display-only hint derived from the shared user/role/KYC eligibility reader** (consumed, not owned) — favorites SHALL replicate none of Spec 7's eligibility rules, and the flag SHALL NEVER affect the ids returned by `listFavoriteCleanerIds`. The link SHALL reappear automatically as eligible when eligibility returns, because favorites stored it unchanged throughout.
 
 **Validates: Requirements 3.5, 7.3** · REQ-FV12
 
@@ -444,13 +472,20 @@ Each property is universally quantified, testable, and maps back to the requirem
 
 **Validates: Requirements 6.1, 6.2** · REQ-FV2, REQ-FV10
 
+### Property 12: Add-eligibility policy is enforced and config-driven
+
+*For any* Host, target Cleaner, prior favorites state, and value of `FAVORITES_ALLOW_ADD_WITHOUT_SERVICE`: when the flag is `true`, `add(host, cleaner)` SHALL NOT be blocked by the eligibility policy (no prior service required) and proceeds to the normal add semantics of Property 1; when the flag is `false`, `add(host, cleaner)` SHALL be permitted **if and only if** a prior qualifying service exists between `(host, cleaner)` per the consulted Spec 20 predicate — otherwise it SHALL be rejected (`422`, clear reason) and SHALL create no `favorites` row. The decision SHALL be deterministic in `(flag, hasQualifyingService(host, cleaner))`, driven only by configuration and the consulted predicate, and favorites SHALL own no completion logic (it reads the predicate, never re-derives it).
+
+**Validates: Requirements 4.3, 6.1** · REQ-FV3, REQ-FV10
+
 ## Error Handling
 
 | Condition | Response |
 |-----------|----------|
 | Add a new pair under the limit | `201` created; exactly one row; cache invalidated |
-| Add a pair that already exists | `204` idempotent; no second row (`ON CONFLICT DO NOTHING`) |
-| Add while at the FREE/PRO cap (`count >= limit`) | `422` with a clear reason; no row created |
+| Add a pair that already exists | `204` idempotent; no second row. The existence check runs **before** the limit check under the lock, so a re-add of an existing favorite is `204` **even when `count >= limit`** (a duplicate never surfaces as `422`) |
+| Add a NEW pair while at the FREE/PRO cap (`count >= limit`) | `422` with a clear reason; no row created (only for a genuinely new pair — an existing pair already returned `204` above) |
+| Add without a prior qualifying service while `FAVORITES_ALLOW_ADD_WITHOUT_SERVICE = false` | `422` with a clear reason; no row created. When the flag is `true` the policy allows the add regardless of prior service |
 | Add a target that is not a real user | `404`; no row |
 | Add a non-Cleaner user or self | `422`; no row (DDL `CHECK (host_id <> cleaner_id)` also blocks self) |
 | Add by a non-Host / unauthenticated caller | `403` / `401`; no row |
@@ -473,7 +508,7 @@ Each property is universally quantified, testable, and maps back to the requirem
 
 ## Testing Strategy
 
-Property-based testing **applies** to the favorites logic layer: the add/remove/query/limit surface is a decision function over a large input space (arbitrary hosts, cleaners, prior states, tier/cap combinations, concurrent interleavings, favorite graphs, config maps), so universal properties (idempotent add, concurrency cap, membership round-trip, delivery-query exactness, non-destructive downgrade, eligibility invariance, invalid-target rejection, pagination determinism, aggregate-count correctness, response privacy, config integrity) are meaningfully quantified. The Spec 11 tier contract is a mocked seam (a stubbed `getRoleTier`), the users/roles read is faked, and PostgreSQL concurrency is exercised against the repository model; mobile UI is covered by store/unit and render tests (not PBT).
+Property-based testing **applies** to the favorites logic layer: the add/remove/query/limit surface is a decision function over a large input space (arbitrary hosts, cleaners, prior states, tier/cap combinations, concurrent interleavings, favorite graphs, config maps), so universal properties (idempotent add with duplicate-before-limit precedence, concurrency cap, membership round-trip, delivery-query exactness, non-destructive downgrade, eligibility invariance, invalid-target rejection, pagination determinism, aggregate-count correctness, response privacy, config integrity, add-eligibility policy) are meaningfully quantified. The Spec 11 tier contract is a mocked seam (a stubbed `getRoleTier`), the users/roles read and the shared user/role/KYC eligibility reader are faked, the Spec 20 qualifying-service predicate (`hasQualifyingService`) is a stubbed seam, and PostgreSQL concurrency is exercised against the repository model; mobile UI is covered by store/unit and render tests (not PBT).
 
 ### Property-Based Tests (fast-check)
 
@@ -481,9 +516,9 @@ Library: `fast-check` (TypeScript, mirroring the sibling specs). Each test runs 
 
 | Property | What to Generate | What to Assert |
 |----------|------------------|----------------|
-| P1 Add semantics | Random `(host, cleaner)` add sequences with duplicates × random limits (`null`/int>0) × prior counts | Exactly one row per pair; `201` first, `204` on duplicate; `422` iff new and `count >= limit`; no row on `422` |
+| P1 Add semantics | Random `(host, cleaner)` add sequences with duplicates × random limits (`null`/int>0) × prior counts, **including re-adding an existing favorite while the Host is exactly at cap (`count == limit`)** | Exactly one row per pair; `201` first, `204` on duplicate; `422` iff **new** and `count >= limit`; **a duplicate at cap returns `204`, not `422`** (existence checked before the limit); no row on `422` |
 | P2 Concurrency cap | Random `N` concurrent adds (distinct cleaners) for one Host × random cap `C` | Final row count `== min(N, C)` (or `N` when unlimited); never `> C` |
-| P3 Membership round-trip + cache | Random interleaved `add`/`remove`/query sequences (incl. double-remove, remove-never-added) | `isFavorite`/`listFavoriteCleanerIds` reflect committed rows exactly; remove idempotent; cache invalidated (removed id never reappears) |
+| P3 Membership round-trip (authoritative query) | Random interleaved `add`/`remove`/query sequences (incl. double-remove, remove-never-added) | `isFavorite`/`listFavoriteCleanerIds` reflect committed rows exactly at call time; remove idempotent; v1 (no-op cache) reads the DB so a removed id never reappears — the property is stated over the authoritative query, not over a best-effort cache invalidation |
 | P4 Delivery query exactness | Random favorite sets incl. ineligible cleaners + empty sets | `listFavoriteCleanerIds` returns exactly stored `cleaner_id`s, ids only, ineligible included; `[]` for none, never throws |
 | P5 Non-destructive downgrade | Random favorite set size `S` under PRO, then tier resolved FREE with `C < S` | Zero rows deleted; full set returned unchanged; new add `422` until count `< C` |
 | P6 Eligibility invariance | Random favorites × arbitrary eligibility toggles on targets | Row set unchanged; no auto-delete; list/delivery never error; id still returned (marked `unavailable`) |
@@ -492,10 +527,13 @@ Library: `fast-check` (TypeScript, mirroring the sibling specs). Each test runs 
 | P9 Aggregate-count | Random `(host→cleaner)` graphs × flag on/off | Count == distinct hosts favoriting the cleaner; response has no host identifiers; flag-off → unavailable |
 | P10 Response privacy/shape | Random responses (list, is-favorite, aggregate-count) | Only caller's own data; only whitelisted safe fields; no host identities in aggregate-count |
 | P11 Config integrity | Random config maps (missing/invalid/valid; negative/zero FREE cap; malformed PRO cap/flags) | Validator throws iff required missing/invalid; passes otherwise; no literal caps in logic |
+| P12 Add-eligibility policy | Random `(host, cleaner)` × flag `FAVORITES_ALLOW_ADD_WITHOUT_SERVICE` on/off × stubbed `hasQualifyingService` true/false | Flag `true` → policy never blocks; flag `false` → add allowed iff a qualifying service exists, else `422` and no row; decision deterministic in `(flag, hasQualifyingService)`; favorites owns no completion logic (predicate is consulted, not re-derived) |
 
 ### Unit Tests (NestJS)
 
-- **`FavoritesService`**: `add` resolves `getRoleTier(hostId, HOST)` → limit and calls `addUnderLock`; invalidates cache on `CREATED` only; rejects self/non-Cleaner (`422`) and unknown user (`404`); `remove` always `204` and invalidates cache; a degraded tier read falls back to the FREE cap; `resolveLimit` maps FREE→`FAVORITES_FREE_MAX`, PRO→`FAVORITES_PRO_MAX` with `null`=unlimited and no sentinel.
+- **`FavoritesService`**: `add` resolves `getRoleTier(hostId, HOST)` → limit, runs `eligibility.assertMayAdd` before `addUnderLock`, and invalidates cache on `CREATED` only; rejects self/non-Cleaner (`422`) and unknown user (`404`); `remove` always `204` and invalidates cache; a degraded tier read falls back to the FREE cap; `resolveLimit` maps FREE→`FAVORITES_FREE_MAX`, PRO→`FAVORITES_PRO_MAX` with `null`=unlimited and no sentinel.
+- **`FavoriteEligibilityPolicy`**: with `FAVORITES_ALLOW_ADD_WITHOUT_SERVICE = true` resolves to allow without consulting Spec 20; with `false` calls the Spec 20 `hasQualifyingService(hostId, cleanerId)` predicate (stubbed) and throws `422` when it is `false`, allows when `true`; owns no completion logic.
+- **`FavoritesRepository.addUnderLock`**: existence check runs before the count so a duplicate at cap returns `ALREADY_EXISTS` (not `OVER_LIMIT`); `OVER_LIMIT` only for a genuinely new pair at/over the cap.
 - **`FavoritesRepository`**: parameterized SQL; `addUnderLock` acquires the advisory lock, counts only when capped, inserts with `ON CONFLICT DO NOTHING`, returns `CREATED`/`ALREADY_EXISTS`/`OVER_LIMIT`; `deleteFavorite` idempotent; `listByHost` deterministic keyset order + safe fields; `listCleanerIds` ids only; `countByCleaner` uses the cleaner index.
 - **`FavoritesController`**: JWT identity → `hostId`/`cleanerId` (ignores any client-supplied owner); Host-only guards (`403` for non-Host); status codes `201`/`204`/`422`/`404`; `aggregate-count` gated by the flag (Cleaner-only, `404` when disabled), returns `{ count }` with no identities.
 - **`FavoritesCacheService`** (default no-op): `getCleanerIds` misses; `invalidate`/`set` no-ops — v1 always reads Postgres. A cache implementation under test asserts `invalidate` on every add/remove.
@@ -547,8 +585,9 @@ Security: authorization is resolved server-side from the JWT subject (`keycloakI
 
 - **Consumes** `SUBSCRIPTION_TIER` (owned by commission-system, implemented by revenuecat-subscriptions Spec 11): `getRoleTier(hostId, HOST)` for the count-limit tier. favorites imports only the token/interface — no cycle, no entitlement logic (REQ-FV2).
 - **Consumes** `users`/roles (Specs 1, 2): the Cleaner-role guard on a target and minimal safe display fields; authorization identity from the JWT.
+- **Consumes a shared user/role/KYC eligibility read** (owned by users/roles/KYC) for the **display-only `unavailable` hint** on `GET /favorites`. favorites reads this minimal active/role/KYC status for presentation only; it owns none of the eligibility rules, and the hint never affects `listFavoriteCleanerIds` (Spec 7 remains the sole owner of delivery eligibility filtering) (REQ-FV12).
 - **Exposes** `FavoritesQuery` (`listFavoriteCleanerIds`, `isFavorite`) consumed by **offer-radar (Spec 7)** for the `FAVORITE` delivery tier. favorites returns ids only; Spec 7 owns the favorites-first window, tiering, expansion, Cleaner-eligibility filtering, and read↔deliver atomicity (REQ-FV3, REQ-FV12).
-- **Optionally seeded by service-completion (Spec 20)**: after a `CONFIRMED`/`AUTO_RELEASED` service the Host MAY be prompted to favorite the Cleaner; favorites requires no completed service to add and never auto-creates a row without the Host's explicit action.
+- **Consumes / optionally seeded by service-completion (Spec 20)**: after a `CONFIRMED`/`AUTO_RELEASED` service the Host MAY be prompted to favorite the Cleaner. Whether a prior completed service is *required* to add is config-driven, not fixed: when `FAVORITES_ALLOW_ADD_WITHOUT_SERVICE = true` no service is required; when `false`, `FavoriteEligibilityPolicy` **consults** Spec 20's qualifying-service query (`hasQualifyingService(hostId, cleanerId)`) and rejects an add without one (`422`). favorites reads this predicate — it never owns or re-derives completion logic — and never auto-creates a row without the Host's explicit action.
 - **Does not** create/dispatch offers, reorder delivery, change price/commission, auto-accept, notify the Cleaner, or expose a social graph.
 
 ## Documentation Impact
