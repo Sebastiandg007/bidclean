@@ -6,7 +6,7 @@ The `secrets-inventory` module is a **meta / operational spec**: it produces the
 
 It is **not** a new product feature. It ships no user-facing runtime behavior and introduces no new database tables. Its deliverables are:
 
-1. A **derived inventory catalog** — a machine-checkable list of every variable `{ name, surface, group, kind, requiredScope, envApplicability, placeholder, consumedBy }`, generated from the code + each spec's `validateXxxConfig()` and reconciled against `.env.example`.
+1. A **derived inventory catalog** — a machine-checkable list of every variable `{ name, surface, group, kind, requiredScope, envApplicability, placeholder, consumedBy, sourceType, sourceFile, sourceLocation }`, generated from the full configuration-source taxonomy (APPLICATION | BUILD | DEPLOY | INFRA | CI | RUNTIME) — not just `*.constants.ts` — with each variable recording *where it was discovered*, and reconciled into `.env.example`.
 2. A **reconciled `.env.example`** — the source of truth for variable *shape* (names, grouping, placeholders, required/optional), extending the existing sectioned format so nothing is missing and nothing is orphaned.
 3. **Reconciliation tooling** — a script/test that parses the validators + `.env.example`, computes the diff (missing / orphaned / mismatched), and fails CI when they drift.
 4. A **secret-exposure & hygiene scanner** — runs `git check-ignore`, a tracked-file scan, and a secret-pattern scan; surfaces findings without touching any credential.
@@ -14,17 +14,22 @@ It is **not** a new product feature. It ships no user-facing runtime behavior an
 
 ### Authority chain (the design's spine)
 
-Every decision below flows from this one-directional chain:
+Every decision below flows from this one-directional chain. The **canonical inventory model** (the in-memory `ConfigVariable[]` catalog) is the single derived source of truth; `.env.example` is *generated/reconciled from* that model, never the other way around:
 
 ```
-CODE / VALIDATORS  →  INVENTORY  →  .env.example  →  RUNTIME ENV / Vault
-  (existence)         (catalog)      (shape)          (actual values)
+CODE / CONFIG SOURCES  →  CANONICAL INVENTORY MODEL  →  .env.example        →  RUNTIME ENV / Vault
+  (existence,               (derived catalog:            (generated/reconciled  (actual values)
+   classification,           the source of truth for      PRESENTATION/SHAPE
+   requiredness)             existence + classification    ONLY)
+                             + requiredness)
 ```
 
-- **Code/validators are authoritative for existence.** A variable is "real" only because some surface reads it (via a `*.constants.ts` const, a pydantic `BaseSettings` field, `docker-compose`, or CI).
-- **The inventory is a derived artifact**, never invented. It is reconciled against the code, not hand-authored.
-- **`.env.example` is the shape source of truth** and MAY NOT declare a variable that code/validators do not recognize.
+- **Code/config sources are authoritative for existence, classification, and requiredness.** A variable is "real" only because some source reads it — see the configuration-source taxonomy (APPLICATION | BUILD | DEPLOY | INFRA | CI | RUNTIME) below. Existence is never inferred from `.env.example`.
+- **The canonical inventory model is the derived source of truth.** It is reconciled against the code/sources, never invented, and it — not `.env.example` — decides what a variable *is* (its `kind`, `surface`, `requiredScope`, `envApplicability`).
+- **`.env.example` is authoritative for PRESENTATION/SHAPE ONLY** — variable names, section grouping, safe placeholders, and required/optional annotations *as documentation*. It is **never** authoritative for a variable's existence, classification, or requiredness; those come from the canonical model. `.env.example` MAY NOT declare a variable the canonical model does not recognize. It is a generated/reconciled projection of the model.
 - **Runtime env / Vault holds actual values**, operator-supplied, never committed. The mobile client receives `EXPO_PUBLIC_*` values only.
+
+Because `.env.example` is a projection, `report.ts` (which emits both the inventory doc and the reconciled `.env.example` shape) reads from the canonical model in one direction only — it renders the model into presentation artifacts and never treats `.env.example` as an authority feeding back into the catalog.
 
 ### Explicit scope boundaries (carried from requirements)
 
@@ -40,16 +45,23 @@ The inventory is a tooling + documentation artifact, not a NestJS module with co
 
 ```
 tools/config-inventory/
-  inventory.model.ts        # types: ConfigVariable, Surface, Kind, RequiredScope, Finding
-  sources/
-    validator-scanner.ts    # extracts declared vars from *.constants.ts + pydantic config
-    env-example-parser.ts   # parses .env.example into shape entries (name, section, comment)
-    compose-scanner.ts      # extracts INFRA vars from docker-compose*.yml
-    mobile-scanner.ts        # extracts EXPO_PUBLIC_* usage from the Expo app
+  inventory.model.ts        # types: ConfigVariable, Surface, Kind, RequiredScope,
+                            #        SourceType, DiscoveryProvenance, OrphanJustification, Finding
+  sources/                  # one dedicated scanner PER configuration-source type
+                            # (NOT one heuristic scanner) — each emits DiscoveryProvenance
+    application-scanner.ts  # APPLICATION: *.constants.ts + validateXxxConfig() keys,
+                            #   pydantic BaseSettings, app.config.ts / Expo config,
+                            #   EXPO_PUBLIC_* usage, indirectly-propagated config
+    build-scanner.ts        # BUILD: eas.json build profiles, Expo build-time config, build tokens
+    deploy-scanner.ts       # DEPLOY: deployment scripts, VPS env manifests, Traefik config
+    infra-scanner.ts        # INFRA: docker-compose*.yml (incl. ${VAR} interpolation), infra YAML/JSON
+    ci-scanner.ts           # CI: .github/workflows/*.yml env, codemagic.yaml env
+    runtime-scanner.ts      # RUNTIME: dynamic/indirect process.env / os.environ reads
+    env-example-parser.ts   # parses .env.example into shape entries (presentation input only)
   reconcile.ts              # diff engine: missing / orphaned / mismatched
   classify.ts               # kind (SECRET|CONFIG|PUBLIC) + requiredScope + surface
   exposure-scanner.ts       # git check-ignore + tracked-file scan + secret-pattern scan
-  report.ts                 # emits the inventory doc + machine JSON + findings
+  report.ts                 # renders canonical model → inventory doc + .env.example + JSON + findings
   inventory.cli.ts          # entry point (also runnable in CI)
 
 docs/
@@ -59,33 +71,55 @@ docs/
 
 The reconciliation and exposure checks are also wired as a **CI job** and a **test suite**, so drift and exposure fail loudly rather than silently rot.
 
+#### Configuration-source taxonomy
+
+Because a real external configuration input can enter through many surfaces — not just `*.constants.ts` — completeness is defined against an explicit taxonomy, with a dedicated scanner per source type. Each variable records which source type discovered it and exactly where:
+
+| `sourceType` | What it covers | Representative source files |
+|--------------|----------------|-----------------------------|
+| `APPLICATION` | Values an app surface reads through its normal config layer | `services/api/src/**/*.constants.ts`, `validateXxxConfig()`, pydantic `BaseSettings`, `apps/mobile/app.config.ts`, `EXPO_PUBLIC_*` usage, config that propagates indirectly to another module |
+| `BUILD` | Values needed to build a client artifact | `apps/mobile/eas.json` build profiles, Expo build-time config, build-time `EXPO_PUBLIC_*` tokens |
+| `DEPLOY` | Values needed to deploy but not to run locally | deployment scripts, VPS env manifests, Traefik labels/config |
+| `INFRA` | Service bootstrap values for containers | `docker-compose*.yml` (including `${VAR}` shell interpolation), infra YAML/JSON |
+| `CI` | Values injected by the CI/build system | `.github/workflows/*.yml` `env:` blocks, `codemagic.yaml` env |
+| `RUNTIME` | Dynamic/indirect `process.env` / `os.environ` reads not captured by the APPLICATION layer | any surface performing a non-declarative env read |
+
+A variable may be discovered by more than one source (e.g. `DATABASE_URL` appears in both INFRA compose and APPLICATION reads); the inventory records the full provenance set so completeness is audited against **every** source type, not just constants files. This is the taxonomy that Property 1 (completeness) is defined against.
+
 ### Data-flow: how the catalog is derived and checked
 
 ```mermaid
 flowchart TD
-    subgraph SOURCES[Authoritative sources - existence]
-        V["*.constants.ts<br/>validateXxxConfig()"]
-        P["pydantic BaseSettings<br/>(AI service)"]
-        C["docker-compose*.yml"]
-        M["EXPO_PUBLIC_* usage<br/>(Expo app + config plugin)"]
+    subgraph SOURCES[Config sources - authoritative for existence/classification/requiredness]
+        APP["APPLICATION<br/>*.constants.ts + validateXxxConfig()<br/>pydantic BaseSettings<br/>app.config.ts / EXPO_PUBLIC_*"]
+        BLD["BUILD<br/>eas.json profiles<br/>build-time tokens"]
+        DEP["DEPLOY<br/>deploy scripts / VPS env<br/>Traefik config"]
+        INF["INFRA<br/>docker-compose*.yml (${VAR})<br/>infra YAML/JSON"]
+        CI["CI<br/>.github/workflows/*.yml env<br/>codemagic.yaml env"]
+        RT["RUNTIME<br/>dynamic/indirect process.env<br/>os.environ reads"]
     end
 
-    V --> SCAN[validator-scanner]
-    P --> SCAN
-    C --> COMPOSE[compose-scanner]
-    M --> MOB[mobile-scanner]
+    APP --> SAPP[application-scanner]
+    BLD --> SBLD[build-scanner]
+    DEP --> SDEP[deploy-scanner]
+    INF --> SINF[infra-scanner]
+    CI --> SCI[ci-scanner]
+    RT --> SRT[runtime-scanner]
 
-    SCAN --> INV[Inventory catalog<br/>derived, not invented]
-    COMPOSE --> INV
-    MOB --> INV
+    SAPP --> INV[Canonical inventory model<br/>derived; source of truth for<br/>existence + classification + requiredness<br/>each var carries DiscoveryProvenance]
+    SBLD --> INV
+    SDEP --> INV
+    SINF --> INV
+    SCI --> INV
+    SRT --> INV
 
-    EX[".env.example<br/>(shape)"] --> PARSE[env-example-parser]
+    EX[".env.example<br/>(PRESENTATION/SHAPE only)"] --> PARSE[env-example-parser]
 
     INV --> RECON[reconcile.ts]
     PARSE --> RECON
 
     RECON -->|missing var| ADD["Flag: add to .env.example"]
-    RECON -->|orphan entry| ORPH["Flag: orphaned - remove/justify"]
+    RECON -->|orphan entry| ORPH["Flag: orphaned - remove or<br/>structured OrphanJustification"]
     RECON -->|required mismatch| MIS["Flag: required-vs-optional drift"]
 
     INV --> CLASS[classify.ts<br/>kind + requiredScope + surface]
@@ -113,7 +147,7 @@ flowchart TD
 | **MOBILE** (Expo) | build-time `EXPO_PUBLIC_*` | `process.env.EXPO_PUBLIC_*` + Expo config plugin | any SECRET |
 | **INFRA** (compose) | service env in `docker-compose*.yml` | container env | — |
 
-The validator pattern is already uniform across the API: each module has a `*.constants.ts` that reads `process.env.X ?? default`, and exports a `validateXxxConfig()` invoked from the module's `onModuleInit()`. The scanner keys off exactly this pattern, so the inventory's authoritative source is the code that already exists.
+The validator pattern is already uniform across the API: each module has a `*.constants.ts` that reads `process.env.X ?? default`, and exports a `validateXxxConfig()` invoked from the module's `onModuleInit()`. The `application-scanner` keys off exactly this pattern for the APPLICATION source type — but it is only one of six scanners. Completeness comes from covering the full source taxonomy (APPLICATION | BUILD | DEPLOY | INFRA | CI | RUNTIME), so build profiles, CI env, compose interpolation, deploy scripts, and indirect reads are captured too, not just the code in `*.constants.ts`.
 
 ## Components and Interfaces
 
@@ -126,34 +160,69 @@ export type Surface = 'API' | 'AI' | 'MOBILE' | 'INFRA';
 
 export type Kind = 'SECRET' | 'CONFIG' | 'PUBLIC';
 
-/** Necessity is a scope, NOT a bare boolean. */
-export type RequiredScope =
-  | 'runtime'              // a fail-fast validator rejects startup without it
-  | 'build'               // needed at build-time (e.g. an EXPO_PUBLIC_* token)
-  | 'deploy'              // needed to deploy (VPS/CI) but not local runtime
-  | 'infra'               // needed by a docker-compose service bootstrap
-  | 'environment-specific'; // required in prod, optional/absent locally
+/**
+ * Which configuration-source type discovered a variable.
+ * Completeness is defined against this full taxonomy, not just constants files.
+ */
+export type SourceType =
+  | 'APPLICATION' // *.constants.ts + validateXxxConfig(), pydantic, app.config.ts, EXPO_PUBLIC_* usage
+  | 'BUILD'       // eas.json build profiles, Expo build-time config, build-time tokens
+  | 'DEPLOY'      // deployment scripts, VPS env manifests, Traefik config
+  | 'INFRA'       // docker-compose*.yml (incl. ${VAR} interpolation), infra YAML/JSON
+  | 'CI'          // .github/workflows/*.yml env, codemagic.yaml env
+  | 'RUNTIME';    // dynamic/indirect process.env / os.environ reads
 
+/** Where a variable was discovered — its discovery provenance. */
+export interface DiscoveryProvenance {
+  readonly sourceType: SourceType;
+  readonly sourceFile: string;     // e.g. "services/api/src/payments/payments.constants.ts"
+  readonly sourceLocation: string; // line number or section, e.g. "L42" or "jobs.api-tests.env"
+}
+
+/**
+ * WHAT scope requires the variable. This axis is ORTHOGONAL to environment
+ * applicability: it says which lifecycle scope needs the value, never in which
+ * environments. Environment semantics live exclusively in `envApplicability`.
+ */
+export type RequiredScope =
+  | 'runtime'  // a fail-fast validator rejects startup without it
+  | 'build'    // needed at build-time (e.g. an EXPO_PUBLIC_* token)
+  | 'deploy'   // needed to deploy (VPS/deploy scripts) but not local runtime
+  | 'infra';   // needed by a docker-compose service bootstrap
+
+/**
+ * WHICH environments the variable applies to. This is the ONLY place
+ * environment semantics are expressed (orthogonal to `requiredScope`).
+ */
 export type EnvApplicability = ReadonlyArray<'local' | 'staging' | 'production'>;
+
+/** Structured justification for a deliberately-kept orphan — never free text. */
+export interface OrphanJustification {
+  readonly type: 'LEGACY' | 'BUILD_ONLY' | 'EXTERNAL_TOOL' | 'DEPRECATED';
+  readonly owner: string;       // team/person accountable for the orphan
+  readonly expiresAt: string;   // ISO date after which the orphan must be revisited
+}
 
 export interface ConfigVariable {
   readonly name: string;                 // e.g. STRIPE_SECRET_KEY
   readonly surface: Surface;
   readonly group: string;                // owning module/section, e.g. "payments"
   readonly kind: Kind;
-  readonly requiredScope: readonly RequiredScope[];
-  readonly envApplicability: EnvApplicability;
+  readonly requiredScope: readonly RequiredScope[];  // WHAT scope (orthogonal axis)
+  readonly envApplicability: EnvApplicability;        // WHICH environments (orthogonal axis)
   readonly placeholder: string;          // safe placeholder, NEVER a real value
   readonly consumedBy: readonly string[]; // consts/validators/services that read it
+  readonly provenance: readonly DiscoveryProvenance[]; // WHERE it was discovered (>=1)
+  readonly orphanJustification?: OrphanJustification;  // present only for justified orphans
   readonly notes?: string;
 }
 
 export type FindingCode =
-  | 'MISSING_IN_ENV_EXAMPLE'    // code reads it, .env.example lacks it
-  | 'ORPHANED_ENV_EXAMPLE'      // .env.example declares it, no code reads it
+  | 'MISSING_IN_ENV_EXAMPLE'    // a source reads it, .env.example lacks it
+  | 'ORPHANED_ENV_EXAMPLE'      // .env.example declares it, no source reads it
   | 'REQUIRED_MISMATCH'         // required-vs-optional drift vs validator
   | 'SECRET_ON_CLIENT'          // a SECRET exposed on the MOBILE surface
-  | 'SECRET_EXPOSURE';          // a real secret present in a tracked artifact
+  | 'SECRET_EXPOSURE';          // a known secret pattern detected in a tracked artifact
 
 export interface Finding {
   readonly code: FindingCode;
@@ -169,13 +238,20 @@ export interface InventoryReport {
 }
 ```
 
-### 2. Validator scanner (`sources/validator-scanner.ts`)
+**Orthogonality note (two axes, never conflated):** `requiredScope` answers *what lifecycle scope requires the value* (`runtime | build | deploy | infra`); `envApplicability` answers *which environments it applies to* (`local | staging | production`). For example `STRIPE_SECRET_KEY` is `requiredScope: ['runtime']` with `envApplicability: ['staging', 'production']` — required at runtime, and applicable only to non-local environments. There is no `environment-specific` scope, because that would collapse the two axes back together.
 
-Extracts the authoritative set of variable names each surface reads.
+### 2. Per-source scanners (`sources/*-scanner.ts`)
 
-- **API:** scans `services/api/src/**/*.constants.ts` for `process.env.NAME` reads and for the keys each `validateXxxConfig()` asserts as required (the names pushed into the `errors` array on absence). A variable asserted by a validator → `requiredScope` includes `runtime`.
-- **AI:** scans pydantic `BaseSettings` subclasses for fields; a field with a non-empty default is optional, a field validated as required is `runtime`-required on the AI surface.
-- Returns `{ name, surface, group, consumedBy, requiredByValidator }[]`.
+Instead of one heuristic scanner, there is a **dedicated scanner per configuration-source type**. Each scanner knows how to parse its own source shape and emits `DeclaredVariable`s carrying explicit `DiscoveryProvenance` — so every variable states *where* it was found, and completeness can be audited against the whole taxonomy.
+
+- **`application-scanner`** (APPLICATION): scans `services/api/src/**/*.constants.ts` for `process.env.NAME` reads and the keys each `validateXxxConfig()` asserts as required (names pushed into the `errors` array on absence → `requiredScope` includes `runtime`); scans pydantic `BaseSettings` subclasses (a field with a non-empty default is optional; a validated-required field is `runtime`-required); scans `apps/mobile/app.config.ts` and `EXPO_PUBLIC_*` usage.
+- **`build-scanner`** (BUILD): parses `apps/mobile/eas.json` build profiles and Expo build-time config → `requiredScope` includes `build`.
+- **`deploy-scanner`** (DEPLOY): parses deployment scripts, VPS env manifests, and Traefik config → `requiredScope` includes `deploy`.
+- **`infra-scanner`** (INFRA): parses `docker-compose*.yml`, resolving `${VAR}` shell interpolation, plus infra YAML/JSON → `requiredScope` includes `infra`.
+- **`ci-scanner`** (CI): parses `.github/workflows/*.yml` `env:` blocks and `codemagic.yaml` env.
+- **`runtime-scanner`** (RUNTIME): captures dynamic/indirect `process.env` / `os.environ` reads not already covered by the APPLICATION layer, and config that propagates indirectly to another module.
+
+Each returns `DeclaredVariable[]`; the model layer merges by `name`, unioning provenance so a variable seen by multiple sources keeps every discovery site.
 
 ```typescript
 export interface DeclaredVariable {
@@ -184,9 +260,13 @@ export interface DeclaredVariable {
   group: string;
   consumedBy: string[];
   requiredByValidator: boolean;
+  provenance: DiscoveryProvenance; // WHERE this scanner found it
 }
 
-export function scanValidators(repoRoot: string): DeclaredVariable[];
+export type SourceScanner = (repoRoot: string) => DeclaredVariable[];
+
+// One scanner per source type; the CLI runs all six and merges by name.
+export const scanners: Record<SourceType, SourceScanner>;
 ```
 
 ### 3. `.env.example` parser (`sources/env-example-parser.ts`)
@@ -206,12 +286,12 @@ export function parseEnvExample(path: string): EnvExampleEntry[];
 
 ### 4. Reconciliation engine (`reconcile.ts`)
 
-The heart of the authority chain. Given declared variables (from code) and `.env.example` entries, computes the diff:
+The heart of the authority chain. Given declared variables (from the config sources, via the canonical model) and `.env.example` entries, computes the diff:
 
 ```typescript
 export interface ReconcileResult {
-  missingInEnvExample: DeclaredVariable[]; // in code, not in .env.example  → add
-  orphanedInEnvExample: EnvExampleEntry[];  // in .env.example, no consumer  → flag
+  missingInEnvExample: DeclaredVariable[]; // a source reads it, not in .env.example → add
+  orphanedInEnvExample: EnvExampleEntry[];  // in .env.example, no source reads it   → flag
   requiredMismatches: Array<{ name: string; declaredRequired: boolean; documentedRequired: boolean }>;
 }
 
@@ -221,7 +301,7 @@ export function reconcile(
 ): ReconcileResult;
 ```
 
-Reconciliation direction is fixed by the authority chain: code wins on existence; `.env.example` must not declare an unrecognized variable (orphan → removed or explicitly justified with a `notes` annotation).
+Reconciliation direction is fixed by the authority chain: the config sources (via the canonical model) win on existence; `.env.example` must not declare an unrecognized variable. An orphan is either **removed** or **kept with a structured `OrphanJustification`** — `{ type: LEGACY | BUILD_ONLY | EXTERNAL_TOOL | DEPRECATED, owner, expiresAt }` carried on the `ConfigVariable`, never a free-text `notes` blurb. The structured form makes a justified orphan accountable (an owner) and time-bounded (an `expiresAt`), so justifications cannot silently rot; a `DEPRECATED` orphan or one past its `expiresAt` can be surfaced by CI for removal.
 
 ### 5. Classifier (`classify.ts`)
 
@@ -239,13 +319,15 @@ Auditable invariant:
 
 ### 7. Exposure & hygiene scanner (`exposure-scanner.ts`)
 
-Real verification, not "the `.gitignore` mentions `.env`":
+Real verification, not "the `.gitignore` mentions `.env`". **Framing matters:** the pattern detectors are *detectors of known secret shapes*, not a proof that no secret exists. A clean run means **"no known secret-pattern exposure detected"**, never "no secret exists" — a novel or non-matching secret shape can still slip past any detector. The result is phrased accordingly throughout the report.
 
 ```typescript
 export interface ExposureResult {
   checkIgnore: Array<{ file: string; ignored: boolean }>; // git check-ignore
   trackedEnvFiles: string[];   // env files still tracked despite .gitignore
-  secretPatternHits: Array<{ file: string; pattern: string; line: number }>;
+  secretPatternHits: Array<{ file: string; provider: string; pattern: string; line: number }>;
+  // true only means: no KNOWN pattern matched — NOT proof of absence.
+  noKnownExposureDetected: boolean;
   findings: Finding[];         // any hit → SECRET_EXPOSURE (blocking), secret untouched
 }
 
@@ -254,12 +336,23 @@ export function scanExposure(repoRoot: string): ExposureResult;
 
 - Runs `git check-ignore` on the runtime env files (`.env`, `.env.local`, `.env.staging`, `.env.production`).
 - Runs a **tracked-file scan** (`git ls-files`) — a file in `.gitignore` can still already be tracked.
-- Runs a **secret-pattern scan** (Stripe `sk_live_`/`sk_test_`, RevenueCat `sk_`, PEM blocks, `AKIA` AWS keys, generic high-entropy assignments) across tracked files, **skipping `.env.example` placeholders** by design (placeholders are the expected safe shape).
-- Any tracked env file or matched pattern → `SECRET_EXPOSURE = FOUND`, **reported, blocking, secret NOT touched, moved, or rotated**.
+- Runs a **secret-pattern scan** across tracked files, **skipping `.env.example` placeholders** by design (placeholders are the expected safe shape). Detectors combine generic patterns (PEM blocks, generic high-entropy assignments) with **provider-specific detectors** as a complement:
+
+  | Provider | Detector pattern (illustrative) |
+  |----------|-------------------------------|
+  | Stripe | `sk_live_` / `sk_test_` / `rk_live_` / `whsec_` |
+  | AWS | `AKIA…` access key ids, `aws_secret_access_key` assignments |
+  | RevenueCat | `sk_…` REST keys / webhook signing secrets |
+  | OneSignal | REST API key + `app_id` pairing |
+  | Keycloak | client-secret / admin-password assignments |
+  | LiveKit | API key + API secret assignments |
+
+- Any tracked env file or matched pattern → `SECRET_EXPOSURE = FOUND`, **reported, blocking, secret NOT touched, moved, or rotated**. The finding names the file, line, and matched provider/pattern — never the captured secret value.
+- Provider-specific detectors *complement* the generic ones; together they raise confidence, but the scan still only asserts detection of **known** patterns, so a clean result is reported as "no known secret-pattern exposure detected".
 
 ### 8. Report & runbook (`report.ts`, `inventory.cli.ts`)
 
-Emits the human doc (`docs/CONFIGURATION-INVENTORY.md`, placeholders only) with per-surface views, a machine-readable JSON for CI assertions, and the aggregated findings. `compliant` is `false` if any blocking finding exists.
+Renders the **canonical inventory model** into presentation artifacts — the human doc (`docs/CONFIGURATION-INVENTORY.md`, placeholders only) with per-surface views, the reconciled `.env.example` shape, a machine-readable JSON for CI assertions, and the aggregated findings. This projection is **one-directional**: `report.ts` reads the canonical model and writes `.env.example`/docs; it never treats those presentation artifacts as an authority feeding existence, classification, or requiredness back into the catalog. `compliant` is `false` if any blocking finding exists.
 
 ## Data Models
 
@@ -267,7 +360,7 @@ This spec introduces **no database entities**. Its "data model" is the in-memory
 
 1. **In-memory catalog** — `ConfigVariable[]` (see above).
 2. **`.env.example`** — the committed shape artifact, sectioned by module/surface, placeholders only. Existing format is extended, not replaced.
-3. **`docs/CONFIGURATION-INVENTORY.md`** — the maintained human doc. Table columns: `name | surface | group | kind | requiredScope | env applicability | placeholder | consumed_by | notes`. No real secret values.
+3. **`docs/CONFIGURATION-INVENTORY.md`** — the maintained human doc. Table columns: `name | surface | group | kind | requiredScope | env applicability | placeholder | consumed_by | source_type | source_file | notes`. `requiredScope` (what) and `env applicability` (which environments) are shown as separate columns to keep the two axes visibly orthogonal. No real secret values.
 4. **Findings JSON** — the CI-consumable list of `Finding` records.
 
 ### Variable families consolidated (superset of current `.env.example` + specs 14–25)
@@ -295,17 +388,17 @@ Per-country config (currencies COP/USD/CAD/EUR/GBP, commission rates, enabled pa
 
 *A property is a characteristic or behavior that should hold true across all valid executions of a system — essentially, a formal statement about what the system should do. Properties serve as the bridge between human-readable specifications and machine-verifiable correctness guarantees.*
 
-This spec's core deliverables (the reconciliation engine, the classifier, the boundary check, the exposure scanner) are **pure, deterministic functions over structured inputs** (declared-variable lists, `.env.example` entries, file lists). That makes them genuinely amenable to property-based testing: we can generate arbitrary catalogs and env-example sets and assert universal invariants (the authority chain, the public/secret boundary, orphan/missing symmetry). The documentation, ADR, and runbook deliverables are not property-testable and are covered by the Testing Strategy instead.
+This spec's core deliverables (the per-source scanners' merge, the reconciliation engine, the classifier, the boundary check, the exposure scanner) are **pure, deterministic functions over structured inputs** (declared-variable lists carrying provenance, `.env.example` entries, file lists). That makes them genuinely amenable to property-based testing: we can generate arbitrary catalogs (across the full source taxonomy) and env-example sets and assert universal invariants (the authority chain, the orthogonality of the two axes, the public/secret boundary, orphan/missing symmetry). The documentation, ADR, and runbook deliverables are not property-testable and are covered by the Testing Strategy instead.
 
-### Property 1: Reconciliation completeness — no code variable is missing
+### Property 1: Reconciliation completeness across the full source taxonomy
 
-*For any* set of declared variables (from code/validators) and any `.env.example` entry set, after reconciliation every declared variable either appears in `.env.example` or is reported as `MISSING_IN_ENV_EXAMPLE`; none is silently dropped.
+*For any* set of declared variables discovered across the full configuration-source taxonomy (APPLICATION, BUILD, DEPLOY, INFRA, CI, RUNTIME) and any `.env.example` entry set, after reconciliation every declared variable — regardless of which `sourceType` discovered it — either appears in `.env.example` or is reported as `MISSING_IN_ENV_EXAMPLE`; none is silently dropped, and every catalogued variable carries at least one `DiscoveryProvenance`.
 
-**Validates: Requirements 1.1, 1.3, 1.4, 2.1**
+**Validates: Requirements 1.1, 1.2, 1.3, 1.4, 2.1**
 
 ### Property 2: Orphan detection is exhaustive
 
-*For any* `.env.example` entry set and declared-variable set, every `.env.example` entry whose name has no consumer in the declared set is reported as `ORPHANED_ENV_EXAMPLE`, and every entry that does have a consumer is not.
+*For any* `.env.example` entry set and declared-variable set, every `.env.example` entry whose name has no consumer in the declared set is reported as `ORPHANED_ENV_EXAMPLE` unless it carries a valid structured `OrphanJustification`, and every entry that does have a consumer is not reported as an orphan.
 
 **Validates: Requirements 1.3, 2.1**
 
@@ -317,13 +410,13 @@ This spec's core deliverables (the reconciliation engine, the classifier, the bo
 
 ### Property 4: Authority chain forbids unrecognized declarations
 
-*For any* reconciled inventory, no variable exists in the final `.env.example` shape unless it is present in the declared (code/validator) set or explicitly annotated as justified; an unrecognized declaration always produces a finding.
+*For any* reconciled inventory, no variable exists in the final `.env.example` shape unless it is present in the declared (config-source-derived) set or carries a structured `OrphanJustification`; an unrecognized declaration lacking a valid justification always produces a finding. Existence, classification, and requiredness are never sourced from `.env.example`.
 
 **Validates: Requirements 1.3, 2.1**
 
-### Property 5: No real secret in produced artifacts
+### Property 5: No known secret pattern in produced artifacts
 
-*For any* generated inventory report and `.env.example` output, every `SECRET`-kind variable's emitted value matches the safe-placeholder shape and never matches a real-secret pattern.
+*For any* generated inventory report and `.env.example` output, every `SECRET`-kind variable's emitted value matches the safe-placeholder shape and never matches any known secret-pattern detector (generic or provider-specific). This asserts detection of known patterns, not a proof that no secret could ever be present.
 
 **Validates: Requirements 1.5, 2.2, 2.4, 6.2**
 
@@ -351,13 +444,19 @@ This spec's core deliverables (the reconciliation engine, the classifier, the bo
 
 **Validates: Requirements 2.5, 5.2**
 
-### Property 10: Exposure scan flags any real secret in a tracked artifact
+### Property 10: Scope and environment axes are orthogonal
 
-*For any* set of tracked files, if any file is a runtime env file or contains a real-secret pattern (excluding `.env.example` placeholders), the scanner produces a blocking `SECRET_EXPOSURE` finding and the report's `compliant` flag is `false`; and the scan never mutates, moves, or rotates the file.
+*For any* catalogued variable, its `requiredScope` values are drawn only from `{ runtime, build, deploy, infra }` and its `envApplicability` values only from `{ local, staging, production }`; no environment token ever appears in `requiredScope` and no scope token ever appears in `envApplicability`, so the two axes are independently assignable.
+
+**Validates: Requirements 1.2, 4.1**
+
+### Property 11: Exposure scan flags any known-pattern secret in a tracked artifact
+
+*For any* set of tracked files, if any file is a runtime env file or contains a known secret pattern (generic or provider-specific, excluding `.env.example` placeholders), the scanner produces a blocking `SECRET_EXPOSURE` finding and the report's `compliant` flag is `false`; and the scan never mutates, moves, or rotates the file. A clean run asserts only that no known pattern was detected.
 
 **Validates: Requirements 1.6, 6.3**
 
-### Property 11: Compliance requires zero blocking findings
+### Property 12: Compliance requires zero blocking findings
 
 *For any* inventory report, `compliant` is `true` if and only if the report contains no blocking finding (`SECRET_EXPOSURE`, `SECRET_ON_CLIENT`).
 
@@ -375,13 +474,13 @@ This spec's core deliverables (the reconciliation engine, the classifier, the bo
 
 ### Property-based tests (pure reconciliation/classification/scanner logic)
 
-PBT applies to the deterministic core (reconcile, classify, boundary check, exposure classification). Use **fast-check** (already the TypeScript PBT choice in this repo's quality-assurance-pbt spec). Do **not** implement PBT from scratch.
+PBT applies to the deterministic core (per-source merge, reconcile, classify, boundary check, exposure classification). Use **fast-check** (already the TypeScript PBT choice in this repo's quality-assurance-pbt spec). Do **not** implement PBT from scratch.
 
-- Each of Properties 1–11 is implemented by a **single** property-based test.
+- Each of Properties 1–12 is implemented by a **single** property-based test.
 - Minimum **100 iterations** per property.
 - Each test is tagged: `// Feature: secrets-inventory, Property {n}: {property text}`.
-- Generators produce arbitrary `ConfigVariable[]`, arbitrary `.env.example` entry sets (including overlapping/disjoint name sets), mis-prefixed secrets, and synthetic file lists with/without secret patterns — so edge cases (empty sets, duplicate names, all-secret catalogs, whitespace placeholders) are covered by generation, not hand-written cases.
-- For Property 10, the exposure scanner is tested against a **temp fixture repo** with mocked `git` output so no real credential is ever involved and the "never mutates" invariant is asserted (file bytes unchanged before/after).
+- Generators produce arbitrary `ConfigVariable[]` with varied `sourceType`/`DiscoveryProvenance`, independently-chosen `requiredScope` and `envApplicability` tuples (to exercise Property 10's orthogonality), arbitrary `.env.example` entry sets (overlapping/disjoint name sets, orphans with/without valid `OrphanJustification`), mis-prefixed secrets, and synthetic file lists with/without generic and provider-specific secret patterns — so edge cases (empty sets, duplicate names, all-secret catalogs, whitespace placeholders) are covered by generation, not hand-written cases.
+- For Property 11, the exposure scanner is tested against a **temp fixture repo** with mocked `git` output so no real credential is ever involved and the "never mutates" invariant is asserted (file bytes unchanged before/after).
 
 ### Example-based unit tests
 
@@ -393,9 +492,9 @@ PBT applies to the deterministic core (reconcile, classify, boundary check, expo
 
 These verify the tooling wired to the actual codebase (1–3 representative runs, not 100 iterations — behavior does not vary meaningfully with input):
 
-- **Reconciliation over the real tree:** run the scanner against `services/api/src/**/*.constants.ts`, the AI pydantic config, `docker-compose*.yml`, and the committed `.env.example`; assert zero `MISSING_IN_ENV_EXAMPLE` and zero unjustified `ORPHANED_ENV_EXAMPLE` after the reconciled `.env.example` is produced. This is the deliverable's acceptance gate.
+- **Reconciliation over the real tree:** run all six per-source scanners against their real sources (APPLICATION: `services/api/src/**/*.constants.ts` + AI pydantic + `apps/mobile/app.config.ts`; BUILD: `apps/mobile/eas.json`; INFRA: `docker-compose*.yml`; CI: `.github/workflows/*.yml` + `codemagic.yaml`; DEPLOY: deploy scripts) and reconcile against the committed `.env.example`; assert zero `MISSING_IN_ENV_EXAMPLE` and zero unjustified `ORPHANED_ENV_EXAMPLE`, and that every variable carries provenance. This is the deliverable's acceptance gate.
 - **Boundary audit over the real catalog:** assert no `SECRET_ON_CLIENT` finding and that the AI surface has no storage credential.
-- **Exposure/hygiene over the real repo:** `git check-ignore` confirms `.env*` are ignored; tracked-file scan confirms no runtime env file is tracked; secret-pattern scan over tracked files (excluding `.env.example`) is clean — or, if not, the run reports `SECRET_EXPOSURE` and fails, as designed.
+- **Exposure/hygiene over the real repo:** `git check-ignore` confirms `.env*` are ignored; tracked-file scan confirms no runtime env file is tracked; the generic + provider-specific secret-pattern scan over tracked files (excluding `.env.example`) detects no known pattern — reported as "no known secret-pattern exposure detected" — or, if a pattern matches, the run reports `SECRET_EXPOSURE` and fails, as designed.
 
 ### CI wiring
 
@@ -405,6 +504,6 @@ A CI job (`config-inventory`) runs the reconciliation + boundary + exposure chec
 
 - `docs/CONFIGURATION-INVENTORY.md` created and referenced from the deployment docs.
 - `docs/ARCHITECTURE.md` gains a "Configuration Surfaces" note + a Mermaid diagram of the API/AI/MOBILE/INFRA surfaces and the public/secret boundary.
-- `docs/ADR/010-configuration-inventory-and-secret-boundary.md` records the configuration-inventory + public/secret-boundary + no-rotation-this-iteration decisions.
+- `docs/ADR/010-configuration-inventory-and-secret-boundary.md` records the configuration-inventory + configuration-source taxonomy + orthogonal `requiredScope`/`envApplicability` axes + public/secret-boundary + no-rotation-this-iteration decisions.
 - `docs/CHANGELOG.md` gains an entry under `## [Unreleased]`.
 - The bring-up runbook (copy `.env.example` → env per surface → fill operator values → `docker compose up` infra → start services so validators run → adapt until validators pass) is documented in the inventory doc, reproducible for local and VPS, noting operator-supplied vs infra-generated values.
