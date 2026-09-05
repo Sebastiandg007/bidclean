@@ -2,9 +2,11 @@
  * APPLICATION source scanner.
  *
  * Covers values an application surface reads through its normal config layer:
- *   - NestJS API `*.constants.ts` files: `process.env.NAME ?? default` reads,
- *     and the env names each `validateXxxConfig()` asserts as required (a name
- *     mentioned in a message pushed onto the `errors` array).
+ *   - NestJS API non-test `.ts` files: `process.env.NAME ?? default` reads
+ *     wherever they occur (constants, services, guards, jobs, config). The env
+ *     names each `validateXxxConfig()` asserts as required (a name mentioned in
+ *     a message pushed onto the `errors` array) are collected from the
+ *     `*.constants.ts` validators, since that is where fail-fast validation lives.
  *   - FastAPI AI pydantic `BaseSettings` subclasses (fields → UPPER_SNAKE env).
  *   - Expo mobile `app.config.ts` (if present) and every `EXPO_PUBLIC_*` usage.
  *
@@ -41,24 +43,27 @@ const VALIDATOR_PATTERN = /export\s+function\s+(validate[A-Za-z0-9_]*Config)\s*\
  */
 export function scanApplication(repoRoot: string): DeclaredVariable[] {
   return [
-    ...scanApiConstants(repoRoot),
+    ...scanApiSource(repoRoot),
     ...scanAiPydanticSettings(repoRoot),
     ...scanMobileExpoPublic(repoRoot),
   ];
 }
 
-/** Scan every `*.constants.ts` file under the API for env reads + validators. */
-function scanApiConstants(repoRoot: string): DeclaredVariable[] {
-  const files = collectFiles(join(repoRoot, API_SRC_DIR), (name) =>
-    name.endsWith(CONSTANTS_SUFFIX),
-  );
+/**
+ * Scan every non-test API `.ts` file for `process.env.NAME` reads. Existence is
+ * authoritative wherever a surface reads the value (constants, services, guards,
+ * jobs, config). Validator-required detection is keyed off the `*.constants.ts`
+ * validators only, since that is where fail-fast validation is declared.
+ */
+function scanApiSource(repoRoot: string): DeclaredVariable[] {
+  const files = collectFiles(join(repoRoot, API_SRC_DIR), isScannableApiFile);
 
+  const requiredNames = collectApiValidatorRequiredNames(repoRoot);
   const declared: DeclaredVariable[] = [];
   for (const absolutePath of files) {
     const content = readSource(absolutePath);
     const relativePath = toRepoRelativePosix(repoRoot, absolutePath);
-    const group = deriveGroupFromConstantsPath(relativePath);
-    const requiredNames = extractValidatorRequiredNames(content);
+    const group = deriveGroupFromApiPath(relativePath);
 
     for (const [name, line] of extractProcessEnvDotReads(content)) {
       if (name === 'NODE_ENV') {
@@ -79,6 +84,31 @@ function scanApiConstants(repoRoot: string): DeclaredVariable[] {
     }
   }
   return declared;
+}
+
+/** A scannable API application file (skips test files). */
+function isScannableApiFile(fileName: string): boolean {
+  if (fileName.endsWith('.spec.ts') || fileName.endsWith('.test.ts')) {
+    return false;
+  }
+  return fileName.endsWith('.ts');
+}
+
+/**
+ * Collect the union of env names asserted required by every `validateXxxConfig()`
+ * across the API's `*.constants.ts` files.
+ */
+function collectApiValidatorRequiredNames(repoRoot: string): Set<string> {
+  const constantsFiles = collectFiles(join(repoRoot, API_SRC_DIR), (name) =>
+    name.endsWith(CONSTANTS_SUFFIX),
+  );
+  const required = new Set<string>();
+  for (const absolutePath of constantsFiles) {
+    for (const name of extractValidatorRequiredNames(readSource(absolutePath))) {
+      required.add(name);
+    }
+  }
+  return required;
 }
 
 /**
@@ -144,8 +174,8 @@ function extractBalancedBody(content: string, fromIndex: number): string {
   return content.slice(open + 1);
 }
 
-/** Derive a module group name from a `.../<module>/....constants.ts` path. */
-function deriveGroupFromConstantsPath(relativePath: string): string {
+/** Derive a module group name from a `.../src/<module>/...` path. */
+function deriveGroupFromApiPath(relativePath: string): string {
   const segments = relativePath.split('/');
   const srcIndex = segments.indexOf('src');
   const moduleSegment = srcIndex >= 0 ? segments[srcIndex + 1] : undefined;
