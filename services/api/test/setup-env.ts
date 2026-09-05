@@ -15,3 +15,6 @@ process.env.RC_ENTITLEMENT_AD_FREE ??= 'ad_free';
 
 // Webhook signing secret used by the HMAC verifier in controller tests (non-secret test value).
 process.env.REVENUECAT_WEBHOOK_SIGNING_SECRET ??= 'test-signing-secret';
+
+// Centrifugo token secret used by realtime-chat's token service in tests (non-secret test value).
+process.env.CENTRIFUGO_TOKEN_SECRET ??= 'test-centrifugo-secret';

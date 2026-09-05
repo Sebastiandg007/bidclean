@@ -24,6 +24,8 @@ import { CreateOfferScreen } from '../screens/offers/CreateOfferScreen';
 import { OfferConfirmationScreen } from '../screens/offers/OfferConfirmationScreen';
 import { OfferDetailScreen } from '../screens/offers/OfferDetailScreen';
 import { OFFER_ROUTES } from '../screens/offers/offers.constants';
+import { ChatEntryScreen } from '../screens/chat/ChatEntryScreen';
+import { CHAT_ROUTE } from '../screens/chat/chat.constants';
 
 // ─── Design Tokens ───────────────────────────────────────────────────────────
 
@@ -171,6 +173,11 @@ function OffersStackNavigator() {
     case OFFER_ROUTES.OfferDetail:
       return (
         <OfferDetailScreen navigation={navigation} route={route as { params: { offerId: string } }} />
+      );
+
+    case CHAT_ROUTE:
+      return (
+        <ChatEntryScreen navigation={navigation} route={route as { params: { threadId: string } }} />
       );
 
     default:

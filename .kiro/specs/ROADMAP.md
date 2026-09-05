@@ -2,7 +2,7 @@
 
 > This file tracks the state of all feature specs. Read this first in any new session to know where the project stands and what to work on next.
 
-## Current Sprint: Sprint 3 — Payments
+## Current Sprint: Sprint 4 — Communication
 
 ## Specs Status
 
@@ -33,7 +33,7 @@
 ### Sprint 4 — Communication
 | # | Spec | Status | Dependencies |
 |---|------|--------|-------------|
-| 13 | `realtime-chat` | ⬜ Pending | Spec 1, 8 |
+| 13 | `realtime-chat` | ✅ Completed | Spec 1, 8 |
 | 14 | `voice-notes` | ⬜ Pending | Spec 13 |
 | 15 | `voip-calls` | ⬜ Pending | Spec 13 |
 | 16 | `push-notifications` | ⬜ Pending | Spec 1 |

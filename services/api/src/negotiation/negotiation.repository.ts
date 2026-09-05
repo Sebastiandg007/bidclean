@@ -281,6 +281,22 @@ export class NegotiationRepository {
     return rows[0]?.cleaner_id ?? null;
   }
 
+  /**
+   * Whether a specific thread is matched — i.e. it has an ACCEPTED proposal belonging to it.
+   * Used by realtime-chat to gate conversation creation on a match for exactly that thread
+   * (not merely for the thread's offer).
+   */
+  async isThreadMatched(threadId: string): Promise<boolean> {
+    const rows = await this.dataSource.query<{ exists: boolean }[]>(
+      `SELECT EXISTS (
+         SELECT 1 FROM "negotiation_proposals"
+         WHERE "thread_id" = $1 AND "status" = 'ACCEPTED'
+       ) AS exists`,
+      [threadId],
+    );
+    return rows[0]?.exists === true;
+  }
+
   /** Whether the Cleaner has a SENT delivery record for the offer. */
   async hasSentDelivery(offerId: string, cleanerId: string): Promise<boolean> {
     const rows = await this.dataSource.query<{ exists: boolean }[]>(
