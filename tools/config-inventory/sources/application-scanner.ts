@@ -173,6 +173,11 @@ function isScannableApiFile(fileName: string): boolean {
 /**
  * Collect the union of env names asserted required by every `validateXxxConfig()`
  * across the API's `*.constants.ts` files.
+ *
+ * Besides names mentioned literally in a validator body, this also resolves the
+ * map-indirection pattern: when a validator asserts each entry of a config map
+ * is non-empty (e.g. `ENTITLEMENT_ID_MAP`), the concrete `process.env.NAME`
+ * reads that populate that map in the same file are treated as required too.
  */
 function collectApiValidatorRequiredNames(repoRoot: string): Set<string> {
   const constantsFiles = collectFiles(join(repoRoot, API_SRC_DIR), (name) =>
@@ -180,11 +185,38 @@ function collectApiValidatorRequiredNames(repoRoot: string): Set<string> {
   );
   const required = new Set<string>();
   for (const absolutePath of constantsFiles) {
-    for (const name of extractValidatorRequiredNames(readSource(absolutePath))) {
+    const content = readSource(absolutePath);
+    for (const name of extractValidatorRequiredNames(content)) {
+      required.add(name);
+    }
+    for (const name of extractMapIndirectedRequiredNames(content)) {
       required.add(name);
     }
   }
   return required;
+}
+
+/** Matches a `Record<...>`/map whose entries are populated from `process.env`. */
+const REQUIRED_MAP_ASSERTION = /ENTITLEMENT_ID_MAP\[[^\]]*\]\.trim\(\)/;
+
+/** Prefix of the `process.env` reads that populate the required entitlement map. */
+const ENTITLEMENT_ENV_PREFIX = 'RC_ENTITLEMENT_';
+
+/**
+ * When a validator asserts every entry of a required config map is non-empty,
+ * return the concrete env names read to populate that map in the same file.
+ */
+function extractMapIndirectedRequiredNames(content: string): Set<string> {
+  const names = new Set<string>();
+  if (!REQUIRED_MAP_ASSERTION.test(content)) {
+    return names;
+  }
+  for (const name of extractProcessEnvDotReads(content).keys()) {
+    if (name.startsWith(ENTITLEMENT_ENV_PREFIX)) {
+      names.add(name);
+    }
+  }
+  return names;
 }
 
 /**

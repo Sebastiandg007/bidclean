@@ -23,15 +23,12 @@ The **canonical inventory model** (`ConfigVariable[]`) is the single derived sou
 | `reconcile.ts` | Diff engine: missing / orphaned / mismatched between declared variables and `.env.example`. |
 | `exposure-scanner.ts` | Secret-exposure & hygiene scan: `git check-ignore` on runtime env files + tracked-file scan (`git ls-files`) + secret-pattern scan over tracked files (generic + provider-specific detectors, skipping `.env.example`). Reports blocking `SECRET_EXPOSURE` findings referencing file/line/provider — never the captured value, and never rotates. A clean run means only "no KNOWN pattern matched", never proof of absence; missing `git` is blocking, not a pass. |
 
+| `sources/deploy-scanner.ts` | DEPLOY source: deployment scripts, VPS env manifests, Traefik config under `infra/docker` / `infra/traefik`, resolving `${VAR}` interpolation (absent in the current tree → no variables, no failure). |
+| `sources/runtime-scanner.ts` | RUNTIME source: dynamic/indirect reads — TS `process.env[...]` bracket access (e.g. the rate-limit guard) and Python `os.environ`/`os.getenv` — harvesting the UPPER_SNAKE string-literal names used in files that perform such reads. |
+| `sources/index.ts` | Registry of the six per-source scanners (`scanners: Record<SourceType, SourceScanner>`); the CLI runs all six and the model layer merges by name. |
 | `report.ts` | Renders the CANONICAL model → inventory doc + reconciled `.env.example` shape + findings JSON + catalog JSON, plus `buildInventoryReport()` (aggregate report; `compliant` is false iff a blocking finding exists). One-directional projection — never feeds presentation artifacts back into the catalog. |
-
-### Planned (per `.kiro/specs/secrets-inventory/design.md`)
-
-| File | Responsibility |
-|------|---------------|
-| `sources/deploy-scanner.ts` | DEPLOY source: deployment scripts, VPS env manifests, Traefik config |
-| `sources/runtime-scanner.ts` | RUNTIME source: dynamic/indirect `process.env` / `os.environ` reads |
-| `inventory.cli.ts` | Entry point; also runnable as the `config-inventory` CI job |
+| `inventory.ts` | Pure orchestration: runs the six scanners, builds the canonical catalog, attaches orphan justifications, reconciles against `.env.example`, runs boundary + exposure checks, and aggregates into a single `InventoryReport`. No process I/O (directly testable). |
+| `inventory.cli.ts` | Entry point (also the `config-inventory` CI job). Runs the pipeline, writes the doc + reconciled `.env.example` shape + findings/catalog JSON under `out/`, prints a summary, and exits non-zero on any blocking finding. Supports `--check` (read-only) and `--repo-root=`. |
 
 ### Tests (`__tests__/`)
 
@@ -41,6 +38,10 @@ The **canonical inventory model** (`ConfigVariable[]`) is the single derived sou
 | `__tests__/classify.property.spec.ts` | Property-based suite for the classifier + public/secret boundary check (`classify.ts`). |
 | `__tests__/reconcile.property.spec.ts` | Property-based suite for the diff engine (`reconcile.ts`): missing / orphaned / mismatched between declared variables and `.env.example`. |
 | `__tests__/exposure.property.spec.ts` | Property-based suite for the exposure scanner (`exposure-scanner.ts`, Property 11) + compliance rule in `report.ts` (Property 12). Uses a temp fixture repo with a mocked `GitRunner` (no real credential involved) and asserts the "never mutates" invariant (file bytes unchanged) and that findings never contain the secret value. |
+| `__tests__/examples.spec.ts` | Example-based unit tests: `.env.example` parser sectioning/comment extraction, classifier heuristics (`STRIPE_SECRET_KEY`→SECRET, `EXPO_PUBLIC_RC_IOS_KEY`→PUBLIC, `CHAT_MESSAGE_MAX_LENGTH`→CONFIG), `requiredScope` mapping, and validator required-name extraction. |
+| `__tests__/integration.spec.ts` | Integration suite against the real repo tree (the deliverable's acceptance gate): zero `MISSING_IN_ENV_EXAMPLE`, zero unjustified `ORPHANED_ENV_EXAMPLE`, every variable carries provenance, no `SECRET_ON_CLIENT`, AI surface holds no storage credential, and the known `mcp.json` key surfaces as a blocking `SECRET_EXPOSURE` (untouched → not compliant). |
+
+The 12 property-based suites map one-to-one to Properties 1–12 in `design.md`, each tagged `// Feature: secrets-inventory, Property {n}: …` and run at ≥100 iterations.
 
 ## Dependencies
 
@@ -56,4 +57,25 @@ The **canonical inventory model** (`ConfigVariable[]`) is the single derived sou
 
 ## How to Run
 
-Planned entry point (not yet implemented): `inventory.cli.ts` runs all six per-source scanners, merges by name (unioning provenance), reconciles against `.env.example`, runs the classifier + boundary check + exposure scan, and emits `docs/CONFIGURATION-INVENTORY.md` + machine JSON + findings. Wired as the `config-inventory` CI job so drift or any blocking finding fails the build.
+From the repo root:
+
+```
+# Full run: write docs/CONFIGURATION-INVENTORY.md + out/ artifacts, exit non-zero on any blocking finding
+npx ts-node --project tools/config-inventory/tsconfig.json tools/config-inventory/inventory.cli.ts
+
+# CI gate (read-only, no writes)
+npx ts-node --project tools/config-inventory/tsconfig.json tools/config-inventory/inventory.cli.ts --check
+```
+
+Quality gates (run from the repo root):
+
+```
+npx tsc --noEmit -p tools/config-inventory/tsconfig.json
+npx eslint "tools/config-inventory/**/*.ts" --max-warnings 0
+npx jest --config tools/config-inventory/jest.config.js
+```
+
+The CLI runs all six per-source scanners, merges by name (unioning provenance), reconciles against
+`.env.example`, runs the classifier + boundary check + exposure scan, and emits
+`docs/CONFIGURATION-INVENTORY.md` + machine JSON + findings under `out/` (git-ignored). Wire it as the
+`config-inventory` CI job so drift or any blocking finding fails the build.

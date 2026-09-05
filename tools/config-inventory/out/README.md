@@ -2,21 +2,24 @@
 
 ## Purpose
 
-Scratch and generated-artifact directory for the `config-inventory` tool. Nothing here is part of the shipped tool or its runtime behavior. These files are produced while reconciling the committed `.env.example` against the canonical inventory model, and are kept for review and traceability of a reconciliation run.
+Generated-artifact directory for the `config-inventory` tool. Nothing here is part
+of the shipped tool or its runtime behavior — everything is produced by the CLI and
+is git-ignored. Regenerate with:
+
+```
+npx ts-node --project tools/config-inventory/tsconfig.json tools/config-inventory/inventory.cli.ts
+```
 
 ## Files
 
 | File | Responsibility |
 |------|---------------|
-| `.env.example.reconciled` | Generated reconciled projection of `.env.example`. |
-| `catalog.json` | Serialized canonical inventory model (`ConfigVariable[]`) from a run. |
-| `findings.json` | Serialized reconciliation / exposure findings from a run. |
-| `missing.txt` | Names read by a source but absent from `.env.example`. |
-| `missing-block.txt` | Rendered `.env.example` append-block for variables that a source reads but `.env.example` is missing, grouped by `surface:group`. |
-| `mismatch.txt` | Names whose declared required-ness / classification disagrees with `.env.example`. |
-| `err.txt` | Captured stderr from a run. |
-| `cli.err` | Captured stderr from a CLI run. |
+| `.env.example.reconciled` | Generated reconciled projection of the canonical model (shape only, placeholders). |
+| `catalog.json` | Serialized canonical inventory model (`{ variableCount, variables }`) from a run. |
+| `findings.json` | Serialized reconciliation / boundary / exposure findings from a run. |
 
 ## Notes
 
-- Regenerate rather than hand-edit. The authority chain is `CODE / CONFIG SOURCES → CANONICAL INVENTORY MODEL → .env.example`; files here are one-directional projections and never feed back into the model.
+- Regenerate rather than hand-edit. The authority chain is
+  `CODE / CONFIG SOURCES → CANONICAL INVENTORY MODEL → .env.example`; files here are
+  one-directional projections and never feed back into the model.
