@@ -523,6 +523,57 @@ erDiagram
 
 ---
 
+## 5g. Configuration Surfaces & Public/Secret Boundary
+
+> The `secrets-inventory` tooling (`tools/config-inventory/`, ADR-010) derives a single catalog of every external configuration input from the code/config sources, then reconciles the committed `.env.example` against it. The catalog is the derived source of truth for a variable's existence, classification, and requiredness; `.env.example` is a generated PRESENTATION projection. Every variable is assigned to exactly one of four surfaces, and the public/secret boundary is hard: only `EXPO_PUBLIC_*` values (explicitly classified `PUBLIC`) ever reach the mobile client — no `SECRET` does.
+
+```mermaid
+graph TB
+    subgraph Sources["Config sources — authoritative for existence / classification / requiredness"]
+        APP["APPLICATION<br/>*.constants.ts + validateXxxConfig()<br/>pydantic BaseSettings<br/>app.config.ts / EXPO_PUBLIC_*"]
+        BLD["BUILD<br/>eas.json profiles / build tokens"]
+        DEP["DEPLOY<br/>deploy scripts / VPS env / Traefik"]
+        INF["INFRA<br/>docker-compose*.yml (${VAR})"]
+        CI["CI<br/>.github/workflows env / codemagic env"]
+        RT["RUNTIME<br/>dynamic process.env / os.environ"]
+    end
+
+    subgraph Tool["tools/config-inventory (ADR-010)"]
+        Model["Canonical inventory model<br/>ConfigVariable[] — derived source of truth<br/>(each var carries DiscoveryProvenance)"]
+        Recon["reconcile + classify + exposure scan"]
+    end
+
+    subgraph Surfaces["Runtime surfaces"]
+        APISurf["API (NestJS)<br/>server .env / VPS env / Vault"]
+        AISurf["AI (FastAPI)<br/>own .env — NO storage creds (Option A)"]
+        MobileSurf["MOBILE (Expo)<br/>EXPO_PUBLIC_* only — never a SECRET"]
+        InfraSurf["INFRA (compose)<br/>service bootstrap env"]
+    end
+
+    APP --> Model
+    BLD --> Model
+    DEP --> Model
+    INF --> Model
+    CI --> Model
+    RT --> Model
+
+    Model --> Recon
+    Recon --> EnvEx[".env.example<br/>(PRESENTATION/SHAPE — placeholders only)"]
+    Recon --> Doc["docs/CONFIGURATION-INVENTORY.md<br/>+ machine JSON + findings"]
+
+    Model --> APISurf
+    Model --> AISurf
+    Model --> MobileSurf
+    Model --> InfraSurf
+
+    Recon -->|"SECRET on MOBILE / mis-prefixed EXPO_PUBLIC_"| Leak["BLOCKING: SECRET_ON_CLIENT"]
+    Recon -->|"secret pattern in tracked artifact"| Exposure["BLOCKING: SECRET_EXPOSURE<br/>(reported, NOT compliant, untouched)"]
+```
+
+Two orthogonal axes classify each variable: `requiredScope` (`runtime | build | deploy | infra` — *what lifecycle scope* needs it) and `envApplicability` (`local | staging | production` — *which environments* it applies to). No environment token ever appears in `requiredScope` and no scope token in `envApplicability`. Compliance is `true` only when there are zero blocking findings; no credential is ever rotated, moved, or echoed — findings name the file, line, and matched pattern, never the secret value.
+
+---
+
 ## 6. Auth & Security Flow
 
 ```mermaid
@@ -609,5 +660,5 @@ sequenceDiagram
 
 ---
 
-*Last updated: September 1, 2026*
+*Last updated: September 5, 2026*
 *Update this document on EVERY structural change.*
