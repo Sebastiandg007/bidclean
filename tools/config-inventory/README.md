@@ -23,13 +23,14 @@ The **canonical inventory model** (`ConfigVariable[]`) is the single derived sou
 | `reconcile.ts` | Diff engine: missing / orphaned / mismatched between declared variables and `.env.example`. |
 | `exposure-scanner.ts` | Secret-exposure & hygiene scan: `git check-ignore` on runtime env files + tracked-file scan (`git ls-files`) + secret-pattern scan over tracked files (generic + provider-specific detectors, skipping `.env.example`). Reports blocking `SECRET_EXPOSURE` findings referencing file/line/provider — never the captured value, and never rotates. A clean run means only "no KNOWN pattern matched", never proof of absence; missing `git` is blocking, not a pass. |
 
+| `report.ts` | Renders the CANONICAL model → inventory doc + reconciled `.env.example` shape + findings JSON + catalog JSON, plus `buildInventoryReport()` (aggregate report; `compliant` is false iff a blocking finding exists). One-directional projection — never feeds presentation artifacts back into the catalog. |
+
 ### Planned (per `.kiro/specs/secrets-inventory/design.md`)
 
 | File | Responsibility |
 |------|---------------|
 | `sources/deploy-scanner.ts` | DEPLOY source: deployment scripts, VPS env manifests, Traefik config |
 | `sources/runtime-scanner.ts` | RUNTIME source: dynamic/indirect `process.env` / `os.environ` reads |
-| `report.ts` | Renders the canonical model → inventory doc + `.env.example` + JSON + findings (one-directional projection) |
 | `inventory.cli.ts` | Entry point; also runnable as the `config-inventory` CI job |
 
 ### Tests (`__tests__/`)
@@ -37,6 +38,9 @@ The **canonical inventory model** (`ConfigVariable[]`) is the single derived sou
 | File | Responsibility |
 |------|---------------|
 | `__tests__/arbitraries.ts` | Shared **fast-check** arbitraries for the property-based suites: generates arbitrary `DeclaredVariable`s across the full source taxonomy, `.env.example` entry sets, and `requiredScope` / `envApplicability` tuples, so edge cases come from generation rather than hand-written examples. Not a suite itself — a support module imported by the PBT specs. |
+| `__tests__/classify.property.spec.ts` | Property-based suite for the classifier + public/secret boundary check (`classify.ts`). |
+| `__tests__/reconcile.property.spec.ts` | Property-based suite for the diff engine (`reconcile.ts`): missing / orphaned / mismatched between declared variables and `.env.example`. |
+| `__tests__/exposure.property.spec.ts` | Property-based suite for the exposure scanner (`exposure-scanner.ts`, Property 11) + compliance rule in `report.ts` (Property 12). Uses a temp fixture repo with a mocked `GitRunner` (no real credential involved) and asserts the "never mutates" invariant (file bytes unchanged) and that findings never contain the secret value. |
 
 ## Dependencies
 
