@@ -32,6 +32,12 @@ The **canonical inventory model** (`ConfigVariable[]`) is the single derived sou
 | `report.ts` | Renders the canonical model → inventory doc + `.env.example` + JSON + findings (one-directional projection) |
 | `inventory.cli.ts` | Entry point; also runnable as the `config-inventory` CI job |
 
+### Tests (`__tests__/`)
+
+| File | Responsibility |
+|------|---------------|
+| `__tests__/arbitraries.ts` | Shared **fast-check** arbitraries for the property-based suites: generates arbitrary `DeclaredVariable`s across the full source taxonomy, `.env.example` entry sets, and `requiredScope` / `envApplicability` tuples, so edge cases come from generation rather than hand-written examples. Not a suite itself — a support module imported by the PBT specs. |
+
 ## Dependencies
 
 - Reads (does not modify) configuration sources across the repo: `services/api/src/**/*.constants.ts` + `validateXxxConfig()`, the AI service pydantic settings, `apps/mobile/app.config.ts` / `eas.json`, `docker-compose*.yml`, `.github/workflows/*.yml`, `codemagic.yaml`, and the committed `.env.example`.
