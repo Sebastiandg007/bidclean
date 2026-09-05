@@ -11,6 +11,7 @@ The **canonical inventory model** (`ConfigVariable[]`) is the single derived sou
 | File | Responsibility |
 |------|---------------|
 | `inventory.model.ts` | Canonical types: `ConfigVariable`, `Surface`, `Kind`, `SourceType`, `RequiredScope`, `EnvApplicability`, `DiscoveryProvenance`, `OrphanJustification`, `Finding`, `FindingCode`, `InventoryReport`, `DeclaredVariable`, `SourceScanner`. Single derived source of truth for a variable's existence, classification, and requiredness. |
+| `orphan-justifications.ts` | Curated registry (`ORPHAN_JUSTIFICATIONS` + `JUSTIFIED_ORPHAN_NAMES`) of structured `OrphanJustification`s for `.env.example` entries deliberately kept with no code reader. Each is accountable (`owner`) and time-bounded (`expiresAt`); only names listed here may remain orphaned without an `ORPHANED_ENV_EXAMPLE` finding. Covers `BUILD_ONLY` / `EXTERNAL_TOOL` orphans (consumed outside scanned app code) and `LEGACY` orphans (documented but currently hardcoded). |
 | `sources/scanner-utils.ts` | Shared, dependency-free scanner helpers: safe file reads (`readSource`, failing loudly via `ScannerReadError`), recursive file discovery, repo-relative path + env-name extraction for provenance |
 | `sources/application-scanner.ts` | APPLICATION source: `*.constants.ts` + `validateXxxConfig()` keys, pydantic `BaseSettings`, `app.config.ts`, `EXPO_PUBLIC_*` usage |
 | `sources/build-scanner.ts` | BUILD source: `eas.json` build profiles, Expo build-time config, build tokens |
