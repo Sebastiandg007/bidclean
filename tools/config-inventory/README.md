@@ -18,6 +18,9 @@ The **canonical inventory model** (`ConfigVariable[]`) is the single derived sou
 | `sources/ci-scanner.ts` | CI source: `.github/workflows/*.yml` `env:` blocks (workflow/job/service/step level) + `codemagic.yaml` when present |
 | `sources/env-example-parser.ts` | Parses `.env.example` into shape entries (presentation input only) |
 | `classify.ts` | Classifies each merged variable: assigns `kind` (SECRET\|CONFIG\|PUBLIC), `requiredScope`, `envApplicability`, and a safe placeholder, then runs the public/secret boundary check (`checkBoundary`). Classification is by rule + explicit override and is meant to be VERIFIED against where the value flows — the `EXPO_PUBLIC_` prefix alone never proves safety. |
+| `merge.ts` | Merges per-source `DeclaredVariable[]` into the canonical model, unioning provenance by variable name. |
+| `reconcile.ts` | Diff engine: missing / orphaned / mismatched between declared variables and `.env.example`. |
+| `exposure-scanner.ts` | Secret-exposure & hygiene scan: `git check-ignore` on runtime env files + tracked-file scan (`git ls-files`) + secret-pattern scan over tracked files (generic + provider-specific detectors, skipping `.env.example`). Reports blocking `SECRET_EXPOSURE` findings referencing file/line/provider — never the captured value, and never rotates. A clean run means only "no KNOWN pattern matched", never proof of absence; missing `git` is blocking, not a pass. |
 
 ### Planned (per `.kiro/specs/secrets-inventory/design.md`)
 
@@ -25,8 +28,6 @@ The **canonical inventory model** (`ConfigVariable[]`) is the single derived sou
 |------|---------------|
 | `sources/deploy-scanner.ts` | DEPLOY source: deployment scripts, VPS env manifests, Traefik config |
 | `sources/runtime-scanner.ts` | RUNTIME source: dynamic/indirect `process.env` / `os.environ` reads |
-| `reconcile.ts` | Diff engine: missing / orphaned / mismatched between declared variables and `.env.example` |
-| `exposure-scanner.ts` | `git check-ignore` + tracked-file scan + secret-pattern scan (reports, never rotates) |
 | `report.ts` | Renders the canonical model → inventory doc + `.env.example` + JSON + findings (one-directional projection) |
 | `inventory.cli.ts` | Entry point; also runnable as the `config-inventory` CI job |
 
