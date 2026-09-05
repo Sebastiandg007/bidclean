@@ -22,6 +22,7 @@ import {
   extractExpoPublicNames,
   extractProcessEnvDotReads,
   isFile,
+  lineNumberAt,
   readSource,
   toRepoRelativePosix,
 } from './scanner-utils';
@@ -69,21 +70,96 @@ function scanApiSource(repoRoot: string): DeclaredVariable[] {
       if (name === 'NODE_ENV') {
         continue; // process-level, not a project configuration input
       }
-      declared.push({
-        name,
-        surface: 'API',
-        group,
-        consumedBy: [relativePath],
-        requiredByValidator: requiredNames.has(name),
-        provenance: {
-          sourceType: 'APPLICATION',
-          sourceFile: relativePath,
-          sourceLocation: `L${line}`,
-        },
-      });
+      declared.push(
+        buildApiDeclared({
+          name,
+          group,
+          relativePath,
+          line,
+          requiredByValidator: requiredNames.has(name),
+        }),
+      );
+    }
+
+    // NestJS ConfigService reads: `configService.get('NAME')` /
+    // `getOrThrow('NAME')`. `getOrThrow` fails fast at startup → runtime-required.
+    for (const { name, line, required } of extractConfigServiceReads(content)) {
+      if (name === 'NODE_ENV') {
+        continue;
+      }
+      declared.push(
+        buildApiDeclared({
+          name,
+          group,
+          relativePath,
+          line,
+          requiredByValidator: required || requiredNames.has(name),
+        }),
+      );
     }
   }
   return declared;
+}
+
+/** Inputs needed to build an API-surface declared variable. */
+interface ApiDeclaredInput {
+  name: string;
+  group: string;
+  relativePath: string;
+  line: number;
+  requiredByValidator: boolean;
+}
+
+/** Build an API-surface declared variable with APPLICATION provenance. */
+function buildApiDeclared(input: ApiDeclaredInput): DeclaredVariable {
+  const { name, group, relativePath, line, requiredByValidator } = input;
+  return {
+    name,
+    surface: 'API',
+    group,
+    consumedBy: [relativePath],
+    requiredByValidator,
+    provenance: {
+      sourceType: 'APPLICATION',
+      sourceFile: relativePath,
+      sourceLocation: `L${line}`,
+    },
+  };
+}
+
+interface ConfigServiceRead {
+  name: string;
+  line: number;
+  required: boolean;
+}
+
+/** Matches `configService.get('NAME'...)` and `.getOrThrow('NAME'...)`. */
+const CONFIG_SERVICE_READ =
+  /\.(get|getOrThrow)(?:<[^>]*>)?\(\s*['"]([A-Z][A-Z0-9_]*)['"]/g;
+
+/**
+ * Extract NestJS `ConfigService.get('NAME')` / `getOrThrow('NAME')` reads.
+ * `getOrThrow` throws at startup when the value is absent, so it is treated as
+ * runtime-required (fail-fast), mirroring a validator assertion.
+ */
+export function extractConfigServiceReads(content: string): ConfigServiceRead[] {
+  const results: ConfigServiceRead[] = [];
+  const seen = new Set<string>();
+  let match: RegExpExecArray | null = CONFIG_SERVICE_READ.exec(content);
+  while (match !== null) {
+    const method = match[1];
+    const name = match[2];
+    if (name !== undefined && !seen.has(name)) {
+      seen.add(name);
+      results.push({
+        name,
+        line: lineNumberAt(content, match.index),
+        required: method === 'getOrThrow',
+      });
+    }
+    match = CONFIG_SERVICE_READ.exec(content);
+  }
+  return results;
 }
 
 /** A scannable API application file (skips test files). */
