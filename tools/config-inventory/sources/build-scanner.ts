@@ -57,7 +57,9 @@ function parseEasJson(content: string, relativePath: string): EasEnvVar[] {
   try {
     document = JSON.parse(content);
   } catch (error) {
-    throw new Error(`Invalid JSON in ${relativePath}: ${(error as Error).message}`);
+    throw new Error(`Invalid JSON in ${relativePath}: ${(error as Error).message}`, {
+      cause: error,
+    });
   }
 
   const build = readObjectProperty(document, 'build');
