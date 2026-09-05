@@ -17,6 +17,7 @@ The **canonical inventory model** (`ConfigVariable[]`) is the single derived sou
 | `sources/infra-scanner.ts` | INFRA source: `docker-compose*.yml` under `infra/`, resolving `${VAR}` / `${VAR:-default}` interpolation (literal `environment:` values are container-internal defaults, not emitted) |
 | `sources/ci-scanner.ts` | CI source: `.github/workflows/*.yml` `env:` blocks (workflow/job/service/step level) + `codemagic.yaml` when present |
 | `sources/env-example-parser.ts` | Parses `.env.example` into shape entries (presentation input only) |
+| `classify.ts` | Classifies each merged variable: assigns `kind` (SECRET\|CONFIG\|PUBLIC), `requiredScope`, `envApplicability`, and a safe placeholder, then runs the public/secret boundary check (`checkBoundary`). Classification is by rule + explicit override and is meant to be VERIFIED against where the value flows — the `EXPO_PUBLIC_` prefix alone never proves safety. |
 
 ### Planned (per `.kiro/specs/secrets-inventory/design.md`)
 
@@ -25,7 +26,6 @@ The **canonical inventory model** (`ConfigVariable[]`) is the single derived sou
 | `sources/deploy-scanner.ts` | DEPLOY source: deployment scripts, VPS env manifests, Traefik config |
 | `sources/runtime-scanner.ts` | RUNTIME source: dynamic/indirect `process.env` / `os.environ` reads |
 | `reconcile.ts` | Diff engine: missing / orphaned / mismatched between declared variables and `.env.example` |
-| `classify.ts` | Assigns `kind` (SECRET\|CONFIG\|PUBLIC) + `requiredScope` + `surface`; runs the public/secret boundary check |
 | `exposure-scanner.ts` | `git check-ignore` + tracked-file scan + secret-pattern scan (reports, never rotates) |
 | `report.ts` | Renders the canonical model → inventory doc + `.env.example` + JSON + findings (one-directional projection) |
 | `inventory.cli.ts` | Entry point; also runnable as the `config-inventory` CI job |
