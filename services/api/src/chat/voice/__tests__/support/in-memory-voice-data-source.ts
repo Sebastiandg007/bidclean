@@ -42,6 +42,8 @@ export class InMemoryVoiceDataSource {
   readonly voiceNotes: Array<Record<string, unknown>> = [];
   readonly grants: Array<Record<string, unknown>> = [];
   readonly tombstones: Array<Record<string, unknown>> = [];
+  /** Captured `chat_outbox` rows written in the send transaction (push Task 12). */
+  readonly outbox: Array<Record<string, unknown>> = [];
 
   getRepository(entity: unknown): InMemoryVoiceRepository {
     return new InMemoryVoiceRepository(this, tableFor(entity));
@@ -251,6 +253,19 @@ export class InMemoryVoiceDataSource {
     }
     if (sql.includes('FROM "chat_conversations" c')) {
       return this.inbox(params[0] as string, params[1] as number);
+    }
+    if (sql.includes('INSERT INTO "chat_outbox"')) {
+      // Push Task 12: the send transaction writes a `message-created` outbox row. The behavioral
+      // fake just accepts it (a no-op record) so the send path stays exercised end-to-end.
+      this.outbox.push({
+        event_id: params[0],
+        aggregate_type: params[1],
+        aggregate_id: params[2],
+        type: params[3],
+        payload: params[4],
+        version: params[5],
+      });
+      return undefined;
     }
     throw new Error(`Unhandled SQL in InMemoryVoiceDataSource: ${sql}`);
   }

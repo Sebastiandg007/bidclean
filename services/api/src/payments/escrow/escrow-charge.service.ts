@@ -8,6 +8,7 @@ import { sanitizeStripePayload } from '../payment-payload.sanitizer';
 import { PaymentEventSource } from '../payments.types';
 import { STRIPE_WEBHOOK_EVENTS } from '../stripe/stripe.constants';
 import { extractStripeFeeCents } from '../stripe/stripe-fee.util';
+import { buildPaymentOutboxRow, PaymentOutboxEventType } from '../payment-outbox';
 
 /** The matched-offer context needed to charge */
 export interface ChargeContext {
@@ -110,6 +111,13 @@ export class EscrowChargeService {
         stripePaymentIntentId: intent.id,
         stripeChargeId: this.resolveChargeId(intent),
         stripeFeeCents,
+        // Push Task 12: notify the Host (payer) that the escrow charge was captured, atomically
+        // with the HELD transition.
+        outbox: buildPaymentOutboxRow({
+          paymentId: payment.id,
+          recipientUserId: ctx.hostId,
+          type: PaymentOutboxEventType.CAPTURED,
+        }),
       });
 
       await this.repo.appendEvent({
@@ -142,6 +150,12 @@ export class EscrowChargeService {
         paymentId: payment.id,
         attemptId: attempt.id,
         failureReason: reason,
+        // Push Task 12: notify the Host (payer) that the charge failed, atomically with FAILED.
+        outbox: buildPaymentOutboxRow({
+          paymentId: payment.id,
+          recipientUserId: ctx.hostId,
+          type: PaymentOutboxEventType.FAILED,
+        }),
       });
 
       this.publisher.emitFailed({

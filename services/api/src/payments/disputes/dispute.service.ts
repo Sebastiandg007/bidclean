@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PaymentsRepository } from '../payments.repository';
 import { PaymentPublisher } from '../events/payment-publisher.service';
 import { DisputeStatus } from '../payments.types';
+import { buildPaymentOutboxRow, PaymentOutboxEventType } from '../payment-outbox';
 
 /**
  * Dispute service.
@@ -31,7 +32,16 @@ export class DisputeService {
     if (payment.disputeStatus === DisputeStatus.OPEN) {
       return; // idempotent
     }
-    await this.repo.setDisputeStatus(paymentId, DisputeStatus.OPEN);
+    // Push Task 12: notify the Host that a dispute opened, atomically with the dispute_status write.
+    await this.repo.setDisputeStatus(
+      paymentId,
+      DisputeStatus.OPEN,
+      buildPaymentOutboxRow({
+        paymentId,
+        recipientUserId: payment.hostId,
+        type: PaymentOutboxEventType.DISPUTED,
+      }),
+    );
     this.publisher.emitDisputed({
       paymentId,
       offerId: payment.offerId,

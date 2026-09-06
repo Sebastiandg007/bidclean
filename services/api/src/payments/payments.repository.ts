@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { DataSource, EntityManager } from 'typeorm';
+import { OutboxRow, writeOutbox } from '../common/outbox/outbox-writer';
 import { Payment } from './entities/payment.entity';
 import { PaymentAttempt } from './entities/payment-attempt.entity';
 import { StripeAccount } from './entities/stripe-account.entity';
@@ -341,6 +342,8 @@ export class PaymentsRepository {
     stripePaymentIntentId: string;
     stripeChargeId: string;
     stripeFeeCents: number;
+    /** Optional push-notification outbox row written atomically with the state change (Task 12). */
+    outbox?: OutboxRow;
   }): Promise<void> {
     await this.dataSource.transaction(async (manager: EntityManager) => {
       await manager.query(
@@ -366,6 +369,8 @@ export class PaymentsRepository {
          WHERE "id" = $4`,
         [PaymentStatus.HELD, params.stripeFeeCents, netRevenue, params.paymentId],
       );
+
+      await this.writeOutboxIfPresent(manager, params.outbox);
     });
   }
 
@@ -374,6 +379,8 @@ export class PaymentsRepository {
     paymentId: string;
     attemptId: string;
     failureReason: string;
+    /** Optional push-notification outbox row written atomically with the state change (Task 12). */
+    outbox?: OutboxRow;
   }): Promise<void> {
     await this.dataSource.transaction(async (manager: EntityManager) => {
       await manager.query(
@@ -388,6 +395,8 @@ export class PaymentsRepository {
         `UPDATE "payments" SET "payment_status" = $1, "updated_at" = NOW() WHERE "id" = $2`,
         [PaymentStatus.FAILED, params.paymentId],
       );
+
+      await this.writeOutboxIfPresent(manager, params.outbox);
     });
   }
 
@@ -396,7 +405,12 @@ export class PaymentsRepository {
    * RELEASED, store the transfer id. Guarded by a row lock + state validation so a
    * concurrent trigger cannot release twice (P4).
    */
-  async markReleased(params: { paymentId: string; stripeTransferId: string }): Promise<void> {
+  async markReleased(params: {
+    paymentId: string;
+    stripeTransferId: string;
+    /** Optional push-notification outbox row written atomically with the release (Task 12). */
+    outbox?: OutboxRow;
+  }): Promise<void> {
     await this.dataSource.transaction(async (manager: EntityManager) => {
       const payment = await this.lockPayment(manager, params.paymentId);
       // Idempotent under concurrent triggers (P4): if another writer already recorded
@@ -417,6 +431,10 @@ export class PaymentsRepository {
          WHERE "id" = $4`,
         [PayoutStatus.TRANSFER_CREATED, PaymentStatus.RELEASED, params.stripeTransferId, params.paymentId],
       );
+
+      // Only on a real release (not the idempotent no-op above) so a duplicate release trigger
+      // never enqueues a second push (exactly-once intent is still guarded by the ledger dedup).
+      await this.writeOutboxIfPresent(manager, params.outbox);
     });
   }
 
@@ -445,7 +463,11 @@ export class PaymentsRepository {
   }
 
   /** Transition the dispute status (orthogonal to payment_status). */
-  async setDisputeStatus(paymentId: string, target: DisputeStatus): Promise<void> {
+  async setDisputeStatus(
+    paymentId: string,
+    target: DisputeStatus,
+    outbox?: OutboxRow,
+  ): Promise<void> {
     await this.dataSource.transaction(async (manager: EntityManager) => {
       const payment = await this.lockPayment(manager, paymentId);
       this.assertDisputeTransition(payment.dispute_status, target);
@@ -453,6 +475,8 @@ export class PaymentsRepository {
         `UPDATE "payments" SET "dispute_status" = $1, "updated_at" = NOW() WHERE "id" = $2`,
         [target, paymentId],
       );
+
+      await this.writeOutboxIfPresent(manager, outbox);
     });
   }
 
@@ -466,6 +490,8 @@ export class PaymentsRepository {
     refundAmountCents: number;
     reversalAmountCents: number;
     resultingStatus: PaymentStatus;
+    /** Optional push-notification outbox row written atomically with the refund (Task 12). */
+    outbox?: OutboxRow;
   }): Promise<void> {
     // Defensive boundary guards: the refund policy enforces these upstream, but this
     // method is public and its net-revenue math relies on them holding.
@@ -501,6 +527,8 @@ export class PaymentsRepository {
          WHERE "id" = $5`,
         [newRefunded, newReversed, newNetRevenue, params.resultingStatus, params.paymentId],
       );
+
+      await this.writeOutboxIfPresent(manager, params.outbox);
     });
   }
 
@@ -607,6 +635,20 @@ export class PaymentsRepository {
   }
 
   // ─── Internal helpers ──────────────────────────────────────────────────────
+
+  /**
+   * Write a push-notification outbox row inside the caller's money-state transaction (Task 12), or
+   * do nothing when no outbox row was supplied. Keeps the atomicity guarantee (a rollback of the
+   * payment fact also reverts the outbox row) while the shared writer stays domain-agnostic.
+   */
+  private async writeOutboxIfPresent(
+    manager: EntityManager,
+    outbox: OutboxRow | undefined,
+  ): Promise<void> {
+    if (outbox) {
+      await writeOutbox(manager, outbox);
+    }
+  }
 
   private async lockPayment(manager: EntityManager, paymentId: string): Promise<PaymentRow> {
     const rows = await manager.query<PaymentRow[]>(

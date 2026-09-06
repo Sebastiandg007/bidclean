@@ -36,7 +36,7 @@
 | 13 | `realtime-chat` | ✅ Completed | Spec 1, 8 |
 | 14 | `voice-notes` | ✅ Completed | Spec 13 |
 | 15 | `voip-calls` | ✅ Completed | Spec 13 |
-| 16 | `push-notifications` | ⬜ Pending | Spec 1 |
+| 16 | `push-notifications` | ✅ Completed | Spec 1 |
 
 ### Sprint 5 — Service Execution
 | # | Spec | Status | Dependencies |

@@ -31,6 +31,8 @@ function nextId(prefix: string): string {
 export class InMemoryChatDataSource {
   readonly conversations: Array<Record<string, unknown>> = [];
   readonly messages: Array<Record<string, unknown>> = [];
+  /** Captured `chat_outbox` rows written in the send transaction (push Task 12). */
+  readonly outbox: Array<Record<string, unknown>> = [];
 
   getRepository(entity: unknown): InMemoryChatRepository {
     return new InMemoryChatRepository(this, tableFor(entity));
@@ -86,6 +88,19 @@ export class InMemoryChatDataSource {
     }
     if (sql.includes('FROM "chat_conversations" c')) {
       return this.inbox(params[0] as string, params[1] as number);
+    }
+    if (sql.includes('INSERT INTO "chat_outbox"')) {
+      // Positional params mirror writeOutbox: event_id, aggregate_type, aggregate_id, type,
+      // payload (JSON string), version.
+      this.outbox.push({
+        event_id: params[0],
+        aggregate_type: params[1],
+        aggregate_id: params[2],
+        type: params[3],
+        payload: params[4],
+        version: params[5],
+      });
+      return undefined;
     }
     throw new Error(`Unhandled SQL in InMemoryChatDataSource: ${sql}`);
   }

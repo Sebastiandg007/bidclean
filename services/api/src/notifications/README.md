@@ -66,7 +66,20 @@ Delivery **intent** is exactly-once in PostgreSQL (single-winner `PENDING → PR
 
 Property-based (fast-check, ≥100 iters): **P3** (exactly-once intent), **P6** (Model B targeting), **P8/P9/P10** (metadata-driven decision, defaults, fail-open), **P12** (single-winner), **P14** (deep-link ids only), **P16** (webhook auth/idempotency), **P17** (registry convergence), **P18** (deletion coherence). Unit tests cover the registry, catalog, config, service, worker, controllers, and relay.
 
+## Emitting-domain outbox writes (Task 12 — done)
+
+Each emitting domain now writes its `<domain>_outbox` row **in the same DB transaction** as the business fact, so the relay above has real rows to drain. The domain-owned `event_id` derivation + ids-only payload shaping live in a small helper per domain (`<domain>-outbox.ts`); the shared/api-local `writeOutbox(tx, row)` stays domain-agnostic.
+
+| Domain | Fact → outbox write | Transactional executor | `event_id` scheme |
+|--------|--------------------|------------------------|-------------------|
+| offers | new-offer fallback → `offer_outbox` `offer.matched` (replaces the direct `OneSignalClient.send`, REQ-NP13) | `dataSource.transaction` in `OfferNotificationService` | `offer:<offerId>:<type>:<recipientUserId>` |
+| payments | captured/failed/released/refunded/disputed → `payment_outbox` | `manager` in `PaymentsRepository` money-state txns | `payment:<paymentId>:<type>:<recipientUserId>` |
+| negotiation | proposal created/countered/rejected/accepted → `negotiation_outbox` | `manager` in `insertProposalLocked` / wrapped `setProposalStatus` / `markProposalAccepted` | `proposal:<proposalId>:<type>:<recipientUserId>` |
+| chat | TEXT + VOICE message persisted → `chat_outbox` `message-created` | `manager` in `ChatRepository.insertMessage` / `insertVoiceMessage` | `message:<messageId>:message-created` |
+| voip | call reaches RINGING (fresh insert) → `voip_outbox` `call-invited` | `manager` in `VoipService.initiate` | `call:<callId>:call-invited` |
+
+Atomicity: if the business-fact transaction rolls back, the outbox row rolls back too (single `INSERT` on the same executor). Exactly-once intent is preserved by the deterministic `event_id` → ledger `dedup_key`. `EventEmitter2`/Centrifugo fast-paths are unchanged and stay best-effort. Property tests: `common/outbox/__tests__/emitting-domain-outbox.property.spec.ts`.
+
 ## Pending / Blocked
 
-- **Task 12 (emitting-domain outbox writes)** is intentionally NOT implemented here: `offers`, `payments`, `negotiation`, `chat`, and `voip-calls` still need to write their `<domain>_outbox` row in the same transaction as the business fact (and `offers` must drop its direct `OneSignalClient.send` in favor of an `offer_outbox` write). This is coordinated after the parallel voice-notes (chat) and voip work lands. Until then the relay drains empty tables (safe no-op) and the legacy offer push path in `offers/notification/**` remains untouched.
 - **Integration tests (Spec tasks 18.x)** require Postgres + Redis and are blocked in the CI-less local environment; the pure logic they would exercise is covered by the property/unit tests above.

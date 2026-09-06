@@ -8,7 +8,9 @@ import {
 } from '@nestjs/common';
 import { DataSource, EntityManager, QueryFailedError } from 'typeorm';
 
+import { writeOutbox } from '../../common/outbox/outbox-writer';
 import { chatChannelForConversation } from '../chat.constants';
+import { buildCallInvitedOutboxRow } from './voip-outbox';
 import {
   ChatRealtimePublisher,
   CHAT_REALTIME_PUBLISHER,
@@ -101,7 +103,7 @@ export class VoipService {
         }
 
         const calleeId = this.otherParticipant(conversation, params.callerId);
-        return this.voipRepository.insertRinging(manager, {
+        const ringing = await this.voipRepository.insertRinging(manager, {
           conversationId: params.conversationId,
           offerId: conversation.offerId,
           initiatorId: params.callerId,
@@ -110,16 +112,24 @@ export class VoipService {
           roomName: this.roomService.generateRoomName(),
           clientCallId: params.clientCallId,
         });
+
+        // Push Task 12: on a fresh RINGING insert, write the `voip_outbox` `call-invited` row in
+        // the SAME transaction as the call fact so a backgrounded/killed callee can be woken via
+        // the notifications relay. If this transaction rolls back, the outbox row rolls back too.
+        await writeOutbox(
+          manager,
+          buildCallInvitedOutboxRow({
+            callId: ringing.id,
+            conversationId: params.conversationId,
+            recipientUserId: calleeId,
+          }),
+        );
+
+        return ringing;
       });
     } catch (error) {
       throw this.mapInitiateError(error, params.conversationId);
     }
-
-    // TODO(orchestrator): emit voip_outbox call-invited here — push Task 12. When a call reaches
-    // RINGING (a fresh insert, not a dedup), push-notifications will write a `voip_outbox` row so a
-    // backgrounded/killed callee can be woken. This service intentionally does NOT write that outbox
-    // (out of scope for voip-calls); the durable RINGING row committed above is the single trigger
-    // point the orchestrator wires push into.
 
     const media = await this.tokenService.mintToken({
       identity: params.callerId,

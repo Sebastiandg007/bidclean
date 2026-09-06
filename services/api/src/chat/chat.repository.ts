@@ -1,8 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { DataSource, EntityManager } from 'typeorm';
 
+import { writeOutbox } from '../common/outbox/outbox-writer';
 import { ChatConversation } from './entities/chat-conversation.entity';
 import { ChatMessage } from './entities/chat-message.entity';
+import { buildMessageCreatedOutboxRow } from './chat-outbox';
 
 /** Parameters for the serialized message insert. */
 export interface InsertMessageParams {
@@ -10,6 +12,11 @@ export interface InsertMessageParams {
   readonly senderId: string;
   readonly clientMessageId: string;
   readonly body: string;
+  /**
+   * The other participant who should be notified (push Task 12), resolved by the service. Optional
+   * only so lower-level tests that don't exercise push can omit it; production always supplies it.
+   */
+  readonly recipientUserId?: string;
 }
 
 /** Discriminated outcome of a serialized insert. */
@@ -25,6 +32,11 @@ export interface InsertVoiceMessageParams {
   readonly conversationId: string;
   readonly senderId: string;
   readonly clientMessageId: string;
+  /**
+   * The other participant who should be notified (push Task 12), resolved by the service. Optional
+   * only so lower-level tests that don't exercise push can omit it; production always supplies it.
+   */
+  readonly recipientUserId?: string;
 }
 
 /**
@@ -225,6 +237,19 @@ export class ChatRepository {
         [nextSeq, params.conversationId],
       );
 
+      // Push Task 12: write the `message-created` outbox row in the SAME transaction as the
+      // message insert so a rollback reverts both. The Centrifugo publish stays best-effort.
+      if (params.recipientUserId) {
+        await writeOutbox(
+          manager,
+          buildMessageCreatedOutboxRow({
+            messageId: saved.id,
+            conversationId: params.conversationId,
+            recipientUserId: params.recipientUserId,
+          }),
+        );
+      }
+
       return { kind: 'inserted', message: saved } as const;
     });
   }
@@ -315,6 +340,19 @@ export class ChatRepository {
          WHERE "id" = $2`,
         [nextSeq, params.conversationId],
       );
+
+      // Push Task 12: a voice note IS a chat message, so it writes the same `message-created`
+      // outbox row in the SAME transaction as the message + metadata insert.
+      if (params.recipientUserId) {
+        await writeOutbox(
+          manager,
+          buildMessageCreatedOutboxRow({
+            messageId: saved.id,
+            conversationId: params.conversationId,
+            recipientUserId: params.recipientUserId,
+          }),
+        );
+      }
 
       return { kind: 'inserted', message: saved } as const;
     });

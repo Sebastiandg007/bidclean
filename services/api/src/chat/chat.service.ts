@@ -180,7 +180,7 @@ export class ChatService {
     clientMessageId: string,
     body: string,
   ): Promise<SendResult> {
-    await this.requireParticipantConversation(conversationId, userId);
+    const conversation = await this.requireParticipantConversation(conversationId, userId);
     const trimmed = this.validateBody(body);
 
     const outcome = await this.chatRepository.insertMessage({
@@ -188,6 +188,7 @@ export class ChatService {
       senderId: userId,
       clientMessageId,
       body: trimmed,
+      recipientUserId: this.otherParticipant(conversation, userId),
     });
     const result = this.interpretOutcome(outcome);
 
@@ -223,7 +224,10 @@ export class ChatService {
    * audio bytes nor a transcript are ever logged.
    */
   async sendVoiceMessage(params: SendVoiceParams): Promise<SendResult> {
-    await this.requireParticipantConversation(params.conversationId, params.senderId);
+    const conversation = await this.requireParticipantConversation(
+      params.conversationId,
+      params.senderId,
+    );
     const incoming = buildVoiceFingerprint(params);
 
     const outcome = await this.chatRepository.insertVoiceMessage(
@@ -231,6 +235,7 @@ export class ChatService {
         conversationId: params.conversationId,
         senderId: params.senderId,
         clientMessageId: params.clientMessageId,
+        recipientUserId: this.otherParticipant(conversation, params.senderId),
       },
       {
         fingerprintMatches: async (manager, existingMessageId) => {
@@ -440,6 +445,17 @@ export class ChatService {
       throw new ForbiddenException(CHAT_ERROR_MESSAGES.NOT_A_PARTICIPANT);
     }
     return conversation;
+  }
+
+  /** The other participant of a two-party conversation relative to `userId` (push recipient). */
+  private otherParticipant(conversation: ChatConversation, userId: string): string {
+    const other = userId === conversation.hostId ? conversation.cleanerId : conversation.hostId;
+    if (!other) {
+      // Both participants are present for any conversation that accepts a send; a null here means
+      // the counterparty was deleted/anonymized (FK SET NULL) — treat as a data-integrity break.
+      throw new ConflictException(CHAT_ERROR_MESSAGES.CONVERSATION_CLOSED);
+    }
+    return other;
   }
 
   /** Publish a persisted message to its channel; swallow failures (transport is best-effort). */
