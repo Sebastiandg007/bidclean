@@ -38,6 +38,21 @@ import { VoiceNoteCleanupProcessor } from './voice/voice-note-cleanup.processor'
 import { ChatVoiceNote } from './voice/entities/chat-voice-note.entity';
 import { VoiceNoteUploadGrant } from './voice/entities/voice-note-upload-grant.entity';
 import { VoiceNoteObjectDeletion } from './voice/entities/voice-note-object-deletion.entity';
+// --- voip-calls providers ---
+import { validateVoipConfig } from './voip/voip.constants';
+import {
+  VOIP_SWEEP_JOB_OPTIONS,
+  VOIP_SWEEP_QUEUE_NAME,
+} from './voip/voip.constants';
+import { VoipCall } from './voip/entities/voip-call.entity';
+import { VoipController } from './voip/voip.controller';
+import { VoipService } from './voip/voip.service';
+import { VoipRepository } from './voip/voip.repository';
+import { LiveKitRoomService } from './voip/livekit-room.service';
+import { LiveKitTokenService } from './voip/livekit-token.service';
+import { LiveKitWebhookController } from './voip/livekit-webhook.controller';
+import { VoipSweepProcessor } from './voip/voip-sweep.processor';
+import { OfferTerminalCallListener } from './voip/offer-terminal-call.listener';
 
 /**
  * Chat module (realtime-chat).
@@ -61,16 +76,24 @@ import { VoiceNoteObjectDeletion } from './voice/entities/voice-note-object-dele
       ChatVoiceNote,
       VoiceNoteUploadGrant,
       VoiceNoteObjectDeletion,
+      // --- voip-calls entity ---
+      VoipCall,
     ]),
     OffersModule,
     // --- voice-notes async infra (transcription queue + repeatable cleanup sweeps) ---
+    // ScheduleModule.forRoot() is registered here by voice-notes; voip-calls REUSES it (no dup).
     ScheduleModule.forRoot(),
     BullModule.registerQueue({
       name: VOICE_TRANSCRIPTION_QUEUE_NAME,
       defaultJobOptions: VOICE_TRANSCRIPTION_JOB_OPTIONS,
     }),
+    // --- voip-calls async infra (repeatable ring-timeout + stale-call sweep queue) ---
+    BullModule.registerQueue({
+      name: VOIP_SWEEP_QUEUE_NAME,
+      defaultJobOptions: VOIP_SWEEP_JOB_OPTIONS,
+    }),
   ],
-  controllers: [ChatController],
+  controllers: [ChatController, VoipController, LiveKitWebhookController],
   providers: [
     ChatService,
     ChatRepository,
@@ -92,6 +115,13 @@ import { VoiceNoteObjectDeletion } from './voice/entities/voice-note-object-dele
       useFactory: (queue: Queue) => queue,
       inject: [getQueueToken(VOICE_TRANSCRIPTION_QUEUE_NAME)],
     },
+    // --- voip-calls providers ---
+    VoipService,
+    VoipRepository,
+    LiveKitRoomService,
+    LiveKitTokenService,
+    VoipSweepProcessor,
+    OfferTerminalCallListener,
   ],
   exports: [ChatParticipationService, ChatService],
 })
@@ -100,5 +130,7 @@ export class ChatModule implements OnModuleInit {
     validateChatConfig();
     // --- voice-notes fail-fast config validation ---
     validateVoiceNotesConfig();
+    // --- voip-calls fail-fast config validation ---
+    validateVoipConfig();
   }
 }

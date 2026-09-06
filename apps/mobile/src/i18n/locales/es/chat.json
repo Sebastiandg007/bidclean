@@ -38,6 +38,39 @@
       "micDenied": "El acceso al micrófono está desactivado. Actívalo en ajustes para enviar notas de voz.",
       "tooLong": "Esa grabación es demasiado larga. Intenta una más corta.",
       "sendError": "No se pudo enviar la nota de voz. Inténtalo de nuevo."
+    },
+    "call": {
+      "voice": "Llamada de voz",
+      "video": "Videollamada",
+      "ringingOutgoing": "Llamando…",
+      "ringingIncoming": "Llamada entrante…",
+      "incomingTitle": "Llamada entrante",
+      "accept": "Aceptar",
+      "decline": "Rechazar",
+      "cancel": "Cancelar",
+      "end": "Colgar",
+      "mute": "Silenciar",
+      "unmute": "Activar micrófono",
+      "speaker": "Altavoz",
+      "cameraOn": "Encender cámara",
+      "cameraOff": "Apagar cámara",
+      "connecting": "Conectando…",
+      "inCall": "En llamada",
+      "audioOnly": "Video no disponible — solo audio",
+      "micDenied": "El acceso al micrófono está desactivado. Actívalo en ajustes para hacer llamadas.",
+      "cameraDenied": "El acceso a la cámara está desactivado. Continuando solo con audio.",
+      "busy": "Ya hay una llamada activa en esta conversación.",
+      "error": "Algo salió mal con la llamada. Inténtalo de nuevo.",
+      "log": {
+        "outgoing": "Llamada saliente",
+        "incoming": "Llamada entrante",
+        "missed": "Llamada perdida",
+        "declined": "Llamada rechazada",
+        "canceled": "Llamada cancelada",
+        "ended": "Llamada finalizada",
+        "failed": "Llamada fallida",
+        "duration": "{{seconds}} s"
+      }
     }
   }
 }

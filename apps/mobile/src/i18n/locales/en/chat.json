@@ -38,6 +38,39 @@
       "micDenied": "Microphone access is off. Enable it in settings to send voice notes.",
       "tooLong": "That recording is too long. Try a shorter one.",
       "sendError": "Could not send the voice note. Please try again."
+    },
+    "call": {
+      "voice": "Voice call",
+      "video": "Video call",
+      "ringingOutgoing": "Ringing…",
+      "ringingIncoming": "Incoming call…",
+      "incomingTitle": "Incoming call",
+      "accept": "Accept",
+      "decline": "Decline",
+      "cancel": "Cancel",
+      "end": "End",
+      "mute": "Mute",
+      "unmute": "Unmute",
+      "speaker": "Speaker",
+      "cameraOn": "Turn camera on",
+      "cameraOff": "Turn camera off",
+      "connecting": "Connecting…",
+      "inCall": "In call",
+      "audioOnly": "Video unavailable — audio only",
+      "micDenied": "Microphone access is off. Enable it in settings to make calls.",
+      "cameraDenied": "Camera access is off. Continuing with audio only.",
+      "busy": "A call is already active for this conversation.",
+      "error": "Something went wrong with the call. Please try again.",
+      "log": {
+        "outgoing": "Outgoing call",
+        "incoming": "Incoming call",
+        "missed": "Missed call",
+        "declined": "Declined call",
+        "canceled": "Canceled call",
+        "ended": "Call ended",
+        "failed": "Call failed",
+        "duration": "{{seconds}}s"
+      }
     }
   }
 }

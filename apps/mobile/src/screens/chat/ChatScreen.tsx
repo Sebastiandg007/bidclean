@@ -25,6 +25,12 @@ import { CHAT_I18N_KEYS } from './chat.constants';
 import { useChatStore } from './chat.store';
 import { useChatChannel } from './useChatChannel';
 import type { ChatMessage, RecordedClip } from './chat.types';
+// --- voip-calls integration (Spec 15) ---
+import { CallAffordance } from './voip/components/CallAffordance';
+import { IncomingCallSheet } from './voip/components/IncomingCallSheet';
+import { InCallScreen } from './voip/InCallScreen';
+import { useCallSignaling } from './voip/useCallSignaling';
+import { useVoipStore } from './voip/voip.store';
 
 // ─── Design Tokens ───────────────────────────────────────────────────────────
 
@@ -86,6 +92,14 @@ export function ChatScreen({ route, navigation }: ChatScreenProps): React.JSX.El
     onReconcile: reconcileNewer,
   });
 
+  // --- voip-calls: route call-control signals off the same conversation channel + load the log ---
+  const applyCallSignal = useVoipStore((state) => state.applySignal);
+  const loadCallLog = useVoipStore((state) => state.loadCallLog);
+  useCallSignaling({ conversationId, onSignal: applyCallSignal });
+  useEffect(() => {
+    loadCallLog(conversationId);
+  }, [conversationId, loadCallLog]);
+
   const isClosed = conversation?.status === 'CLOSED';
   const orderedMessages = messages ?? [];
   // The store keeps messages ascending (oldest→newest). The inverted list renders newest at the
@@ -126,6 +140,10 @@ export function ChatScreen({ route, navigation }: ChatScreenProps): React.JSX.El
     <SafeAreaView style={styles.safeArea} testID="chat-screen">
       <ConversationHeader connectionStatus={connectionStatus} onBack={navigation.goBack} />
 
+      <View style={styles.callBar}>
+        <CallAffordance conversationId={conversationId} isOpen={!isClosed} />
+      </View>
+
       {error !== null && (
         <Text style={styles.errorBanner} testID="chat-error">
           {t(error)}
@@ -154,6 +172,10 @@ export function ChatScreen({ route, navigation }: ChatScreenProps): React.JSX.El
       ) : (
         <MessageComposer onSend={handleSend} onSendVoice={handleSendVoice} disabled={isClosed} />
       )}
+
+      {/* Call overlays: incoming-call sheet + the outgoing/active/ended in-call screen. */}
+      <IncomingCallSheet />
+      <InCallScreen />
     </SafeAreaView>
   );
 }
@@ -186,6 +208,12 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: COLORS.background,
+  },
+  callBar: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    paddingHorizontal: SPACING.md,
+    paddingBottom: SPACING.md,
   },
   list: {
     flex: 1,

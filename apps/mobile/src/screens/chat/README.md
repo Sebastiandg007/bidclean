@@ -6,7 +6,25 @@ Post-match, one-to-one messaging between a Host and a Cleaner. A conversation ex
 
 **Voice notes (Spec 14)** extend this surface: the composer gains a record/preview/send affordance and each `type: 'VOICE'` message renders a `VoiceNotePlayer`. Audio uploads directly to MinIO via a short-lived pre-signed URL (never through the API); an asynchronous, best-effort transcript is attached later and shown when available — never blocking playback.
 
-See the backend module (`services/api/src/chat/`, and `services/api/src/chat/voice/` for voice notes) and the specs (`.kiro/specs/realtime-chat/`, `.kiro/specs/voice-notes/`) for the full contract and correctness properties.
+**VoIP calls (Spec 15)** extend this surface too: the chat header gains a `CallAffordance` (voice, and video when enabled), the conversation carries a `CallLogEntry` history row (with a missed-call indicator), and an incoming call surfaces an `IncomingCallSheet` (accept/decline) while the active/outgoing/ended call renders in `InCallScreen`. Call control signals travel over the **same** conversation Centrifugo channel (no new channel); media flows client ↔ LiveKit SFU via a short-lived server-minted token (never through the API). See `voip/` (below) and `.kiro/specs/voip-calls/`.
+
+See the backend module (`services/api/src/chat/`, `services/api/src/chat/voice/` for voice notes, `services/api/src/chat/voip/` for calls) and the specs (`.kiro/specs/realtime-chat/`, `.kiro/specs/voice-notes/`, `.kiro/specs/voip-calls/`) for the full contract and correctness properties.
+
+### `voip/` — in-conversation calling (Spec 15)
+
+| File | Responsibility |
+|------|---------------|
+| `voip/voip.types.ts` | Call domain contracts (`CallView`, `MediaToken`, `InitiatedCall`, the `CallSignal` union) + status rank/guards for no-regression signaling |
+| `voip/voip.constants.ts` | Call endpoints, `VOIP_I18N_KEYS`, `EXPO_PUBLIC_LIVEKIT_URL` fallback, tunables (no hardcoded values) |
+| `voip/voip.api.ts` | Typed apiClient calls: initiate (idempotent) / answer / decline / cancel / end / token / get / list |
+| `voip/voip.store.ts` | Zustand: single active call; applies `call_*` signals idempotently (never regressing status); `reconcile` via GET; `refreshMediaToken` (same room, never a second call); `openIncoming` seam |
+| `voip/useCallSignaling.ts` | Routes `call_*` frames off the **existing** `chat:conversation:{id}` channel into the store (`parseCallSignal` pure parser) |
+| `voip/useLiveKitRoom.ts` | LiveKit media session: connect/mute/speaker/camera; degrades to audio-only; mic/camera-denied notice, never crashes or blocks text chat |
+| `voip/InCallScreen.tsx` | Outgoing/active/ended call surface: duration + controls, driven by `useLiveKitRoom` |
+| `voip/components/IncomingCallSheet.tsx` | Foreground accept/decline sheet (background/killed delivery deferred to Spec 16) |
+| `voip/components/CallAffordance.tsx` | Chat-header voice/video call button(s), OPEN-only |
+| `voip/components/CallLogEntry.tsx` | Inline conversation call row (kind/direction/outcome/duration, missed-call indicator) |
+| `voip/voip.router.ts` | `openIncomingCall(callId, conversationId)` — the invocable side of `NotificationRouter.openIncomingCall` (push Spec 16 calls it; no push wiring here) |
 
 ## Flow
 

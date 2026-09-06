@@ -44,6 +44,8 @@ This module does not issue Centrifugo tokens. Auth owns identity and token signi
 
 > **Voice notes (Spec 14).** A voice note is a `chat_messages` row with `type = 'VOICE'` whose audio lives in MinIO; see [`voice/README.md`](./voice/README.md) for the storage service, upload grants, transcription, cleanup, and the three new tables (migration `1700000023000-CreateVoiceNoteTables`). The text-chat contract above is unchanged.
 
+> **VoIP calls (Spec 15).** A call is a `voip_calls` row bound to one conversation, reusing the participants, OPEN-lifecycle, offer-terminal close, and Centrifugo transport unchanged; media flows client ↔ LiveKit SFU (never the API/DB) and call control signals over the **existing** `chat:conversation:{id}` channel. See [`voip/README.md`](./voip/README.md) for the state machine, the status+role LiveKit token gate, the signed webhook + sweeps, and the `voip_calls` table (migration `1700000040000-CreateVoipCallsTable`, ADR-014). The text-chat and voice-note contracts above are unchanged. `chat.module.ts` reuses the voice-notes `ScheduleModule.forRoot()` and additionally registers the `voip-calls-sweep` BullMQ queue, the voip providers/controllers, the `VoipCall` entity, and `validateVoipConfig()`.
+
 ## Environment Variables
 
 | Variable | Description | Default |

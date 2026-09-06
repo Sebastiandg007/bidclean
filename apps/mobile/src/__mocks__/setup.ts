@@ -87,6 +87,66 @@ jest.mock('expo-tracking-transparency', () => ({
 // key is server-only and never present on the client).
 process.env.EXPO_PUBLIC_ONESIGNAL_APP_ID ??= 'test-onesignal-app-id';
 
+// LiveKit React Native SDK (Spec 15) — native WebRTC modules; mocked so call unit tests run without
+// a prebuild/EAS build. Declared `virtual` because the native packages are not installed in the
+// test toolchain (they resolve only in a device build). `mockRoomInstance` exposes the small surface
+// `useLiveKitRoom` drives; tests can reach it via the constructor's mock return.
+jest.mock(
+  '@livekit/react-native',
+  () => {
+    const mockLocalParticipant = {
+      setMicrophoneEnabled: jest.fn().mockResolvedValue(undefined),
+      setCameraEnabled: jest.fn().mockResolvedValue(undefined),
+      isMicrophoneEnabled: true,
+      isCameraEnabled: false,
+    };
+    const mockRoomInstance = {
+      localParticipant: mockLocalParticipant,
+      state: 'disconnected',
+      connect: jest.fn().mockResolvedValue(undefined),
+      disconnect: jest.fn().mockResolvedValue(undefined),
+      on: jest.fn().mockReturnThis(),
+      off: jest.fn().mockReturnThis(),
+      removeAllListeners: jest.fn().mockReturnThis(),
+    };
+    return {
+      __esModule: true,
+      Room: jest.fn().mockImplementation(() => mockRoomInstance),
+      Track: { Source: { Camera: 'camera', Microphone: 'microphone', ScreenShare: 'screen_share' } },
+      ConnectionState: {
+        Disconnected: 'disconnected',
+        Connecting: 'connecting',
+        Connected: 'connected',
+        Reconnecting: 'reconnecting',
+      },
+      RoomEvent: {
+        Connected: 'connected',
+        Disconnected: 'disconnected',
+        Reconnecting: 'reconnecting',
+        Reconnected: 'reconnected',
+        ParticipantConnected: 'participantConnected',
+        ParticipantDisconnected: 'participantDisconnected',
+        TrackSubscribed: 'trackSubscribed',
+        TrackUnsubscribed: 'trackUnsubscribed',
+        ConnectionStateChanged: 'connectionStateChanged',
+      },
+      registerGlobals: jest.fn(),
+      AudioSession: {
+        startAudioSession: jest.fn().mockResolvedValue(undefined),
+        stopAudioSession: jest.fn().mockResolvedValue(undefined),
+        configureAudio: jest.fn().mockResolvedValue(undefined),
+      },
+    };
+  },
+  { virtual: true },
+);
+
+jest.mock(
+  '@livekit/react-native-webrtc',
+  () => ({ __esModule: true, mediaDevices: {} }),
+  { virtual: true },
+);
+
 // expo-av — native audio module for voice notes (Spec 14). Mocked so recorder/player unit tests
 // run without a prebuild/EAS build. `Audio.Recording` and `Audio.Sound` are lightweight fakes;
 // permission helpers default to granted (tests override per-case for the denied path).

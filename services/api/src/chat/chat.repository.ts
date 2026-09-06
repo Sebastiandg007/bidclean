@@ -405,6 +405,18 @@ export class ChatRepository {
     );
   }
 
+  /**
+   * The ids of every conversation for an offer (voip force-end on offer-terminal). Kept separate
+   * from the close path so the voip listener can resolve conversations without touching messages.
+   */
+  async findConversationIdsForOffer(offerId: string): Promise<string[]> {
+    const rows = await this.dataSource.query<Array<{ id: string }>>(
+      `SELECT "id" FROM "chat_conversations" WHERE "offer_id" = $1`,
+      [offerId],
+    );
+    return rows.map((row) => row.id);
+  }
+
   /** Look up an existing message by its client id within the locked transaction. */
   private async findByClientMessageId(
     manager: EntityManager,

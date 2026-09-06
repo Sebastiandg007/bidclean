@@ -814,5 +814,62 @@ graph TB
 
 ---
 
-*Last updated: September 5, 2026*
+## 9. VoIP Call Lifecycle (In-Conversation Calls)
+
+> In-conversation voice/video calling (Spec 15, ADR-014). **A call is a conversation event, not a new domain** — a `voip_calls` row is bound to one Spec 13 `chat_conversations` row (migration `1700000040000`). **PostgreSQL** is the source of truth for *that a call happened* + its lifecycle; **LiveKit** (self-hosted SFU) is the source of truth for the live media (an ephemeral room); **Centrifugo** carries best-effort call-control signaling on the **existing** `chat:conversation:{id}` channel. **Media (audio/video RTP) never transits the API or PostgreSQL** — it flows client ↔ SFU only, reachable only via a short-lived, room-scoped, identity-scoped access token minted server-side per a status+role gate. A room name is a reference, never a credential. Every terminal transition is a **single-winner** conditional write, and liveness is **server-authoritative** (a signed LiveKit webhook + two bounded sweeps) — never a client heartbeat.
+
+```mermaid
+graph TB
+    subgraph Mobile["Mobile (Expo / RN)"]
+        Affordance["CallAffordance (chat header)"]
+        Store["voip.store (Zustand)<br/>single active call · idempotent signals · reconcile via GET"]
+        Signal["useCallSignaling (existing chat channel)"]
+        LKRoom["useLiveKitRoom (@livekit/react-native)"]
+        Sheet["IncomingCallSheet + InCallScreen"]
+    end
+
+    subgraph API["NestJS API — chat/voip"]
+        Ctrl["VoipController<br/>initiate / answer / decline / cancel / end / token / get / list"]
+        Svc["VoipService<br/>serialized initiate · single-winner state machine · status+role token gate"]
+        Repo["VoipRepository (voip_calls)"]
+        TokenSvc["LiveKitTokenService (short-lived, room-scoped)"]
+        RoomSvc["LiveKitRoomService (opaque room name · best-effort delete)"]
+        Webhook["LiveKitWebhookController<br/>POST /webhooks/livekit (signed, idempotent)"]
+        Sweep["VoipSweepProcessor (ring-timeout + stale-call, BullMQ)"]
+        TermList["OfferTerminalCallListener (force-end on conversation close)"]
+        Pub["CHAT_REALTIME_PUBLISHER (CentrifugoClient)"]
+    end
+
+    subgraph Infra["Infra"]
+        PG[("PostgreSQL<br/>voip_calls")]
+        Cent["Centrifugo (chat:conversation:{id})"]
+        LiveKit["LiveKit SFU (rooms, media)"]
+    end
+
+    Affordance --> Store
+    Store --> Ctrl
+    Store --> Signal
+    Store --> LKRoom
+    Sheet --> Store
+    Signal -.->|control events| Cent
+    LKRoom <-->|audio/video RTP| LiveKit
+
+    Ctrl --> Svc
+    Svc --> Repo
+    Svc --> TokenSvc
+    Svc --> RoomSvc
+    Svc -->|best-effort publish| Pub --> Cent
+    Repo --> PG
+    LiveKit -->|signed webhook| Webhook --> Repo
+    Sweep --> Repo
+    Sweep -->|best-effort call_end| Pub
+    TermList --> Svc
+    Cent -.->|control events| Signal
+```
+
+**Lifecycle:** `RINGING → { ONGOING → ENDED } | MISSED | DECLINED | CANCELED | FAILED` (terminal statuses immutable). Initiate is durable-first (persist `RINGING` before any token/signal); a partial UNIQUE index over non-terminal status enforces at most one active call per conversation (a concurrent second → `409 busy`). The media-token **status+role gate**: initiator while `RINGING` (via initiate), callee only via `answer`, either participant while `ONGOING`, none when terminal. Sweeps force-end stuck calls (unanswered ring → `MISSED`/`TIMEOUT_NO_ANSWER`; stale/over-max `ONGOING` → `ENDED`/`TIMEOUT`); `room_finished` is a liveness signal interpreted by cause (never a blind generic `ENDED`). **Deletion coherence:** `initiator_id`/`callee_id` are `ON DELETE SET NULL`, `conversation_id`/`offer_id` CASCADE (never a user-cascade) — deleting a participant never destroys shared call history. **Push seam:** at `RINGING`, `VoipService.initiate` marks the single `voip_outbox` `call-invited` trigger point for push-notifications (Spec 16) with a `TODO(orchestrator)` comment; this spec does not write the outbox.
+
+---
+
+*Last updated: September 9, 2026*
 *Update this document on EVERY structural change.*
