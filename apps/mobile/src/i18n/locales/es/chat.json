@@ -20,6 +20,24 @@
       "connecting": "Conectando…",
       "reconnecting": "Reconectando…",
       "disconnected": "Sin conexión"
+    },
+    "voice": {
+      "record": "Grabar una nota de voz",
+      "stop": "Detener grabación",
+      "recording": "Grabando",
+      "previewSend": "Enviar",
+      "previewDiscard": "Descartar",
+      "play": "Reproducir",
+      "pause": "Pausar",
+      "label": "Nota de voz",
+      "transcript": {
+        "pending": "Transcribiendo…",
+        "failed": "Transcripción no disponible",
+        "disabled": "Transcripción no disponible"
+      },
+      "micDenied": "El acceso al micrófono está desactivado. Actívalo en ajustes para enviar notas de voz.",
+      "tooLong": "Esa grabación es demasiado larga. Intenta una más corta.",
+      "sendError": "No se pudo enviar la nota de voz. Inténtalo de nuevo."
     }
   }
 }

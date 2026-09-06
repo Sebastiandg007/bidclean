@@ -20,6 +20,24 @@
       "connecting": "Connecting…",
       "reconnecting": "Reconnecting…",
       "disconnected": "Offline"
+    },
+    "voice": {
+      "record": "Record a voice note",
+      "stop": "Stop recording",
+      "recording": "Recording",
+      "previewSend": "Send",
+      "previewDiscard": "Discard",
+      "play": "Play",
+      "pause": "Pause",
+      "label": "Voice note",
+      "transcript": {
+        "pending": "Transcribing…",
+        "failed": "Transcript unavailable",
+        "disabled": "Transcript unavailable"
+      },
+      "micDenied": "Microphone access is off. Enable it in settings to send voice notes.",
+      "tooLong": "That recording is too long. Try a shorter one.",
+      "sendError": "Could not send the voice note. Please try again."
     }
   }
 }

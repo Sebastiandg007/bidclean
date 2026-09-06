@@ -15,6 +15,8 @@ import {
   ChatRepository,
   ConversationInboxRow,
   InsertMessageOutcome,
+  InsertVoiceMessageOutcome,
+  VoiceObjectCheck,
 } from './chat.repository';
 import {
   ConversationStatus,
@@ -24,9 +26,30 @@ import {
   MessageType,
   MessageView,
   SendResult,
+  TranscriptStatus,
+  VoiceNoteView,
 } from './chat.types';
 import { ChatConversation } from './entities/chat-conversation.entity';
 import { ChatMessage } from './entities/chat-message.entity';
+import {
+  VOICE_ALLOWED_MIME_TYPES,
+  VOICE_MAX_DURATION_MS,
+  VOICE_MAX_SIZE_BYTES,
+  VOICE_TRANSCRIPTION_ENABLED,
+  VOICE_TRANSCRIPTION_JOB_NAME,
+} from './voice/voice.constants';
+import { UploadGrantRepository } from './voice/upload-grant.repository';
+import { VoiceNoteRepository } from './voice/voice-note.repository';
+import { VoiceNoteStorageService } from './voice/voice-note-storage.service';
+import { ChatVoiceNote } from './voice/entities/chat-voice-note.entity';
+import {
+  buildVoiceFingerprint,
+  fingerprintsEqual,
+  PlaybackTarget,
+  SendVoiceParams,
+  UploadTarget,
+  VOICE_ERROR_MESSAGES,
+} from './voice/voice.types';
 
 /**
  * Realtime publisher seam — the subset of `CentrifugoClient` the chat service needs.
@@ -39,6 +62,18 @@ export interface ChatRealtimePublisher {
 
 /** Injection token for the realtime publisher (bound to CentrifugoClient in the module). */
 export const CHAT_REALTIME_PUBLISHER = Symbol('CHAT_REALTIME_PUBLISHER');
+
+/**
+ * Best-effort transcription enqueue seam — the subset of a BullMQ queue the chat service needs.
+ * Kept as an interface + injection token so the service never depends on the queue implementation
+ * and an enqueue failure (recovered by the stuck-PENDING sweep) never fails a durable send.
+ */
+export interface VoiceTranscriptionEnqueuer {
+  add(name: string, data: unknown): Promise<unknown>;
+}
+
+/** Injection token for the transcription enqueuer (bound to the BullMQ queue in the module). */
+export const VOICE_TRANSCRIPTION_ENQUEUER = Symbol('VOICE_TRANSCRIPTION_ENQUEUER');
 
 /** Parameters for opening a conversation for a matched thread. */
 export interface OpenConversationInput {
@@ -65,6 +100,11 @@ export class ChatService {
     private readonly negotiationRepository: NegotiationRepository,
     @Inject(CHAT_REALTIME_PUBLISHER)
     private readonly publisher: ChatRealtimePublisher,
+    private readonly grantRepository: UploadGrantRepository,
+    private readonly voiceNoteRepository: VoiceNoteRepository,
+    private readonly voiceStorage: VoiceNoteStorageService,
+    @Inject(VOICE_TRANSCRIPTION_ENQUEUER)
+    private readonly transcriptionQueue: VoiceTranscriptionEnqueuer,
   ) {}
 
   /** Open (or fetch) the conversation for a matched thread the caller participates in. */
@@ -118,7 +158,7 @@ export class ChatService {
       beforeSeq,
       limit,
     );
-    return { messages: messages.map((m) => this.toMessageView(m)), hasMore: messages.length === limit };
+    return { messages: await this.toMessageViews(messages), hasMore: messages.length === limit };
   }
 
   /** Newer-message page (reconnect reconciliation) strictly after `afterSeq`. */
@@ -130,7 +170,7 @@ export class ChatService {
   ): Promise<MessagePage> {
     await this.requireParticipantConversation(conversationId, userId);
     const messages = await this.chatRepository.getMessagesAfter(conversationId, afterSeq, limit);
-    return { messages: messages.map((m) => this.toMessageView(m)), hasMore: messages.length === limit };
+    return { messages: await this.toMessageViews(messages), hasMore: messages.length === limit };
   }
 
   /** Send a message: validate, persist (serialized), then publish best-effort. */
@@ -157,6 +197,121 @@ export class ChatService {
     return result;
   }
 
+  /**
+   * Issue an upload target for a voice note: verify participant + OPEN, PERSIST the grant BEFORE
+   * minting the pre-signed PUT URL (so a mint failure still leaves a sweepable grant), and return
+   * the opaque key + short-lived URL. The client never chooses the key.
+   */
+  async createVoiceUploadTarget(
+    conversationId: string,
+    userId: string,
+  ): Promise<UploadTarget> {
+    const conversation = await this.requireParticipantConversation(conversationId, userId);
+    if (conversation.status !== ConversationStatus.OPEN) {
+      throw new ConflictException(CHAT_ERROR_MESSAGES.CONVERSATION_CLOSED);
+    }
+
+    const objectKey = this.voiceStorage.generateObjectKey();
+    await this.grantRepository.createGrant({ objectKey, conversationId, userId });
+    return this.voiceStorage.presignUploadTarget(objectKey);
+  }
+
+  /**
+   * Send a voice note: reuse the Spec 13 serialized transaction with the voice steps woven in
+   * (grant verify, authoritative object inspection, atomic message + metadata + grant consume),
+   * then best-effort publish + best-effort transcription enqueue (only when STT enabled). Neither
+   * audio bytes nor a transcript are ever logged.
+   */
+  async sendVoiceMessage(params: SendVoiceParams): Promise<SendResult> {
+    await this.requireParticipantConversation(params.conversationId, params.senderId);
+    const incoming = buildVoiceFingerprint(params);
+
+    const outcome = await this.chatRepository.insertVoiceMessage(
+      {
+        conversationId: params.conversationId,
+        senderId: params.senderId,
+        clientMessageId: params.clientMessageId,
+      },
+      {
+        fingerprintMatches: async (manager, existingMessageId) => {
+          const existing = await manager
+            .getRepository(ChatVoiceNote)
+            .findOne({ where: { messageId: existingMessageId } });
+          if (!existing) {
+            return false;
+          }
+          return fingerprintsEqual(incoming, {
+            objectKey: existing.objectKey,
+            durationMs: existing.durationMs,
+            sizeBytes: existing.sizeBytes,
+            mimeType: existing.mimeType,
+            waveform: existing.waveform,
+          });
+        },
+        verifyGrant: async (manager) => {
+          const grant = await this.grantRepository.findConsumable(manager, params.objectKey);
+          if (
+            !grant ||
+            grant.conversationId !== params.conversationId ||
+            grant.issuedToUserId !== params.senderId
+          ) {
+            return { ok: false, reason: 'forbidden' };
+          }
+          if (grant.status !== 'ISSUED' || grant.expiresAt.getTime() <= Date.now()) {
+            return { ok: false, reason: 'unusable' };
+          }
+          return { ok: true };
+        },
+        inspectObject: () => this.inspectVoiceObject(params.objectKey),
+        insertVoiceNote: (manager, messageId, observed) =>
+          this.voiceNoteRepository.insertVoiceNote(manager, {
+            messageId,
+            objectKey: params.objectKey,
+            durationMs: observed.durationMs,
+            sizeBytes: observed.sizeBytes,
+            mimeType: observed.contentType,
+            waveform: params.waveform,
+            transcriptStatus: VOICE_TRANSCRIPTION_ENABLED
+              ? TranscriptStatus.PENDING
+              : TranscriptStatus.DISABLED,
+          }),
+        consumeGrant: (manager, messageId) =>
+          this.grantRepository.markConsumed(manager, params.objectKey, messageId),
+      },
+    );
+
+    const result = this.interpretVoiceOutcome(outcome);
+    const note = await this.voiceNoteRepository.findByMessageId(result.message.id);
+    const hydrated: SendResult = {
+      deduplicated: result.deduplicated,
+      message: note
+        ? { ...result.message, voiceNote: this.toVoiceNoteView(note) }
+        : result.message,
+    };
+    if (!hydrated.deduplicated) {
+      await this.publishBestEffort(params.conversationId, hydrated.message);
+      await this.enqueueTranscriptionBestEffort(hydrated.message.id);
+    }
+    return hydrated;
+  }
+
+  /**
+   * Mint a fresh short-lived playback URL for a voice note. Authorization is by conversation
+   * participation; the object key is resolved FROM THE DB by message id (never client-supplied).
+   */
+  async getVoicePlaybackTarget(
+    conversationId: string,
+    userId: string,
+    messageId: string,
+  ): Promise<PlaybackTarget> {
+    await this.requireParticipantConversation(conversationId, userId);
+    const voiceNote = await this.voiceNoteRepository.findByMessageId(messageId);
+    if (!voiceNote || voiceNote.messageId !== messageId) {
+      throw new NotFoundException(VOICE_ERROR_MESSAGES.NOT_A_VOICE_NOTE);
+    }
+    return this.voiceStorage.getPlaybackTarget(voiceNote.objectKey);
+  }
+
   /** Close the conversation for a thread whose match was invalidated. Idempotent. */
   async closeConversationForThread(threadId: string): Promise<void> {
     await this.chatRepository.closeConversationForThread(threadId);
@@ -168,6 +323,81 @@ export class ChatService {
   }
 
   // ─── Helpers ───────────────────────────────────────────────────────────────
+
+  /**
+   * Authoritatively inspect a stored object against the configured bounds. The storage layer
+   * reports the real size/content-type/duration; this maps them to a pass or a typed rejection.
+   * Client-declared metadata is never consulted here.
+   */
+  private async inspectVoiceObject(objectKey: string): Promise<VoiceObjectCheck> {
+    const inspection = await this.voiceStorage.inspectObject(objectKey);
+    if (!inspection.exists) {
+      return { ok: false, reason: 'missing' };
+    }
+    if (inspection.sizeBytes > VOICE_MAX_SIZE_BYTES) {
+      return { ok: false, reason: 'too_large' };
+    }
+    if (!VOICE_ALLOWED_MIME_TYPES.includes(inspection.contentType)) {
+      return { ok: false, reason: 'invalid_type' };
+    }
+    // An unprobeable object (durationMs === null) is treated as invalid audio, never unbounded.
+    if (inspection.durationMs === null || inspection.durationMs > VOICE_MAX_DURATION_MS) {
+      return { ok: false, reason: 'too_long' };
+    }
+    return {
+      ok: true,
+      observed: {
+        sizeBytes: inspection.sizeBytes,
+        contentType: inspection.contentType,
+        durationMs: inspection.durationMs,
+      },
+    };
+  }
+
+  /** Map a serialized VOICE send outcome to a result or the appropriate HTTP error. */
+  private interpretVoiceOutcome(outcome: InsertVoiceMessageOutcome): SendResult {
+    switch (outcome.kind) {
+      case 'inserted':
+        return { message: this.toMessageView(outcome.message), deduplicated: false };
+      case 'duplicate':
+        return { message: this.toMessageView(outcome.message), deduplicated: true };
+      case 'conflict':
+        throw new ConflictException(VOICE_ERROR_MESSAGES.FINGERPRINT_CONFLICT);
+      case 'closed':
+        throw new ConflictException(CHAT_ERROR_MESSAGES.CONVERSATION_CLOSED);
+      case 'not_found':
+        throw new NotFoundException(CHAT_ERROR_MESSAGES.CONVERSATION_NOT_FOUND);
+      case 'grant_forbidden':
+        throw new ForbiddenException(VOICE_ERROR_MESSAGES.GRANT_NOT_FOUND);
+      case 'grant_unusable':
+        throw new ConflictException(VOICE_ERROR_MESSAGES.GRANT_UNUSABLE);
+      case 'object_missing':
+        throw new BadRequestException(VOICE_ERROR_MESSAGES.OBJECT_MISSING);
+      case 'object_too_large':
+        throw new BadRequestException(VOICE_ERROR_MESSAGES.OBJECT_TOO_LARGE);
+      case 'object_invalid_type':
+        throw new BadRequestException(VOICE_ERROR_MESSAGES.OBJECT_INVALID_TYPE);
+      case 'duration_too_long':
+        throw new BadRequestException(VOICE_ERROR_MESSAGES.DURATION_TOO_LONG);
+    }
+  }
+
+  /**
+   * Best-effort enqueue of a transcription job after a durable send. Only when STT is enabled; a
+   * failure never fails the send (the stuck-PENDING sweep recovers a lost enqueue). Never logs the
+   * transcript/audio.
+   */
+  private async enqueueTranscriptionBestEffort(messageId: string): Promise<void> {
+    if (!VOICE_TRANSCRIPTION_ENABLED) {
+      return;
+    }
+    try {
+      await this.transcriptionQueue.add(VOICE_TRANSCRIPTION_JOB_NAME, { messageId });
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : 'unknown';
+      this.logger.warn(`Transcription enqueue failed for message ${messageId}: ${reason}`);
+    }
+  }
 
   /** Map a repository send outcome to a result or the appropriate HTTP error. */
   private interpretOutcome(outcome: InsertMessageOutcome): SendResult {
@@ -226,7 +456,7 @@ export class ChatService {
     }
   }
 
-  private toMessageView(message: ChatMessage): MessageView {
+  private toMessageView(message: ChatMessage, voiceNote?: VoiceNoteView): MessageView {
     return {
       id: message.id,
       conversationId: message.conversationId,
@@ -236,6 +466,51 @@ export class ChatService {
       sequenceNumber: message.sequenceNumber,
       clientMessageId: message.clientMessageId,
       createdAt: message.createdAt.toISOString(),
+      ...(voiceNote ? { voiceNote } : {}),
+    };
+  }
+
+  /**
+   * Hydrate a page of messages into views, attaching the voice-note payload to each VOICE message
+   * (batch-loaded by message id so history is complete from PostgreSQL alone, independent of
+   * realtime and transcript availability).
+   */
+  private async toMessageViews(messages: ChatMessage[]): Promise<MessageView[]> {
+    const voiceIds = messages
+      .filter((m) => m.type === MessageType.VOICE)
+      .map((m) => m.id);
+    const notesById = await this.loadVoiceNotesByMessageId(voiceIds);
+    return messages.map((m) => {
+      const note = notesById.get(m.id);
+      return this.toMessageView(m, note ? this.toVoiceNoteView(note) : undefined);
+    });
+  }
+
+  /** Batch-load voice-note rows keyed by message id. */
+  private async loadVoiceNotesByMessageId(
+    messageIds: string[],
+  ): Promise<Map<string, ChatVoiceNote>> {
+    const map = new Map<string, ChatVoiceNote>();
+    for (const messageId of messageIds) {
+      const note = await this.voiceNoteRepository.findByMessageId(messageId);
+      if (note) {
+        map.set(messageId, note);
+      }
+    }
+    return map;
+  }
+
+  /** Project a voice-note row to its client view (the raw object key is never exposed). */
+  private toVoiceNoteView(note: ChatVoiceNote): VoiceNoteView {
+    return {
+      durationMs: note.durationMs,
+      sizeBytes: note.sizeBytes,
+      mimeType: note.mimeType,
+      waveform: note.waveform,
+      transcript: note.transcript,
+      transcriptStatus: note.transcriptStatus as TranscriptStatus,
+      transcriptLang: note.transcriptLang,
+      transcriptAttempt: note.transcriptAttempt,
     };
   }
 

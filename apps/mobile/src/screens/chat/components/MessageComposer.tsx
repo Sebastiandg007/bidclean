@@ -6,11 +6,24 @@
  * the body is empty/whitespace. Sending clears the input; the store handles the optimistic insert.
  */
 
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import { CHAT_I18N_KEYS, CHAT_MESSAGE_MAX_LENGTH } from '../chat.constants';
+import { useVoiceRecorder } from '../useVoiceRecorder';
+import type { RecordedClip } from '../chat.types';
+
+const MS_PER_SECOND = 1000;
+const SECONDS_PER_MINUTE = 60;
+
+/** Format elapsed milliseconds as m:ss for the recording indicator. */
+function formatElapsed(ms: number): string {
+  const totalSeconds = Math.floor(ms / MS_PER_SECOND);
+  const minutes = Math.floor(totalSeconds / SECONDS_PER_MINUTE);
+  const seconds = totalSeconds % SECONDS_PER_MINUTE;
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+}
 
 // ─── Design Tokens ───────────────────────────────────────────────────────────
 
@@ -41,18 +54,26 @@ const INPUT_MIN_HEIGHT = 44;
 export interface MessageComposerProps {
   /** Send the trimmed body; the parent delegates to the store's optimistic send. */
   onSend: (body: string) => void;
+  /** Send a recorded voice note; the parent delegates to the store's optimistic voice send. */
+  onSendVoice?: (clip: RecordedClip) => void;
   /** When true, the composer is disabled (conversation closed). */
   disabled?: boolean;
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export function MessageComposer({ onSend, disabled = false }: MessageComposerProps): React.JSX.Element {
+export function MessageComposer({
+  onSend,
+  onSendVoice,
+  disabled = false,
+}: MessageComposerProps): React.JSX.Element {
   const { t } = useTranslation();
   const [draft, setDraft] = useState('');
+  const recorder = useVoiceRecorder();
 
   const trimmed = draft.trim();
   const canSend = !disabled && trimmed.length > 0;
+  const voiceEnabled = !disabled && onSendVoice !== undefined;
 
   const handleSend = useCallback(() => {
     if (!canSend) {
@@ -62,8 +83,75 @@ export function MessageComposer({ onSend, disabled = false }: MessageComposerPro
     setDraft('');
   }, [canSend, onSend, trimmed]);
 
+  const handleSendVoice = useCallback(() => {
+    if (recorder.clip !== null && onSendVoice !== undefined) {
+      onSendVoice(recorder.clip);
+      recorder.discard();
+    }
+  }, [onSendVoice, recorder]);
+
+  // Auto-discard a stale clip if the composer becomes disabled (conversation closed mid-preview).
+  useEffect(() => {
+    if (disabled && recorder.phase !== 'idle') {
+      recorder.discard();
+    }
+  }, [disabled, recorder]);
+
+  // ── Recording in progress ──
+  if (recorder.phase === 'recording') {
+    return (
+      <View style={styles.container} testID="chat-composer-recording">
+        <Text style={styles.recordingLabel}>
+          {t(CHAT_I18N_KEYS.VOICE_RECORDING)} {formatElapsed(recorder.elapsedMs)}
+        </Text>
+        <Pressable
+          onPress={recorder.stop}
+          style={styles.sendButton}
+          accessibilityRole="button"
+          accessibilityLabel={t(CHAT_I18N_KEYS.VOICE_STOP)}
+          testID="chat-composer-stop"
+        >
+          <Text style={styles.sendText}>{t(CHAT_I18N_KEYS.VOICE_STOP)}</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  // ── Recorded clip preview (send / discard) ──
+  if (recorder.phase === 'recorded' && recorder.clip !== null) {
+    return (
+      <View style={styles.container} testID="chat-composer-preview">
+        <Pressable
+          onPress={recorder.discard}
+          style={styles.secondaryButton}
+          accessibilityRole="button"
+          accessibilityLabel={t(CHAT_I18N_KEYS.VOICE_PREVIEW_DISCARD)}
+          testID="chat-composer-discard"
+        >
+          <Text style={styles.secondaryText}>{t(CHAT_I18N_KEYS.VOICE_PREVIEW_DISCARD)}</Text>
+        </Pressable>
+        <Text style={styles.recordingLabel}>{formatElapsed(recorder.clip.durationMs)}</Text>
+        <Pressable
+          onPress={handleSendVoice}
+          style={styles.sendButton}
+          accessibilityRole="button"
+          accessibilityLabel={t(CHAT_I18N_KEYS.VOICE_PREVIEW_SEND)}
+          testID="chat-composer-voice-send"
+        >
+          <Text style={styles.sendText}>{t(CHAT_I18N_KEYS.VOICE_PREVIEW_SEND)}</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  // ── Idle: text input + record + send ──
   return (
     <View style={styles.container}>
+      {recorder.error !== null && (
+        <Text style={styles.errorText} testID="chat-composer-voice-error">
+          {t(recorder.error)}
+        </Text>
+      )}
       <TextInput
         style={styles.input}
         value={draft}
@@ -76,17 +164,29 @@ export function MessageComposer({ onSend, disabled = false }: MessageComposerPro
         accessibilityLabel={t(CHAT_I18N_KEYS.COMPOSER_PLACEHOLDER)}
         testID="chat-composer-input"
       />
-      <Pressable
-        onPress={handleSend}
-        disabled={!canSend}
-        style={[styles.sendButton, !canSend && styles.sendButtonDisabled]}
-        accessibilityRole="button"
-        accessibilityLabel={t(CHAT_I18N_KEYS.SEND)}
-        accessibilityState={{ disabled: !canSend }}
-        testID="chat-composer-send"
-      >
-        <Text style={styles.sendText}>{t(CHAT_I18N_KEYS.SEND)}</Text>
-      </Pressable>
+      {voiceEnabled && trimmed.length === 0 ? (
+        <Pressable
+          onPress={recorder.start}
+          style={styles.recordButton}
+          accessibilityRole="button"
+          accessibilityLabel={t(CHAT_I18N_KEYS.VOICE_RECORD)}
+          testID="chat-composer-record"
+        >
+          <Text style={styles.recordIcon}>●</Text>
+        </Pressable>
+      ) : (
+        <Pressable
+          onPress={handleSend}
+          disabled={!canSend}
+          style={[styles.sendButton, !canSend && styles.sendButtonDisabled]}
+          accessibilityRole="button"
+          accessibilityLabel={t(CHAT_I18N_KEYS.SEND)}
+          accessibilityState={{ disabled: !canSend }}
+          testID="chat-composer-send"
+        >
+          <Text style={styles.sendText}>{t(CHAT_I18N_KEYS.SEND)}</Text>
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -127,6 +227,45 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZE.button,
     fontWeight: '700',
     color: COLORS.textOnAccent,
+  },
+  recordButton: {
+    minHeight: INPUT_MIN_HEIGHT,
+    width: INPUT_MIN_HEIGHT,
+    borderRadius: INPUT_RADIUS,
+    backgroundColor: COLORS.accent,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  recordIcon: {
+    fontSize: FONT_SIZE.button + 3,
+    color: COLORS.textOnAccent,
+  },
+  secondaryButton: {
+    minHeight: INPUT_MIN_HEIGHT,
+    paddingHorizontal: SPACING.md,
+    borderRadius: INPUT_RADIUS,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  secondaryText: {
+    fontSize: FONT_SIZE.button,
+    fontWeight: '600',
+    color: COLORS.textPrimary,
+  },
+  recordingLabel: {
+    flex: 1,
+    fontSize: FONT_SIZE.body,
+    color: COLORS.textPrimary,
+    textAlign: 'center',
+  },
+  errorText: {
+    position: 'absolute',
+    top: -SPACING.md - 4,
+    left: SPACING.md,
+    right: SPACING.md,
+    fontSize: 12,
+    color: '#FF6B6B',
   },
 });
 

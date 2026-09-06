@@ -8,8 +8,12 @@ import {
 import { NegotiationRepository } from '../../negotiation/negotiation.repository';
 import { ChatRepository, InsertMessageOutcome } from '../chat.repository';
 import { ChatService, ChatRealtimePublisher } from '../chat.service';
+import { UploadGrantRepository } from '../voice/upload-grant.repository';
+import { VoiceNoteRepository } from '../voice/voice-note.repository';
+import { VoiceNoteStorageService } from '../voice/voice-note-storage.service';
 import { ChatConversation } from '../entities/chat-conversation.entity';
 import { ChatMessage } from '../entities/chat-message.entity';
+import { makeVoiceDoubles } from './support/voice-test-doubles';
 
 /**
  * Unit tests for ChatService.
@@ -69,10 +73,15 @@ describe('ChatService', () => {
       isThreadMatched: jest.fn(),
     };
     publisher = { publish: jest.fn().mockResolvedValue(true) };
+    const voice = makeVoiceDoubles();
     service = new ChatService(
       chatRepo as unknown as ChatRepository,
       negotiationRepo as unknown as NegotiationRepository,
       publisher,
+      voice.grantRepository as unknown as UploadGrantRepository,
+      voice.voiceNoteRepository as unknown as VoiceNoteRepository,
+      voice.voiceStorage as unknown as VoiceNoteStorageService,
+      voice.transcriptionQueue,
     );
   });
 

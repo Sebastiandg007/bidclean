@@ -372,7 +372,7 @@ export function EditPropertyScreen({
 
   useEffect(() => {
     loadPropertyData();
-  }, [propertyId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [propertyId]);
 
   const loadPropertyData = useCallback(async () => {
     setFetchError(null);

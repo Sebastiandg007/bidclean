@@ -12,9 +12,10 @@ import {
   Query,
   Req,
   UseGuards,
-  ValidationPipe,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { plainToInstance } from 'class-transformer';
+import { validateOrReject } from 'class-validator';
 import { Request } from 'express';
 import { Repository } from 'typeorm';
 
@@ -28,9 +29,12 @@ import {
   ConversationSummaryView,
   ConversationView,
   MessagePage,
+  MessageType,
   SendResult,
 } from './chat.types';
 import { SendMessageDto } from './dto/send-message.dto';
+import { SendVoiceMessageDto } from './dto/send-voice-message.dto';
+import { PlaybackTarget, UploadTarget } from './voice/voice.types';
 
 /** Request with the typed JWT user payload attached by the guard. */
 interface AuthenticatedRequest extends Request {
@@ -107,21 +111,73 @@ export class ChatController {
     return this.chatService.getMessagesBefore(id, user.id, beforeSeq, pageSize);
   }
 
-  /** POST /chat/conversations/:id/messages — send a message (idempotent by clientMessageId). */
+  /**
+   * POST /chat/conversations/:id/messages — send a message (idempotent by clientMessageId).
+   *
+   * A `type: 'VOICE'` body is validated as `SendVoiceMessageDto` and routed to the voice send;
+   * anything else is a `TEXT` send validated as `SendMessageDto`. The DTO is validated manually
+   * (whitelist + forbid-unknown) because the two message kinds carry different shapes on one path.
+   */
   @Post('conversations/:id/messages')
   @HttpCode(HttpStatus.CREATED)
   async sendMessage(
     @Req() req: AuthenticatedRequest,
     @Param('id') id: string,
-    @Body(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }))
-    dto: SendMessageDto,
+    @Body() raw: Record<string, unknown>,
     @Headers('idempotency-key') idempotencyKey?: string,
   ): Promise<SendResult> {
     if (!idempotencyKey) {
       throw new BadRequestException(CHAT_ERROR_MESSAGES.MISSING_IDEMPOTENCY_KEY);
     }
     const user = await this.resolveUser(req.user.keycloakId);
+
+    if (raw.type === MessageType.VOICE) {
+      const dto = await this.validateDto(SendVoiceMessageDto, raw);
+      return this.chatService.sendVoiceMessage({
+        conversationId: id,
+        senderId: user.id,
+        clientMessageId: dto.clientMessageId,
+        objectKey: dto.objectKey,
+        durationMs: dto.durationMs,
+        sizeBytes: dto.sizeBytes,
+        mimeType: dto.mimeType,
+        waveform: dto.waveform ?? null,
+      });
+    }
+
+    const dto = await this.validateDto(SendMessageDto, raw);
     return this.chatService.sendMessage(id, user.id, dto.clientMessageId, dto.body);
+  }
+
+  /**
+   * POST /chat/conversations/:id/voice-notes/upload-url — issue an upload grant + pre-signed PUT.
+   * Participant + OPEN gated; the server generates the opaque key and persists the grant before
+   * minting the URL. The client never chooses the key.
+   */
+  @Post('conversations/:id/voice-notes/upload-url')
+  @HttpCode(HttpStatus.CREATED)
+  async createVoiceUploadUrl(
+    @Req() req: AuthenticatedRequest,
+    @Param('id') id: string,
+  ): Promise<UploadTarget> {
+    const user = await this.resolveUser(req.user.keycloakId);
+    return this.chatService.createVoiceUploadTarget(id, user.id);
+  }
+
+  /**
+   * GET /chat/conversations/:id/voice-notes/:messageId/playback-url — mint a fresh playback URL.
+   * Authorized by conversation participation; the object key is resolved from the DB by messageId
+   * and is never accepted from the client.
+   */
+  @Get('conversations/:id/voice-notes/:messageId/playback-url')
+  @HttpCode(HttpStatus.OK)
+  async getVoicePlaybackUrl(
+    @Req() req: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Param('messageId') messageId: string,
+  ): Promise<PlaybackTarget> {
+    const user = await this.resolveUser(req.user.keycloakId);
+    return this.chatService.getVoicePlaybackTarget(id, user.id, messageId);
   }
 
   /** Parse and bound the page size, defaulting to the configured size. */
@@ -143,6 +199,28 @@ export class ChatController {
       throw new BadRequestException('Invalid sequence cursor');
     }
     return parsed;
+  }
+
+  /**
+   * Validate a raw body against a DTO class with whitelist + forbid-unknown semantics (matching
+   * the ValidationPipe used elsewhere), throwing `400` on any violation.
+   */
+  private async validateDto<T extends object>(
+    cls: new () => T,
+    raw: Record<string, unknown>,
+  ): Promise<T> {
+    // Strip the discriminator so `forbidNonWhitelisted` does not reject a known `type` field.
+    const { type: _type, ...rest } = raw;
+    const instance = plainToInstance(cls, rest, { enableImplicitConversion: false });
+    try {
+      await validateOrReject(instance as object, {
+        whitelist: true,
+        forbidNonWhitelisted: true,
+      });
+    } catch {
+      throw new BadRequestException('Invalid message payload');
+    }
+    return instance;
   }
 
   /** Resolve the authenticated Keycloak subject to a BidClean user. */

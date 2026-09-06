@@ -4,7 +4,11 @@ import { DataSource } from 'typeorm';
 import { NegotiationRepository } from '../../negotiation/negotiation.repository';
 import { ChatRepository } from '../chat.repository';
 import { ChatService, ChatRealtimePublisher } from '../chat.service';
+import { UploadGrantRepository } from '../voice/upload-grant.repository';
+import { VoiceNoteRepository } from '../voice/voice-note.repository';
+import { VoiceNoteStorageService } from '../voice/voice-note-storage.service';
 import { InMemoryChatDataSource } from './support/in-memory-chat-data-source';
+import { makeVoiceDoubles } from './support/voice-test-doubles';
 
 /**
  * Scenario/integration tests for the chat backend, complementing chat.integration.spec.ts.
@@ -35,10 +39,15 @@ function buildStack(): {
   const publisher: jest.Mocked<ChatRealtimePublisher> = {
     publish: jest.fn().mockResolvedValue(true),
   };
+  const voice = makeVoiceDoubles();
   const service = new ChatService(
     chatRepo,
     negotiation as unknown as NegotiationRepository,
     publisher,
+    voice.grantRepository as unknown as UploadGrantRepository,
+    voice.voiceNoteRepository as unknown as VoiceNoteRepository,
+    voice.voiceStorage as unknown as VoiceNoteStorageService,
+    voice.transcriptionQueue,
   );
   return { service, negotiation, publisher };
 }

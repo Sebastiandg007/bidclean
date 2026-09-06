@@ -20,6 +20,77 @@ export type InsertMessageOutcome =
   | { readonly kind: 'closed' }
   | { readonly kind: 'not_found' };
 
+/** Parameters for the serialized VOICE message insert (audio metadata handled by hooks). */
+export interface InsertVoiceMessageParams {
+  readonly conversationId: string;
+  readonly senderId: string;
+  readonly clientMessageId: string;
+}
+
+/**
+ * Collaborator hooks the VOICE send transaction invokes on the shared `EntityManager`, so grant
+ * verification, authoritative object inspection, metadata insertion, and grant consumption are all
+ * atomic with the message row — without the repository importing the storage/grant/voice-note
+ * concerns directly. All hooks run under the conversation row lock.
+ */
+export interface VoiceSendHooks {
+  /**
+   * Whether a not-yet-inserted duplicate (same clientMessageId) matches the incoming payload
+   * fingerprint. Called only when an existing message row is found; returns true for an idempotent
+   * duplicate, false for a fingerprint conflict.
+   */
+  readonly fingerprintMatches: (
+    manager: EntityManager,
+    existingMessageId: string,
+  ) => Promise<boolean>;
+  /** Verify the upload grant (issued-to caller, conversation, unexpired, unconsumed). */
+  readonly verifyGrant: (manager: EntityManager) => Promise<VoiceGrantCheck>;
+  /** Authoritatively inspect the stored object (real size/content-type/duration). */
+  readonly inspectObject: () => Promise<VoiceObjectCheck>;
+  /** Insert the 1:1 voice-note metadata row using the server-observed values. */
+  readonly insertVoiceNote: (
+    manager: EntityManager,
+    messageId: string,
+    observed: VoiceObjectObserved,
+  ) => Promise<void>;
+  /** Mark the grant CONSUMED, recording the durable message that consumed it. */
+  readonly consumeGrant: (manager: EntityManager, messageId: string) => Promise<void>;
+}
+
+/** Result of the in-transaction grant verification. */
+export type VoiceGrantCheck =
+  | { readonly ok: true }
+  | { readonly ok: false; readonly reason: 'forbidden' | 'unusable' };
+
+/** Result of the authoritative object inspection. */
+export type VoiceObjectCheck =
+  | { readonly ok: true; readonly observed: VoiceObjectObserved }
+  | {
+      readonly ok: false;
+      readonly reason: 'missing' | 'too_large' | 'invalid_type' | 'too_long';
+    };
+
+/** Server-observed authoritative object properties persisted on the voice-note row. */
+export interface VoiceObjectObserved {
+  readonly sizeBytes: number;
+  readonly contentType: string;
+  readonly durationMs: number;
+}
+
+/** Discriminated outcome of a serialized VOICE insert. */
+export type InsertVoiceMessageOutcome =
+  | { readonly kind: 'inserted'; readonly message: ChatMessage }
+  | { readonly kind: 'duplicate'; readonly message: ChatMessage }
+  | { readonly kind: 'conflict' }
+  | { readonly kind: 'closed' }
+  | { readonly kind: 'not_found' }
+  | { readonly kind: 'grant_forbidden' }
+  | { readonly kind: 'grant_unusable' }
+  | { readonly kind: 'object_missing' }
+  | { readonly kind: 'object_too_large' }
+  | { readonly kind: 'object_invalid_type' }
+  | { readonly kind: 'duration_too_long' };
+
 /** Parameters to open-or-get a conversation for a matched thread. */
 export interface OpenConversationParams {
   readonly threadId: string;
@@ -146,6 +217,97 @@ export class ChatRepository {
         clientMessageId: params.clientMessageId,
       });
       const saved = await messageRepo.save(message);
+
+      await manager.query(
+        `UPDATE "chat_conversations"
+         SET "message_seq" = $1, "last_message_at" = NOW(), "updated_at" = NOW()
+         WHERE "id" = $2`,
+        [nextSeq, params.conversationId],
+      );
+
+      return { kind: 'inserted', message: saved } as const;
+    });
+  }
+
+  /**
+   * Serialized VOICE send: identical structure to `insertMessage` (row-lock the conversation,
+   * dedup, verify OPEN, allocate sequence, insert, bump `last_message_at`) with the voice-specific
+   * steps woven in under the SAME lock, in the design's order: dedup (a) precedes OPEN (b) so an
+   * idempotent retry still returns the existing message after close; then grant verify (c),
+   * authoritative object inspection (d), and the atomic insert of the message + metadata + grant
+   * consumption (e). Object inspection is a hook so the (async, storage-touching) authoritative
+   * validation stays outside this repository. Persists the SERVER-OBSERVED size/duration/mime.
+   */
+  async insertVoiceMessage(
+    params: InsertVoiceMessageParams,
+    hooks: VoiceSendHooks,
+  ): Promise<InsertVoiceMessageOutcome> {
+    return this.dataSource.transaction(async (manager: EntityManager) => {
+      const locked = await manager.query<{ message_seq: number; status: string }[]>(
+        `SELECT "message_seq", "status" FROM "chat_conversations" WHERE "id" = $1 FOR UPDATE`,
+        [params.conversationId],
+      );
+      const conversation = locked[0];
+      if (!conversation) {
+        return { kind: 'not_found' } as const;
+      }
+
+      // (a) Dedup by clientMessageId BEFORE the OPEN check (idempotent retry survives a close).
+      const existing = await this.findByClientMessageId(
+        manager,
+        params.conversationId,
+        params.clientMessageId,
+      );
+      if (existing) {
+        const matches = await hooks.fingerprintMatches(manager, existing.id);
+        return matches
+          ? ({ kind: 'duplicate', message: existing } as const)
+          : ({ kind: 'conflict' } as const);
+      }
+
+      // (b) OPEN check under the lock.
+      if (conversation.status !== 'OPEN') {
+        return { kind: 'closed' } as const;
+      }
+
+      // (c) Grant verification (issued-to caller, conversation, unexpired, unconsumed).
+      const grant = await hooks.verifyGrant(manager);
+      if (!grant.ok) {
+        return grant.reason === 'forbidden'
+          ? ({ kind: 'grant_forbidden' } as const)
+          : ({ kind: 'grant_unusable' } as const);
+      }
+
+      // (d) Authoritative object inspection — server-observed values decide.
+      const inspection = await hooks.inspectObject();
+      if (!inspection.ok) {
+        switch (inspection.reason) {
+          case 'missing':
+            return { kind: 'object_missing' } as const;
+          case 'too_large':
+            return { kind: 'object_too_large' } as const;
+          case 'invalid_type':
+            return { kind: 'object_invalid_type' } as const;
+          case 'too_long':
+            return { kind: 'duration_too_long' } as const;
+        }
+      }
+
+      // (e) Atomic insert: message (type VOICE, body NULL) + metadata + grant consumption + bump.
+      const nextSeq = conversation.message_seq + 1;
+      const messageRepo = manager.getRepository(ChatMessage);
+      const message = messageRepo.create({
+        conversationId: params.conversationId,
+        senderId: params.senderId,
+        type: 'VOICE',
+        body: null,
+        sequenceNumber: nextSeq,
+        clientMessageId: params.clientMessageId,
+      });
+      const saved = await messageRepo.save(message);
+
+      await hooks.insertVoiceNote(manager, saved.id, inspection.observed);
+      await hooks.consumeGrant(manager, saved.id);
 
       await manager.query(
         `UPDATE "chat_conversations"

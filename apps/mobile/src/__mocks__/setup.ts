@@ -81,3 +81,45 @@ jest.mock('expo-tracking-transparency', () => ({
   getTrackingPermissionsAsync: jest.fn().mockResolvedValue({ status: 'undetermined' }),
   requestTrackingPermissionsAsync: jest.fn().mockResolvedValue({ status: 'denied' }),
 }));
+
+// Public OneSignal app id — read at import time by notifications.constants. Seed a deterministic
+// non-secret test value so the bootstrap initializes regardless of module import order (the REST
+// key is server-only and never present on the client).
+process.env.EXPO_PUBLIC_ONESIGNAL_APP_ID ??= 'test-onesignal-app-id';
+
+// expo-av — native audio module for voice notes (Spec 14). Mocked so recorder/player unit tests
+// run without a prebuild/EAS build. `Audio.Recording` and `Audio.Sound` are lightweight fakes;
+// permission helpers default to granted (tests override per-case for the denied path).
+jest.mock('expo-av', () => {
+  const mockRecordingInstance = {
+    prepareToRecordAsync: jest.fn().mockResolvedValue(undefined),
+    startAsync: jest.fn().mockResolvedValue(undefined),
+    stopAndUnloadAsync: jest.fn().mockResolvedValue(undefined),
+    getURI: jest.fn().mockReturnValue('file:///tmp/voice-note.m4a'),
+    setOnRecordingStatusUpdate: jest.fn(),
+    getStatusAsync: jest.fn().mockResolvedValue({ isRecording: false, durationMillis: 0 }),
+  };
+  const mockSoundInstance = {
+    playAsync: jest.fn().mockResolvedValue(undefined),
+    pauseAsync: jest.fn().mockResolvedValue(undefined),
+    stopAsync: jest.fn().mockResolvedValue(undefined),
+    unloadAsync: jest.fn().mockResolvedValue(undefined),
+    setOnPlaybackStatusUpdate: jest.fn(),
+  };
+  return {
+    Audio: {
+      requestPermissionsAsync: jest.fn().mockResolvedValue({ granted: true, status: 'granted' }),
+      getPermissionsAsync: jest.fn().mockResolvedValue({ granted: true, status: 'granted' }),
+      setAudioModeAsync: jest.fn().mockResolvedValue(undefined),
+      Recording: jest.fn().mockImplementation(() => mockRecordingInstance),
+      Sound: {
+        createAsync: jest
+          .fn()
+          .mockResolvedValue({ sound: mockSoundInstance, status: { isLoaded: true } }),
+      },
+      RecordingOptionsPresets: { HIGH_QUALITY: { android: {}, ios: {}, web: {} } },
+    },
+    InterruptionModeAndroid: { DoNotMix: 1 },
+    InterruptionModeIOS: { DoNotMix: 1 },
+  };
+});

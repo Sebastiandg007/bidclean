@@ -22,7 +22,11 @@ import {
 @Entity('chat_messages')
 @Unique('uq_chat_message_sequence', ['conversationId', 'sequenceNumber'])
 @Unique('uq_chat_message_client_id', ['conversationId', 'clientMessageId'])
-@Check('chk_chat_message_type', `"type" IN ('TEXT')`)
+@Check('chk_chat_message_type', `"type" IN ('TEXT', 'VOICE')`)
+@Check(
+  'chk_chat_message_body_shape',
+  `("type" = 'TEXT' AND "body" IS NOT NULL) OR ("type" = 'VOICE' AND "body" IS NULL)`,
+)
 @Index('idx_chat_messages_conversation_seq', ['conversationId', 'sequenceNumber'])
 @Index('idx_chat_messages_sender', ['senderId'])
 export class ChatMessage {
@@ -37,13 +41,16 @@ export class ChatMessage {
   @Column({ name: 'sender_id', type: 'uuid', nullable: true })
   senderId!: string | null;
 
-  /** Message type discriminator; only `TEXT` in v1 */
+  /** Message type discriminator: `TEXT` or `VOICE` (Spec 14) */
   @Column({ type: 'varchar', length: 20, default: 'TEXT' })
   type!: string;
 
-  /** Message body (validated for length before persistence; never logged verbatim) */
-  @Column({ type: 'text' })
-  body!: string;
+  /**
+   * Message body for `TEXT` messages (validated for length; never logged verbatim). Null for a
+   * `VOICE` message, whose content is the referenced audio object (see `chat_voice_notes`).
+   */
+  @Column({ type: 'text', nullable: true })
+  body!: string | null;
 
   /** Unique, strictly-increasing per-conversation order key (gaps allowed) */
   @Column({ name: 'sequence_number', type: 'integer' })

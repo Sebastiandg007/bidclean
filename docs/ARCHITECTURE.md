@@ -660,5 +660,159 @@ sequenceDiagram
 
 ---
 
+## 7b. Voice Notes Schema (extends Chat)
+
+> Voice notes (Spec 14, migration `1700000023000-CreateVoiceNoteTables`, ADR-012) are **not a new domain** — a voice note is a `chat_messages` row with `type = 'VOICE'` whose `body` is `NULL` and whose audio lives in MinIO, referenced by an opaque object key. The migration extends `chat_messages` (allows `VOICE`, makes `body` nullable, adds a type/body shape check) and adds three tables. **Authority split:** PostgreSQL owns the message + metadata; MinIO owns the audio bytes; the Whisper transcript is derived data, never authoritative.
+
+```mermaid
+erDiagram
+    chat_messages ||--o| chat_voice_notes : "VOICE message → 1:1 audio metadata (CASCADE)"
+    chat_conversations ||--o{ voice_note_upload_grants : "conversation_id (CASCADE)"
+    users ||--o{ voice_note_upload_grants : "issued_to_user_id (SET NULL)"
+    chat_messages ||--o{ voice_note_upload_grants : "consumed_message_id (SET NULL)"
+
+    chat_voice_notes {
+        uuid id PK
+        uuid message_id FK "UNIQUE (1:1 VOICE message)"
+        varchar object_key "UNIQUE (opaque MinIO key)"
+        int duration_ms "server-observed (authoritative)"
+        int size_bytes "server-observed (authoritative)"
+        varchar mime_type "server-observed (authoritative)"
+        jsonb waveform "optional player visual"
+        text transcript "derived, never authoritative"
+        varchar transcript_status "PENDING|READY|FAILED|DISABLED"
+        varchar transcript_lang
+        int transcript_attempt "monotonic; stale-overwrite guard"
+    }
+
+    voice_note_upload_grants {
+        varchar object_key PK
+        uuid conversation_id FK
+        uuid issued_to_user_id FK "nullable"
+        varchar status "ISSUED|CONSUMED"
+        timestamptz expires_at
+        uuid consumed_message_id FK "nullable, at most one"
+    }
+
+    voice_note_object_deletions {
+        uuid id PK
+        varchar object_key "freed key to delete from MinIO"
+        varchar status "PENDING|DONE"
+        timestamptz created_at
+        timestamptz deleted_at
+    }
+```
+
+Two invariants make this safe. **(1) An object key is a grant, not a credential:** every key is bound server-side to an upload grant `{ conversation, issued-to user, single-use, expiry }`, so possession of a key never authorizes a send. **(2) Deletion never loses the key:** a `BEFORE DELETE` trigger on `chat_voice_notes` (`voice_note_tombstone_object()`) writes the freed `object_key` into `voice_note_object_deletions` *inside the deleting transaction* (rolling back with it), so a cleanup worker can delete the MinIO object even after the metadata row is gone by direct delete or CASCADE (message → conversation → thread → offer). Deletion coherence relies on the Spec 13 invariant that `chat_messages.sender_id` and the conversation participant FKs are `ON DELETE SET NULL` — voice notes add no user-cascade path, so deleting a user never destroys shared history.
+
+### 7c. Voice Note Send / Transcription / Playback / Cleanup Flow
+
+> Audio bytes never transit the API. Upload and playback are direct client↔MinIO over short-lived pre-signed URLs; transcription is asynchronous, best-effort, and stale-update-safe (Whisper.cpp in the AI service receives **bytes only** — Option A, no storage access). The send reuses the Spec 13 serialized transaction with a `VOICE` branch.
+
+```mermaid
+sequenceDiagram
+    participant S as Sender App
+    participant API as Chat Module (API)
+    participant Minio as MinIO (chat-voice-notes)
+    participant DB as PostgreSQL
+    participant C as Centrifugo
+    participant Q as BullMQ (voice-notes-transcription)
+    participant AI as AI Service (/transcribe, Whisper.cpp)
+    participant R as Recipient App
+
+    Note over S,Minio: 1) Grant-first upload (key is a grant, not a credential)
+    S->>API: POST voice-notes/upload-url (participant + OPEN)
+    API->>DB: persist grant {objectKey, conv, issued_to, ISSUED, expires_at} (BEFORE URL)
+    API->>Minio: presign PUT (single object, short TTL)
+    API-->>S: { objectKey, uploadUrl, expiresAt }
+    S->>Minio: PUT audio bytes (direct; API never sees the bytes)
+
+    Note over S,DB: 2) Durable send = one serialized transaction
+    S->>API: POST messages {type:VOICE, clientMessageId, objectKey, durationMs, sizeBytes, mimeType, waveform?}
+    API->>DB: BEGIN · SELECT ... FOR UPDATE conversation
+    API->>DB: dedup(fingerprint) · OPEN · verify grant (issued_to=caller, unexpired, unconsumed)
+    API->>Minio: inspectObject → real size / content-type / duration (AUTHORITATIVE)
+    API->>DB: insert chat_messages(VOICE, body NULL) + chat_voice_notes(server-observed) · consume grant · bump last_message_at · COMMIT
+    API-->>S: 201 (persisted)
+    API-->>C: publish {type: chat_message} (best-effort)
+    C-->>R: live VOICE message
+    API->>Q: enqueue transcription (best-effort; only if STT enabled, else status DISABLED)
+
+    Note over Q,AI: 3) Async transcription (non-blocking, attempt-versioned)
+    Q->>API: worker: claim transcript_attempt
+    API->>Minio: getObject (bytes)
+    API->>AI: POST /transcribe (multipart bytes; no storage ref)
+    AI-->>API: { text, language }
+    API->>DB: attachTranscript READY|FAILED (only if attempt is latest — stale-safe)
+    API-->>C: publish {type: voice_transcript_updated, messageId, attempt, status}
+    C-->>R: transcript update (client upserts by id, ignores older attempt)
+
+    Note over S,Minio: 4) Playback (participant-gated; key resolved from DB)
+    R->>API: GET voice-notes/:messageId/playback-url
+    API->>DB: authorize by participation · resolve objectKey by messageId
+    API->>Minio: presign GET (short TTL)
+    API-->>R: { playbackUrl } → R streams from MinIO
+
+    Note over API,Minio: 5) Cleanup (eventual, idempotent, repeatable)
+    API->>DB: sweep expired ISSUED grants · drain tombstones · reconciler backstop · stuck-PENDING re-enqueue
+    API->>Minio: deleteObjectSafe (orphan/tombstoned objects)
+```
+
+---
+
+## 8. Notification Flow (Push Notifications)
+
+> Push notifications (Spec 16, ADR-013). The `notifications` module **reacts** to a **durable transactional outbox**, never a source of business truth. An emitting domain writes a `<domain>_outbox` row **in the same transaction as the business fact**; a relay drains committed rows into deduped intents; a BullMQ worker delivers per **consented player id (Model B)** via OneSignal. **Delivery intent is exactly-once in PostgreSQL; external OneSignal delivery is at-least-once/best-effort.** `EventEmitter2`/Centrifugo are fast-paths, never the trigger. (Migrations `1700000030000`–`1700000034000`.)
+
+```mermaid
+graph TB
+    subgraph Emitters["Emitting domains (unchanged sources of truth) — Task 12 pending"]
+        Fact["Commit business fact"]
+        Outbox["Write &lt;domain&gt;_outbox row (SAME TX)<br/>event_id UNIQUE, version, payload"]
+        Fact --> Outbox
+    end
+
+    subgraph Notifications["notifications module (reacts, never business truth)"]
+        Relay["OutboxRelayProcessor (repeatable)<br/>drain relayed_at IS NULL"]
+        Mapper["Per-domain mapper → NotificationIntent<br/>{ recipient, type, dedupKey, deepLink (ids only) }"]
+        Decide["PreferenceService.decide()<br/>metadata-driven · calls EXEMPT · fail-open"]
+        Svc["NotificationService.createIntent()<br/>durable-first · atomic suppression · UNIQUE dedup_key"]
+        Worker["DeliveryWorker (BullMQ)<br/>single-winner PENDING→PROCESSING"]
+        Registry["DeviceRegistryService (Model B)<br/>resolve consented, non-stale player ids"]
+        Catalog["ContentCatalog (en/es parity)"]
+        Client["OneSignalClient (best-effort, server-only key)"]
+        Webhook["OneSignalWebhookController<br/>signed · provider_event_id UNIQUE"]
+        Sweep["ReconcileSweepProcessor (bounded drift repair)"]
+    end
+
+    subgraph Infra["Infra"]
+        PG[("PostgreSQL<br/>*_outbox · notification_devices<br/>notification_preferences · notifications")]
+        Redis["Redis + BullMQ"]
+        OneSignal["OneSignal (APNs/FCM, tags/segments)"]
+        Cent["Centrifugo (foreground realtime — existing)"]
+    end
+
+    Outbox --> PG
+    Relay -->|drain committed rows| PG
+    Relay --> Mapper --> Svc
+    Svc --> Decide
+    Svc -->|persist PENDING/SUPPRESSED| PG
+    Svc -->|enqueue only after PENDING committed| Redis
+    Redis --> Worker
+    Worker --> Registry
+    Worker --> Catalog
+    Worker --> Client --> OneSignal
+    Worker -->|SENT / FAILED_* / SUPPRESSED| PG
+    Registry -->|external-user-id + tags| OneSignal
+    OneSignal -->|delivery / subscription callback| Webhook --> Registry
+    Redis --> Sweep --> Registry
+    OneSignal -->|push| Mobile["Mobile: useNotificationRouting<br/>deep-link → screen + GET reconcile<br/>incoming_call → IncomingCallSheet"]
+    Cent -.->|foreground alert (fail-open dedup)| Mobile
+```
+
+**Authority split.** The emitting domain owns the fact; **PostgreSQL** owns the notification delivery intent (`notifications.dedup_key` UNIQUE → exactly-once intent) and the device registry (`notification_devices`, Model B per-device consent); **OneSignal** owns device tokens and OS delivery (targeted per consented player id, kept synchronized bidirectionally); **Centrifugo** remains the foreground realtime channel with client-preferred, fail-open de-dup. Notification data is **user-owned** — `notification_devices`, `notification_preferences`, and `notifications` are `ON DELETE CASCADE` from `users` (the deliberate contrast with chat/voip `SET NULL`). The only shared code is the domain-agnostic `OutboxWriter` in `packages/shared`; per-domain `event_id`/payload shaping lives in each emitting domain and domain→intent mapping lives only in the notifications mappers. **Task 12 (emitting-domain outbox writes) is pending** — coordinated after the parallel voice-notes (chat) and voip work; until then the relay drains empty outbox tables (a safe no-op).
+
+---
+
 *Last updated: September 5, 2026*
 *Update this document on EVERY structural change.*

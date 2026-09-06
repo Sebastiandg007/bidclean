@@ -23,12 +23,16 @@ import {
   openConversationRequest,
   sendMessageRequest,
 } from './chat.api';
+import { uploadAndSendVoiceNote } from './voice.api';
 import { CHAT_I18N_KEYS, CHAT_SEND_TIMEOUT_MS } from './chat.constants';
 import type {
   ChatConversation,
   ChatConversationSummary,
   ChatMessage,
+  ChatTranscriptUpdateEvent,
   ConnectionStatus,
+  RecordedClip,
+  TranscriptStatus,
 } from './chat.types';
 
 const CLIENT_MESSAGE_ID_BYTES = 16;
@@ -76,8 +80,19 @@ export interface ChatActions {
   reconcileNewer: (conversationId: string) => Promise<void>;
   /** Optimistically send a message; reconciles on success, flips to `failed` on timeout/error. */
   sendMessage: (conversationId: string, body: string) => Promise<void>;
+  /**
+   * Optimistically send a voice note: shows a `sending` VOICE placeholder immediately (keyed by
+   * clientMessageId, with the local audio uri for own playback), runs upload + message send as one
+   * action, reconciles to the server message on success, flips to `failed` on timeout/error.
+   */
+  sendVoiceNote: (conversationId: string, clip: RecordedClip, waveform: number[] | null) => Promise<void>;
   /** Upsert a message arriving over the realtime channel (idempotent). */
   onIncomingMessage: (message: ChatMessage) => void;
+  /**
+   * Apply a transcript-update event: upsert by `message.id`, ignoring an update whose
+   * `transcriptAttempt` is older than one already applied (stale-safe, P14).
+   */
+  applyTranscriptUpdate: (event: ChatTranscriptUpdateEvent) => void;
   /** Set the connection status (driven by the realtime hook). */
   setConnectionStatus: (status: ConnectionStatus) => void;
   /** Read the messages for a conversation (empty array when unknown). */
@@ -177,6 +192,37 @@ function buildOptimisticMessage(
     clientMessageId,
     createdAt: new Date().toISOString(),
     sendState: 'sending',
+  };
+}
+
+/** Build an optimistic placeholder for a not-yet-confirmed VOICE send. */
+function buildOptimisticVoiceMessage(
+  conversationId: string,
+  clientMessageId: string,
+  clip: RecordedClip,
+  waveform: number[] | null,
+): ChatMessage {
+  return {
+    id: `local:${clientMessageId}`,
+    conversationId,
+    senderId: null,
+    type: 'VOICE',
+    body: null,
+    sequenceNumber: Number.MAX_SAFE_INTEGER,
+    clientMessageId,
+    createdAt: new Date().toISOString(),
+    sendState: 'sending',
+    localAudioUri: clip.uri,
+    voiceNote: {
+      durationMs: clip.durationMs,
+      sizeBytes: clip.sizeBytes,
+      mimeType: clip.mimeType,
+      waveform,
+      transcript: null,
+      transcriptStatus: 'PENDING',
+      transcriptLang: null,
+      transcriptAttempt: 0,
+    },
   };
 }
 
@@ -335,6 +381,50 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     }
   },
 
+  sendVoiceNote: async (conversationId, clip, waveform) => {
+    const clientMessageId = await generateClientMessageId();
+    const current = get().messagesByConversation.get(conversationId) ?? [];
+    const optimistic = buildOptimisticVoiceMessage(conversationId, clientMessageId, clip, waveform);
+
+    const withOptimistic = new Map(get().messagesByConversation);
+    withOptimistic.set(conversationId, mergeMessages(current, [optimistic]));
+    set({ messagesByConversation: withOptimistic, error: null });
+
+    const markFailed = (): void => {
+      const list = get().messagesByConversation.get(conversationId) ?? [];
+      const next = list.map((m) =>
+        m.clientMessageId === clientMessageId && m.sendState !== undefined
+          ? { ...m, sendState: 'failed' as const }
+          : m,
+      );
+      const map = new Map(get().messagesByConversation);
+      map.set(conversationId, next);
+      set({ messagesByConversation: map, error: CHAT_I18N_KEYS.VOICE_SEND_ERROR });
+    };
+
+    let settled = false;
+    const timeout = setTimeout(() => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      markFailed();
+    }, CHAT_SEND_TIMEOUT_MS);
+
+    try {
+      const result = await uploadAndSendVoiceNote(conversationId, clientMessageId, clip, waveform);
+      clearTimeout(timeout);
+      get().onIncomingMessage(result.message);
+      settled = true;
+    } catch {
+      clearTimeout(timeout);
+      if (!settled) {
+        settled = true;
+        markFailed();
+      }
+    }
+  },
+
   // ─── Realtime intake ──────────────────────────────────────────────────────────
 
   onIncomingMessage: (message) => {
@@ -362,6 +452,46 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     }
 
     set(patch);
+  },
+
+  applyTranscriptUpdate: (event) => {
+    const { messagesByConversation } = get();
+    let changed = false;
+    const nextByConversation = new Map(messagesByConversation);
+
+    for (const [conversationId, list] of messagesByConversation) {
+      const index = list.findIndex((m) => m.id === event.messageId);
+      if (index === -1) {
+        continue;
+      }
+      const message = list[index];
+      if (message === undefined || message.voiceNote === undefined) {
+        continue;
+      }
+      // Ignore a stale update (older attempt than already applied) — never regress (P14).
+      if (event.transcriptAttempt < message.voiceNote.transcriptAttempt) {
+        continue;
+      }
+      const updated: ChatMessage = {
+        ...message,
+        voiceNote: {
+          ...message.voiceNote,
+          transcriptStatus: event.transcriptStatus as TranscriptStatus,
+          transcriptAttempt: event.transcriptAttempt,
+          transcript: event.transcript ?? message.voiceNote.transcript,
+          transcriptLang: event.transcriptLang ?? message.voiceNote.transcriptLang,
+        },
+      };
+      const nextList = [...list];
+      nextList[index] = updated;
+      nextByConversation.set(conversationId, nextList);
+      changed = true;
+      break;
+    }
+
+    if (changed) {
+      set({ messagesByConversation: nextByConversation });
+    }
   },
 
   setConnectionStatus: (status) => {

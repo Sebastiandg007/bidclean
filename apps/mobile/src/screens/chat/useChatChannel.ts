@@ -27,7 +27,12 @@ import {
   WS_MAX_BACKOFF_MS,
   chatChannelForConversation,
 } from './chat.constants';
-import type { ChatMessage, ConnectionStatus } from './chat.types';
+import { VOICE_TRANSCRIPT_UPDATED_EVENT } from './chat.constants';
+import type {
+  ChatMessage,
+  ChatTranscriptUpdateEvent,
+  ConnectionStatus,
+} from './chat.types';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -36,6 +41,8 @@ export interface UseChatChannelOptions {
   conversationId: string;
   /** Called with each message parsed from the realtime channel (store upserts/dedups it). */
   onMessage: (message: ChatMessage) => void;
+  /** Called with each transcript-update event (store upserts by message id, attempt-ordered). */
+  onTranscriptUpdate?: (event: ChatTranscriptUpdateEvent) => void;
   /** Called on every connection status transition. */
   onConnectionChange: (status: ConnectionStatus) => void;
   /** Called on (re)connect so the caller can reconcile via the `after` cursor. */
@@ -68,10 +75,12 @@ function parseChatMessage(data: unknown): ChatMessage | null {
     return null;
   }
   const message = candidate as Record<string, unknown>;
+  // A VOICE message carries a null body; a TEXT message carries a string body.
+  const bodyOk = typeof message.body === 'string' || message.body === null;
   if (
     typeof message.id !== 'string' ||
     typeof message.conversationId !== 'string' ||
-    typeof message.body !== 'string' ||
+    !bodyOk ||
     typeof message.sequenceNumber !== 'number' ||
     typeof message.clientMessageId !== 'string' ||
     typeof message.createdAt !== 'string'
@@ -79,6 +88,25 @@ function parseChatMessage(data: unknown): ChatMessage | null {
     return null;
   }
   return message as unknown as ChatMessage;
+}
+
+/** Validate + narrow a raw payload into a transcript-update event; null when it is not one. */
+function parseTranscriptUpdate(data: unknown): ChatTranscriptUpdateEvent | null {
+  if (typeof data !== 'object' || data === null) {
+    return null;
+  }
+  const record = data as Record<string, unknown>;
+  if (record.type !== VOICE_TRANSCRIPT_UPDATED_EVENT) {
+    return null;
+  }
+  if (
+    typeof record.messageId !== 'string' ||
+    typeof record.transcriptAttempt !== 'number' ||
+    typeof record.transcriptStatus !== 'string'
+  ) {
+    return null;
+  }
+  return record as unknown as ChatTranscriptUpdateEvent;
 }
 
 /** Unwrap the Centrifugo push envelope (matches the radar hook's handling). */
@@ -97,7 +125,8 @@ function unwrapEnvelope(raw: unknown): unknown {
  * messages to the caller and triggering reconciliation on every (re)connect.
  */
 export function useChatChannel(options: UseChatChannelOptions): UseChatChannelReturn {
-  const { conversationId, onMessage, onConnectionChange, onReconcile } = options;
+  const { conversationId, onMessage, onTranscriptUpdate, onConnectionChange, onReconcile } =
+    options;
 
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -106,6 +135,7 @@ export function useChatChannel(options: UseChatChannelOptions): UseChatChannelRe
   const hasConnectedOnceRef = useRef<boolean>(false);
 
   const onMessageRef = useRef(onMessage);
+  const onTranscriptUpdateRef = useRef(onTranscriptUpdate);
   const onConnectionChangeRef = useRef(onConnectionChange);
   const onReconcileRef = useRef(onReconcile);
 
@@ -113,6 +143,7 @@ export function useChatChannel(options: UseChatChannelOptions): UseChatChannelRe
 
   useEffect(() => {
     onMessageRef.current = onMessage;
+    onTranscriptUpdateRef.current = onTranscriptUpdate;
     onConnectionChangeRef.current = onConnectionChange;
     onReconcileRef.current = onReconcile;
   });
@@ -128,6 +159,12 @@ export function useChatChannel(options: UseChatChannelOptions): UseChatChannelRe
     try {
       const parsed = JSON.parse(rawData);
       const payload = unwrapEnvelope(parsed);
+      // A transcript update and a chat message travel on the same channel; route by type.
+      const transcriptUpdate = parseTranscriptUpdate(payload);
+      if (transcriptUpdate !== null) {
+        onTranscriptUpdateRef.current?.(transcriptUpdate);
+        return;
+      }
       const message = parseChatMessage(payload);
       if (message !== null) {
         onMessageRef.current(message);

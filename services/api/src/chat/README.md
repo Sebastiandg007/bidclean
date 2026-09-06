@@ -38,7 +38,11 @@ This module does not issue Centrifugo tokens. Auth owns identity and token signi
 | GET | `/chat/conversations/:id` | Single conversation (participant-only) |
 | GET | `/chat/conversations/:id/messages?before=<seq>&limit=N` | Older history (backward scroll) |
 | GET | `/chat/conversations/:id/messages?after=<seq>&limit=N` | Newer messages (reconnect reconciliation) |
-| POST | `/chat/conversations/:id/messages` | Send a message (requires `Idempotency-Key`) |
+| POST | `/chat/conversations/:id/messages` | Send a message: `TEXT` (body) or `type: 'VOICE'` (voice note, Spec 14); requires `Idempotency-Key` |
+| POST | `/chat/conversations/:id/voice-notes/upload-url` | Voice notes (Spec 14): issue an upload grant + pre-signed PUT URL (participant + OPEN) |
+| GET | `/chat/conversations/:id/voice-notes/:messageId/playback-url` | Voice notes (Spec 14): fresh participant-gated pre-signed GET URL (key resolved from DB) |
+
+> **Voice notes (Spec 14).** A voice note is a `chat_messages` row with `type = 'VOICE'` whose audio lives in MinIO; see [`voice/README.md`](./voice/README.md) for the storage service, upload grants, transcription, cleanup, and the three new tables (migration `1700000023000-CreateVoiceNoteTables`). The text-chat contract above is unchanged.
 
 ## Environment Variables
 

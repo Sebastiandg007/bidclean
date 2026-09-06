@@ -20,10 +20,11 @@ import { useAuthStore } from '../../stores/auth.store';
 import { ConversationHeader } from './components/ConversationHeader';
 import { MessageBubble } from './components/MessageBubble';
 import { MessageComposer } from './components/MessageComposer';
+import { VoiceNotePlayer } from './components/VoiceNotePlayer';
 import { CHAT_I18N_KEYS } from './chat.constants';
 import { useChatStore } from './chat.store';
 import { useChatChannel } from './useChatChannel';
-import type { ChatMessage } from './chat.types';
+import type { ChatMessage, RecordedClip } from './chat.types';
 
 // ─── Design Tokens ───────────────────────────────────────────────────────────
 
@@ -66,7 +67,9 @@ export function ChatScreen({ route, navigation }: ChatScreenProps): React.JSX.El
   const loadOlder = useChatStore((state) => state.loadOlder);
   const reconcileNewer = useChatStore((state) => state.reconcileNewer);
   const sendMessage = useChatStore((state) => state.sendMessage);
+  const sendVoiceNote = useChatStore((state) => state.sendVoiceNote);
   const onIncomingMessage = useChatStore((state) => state.onIncomingMessage);
+  const applyTranscriptUpdate = useChatStore((state) => state.applyTranscriptUpdate);
   const setConnectionStatus = useChatStore((state) => state.setConnectionStatus);
 
   // Load the latest history page on mount.
@@ -74,10 +77,11 @@ export function ChatScreen({ route, navigation }: ChatScreenProps): React.JSX.El
     loadConversationMessages(conversationId);
   }, [conversationId, loadConversationMessages]);
 
-  // Wire the realtime channel: incoming messages + status + reconcile on (re)connect.
+  // Wire the realtime channel: incoming messages + transcript updates + status + reconcile.
   useChatChannel({
     conversationId,
     onMessage: onIncomingMessage,
+    onTranscriptUpdate: applyTranscriptUpdate,
     onConnectionChange: setConnectionStatus,
     onReconcile: reconcileNewer,
   });
@@ -95,14 +99,26 @@ export function ChatScreen({ route, navigation }: ChatScreenProps): React.JSX.El
     [conversationId, sendMessage],
   );
 
+  const handleSendVoice = useCallback(
+    (clip: RecordedClip) => {
+      // Waveform capture is deferred; send null (player synthesizes a visual).
+      sendVoiceNote(conversationId, clip, null);
+    },
+    [conversationId, sendVoiceNote],
+  );
+
   const handleLoadOlder = useCallback(() => {
     loadOlder(conversationId);
   }, [conversationId, loadOlder]);
 
   const renderItem = useCallback(
-    ({ item }: ListRenderItemInfo<ChatMessage>) => (
-      <MessageBubble message={item} isOwn={isOwnMessage(item, currentUserId)} />
-    ),
+    ({ item }: ListRenderItemInfo<ChatMessage>) => {
+      const own = isOwnMessage(item, currentUserId);
+      if (item.type === 'VOICE') {
+        return <VoiceNotePlayer message={item} isOwn={own} />;
+      }
+      return <MessageBubble message={item} isOwn={own} />;
+    },
     [currentUserId],
   );
 
@@ -136,7 +152,7 @@ export function ChatScreen({ route, navigation }: ChatScreenProps): React.JSX.El
           {t(CHAT_I18N_KEYS.CLOSED_NOTICE)}
         </Text>
       ) : (
-        <MessageComposer onSend={handleSend} disabled={isClosed} />
+        <MessageComposer onSend={handleSend} onSendVoice={handleSendVoice} disabled={isClosed} />
       )}
     </SafeAreaView>
   );

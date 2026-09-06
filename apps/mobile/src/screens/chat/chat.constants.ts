@@ -12,6 +12,9 @@ export const CHAT_ENDPOINTS = {
   conversation: (id: string): string => `/chat/conversations/${id}`,
   messages: (id: string): string => `/chat/conversations/${id}/messages`,
   openForThread: (threadId: string): string => `/chat/threads/${threadId}/conversation`,
+  voiceUploadUrl: (id: string): string => `/chat/conversations/${id}/voice-notes/upload-url`,
+  voicePlaybackUrl: (id: string, messageId: string): string =>
+    `/chat/conversations/${id}/voice-notes/${messageId}/playback-url`,
 } as const;
 
 /** Auth-owned Centrifugo token endpoint (connection + per-channel subscription tokens). */
@@ -56,6 +59,26 @@ export const CHAT_SEND_TIMEOUT_MS = parseInt(
 export const WS_INITIAL_BACKOFF_MS = 1000;
 export const WS_MAX_BACKOFF_MS = 30000;
 
+// ─── Voice notes (Spec 14) ─────────────────────────────────────────────────────
+
+/**
+ * Client-side max recording duration (ms) — a UX pre-check ONLY. The backend/storage limits are
+ * authoritative and a manipulated client cannot exceed them.
+ */
+export const VOICE_MAX_DURATION_MS = parseInt(
+  process.env.EXPO_PUBLIC_VOICE_MAX_DURATION_MS ?? '120000',
+  10,
+);
+
+/** Recording status poll/tick interval (ms) for the elapsed-time display. */
+export const VOICE_RECORDER_TICK_MS = 250;
+
+/** The recorded clip MIME type (m4a/aac container from expo-av HIGH_QUALITY preset). */
+export const VOICE_RECORDING_MIME_TYPE = 'audio/mp4';
+
+/** The realtime event name for a transcript update (matches the backend publisher). */
+export const VOICE_TRANSCRIPT_UPDATED_EVENT = 'voice_transcript_updated';
+
 /** i18n keys for the chat UI (en/es in parity). */
 export const CHAT_I18N_KEYS = {
   HEADER_TITLE: 'chat.header.title',
@@ -71,4 +94,19 @@ export const CHAT_I18N_KEYS = {
   CONNECTION_CONNECTING: 'chat.connection.connecting',
   CONNECTION_RECONNECTING: 'chat.connection.reconnecting',
   CONNECTION_DISCONNECTED: 'chat.connection.disconnected',
+  // Voice notes (Spec 14)
+  VOICE_RECORD: 'chat.voice.record',
+  VOICE_STOP: 'chat.voice.stop',
+  VOICE_RECORDING: 'chat.voice.recording',
+  VOICE_PREVIEW_SEND: 'chat.voice.previewSend',
+  VOICE_PREVIEW_DISCARD: 'chat.voice.previewDiscard',
+  VOICE_PLAY: 'chat.voice.play',
+  VOICE_PAUSE: 'chat.voice.pause',
+  VOICE_LABEL: 'chat.voice.label',
+  VOICE_TRANSCRIPT_PENDING: 'chat.voice.transcript.pending',
+  VOICE_TRANSCRIPT_FAILED: 'chat.voice.transcript.failed',
+  VOICE_TRANSCRIPT_DISABLED: 'chat.voice.transcript.disabled',
+  VOICE_MIC_DENIED: 'chat.voice.micDenied',
+  VOICE_TOO_LONG: 'chat.voice.tooLong',
+  VOICE_SEND_ERROR: 'chat.voice.sendError',
 } as const;

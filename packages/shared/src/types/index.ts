@@ -6,3 +6,4 @@
 export * from './user.types';
 export * from './offer.types';
 export * from './payment.types';
+export * from './notification.types';

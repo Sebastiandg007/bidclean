@@ -13,6 +13,7 @@ import { PaymentsModule } from './payments/payments.module';
 import { CommissionModule } from './commission/commission.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { ChatModule } from './chat/chat.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 /**
  * Root application module.
@@ -48,6 +49,7 @@ import { ChatModule } from './chat/chat.module';
     SubscriptionsModule,
     CommissionModule,
     ChatModule,
+    NotificationsModule,
   ],
 })
 export class AppModule {}
