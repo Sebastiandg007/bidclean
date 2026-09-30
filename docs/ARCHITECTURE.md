@@ -1021,3 +1021,30 @@ graph LR
 ```
 
 The DECISION state (`CONFIRMED`/`AUTO_RELEASED`) is distinct from the release EXECUTION state carried on the `release_intent` (`PENDING → DISPATCHED → ACCEPTED`); `ACCEPTED` means Spec 9 durably accepted the release command, not that funds settled (a deferred payout is still `ACCEPTED`). A crash between the committed decision and the Stripe call is recoverable via the durable intent + lease reclaim, so a terminal completion is never left with no release path. Single-winner decision × Spec 9's single-winner release ⇒ at most one Transfer per payment. `release_intents.service_completion_id` is `ON DELETE SET NULL` (not CASCADE) so the release path survives completion deletion. See ADR-018.
+
+## 14. Dispute System & Escrow Resolution (Spec 21 — dispute-system)
+
+Closes the "the job didn't go right" loop. A dispute case is created only from Spec 20's durable `service_disputed` event; evidence is gathered from the durable facts the service already produced; a resolution is reached; and that resolution durably drives Spec 9's refund/reversal/release. It **owns the case and durably enqueues the money command; it never moves money** — Spec 9 remains the money authority. The escrow stays blocked (`disputeStatus = OPEN`) until Spec 9 durably applies the action (**clear-escrow-LAST**).
+
+```mermaid
+graph LR
+    CO[("completion_outbox<br/>service_disputed (Spec 20)")] -->|"drain consumer_name='dispute'"| DC[DisputeCreatedConsumer]
+    DC -->|"createFromRouting (idempotent, phase from payout_status)"| D[("disputes<br/>OPEN")]
+    DC -->|"OPEN escrow-block intent (same tx)"| EI[("dispute_escrow_intents")]
+    EI --> EW[EscrowIntentWorker]
+    EW -->|"setDisputeStatus(OPEN) — atomic block-vs-release"| ESC["stripe-escrow (Spec 9)"]
+    PARTS["Host / Cleaner"] -->|"evidence: grant-gated PUT (window)"| ME[("MinIO dispute-evidence<br/>private")]
+    UP["checklist (19) / verification (18) / arrival (17)"] -.->|"typed refs (read-only)"| D
+    RES["Resolver / SLA sweep"] -->|"resolve | expire (single-winner)"| D
+    D -->|"exactly one financial intent (same tx)"| FI[("dispute_financial_intents")]
+    FI --> FW[FinancialIntentWorker]
+    FW -->|"releaseForDispute / refundForDispute → EscrowActionOutcome"| ESC
+    ESC -->|"APPLIED / CEILING_CLAMPED / NO_OP"| FW
+    ESC -->|"BLOCKED (PAYMENT_ALREADY_SETTLED)"| FW
+    FW -->|"on applied: enqueue NONE clear-escrow-LAST"| EI
+    FW -->|"on BLOCKED: ACTION_BLOCKED needs-review (escrow stays OPEN)"| FI
+    D -->|"dispute_opened / dispute_resolved"| PUSH["push (Spec 16)"]
+    DEL["Retention + Tombstone + Stale-grant jobs"] -->|"hard-delete TERMINAL-dispute objects past horizon"| ME
+```
+
+Two durable intents (crash-safe, lease-reclaimed) survive the case via `dispute_id ON DELETE SET NULL` (+ `payment_id NOT NULL`), so a cascade never destroys a pending money command. Single-winner terminality (resolve vs SLA-expiry) yields exactly one RESOLVED/EXPIRED + one financial intent; EXPIRED always carries a fallback resolution so the escrow is never blocked forever. The at-most-one-dispute-driven-effect-per-payment guarantee (P15) lives in Spec 9 via a `dispute_settled_at` claim under lock, not merely in a per-dispute constraint. See ADR-019.

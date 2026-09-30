@@ -18,6 +18,7 @@ import { ServiceTrackingModule } from './service-tracking/service-tracking.modul
 import { VideoVerificationModule } from './video-verification/video-verification.module';
 import { ChecklistPhotosModule } from './checklist-photos/checklist-photos.module';
 import { ServiceCompletionModule } from './service-completion/service-completion.module';
+import { DisputeSystemModule } from './dispute-system/dispute-system.module';
 
 /**
  * Root application module.
@@ -58,6 +59,7 @@ import { ServiceCompletionModule } from './service-completion/service-completion
     VideoVerificationModule,
     ChecklistPhotosModule,
     ServiceCompletionModule,
+    DisputeSystemModule,
   ],
 })
 export class AppModule {}

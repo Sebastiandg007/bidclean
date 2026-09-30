@@ -90,6 +90,35 @@ export interface StripeAccountStatus {
   readonly defaultCurrency: string | null;
 }
 
+/**
+ * The result of a dispute-driven financial action (Spec 21 contract). The dispute-system's
+ * EscrowClient consumes exactly this shape; the authority lives here in Spec 9.
+ * - APPLIED: the effect was applied (`effectiveAmountCents` set).
+ * - CEILING_CLAMPED: applied but clamped to a Spec 9 ceiling (`effectiveAmountCents` = clamped).
+ * - NO_OP: accepted no-op (FAVOR_CLEANER + POST_RELEASE, already paid).
+ * - BLOCKED: NOT applied; `reason` e.g. `PAYMENT_ALREADY_SETTLED` or a hard ceiling-block.
+ */
+export enum DisputeEffectResult {
+  APPLIED = 'APPLIED',
+  CEILING_CLAMPED = 'CEILING_CLAMPED',
+  NO_OP = 'NO_OP',
+  BLOCKED = 'BLOCKED',
+}
+
+/** Reasons Spec 9 blocks a second/invalid dispute-driven financial effect. */
+export enum DisputeEffectBlockedReason {
+  PAYMENT_ALREADY_SETTLED = 'PAYMENT_ALREADY_SETTLED',
+  NOTHING_REFUNDABLE = 'NOTHING_REFUNDABLE',
+  PAYMENT_NOT_FOUND = 'PAYMENT_NOT_FOUND',
+}
+
+/** The outcome of a dispute-driven financial action, returned by the dispute-settlement service. */
+export interface DisputeEffectOutcome {
+  readonly result: DisputeEffectResult;
+  readonly effectiveAmountCents?: number;
+  readonly reason?: string;
+}
+
 /** Decision produced by the pure refund policy */
 export interface RefundDecision {
   /** Amount to refund to the Host in cents */

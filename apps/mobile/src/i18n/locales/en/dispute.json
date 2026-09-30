@@ -1,0 +1,41 @@
+{
+  "dispute": {
+    "host": {
+      "title": "Open a dispute",
+      "reasonLabel": "What went wrong?",
+      "reasonPlaceholder": "Add details (optional)"
+    },
+    "cleaner": {
+      "title": "Dispute",
+      "addNote": "Add a note to respond",
+      "autoReleasePaused": "A dispute is open. Auto-release is paused while it's reviewed."
+    },
+    "evidence": {
+      "title": "Evidence",
+      "empty": "No evidence yet.",
+      "submit": "Submit"
+    },
+    "countdown": {
+      "label": "A decision is due in",
+      "expired": "Resolving…"
+    },
+    "state": {
+      "open": "Open",
+      "underReview": "Under review",
+      "resolved": "Resolved",
+      "expired": "Closed"
+    },
+    "outcome": {
+      "favorCleaner": "Resolved in favor of the cleaner",
+      "favorHost": "Resolved in favor of the host",
+      "partial": "Resolved with a partial refund"
+    },
+    "effect": {
+      "released": "Payment released to the cleaner",
+      "refunded": "Payment refunded to the host",
+      "partiallyRefunded": "Payment partially refunded"
+    },
+    "loadError": "Could not load the dispute. Please try again.",
+    "actionError": "Something went wrong. Please try again."
+  }
+}

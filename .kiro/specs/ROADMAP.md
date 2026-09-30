@@ -49,7 +49,7 @@
 ### Sprint 6 — Polish & Extras
 | # | Spec | Status | Dependencies |
 |---|------|--------|-------------|
-| 21 | `dispute-system` | ⬜ Pending | Spec 20 |
+| 21 | `dispute-system` | ✅ Completed | Spec 20 |
 | 22 | `favorites` | ⬜ Pending | Spec 8 |
 | 23 | `samsung-optimization` | ⬜ Pending | All mobile specs |
 | 24 | `dark-light-theme` | ⬜ Pending | Spec 7 |

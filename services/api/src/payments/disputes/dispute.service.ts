@@ -51,6 +51,29 @@ export class DisputeService {
     this.logger.log(`Dispute opened for payment ${paymentId} (auto-release paused)`);
   }
 
+  /**
+   * Platform-driven dispute block setter (dispute-system contract, Spec 21). Idempotently set the
+   * escrow block (`OPEN`) or clear it (`NONE`). `setDisputeStatus(OPEN)` atomically wins against a
+   * not-yet-accepted release on the payment aggregate (the guard lives under the row lock in
+   * `markReleased`), so money is never released out from under an open BidClean dispute. `NONE` is
+   * requested only AFTER Spec 9 has durably applied the resolution's financial action
+   * (clear-escrow-LAST). This is the SAME `disputeStatus` guard the Stripe path uses, not a new
+   * mechanism; it never touches money.
+   */
+  async setPlatformDisputeStatus(paymentId: string, open: boolean): Promise<void> {
+    const payment = await this.repo.findPaymentById(paymentId);
+    if (!payment) {
+      this.logger.warn(`Platform dispute status for unknown payment ${paymentId} ignored`);
+      return;
+    }
+    const target = open ? DisputeStatus.OPEN : DisputeStatus.NONE;
+    if (payment.disputeStatus === target) {
+      return; // idempotent
+    }
+    await this.repo.setDisputeStatus(paymentId, target);
+    this.logger.log(`Platform dispute status set to ${target} for payment ${paymentId}`);
+  }
+
   /** Handle `charge.dispute.closed`: set WON or LOST based on the dispute outcome. */
   async closeDispute(paymentId: string, won: boolean): Promise<void> {
     const payment = await this.repo.findPaymentById(paymentId);

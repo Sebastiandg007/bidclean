@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ConflictException, Injectable } from '@nestjs/common';
 import { DataSource, EntityManager } from 'typeorm';
 import { OutboxRow, writeOutbox } from '../common/outbox/outbox-writer';
 import { Payment } from './entities/payment.entity';
@@ -84,6 +84,20 @@ export class PaymentsRepository {
   /** Find a payment by id. */
   async findPaymentById(paymentId: string): Promise<Payment | null> {
     return this.dataSource.getRepository(Payment).findOne({ where: { id: paymentId } });
+  }
+
+  /**
+   * Resolve the `{ offerId, hostId }` for a payment id (Spec 21). `RefundService.refund` is keyed
+   * by host + offer; the dispute-system EscrowClient has only the payment id, so this bridges it.
+   */
+  async findOfferAndHostByPayment(
+    paymentId: string,
+  ): Promise<{ offerId: string; hostId: string } | null> {
+    const payment = await this.findPaymentById(paymentId);
+    if (!payment) {
+      return null;
+    }
+    return { offerId: payment.offerId, hostId: payment.hostId };
   }
 
   /** List attempts for a payment ordered by attempt number ascending. */
@@ -439,6 +453,16 @@ export class PaymentsRepository {
       ) {
         return;
       }
+      // Atomic block-vs-release guard (dispute-system contract (a), Spec 21): under the SAME row
+      // lock a platform dispute uses to set OPEN, a release cannot be accepted while the block is
+      // OPEN. This closes the pre-release race: setDisputeStatus(OPEN) and markReleased are
+      // serialized on the payment aggregate, so exactly one wins and money is never released out
+      // from under an open dispute.
+      if (payment.dispute_status === DisputeStatus.OPEN) {
+        throw new ConflictException(
+          `Payment ${params.paymentId} cannot be released while disputed`,
+        );
+      }
       this.assertPayoutTransition(payment.payout_status, PayoutStatus.TRANSFER_CREATED);
       this.assertPaymentTransition(payment.payment_status, PaymentStatus.RELEASED);
       await manager.query(
@@ -452,6 +476,33 @@ export class PaymentsRepository {
       // Only on a real release (not the idempotent no-op above) so a duplicate release trigger
       // never enqueues a second push (exactly-once intent is still guarded by the ledger dedup).
       await this.writeOutboxIfPresent(manager, params.outbox);
+    });
+  }
+
+  /**
+   * Persist a dispute-driven release (Spec 21): identical to `markReleased` but WITHOUT the
+   * dispute-open block — the dispute IS the authority and deliberately holds the block OPEN
+   * (clear-escrow-LAST). Still idempotent under a crash re-drive (already-released → no-op) and
+   * still row-locked + state-validated. The `dispute_settled_at` stamp is claimed separately.
+   */
+  async markReleasedForDispute(paymentId: string, stripeTransferId: string): Promise<void> {
+    await this.dataSource.transaction(async (manager: EntityManager) => {
+      const payment = await this.lockPayment(manager, paymentId);
+      if (
+        payment.payout_status === PayoutStatus.TRANSFER_CREATED ||
+        payment.payout_status === PayoutStatus.PAID
+      ) {
+        return;
+      }
+      this.assertPayoutTransition(payment.payout_status, PayoutStatus.TRANSFER_CREATED);
+      this.assertPaymentTransition(payment.payment_status, PaymentStatus.RELEASED);
+      await manager.query(
+        `UPDATE "payments"
+         SET "payout_status" = $1, "payment_status" = $2,
+             "stripe_transfer_id" = $3, "released_at" = NOW(), "updated_at" = NOW()
+         WHERE "id" = $4`,
+        [PayoutStatus.TRANSFER_CREATED, PaymentStatus.RELEASED, stripeTransferId, paymentId],
+      );
     });
   }
 
@@ -495,6 +546,82 @@ export class PaymentsRepository {
 
       await this.writeOutboxIfPresent(manager, outbox);
     });
+  }
+
+  /**
+   * dispute-system (Spec 21) settlement read: the fields needed to derive `phase` and to enforce
+   * the at-most-one-effect-per-payment guarantee (P15). `disputeSettledAt` is non-null once a
+   * dispute-driven financial effect has durably landed for this payment.
+   */
+  async findDisputeSettlement(paymentId: string): Promise<{
+    payoutStatus: PayoutStatus;
+    disputeStatus: DisputeStatus;
+    disputeSettledAt: Date | null;
+  } | null> {
+    const rows = await this.dataSource.query<
+      Array<{ payout_status: string; dispute_status: string; dispute_settled_at: Date | null }>
+    >(
+      `SELECT "payout_status", "dispute_status", "dispute_settled_at"
+       FROM "payments" WHERE "id" = $1 LIMIT 1`,
+      [paymentId],
+    );
+    const row = rows[0];
+    if (!row) {
+      return null;
+    }
+    return {
+      payoutStatus: row.payout_status as PayoutStatus,
+      disputeStatus: row.dispute_status as DisputeStatus,
+      disputeSettledAt: row.dispute_settled_at,
+    };
+  }
+
+  /**
+   * Mark a payment dispute-settled (Spec 21 P15 authority): stamp `dispute_settled_at` the first
+   * time a dispute-driven financial effect lands. Idempotent — only the first stamp sticks
+   * (`COALESCE`), so re-drives never change the authoritative settlement time. Runs under the row
+   * lock so it is serialized with the dispute-driven financial action that set it.
+   */
+  async markDisputeSettled(manager: EntityManager, paymentId: string): Promise<void> {
+    await manager.query(
+      `UPDATE "payments"
+       SET "dispute_settled_at" = COALESCE("dispute_settled_at", NOW()), "updated_at" = NOW()
+       WHERE "id" = $1`,
+      [paymentId],
+    );
+  }
+
+  /**
+   * Claim the single dispute-driven financial effect for a payment (Spec 21 P15). Under the row
+   * lock: if `dispute_settled_at` is already set, returns false (a prior dispute effect landed →
+   * the caller surfaces BLOCKED/PAYMENT_ALREADY_SETTLED); otherwise stamps it and returns true so
+   * exactly one dispute-driven effect per payment ever proceeds, even across sequential disputes.
+   */
+  async claimDisputeSettlement(paymentId: string): Promise<boolean> {
+    return this.dataSource.transaction(async (manager) => {
+      const settlement = await this.lockDisputeSettlement(manager, paymentId);
+      if (settlement.dispute_settled_at !== null) {
+        return false;
+      }
+      await this.markDisputeSettled(manager, paymentId);
+      return true;
+    });
+  }
+
+  /** Lock + read the dispute-settlement fields (Spec 21). */
+  private async lockDisputeSettlement(
+    manager: EntityManager,
+    paymentId: string,
+  ): Promise<{ dispute_settled_at: Date | null }> {
+    const rows = await manager.query<Array<{ dispute_settled_at: Date | null }>>(
+      `SELECT "dispute_settled_at" FROM "payments" WHERE "id" = $1 FOR UPDATE`,
+      [paymentId],
+    );
+    const row = rows[0];
+    if (!row) {
+      throw new Error(`Payment ${paymentId} not found`);
+    }
+    return row;
   }
 
   /**
