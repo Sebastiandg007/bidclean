@@ -997,3 +997,27 @@ graph LR
 ```
 
 `finalize-photo` and `finalize-checklist` serialize on the same `checklist_runs` row lock, so a `COMPLETED` run's `photoCount` never omits a committed photo. Playback is session-scoped (a cross-session `photoId` → `404`) and the Host MAY view evidence (unlike the verification video). Deletion coherence: `issued_to_user_id`/`property_id` `ON DELETE SET NULL`, `service_session_id`/`offer_id`/`run_id`/`task_id` CASCADE, `BEFORE DELETE` tombstone trigger, no `deleted_at` on metadata. See ADR-017.
+
+## 13. Service Completion & Escrow Release (Spec 20 — service-completion)
+
+Closes the service loop. After `checklist_completed` (carrying the authoritative `completedAt`), the Host confirms satisfaction, does nothing (server-authoritative auto-release after a snapshotted 24h deadline), or opens a dispute (routed to Spec 21, pausing auto-release). It **owns the decision and durably enqueues the release intent; it never moves money** — the escrow (Spec 9) remains the money authority. A mutual rating is captured, never gating release.
+
+```mermaid
+graph LR
+    CO[("checklist_outbox<br/>checklist_completed + completedAt (Spec 19)")] -->|"drain consumer_name='completion'"| CC[CompletionCreatedConsumer]
+    CC -->|"createFromChecklistCompleted (idempotent, deadline snapshotted)"| SC[("service_completions<br/>AWAITING_CONFIRMATION")]
+    HOST["Host"] -->|"confirm (single-winner)"| DEC[CompletionDecisionService]
+    SWEEP["AutoReleaseSweepProcessor<br/>(deadline passed)"] -->|"single-winner"| DEC
+    HOST -->|"dispute (suppress auto-release)"| DEC
+    DEC -->|"transition + release_intent PENDING (same tx)"| SC
+    DEC -->|"release_intent"| RI[("release_intents<br/>durable financial command<br/>ON DELETE SET NULL")]
+    W[ReleaseIntentWorker] -->|"claimForDispatch (lease)"| RI
+    W -->|"release(paymentId, reason)"| ESC["EscrowReleaseService (Spec 9)<br/>single-winner, deferred, dispute-paused"]
+    ESC -->|"Stripe Transfer (money authority)"| STRIPE["Stripe"]
+    SC -->|"completion_outbox<br/>service_confirmed / service_disputed / service_rated"| PUSH["push (Spec 16)"]
+    SC -->|"service_disputed"| DISP["dispute-system (Spec 21)"]
+    SC -->|"service_rated"| REP["reputation/favorites (Spec 22)"]
+    HOST2["Host / Cleaner"] -->|"rate (never gating)"| RAT[("service_ratings<br/>one per side")]
+```
+
+The DECISION state (`CONFIRMED`/`AUTO_RELEASED`) is distinct from the release EXECUTION state carried on the `release_intent` (`PENDING → DISPATCHED → ACCEPTED`); `ACCEPTED` means Spec 9 durably accepted the release command, not that funds settled (a deferred payout is still `ACCEPTED`). A crash between the committed decision and the Stripe call is recoverable via the durable intent + lease reclaim, so a terminal completion is never left with no release path. Single-winner decision × Spec 9's single-winner release ⇒ at most one Transfer per payment. `release_intents.service_completion_id` is `ON DELETE SET NULL` (not CASCADE) so the release path survives completion deletion. See ADR-018.

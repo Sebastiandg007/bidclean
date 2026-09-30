@@ -52,12 +52,15 @@ export class ChecklistRunService {
       const photoCount = await this.repository.countPhotosForRun(manager, run.id);
       await this.assertPreconditionMet(manager, run, tasks);
       const completedTasks = tasks.filter((task) => task.is_done).length;
-      const outbox = this.buildCompletedOutbox(run, tasks.length, completedTasks, photoCount);
+      // Stamp one authoritative finish time and carry the SAME value on `checklist_completed`
+      // (Spec 20 anchors its auto-release deadline to this, never a consume time).
+      const completedAt = new Date();
+      const outbox = this.buildCompletedOutbox(run, tasks.length, completedTasks, photoCount, completedAt);
       const won = await this.repository.transitionRun(
         manager,
         run.id,
         ChecklistRunState.COMPLETED,
-        { completedAt: true },
+        { completedAt: true, completedAtValue: completedAt },
         outbox,
       );
       if (!won) {
@@ -207,6 +210,7 @@ export class ChecklistRunService {
     totalTasks: number,
     completedTasks: number,
     photoCount: number,
+    completedAt: Date,
   ): OutboxRow {
     return {
       eventId: `${CHECKLIST_COMPLETED_EVENT_TYPE}:${run.id}`,
@@ -219,6 +223,8 @@ export class ChecklistRunService {
         totalTasks,
         completedTasks,
         photoCount,
+        // The authoritative finish time carried on the event (Spec 20 additive extension).
+        completedAt: completedAt.toISOString(),
       },
       tableName: CHECKLIST_OUTBOX_TABLE,
     };

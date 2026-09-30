@@ -439,6 +439,10 @@ describe('P13 — single-winner terminality + outbox atomicity', () => {
         await h.runs.finalize(SESSION, CLEANER);
         const event = h.store.outbox.find((o) => o.type === CHECKLIST_COMPLETED_EVENT_TYPE);
         expect((event?.payload as { photoCount: number }).photoCount).toBe(photoCount);
+        // Spec 20 additive extension: the event carries an authoritative finish time (ISO string).
+        const completedAt = (event?.payload as { completedAt?: string }).completedAt;
+        expect(typeof completedAt).toBe('string');
+        expect(Number.isNaN(Date.parse(completedAt ?? ''))).toBe(false);
       }),
       { numRuns: 100 },
     );

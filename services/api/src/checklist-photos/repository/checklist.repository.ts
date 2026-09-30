@@ -313,13 +313,13 @@ export class ChecklistRepository {
     manager: EntityManager,
     runId: string,
     next: ChecklistRunState,
-    derived: { completedAt?: boolean; abandonedReason?: string },
+    derived: { completedAt?: boolean; completedAtValue?: Date; abandonedReason?: string },
     outbox: OutboxRow | null,
   ): Promise<boolean> {
     const rows = await manager.query<Array<{ id: string }>>(
       `UPDATE "checklist_runs"
        SET "state" = $2,
-           "completed_at" = CASE WHEN $3 THEN COALESCE("completed_at", NOW()) ELSE "completed_at" END,
+           "completed_at" = CASE WHEN $3 THEN COALESCE("completed_at", $6, NOW()) ELSE "completed_at" END,
            "abandoned_reason" = COALESCE($4, "abandoned_reason"),
            "updated_at" = NOW()
        WHERE "id" = $1 AND "state" = $5
@@ -330,6 +330,7 @@ export class ChecklistRepository {
         derived.completedAt === true,
         derived.abandonedReason ?? null,
         ChecklistRunState.ACTIVE,
+        derived.completedAtValue ?? null,
       ],
     );
     if (!rows[0]) {

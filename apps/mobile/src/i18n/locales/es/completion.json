@@ -1,0 +1,36 @@
+{
+  "completion": {
+    "host": {
+      "title": "Finalizar el servicio",
+      "confirm": "Confirmar — quedé satisfecho",
+      "dispute": "Algo salió mal — abrir una disputa",
+      "countdownLabel": "El pago se libera automáticamente en",
+      "countdownExpired": "Liberando…",
+      "disputePaused": "Hay una disputa abierta. La liberación automática está en pausa mientras se revisa."
+    },
+    "cleaner": {
+      "title": "Resumen del servicio"
+    },
+    "state": {
+      "awaiting": "Esperando la confirmación del anfitrión",
+      "confirmed": "Confirmado por el anfitrión",
+      "autoReleased": "Liberado automáticamente",
+      "disputed": "En disputa"
+    },
+    "release": {
+      "notTriggered": "Esperando la confirmación del anfitrión",
+      "pendingPayout": "Liberado — el pago está en camino",
+      "released": "Pagado",
+      "disputed": "En disputa — retenido mientras se revisa"
+    },
+    "rating": {
+      "title": "Califica este servicio",
+      "prompt": "¿Cómo estuvo? Tu calificación genera confianza en BidClean.",
+      "commentPlaceholder": "Agrega un comentario (opcional)",
+      "submit": "Enviar calificación",
+      "thanks": "Gracias por tu calificación."
+    },
+    "loadError": "No se pudo cargar la finalización. Inténtalo de nuevo.",
+    "actionError": "Algo salió mal. Inténtalo de nuevo."
+  }
+}

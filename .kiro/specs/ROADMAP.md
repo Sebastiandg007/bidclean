@@ -44,7 +44,7 @@
 | 17 | `service-tracking` | ✅ Completed | Spec 8 |
 | 18 | `video-verification` | ✅ Completed | Spec 3, 17 |
 | 19 | `checklist-photos` | ✅ Completed | Spec 17 |
-| 20 | `service-completion` | ⬜ Pending | Spec 9, 19 |
+| 20 | `service-completion` | ✅ Completed | Spec 9, 19 |
 
 ### Sprint 6 — Polish & Extras
 | # | Spec | Status | Dependencies |

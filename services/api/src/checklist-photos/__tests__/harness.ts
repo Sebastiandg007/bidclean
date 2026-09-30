@@ -308,7 +308,7 @@ export class FakeChecklistRepository {
     _manager: EntityManager,
     runId: string,
     next: ChecklistRunState,
-    derived: { completedAt?: boolean; abandonedReason?: string },
+    derived: { completedAt?: boolean; completedAtValue?: Date; abandonedReason?: string },
     outbox: OutboxRow | null,
   ): Promise<boolean> {
     void _manager;

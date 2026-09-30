@@ -17,6 +17,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { ServiceTrackingModule } from './service-tracking/service-tracking.module';
 import { VideoVerificationModule } from './video-verification/video-verification.module';
 import { ChecklistPhotosModule } from './checklist-photos/checklist-photos.module';
+import { ServiceCompletionModule } from './service-completion/service-completion.module';
 
 /**
  * Root application module.
@@ -56,6 +57,7 @@ import { ChecklistPhotosModule } from './checklist-photos/checklist-photos.modul
     ServiceTrackingModule,
     VideoVerificationModule,
     ChecklistPhotosModule,
+    ServiceCompletionModule,
   ],
 })
 export class AppModule {}

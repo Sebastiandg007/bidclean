@@ -161,6 +161,13 @@ export interface CompletionSummary {
   readonly totalTasks: number;
   readonly completedTasks: number;
   readonly photoCount: number;
+  /**
+   * The run's durable, server-authoritative finish time (`checklist_runs.completed_at`, stamped in
+   * the SAME transaction as `ACTIVE → COMPLETED`), as an ISO-8601 string. Additive, backward-safe
+   * extension (Spec 20): downstream consumers that ignore it are unaffected. service-completion
+   * anchors its auto-release deadline to this authoritative finish time — never a consume time.
+   */
+  readonly completedAt: string;
 }
 
 /**
