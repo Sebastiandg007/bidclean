@@ -14,6 +14,12 @@ import { Repository } from 'typeorm';
 
 import { ChatParticipationService } from '../../chat/chat-participation.service';
 import { CHAT_CHANNEL_PREFIX } from '../../chat/chat.constants';
+import { ServiceSessionParticipationService } from '../../service-tracking/service-session-participation.service';
+import {
+  SERVICE_POSITION_CHANNEL_PREFIX,
+  SERVICE_POSITION_TOKEN_TTL_SECONDS,
+  sessionIdFromServiceChannel,
+} from '../../service-tracking/service-tracking.constants';
 import { User } from '../entities/user.entity';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { JwtUserPayload } from '../guards/jwt.types';
@@ -44,6 +50,7 @@ export class CentrifugoController {
   constructor(
     private readonly tokenService: CentrifugoTokenService,
     private readonly participation: ChatParticipationService,
+    private readonly serviceParticipation: ServiceSessionParticipationService,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
   ) {}
@@ -61,6 +68,12 @@ export class CentrifugoController {
       return { token: this.tokenService.mintConnectionToken(user.id) };
     }
 
+    // Service-tracking session channel (Spec 17): read-only Host subscription, own TTL, no publish
+    // grant — the server is the sole publisher (Option A). Participation resolved by lookup.
+    if (channel.startsWith(SERVICE_POSITION_CHANNEL_PREFIX)) {
+      return this.mintServiceSessionToken(user.id, channel);
+    }
+
     const conversationId = this.conversationIdFromChannel(channel);
     const allowed =
       conversationId !== null &&
@@ -70,6 +83,26 @@ export class CentrifugoController {
     }
 
     return { token: this.tokenService.mintSubscriptionToken(user.id, channel) };
+  }
+
+  /** Mint a read-only session-channel subscription token iff the subject participates. */
+  private async mintServiceSessionToken(
+    userId: string,
+    channel: string,
+  ): Promise<CentrifugoTokenResponse> {
+    const sessionId = sessionIdFromServiceChannel(channel);
+    const allowed =
+      sessionId !== null && (await this.serviceParticipation.isParticipant(userId, sessionId));
+    if (!allowed) {
+      throw new ForbiddenException('Not a participant of the requested channel');
+    }
+    return {
+      token: this.tokenService.mintSubscriptionTokenWithTtl(
+        userId,
+        channel,
+        SERVICE_POSITION_TOKEN_TTL_SECONDS,
+      ),
+    };
   }
 
   /** Extract the conversation id from a `chat:conversation:{id}` channel, or null if malformed. */

@@ -19,6 +19,8 @@ import { useTranslation } from 'react-i18next';
 import RoleSwitchButton from '../screens/roles/RoleSwitchButton';
 import { ChatEntryScreen } from '../screens/chat/ChatEntryScreen';
 import { CHAT_ROUTE } from '../screens/chat/chat.constants';
+import { EnRouteScreen } from '../screens/tracking/EnRouteScreen';
+import { EN_ROUTE_SCREEN_ROUTE } from '../screens/tracking/tracking.constants';
 
 // ─── Design Tokens ───────────────────────────────────────────────────────────
 
@@ -137,6 +139,16 @@ function ActiveStackNavigator() {
       <ChatEntryScreen
         navigation={navigation}
         route={{ params: currentEntry.params as { threadId: string } }}
+      />
+    );
+  }
+
+  if (currentEntry.screen === EN_ROUTE_SCREEN_ROUTE) {
+    // Cleaner reports position + starts the service (Spec 17), keyed by the session id.
+    return (
+      <EnRouteScreen
+        navigation={navigation}
+        route={{ params: currentEntry.params as { sessionId: string } }}
       />
     );
   }

@@ -183,3 +183,44 @@ jest.mock('expo-av', () => {
     InterruptionModeIOS: { DoNotMix: 1 },
   };
 });
+
+// @rnmapbox/maps (Spec 7 radar, Spec 17 tracking) — native map module; mocked to lightweight no-op
+// components so screens that render a map (and navigators that import them) load without a
+// prebuild/EAS build. Render-only in the app; never a source of truth for position or arrival.
+jest.mock('@rnmapbox/maps', () => {
+  const React = require('react');
+  const passthrough = ({ children }: { children?: unknown }) =>
+    React.createElement(React.Fragment, null, children ?? null);
+  const noop = () => null;
+  return {
+    __esModule: true,
+    default: {
+      MapView: passthrough,
+      Camera: noop,
+      PointAnnotation: passthrough,
+      MarkerView: passthrough,
+      ShapeSource: passthrough,
+      SymbolLayer: noop,
+      CircleLayer: noop,
+      LineLayer: noop,
+      FillLayer: noop,
+      UserLocation: noop,
+      Images: passthrough,
+      setAccessToken: jest.fn(),
+      setTelemetryEnabled: jest.fn(),
+    },
+  };
+});
+
+// expo-location (Spec 7 radar, Spec 17 tracking) — native geolocation; mocked so the Cleaner
+// position reporter + radar location permission run without a device. Permission defaults to
+// granted; a watch resolves to a removable no-op subscription (tests override per-case).
+jest.mock('expo-location', () => ({
+  Accuracy: { High: 4, Balanced: 3, Low: 1 },
+  requestForegroundPermissionsAsync: jest.fn().mockResolvedValue({ status: 'granted' }),
+  getForegroundPermissionsAsync: jest.fn().mockResolvedValue({ status: 'granted' }),
+  watchPositionAsync: jest.fn().mockResolvedValue({ remove: jest.fn() }),
+  getCurrentPositionAsync: jest
+    .fn()
+    .mockResolvedValue({ coords: { latitude: 0, longitude: 0, accuracy: 10, heading: null }, timestamp: 0 }),
+}));

@@ -41,7 +41,7 @@
 ### Sprint 5 — Service Execution
 | # | Spec | Status | Dependencies |
 |---|------|--------|-------------|
-| 17 | `service-tracking` | ⬜ Pending | Spec 8 |
+| 17 | `service-tracking` | ✅ Completed | Spec 8 |
 | 18 | `video-verification` | ⬜ Pending | Spec 3, 17 |
 | 19 | `checklist-photos` | ⬜ Pending | Spec 17 |
 | 20 | `service-completion` | ⬜ Pending | Spec 9, 19 |

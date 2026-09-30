@@ -124,20 +124,27 @@ export class PaymentsRepository {
     return offer[0]?.offered_price_cents ?? null;
   }
 
-  /** Load an offer's currency and snapshotted commission rate bps. */
+  /**
+   * Load an offer's currency, snapshotted commission rate bps, and its `property_id`. The
+   * `property_id` is a read-only additive column used by the service-tracking activation seam
+   * (Spec 17) to carry the geofence property in the `service_activation_ready` fact; payments never
+   * writes the offers table.
+   */
   async findOfferRates(offerId: string): Promise<{
     currency: string;
     hostServiceFeeRateBps: number;
     cleanerCommissionRateBps: number;
+    propertyId: string;
   } | null> {
     const rows = await this.dataSource.query<
       {
         currency: string;
         host_service_fee_rate_bps: number;
         cleaner_commission_rate_bps: number;
+        property_id: string;
       }[]
     >(
-      `SELECT "currency", "host_service_fee_rate_bps", "cleaner_commission_rate_bps"
+      `SELECT "currency", "host_service_fee_rate_bps", "cleaner_commission_rate_bps", "property_id"
        FROM "offers" WHERE "id" = $1 LIMIT 1`,
       [offerId],
     );
@@ -149,6 +156,7 @@ export class PaymentsRepository {
       currency: row.currency,
       hostServiceFeeRateBps: row.host_service_fee_rate_bps,
       cleanerCommissionRateBps: row.cleaner_commission_rate_bps,
+      propertyId: row.property_id,
     };
   }
 
@@ -344,6 +352,12 @@ export class PaymentsRepository {
     stripeFeeCents: number;
     /** Optional push-notification outbox row written atomically with the state change (Task 12). */
     outbox?: OutboxRow;
+    /**
+     * Optional extra domain outbox rows written atomically with the HELD transition — used by the
+     * service-tracking activation seam (Spec 17) to emit `service_activation_ready` into its own
+     * dedicated table in the SAME transaction. A rollback of the HELD transition reverts them too.
+     */
+    extraOutbox?: readonly OutboxRow[];
   }): Promise<void> {
     await this.dataSource.transaction(async (manager: EntityManager) => {
       await manager.query(
@@ -371,6 +385,9 @@ export class PaymentsRepository {
       );
 
       await this.writeOutboxIfPresent(manager, params.outbox);
+      for (const row of params.extraOutbox ?? []) {
+        await writeOutbox(manager, row);
+      }
     });
   }
 

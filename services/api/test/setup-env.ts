@@ -18,3 +18,6 @@ process.env.REVENUECAT_WEBHOOK_SIGNING_SECRET ??= 'test-signing-secret';
 
 // Centrifugo token secret used by realtime-chat's token service in tests (non-secret test value).
 process.env.CENTRIFUGO_TOKEN_SECRET ??= 'test-centrifugo-secret';
+
+// OneSignal webhook signing secret used by the push-notifications webhook verifier in tests.
+process.env.ONESIGNAL_WEBHOOK_SECRET ??= 'test-onesignal-secret';

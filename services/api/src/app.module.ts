@@ -14,6 +14,7 @@ import { CommissionModule } from './commission/commission.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { ChatModule } from './chat/chat.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { ServiceTrackingModule } from './service-tracking/service-tracking.module';
 
 /**
  * Root application module.
@@ -50,6 +51,7 @@ import { NotificationsModule } from './notifications/notifications.module';
     CommissionModule,
     ChatModule,
     NotificationsModule,
+    ServiceTrackingModule,
   ],
 })
 export class AppModule {}

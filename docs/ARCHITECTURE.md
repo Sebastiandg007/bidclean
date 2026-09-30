@@ -871,5 +871,80 @@ graph TB
 
 ---
 
-*Last updated: September 9, 2026*
+## 10. Service Tracking Lifecycle (En-Route → Arrival)
+
+> The post-match, pre-work phase (Spec 17, ADR-015). **A service session is a matched-offer lifecycle, not a new domain** — a `service_sessions` row is bound 1:1 to a matched+charged offer (migration `1700000041000`). **PostgreSQL** is the source of truth for the session lifecycle + the arrival geofence-crossing fact; **the server owns the geofence computation** (PostGIS over a creation-time snapshot); **Centrifugo** is best-effort transport (server → Host). Live position is **ephemeral** — evaluated then re-published, never persisted; the only durable location datum is `arrival_distance_m`. **Position ingress is Option A** — the Cleaner POSTs to the backend and never publishes to the channel; the Host is a read-only subscriber. Reported coordinates are client telemetry, **not** proof of physical presence (anti-spoofing is out of scope; Spec 18 complements it).
+
+```mermaid
+graph TB
+    subgraph Emit["Offer / Escrow (source of the activation fact)"]
+        Escrow["EscrowChargeService<br/>on capture success (HELD)"]
+        ActOut[("service_activation_outbox<br/>service_activation_ready — SAME tx as HELD")]
+    end
+
+    subgraph Mobile["Mobile (Expo / RN)"]
+        Cleaner["EnRouteScreen (Cleaner)<br/>usePositionReporter — throttled POST, never publishes"]
+        Host["TrackingScreen (Host)<br/>useTrackingChannel — read-only subscribe"]
+        Store["tracking.store (Zustand)<br/>idempotent state signals (no regression) · reconcile via GET"]
+    end
+
+    subgraph API["NestJS API — service-tracking"]
+        ActConsumer["ServiceActivationConsumer<br/>drains via own service_activation_consumed cursor"]
+        Svc["ServiceSessionService<br/>single-winner state machine · Option A ingress"]
+        Geo["GeofenceService<br/>eligibility gate + PostGIS ST_DWithin over snapshot"]
+        RL["PositionRateLimiter (Redis, per user+session)"]
+        Repo["ServiceSessionRepository (service_sessions)"]
+        Sweep["ServiceSweepProcessor<br/>abandon → EXPIRED_NEVER_STARTED · stale → EXPIRED_NO_PROGRESS"]
+        TermList["OfferTerminalSessionListener (force-cancel)"]
+        AuthTok["auth CentrifugoController<br/>service:session:{id} token (read-only Host)"]
+        Pub["SERVICE_REALTIME_PUBLISHER (CentrifugoClient)"]
+    end
+
+    subgraph Infra["Infra"]
+        PG[("PostgreSQL + PostGIS<br/>service_sessions · service_outbox ·<br/>service_outbox_consumers · service_activation_consumed")]
+        Cent["Centrifugo (service:session:{id})"]
+        Redis["Redis (rate limit + sweep)"]
+    end
+
+    subgraph Consumers["Downstream (independent per-consumer checkpoints)"]
+        Notif["notifications (Spec 16)"]
+        Video["video (Spec 18)"]
+    end
+
+    Escrow -->|SAME tx| ActOut
+    ActOut -->|NOT EXISTS drain| ActConsumer
+    ActConsumer --> Svc
+    Svc --> Repo
+    Repo --> PG
+
+    Cleaner -->|POST /position| RL
+    RL --> Svc
+    Svc --> Geo
+    Geo --> PG
+    Svc -->|best-effort re-publish| Pub
+    Pub --> Cent
+    Cent -->|position + state| Host
+    Host -->|GET reconcile| Svc
+    Store --> Host
+    Store --> Cleaner
+
+    Host -->|sub token| AuthTok
+    AuthTok --> Svc
+
+    TermList --> Svc
+    Sweep --> Repo
+    Sweep --> Redis
+    RL --> Redis
+
+    PG -->|service_outbox fan-out| Notif
+    PG -->|service_outbox fan-out| Video
+    Notif -->|ack event_id,'notifications'| PG
+    Video -->|ack event_id,'video'| PG
+```
+
+The session state machine is `MATCHED → EN_ROUTE → ARRIVED → IN_PROGRESS` plus terminal `CANCELED | EXPIRED`. Every advancing/terminal transition is a **single-winner** conditional write (`UPDATE ... WHERE id=:id AND state=:expected`) that, in the SAME transaction, sets the derived timestamps AND writes the `service_outbox` event — so history can never observe an `ARRIVED` session without `arrived_at`, nor a `service_arrived` event without a committed arrival. **Fan-out has no shared `relayed_at`:** the notifications (Spec 16) and video (Spec 18) consumers each drain `service_outbox` via their own `(event_id, consumer_name)` row in `service_outbox_consumers`, so one acking `service_arrived` never starves the other; service-tracking itself consumes the upstream `service_activation_ready` via its own `service_activation_consumed` cursor rather than a shared marker. **Deletion coherence (Spec 13 invariant):** `offer_id` CASCADEs; `host_id`/`cleaner_id`/`property_id` are `ON DELETE SET NULL`; there is no `deleted_at` and no user-cascade path. The geofence survives a mid-session property deletion because it uses `property_location_snapshot`, not the live property row.
+
+---
+
+*Last updated: September 30, 2026*
 *Update this document on EVERY structural change.*

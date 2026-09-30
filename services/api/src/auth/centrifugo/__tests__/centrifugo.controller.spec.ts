@@ -2,6 +2,7 @@ import { ForbiddenException } from '@nestjs/common';
 import { Repository } from 'typeorm';
 
 import { ChatParticipationService } from '../../../chat/chat-participation.service';
+import { ServiceSessionParticipationService } from '../../../service-tracking/service-session-participation.service';
 import { User } from '../../entities/user.entity';
 import { JwtUserPayload } from '../../guards/jwt.types';
 import { CentrifugoController } from '../centrifugo.controller';
@@ -34,17 +35,27 @@ describe('CentrifugoController', () => {
   const tokenService = {
     mintConnectionToken: jest.fn().mockReturnValue('connection-token'),
     mintSubscriptionToken: jest.fn().mockReturnValue('subscription-token'),
+    mintSubscriptionTokenWithTtl: jest.fn().mockReturnValue('service-subscription-token'),
   } as unknown as CentrifugoTokenService;
 
   const participation = {
     isParticipant: jest.fn(),
   } as unknown as ChatParticipationService;
 
+  const serviceParticipation = {
+    isParticipant: jest.fn(),
+  } as unknown as ServiceSessionParticipationService;
+
   const userRepository = {
     findOne: jest.fn(),
   } as unknown as Repository<User>;
 
-  const controller = new CentrifugoController(tokenService, participation, userRepository);
+  const controller = new CentrifugoController(
+    tokenService,
+    participation,
+    serviceParticipation,
+    userRepository,
+  );
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -84,6 +95,26 @@ describe('CentrifugoController', () => {
       controller.getToken(makeRequest() as never, 'offers:cleaner:user-1'),
     ).rejects.toBeInstanceOf(ForbiddenException);
     expect(participation.isParticipant).not.toHaveBeenCalled();
+  });
+
+  it('returns a read-only service-session subscription token for a participant', async () => {
+    (serviceParticipation.isParticipant as jest.Mock).mockResolvedValue(true);
+    const res = await controller.getToken(makeRequest() as never, 'service:session:sess-9');
+    expect(res.token).toBe('service-subscription-token');
+    expect(serviceParticipation.isParticipant).toHaveBeenCalledWith('user-1', 'sess-9');
+    expect(tokenService.mintSubscriptionTokenWithTtl).toHaveBeenCalledWith(
+      'user-1',
+      'service:session:sess-9',
+      expect.any(Number),
+    );
+  });
+
+  it('denies a service-session token to a non-participant (403)', async () => {
+    (serviceParticipation.isParticipant as jest.Mock).mockResolvedValue(false);
+    await expect(
+      controller.getToken(makeRequest() as never, 'service:session:sess-9'),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(tokenService.mintSubscriptionTokenWithTtl).not.toHaveBeenCalled();
   });
 
   it('rejects when the authenticated user cannot be resolved', async () => {

@@ -24,19 +24,28 @@ import {
 export class CentrifugoTokenService {
   /** Mint a connection token binding the socket to the authenticated user. */
   mintConnectionToken(userId: string): string {
-    return this.sign({ sub: userId });
+    return this.sign({ sub: userId }, CHAT_CONNECTION_TOKEN_TTL_SECONDS);
   }
 
   /** Mint a subscription token scoping the authenticated user to a single channel. */
   mintSubscriptionToken(userId: string, channel: string): string {
-    return this.sign({ sub: userId, channel });
+    return this.sign({ sub: userId, channel }, CHAT_CONNECTION_TOKEN_TTL_SECONDS);
   }
 
-  /** Sign an HS256 token with a bounded expiry from configuration. */
-  private sign(claims: Readonly<Record<string, string>>): string {
+  /**
+   * Mint a subscription token with a caller-supplied TTL (seconds). Used by the service-tracking
+   * `service:session:{id}` channel, which has its own `SERVICE_POSITION_TOKEN_TTL_SECONDS`; the
+   * token still carries no publish grant (read-only), and the secret never reaches the client.
+   */
+  mintSubscriptionTokenWithTtl(userId: string, channel: string, ttlSeconds: number): string {
+    return this.sign({ sub: userId, channel }, ttlSeconds);
+  }
+
+  /** Sign an HS256 token with a bounded expiry. */
+  private sign(claims: Readonly<Record<string, string>>, ttlSeconds: number): string {
     return jwt.sign(claims, CENTRIFUGO_TOKEN_SECRET, {
       algorithm: 'HS256',
-      expiresIn: CHAT_CONNECTION_TOKEN_TTL_SECONDS,
+      expiresIn: ttlSeconds,
     });
   }
 }

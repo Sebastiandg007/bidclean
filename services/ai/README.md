@@ -18,7 +18,7 @@ AI/ML microservice for BidClean. Handles all machine learning, computer vision, 
 | `health/` | Health check endpoint | ✅ Active |
 | `kyc/` | KYC: document OCR (PaddleOCR) + face comparison (DeepFace) + liveness (Silent-Face) | ✅ Active |
 | `translation/` | Text translation (LibreTranslate) + language detection | 🔲 Planned |
-| `speech/` | Speech-to-text (Whisper.cpp) + Text-to-speech (Piper) | 🔲 Planned |
+| `speech/` | Speech-to-text for voice notes (Whisper.cpp, Spec 14) + Text-to-speech (Piper) | 🟡 Transcription active |
 | `pricing/` | AI price estimation based on property photos/data (Bedrock) | 🔲 Planned |
 
 ## API Endpoints
@@ -29,6 +29,26 @@ AI/ML microservice for BidClean. Handles all machine learning, computer vision, 
 | POST | `/ai/ocr` | Extract text and face from document image | Bearer token |
 | POST | `/ai/face-compare` | Compare two face images, return similarity | Bearer token |
 | POST | `/ai/liveness` | Detect liveness/spoofing in selfie | Bearer token |
+| POST | `/transcribe` | Transcribe a voice-note audio clip (bytes only) → `{ text, language }` | Bearer token |
+
+### `/transcribe` (voice notes, Spec 14)
+
+Accepts audio **bytes** via multipart (`audio` field) and returns `{ text, language }`.
+**Option A**: the AI service receives only the bytes and is given **no MinIO/storage access** — the
+NestJS transcription worker fetches the object from storage and posts the bytes here. Whisper.cpp
+runs on CPU behind a swappable `TranscriptionEngine` (so CI/tests inject a stub without the native
+binary). Audio and transcript text are never logged. Errors: `422` for empty/oversized/unusable
+audio, `401` for a missing/invalid Bearer token.
+
+```
+src/speech/
+├── router.py                 # POST /transcribe (multipart bytes → { text, language })
+├── config.py                 # SpeechSettings (whisper model/lang, max audio bytes)
+├── models.py                 # TranscribeResponse
+├── exceptions.py             # SpeechError / UnusableAudioError / EmptyAudioError
+├── transcription_service.py  # TranscriptionService + TranscriptionEngine protocol
+└── engine.py                 # get_transcription_engine() (Whisper.cpp in prod; stub in tests)
+```
 
 ## KYC Module Structure
 
@@ -77,6 +97,9 @@ poetry run ruff check src/
 | `KYC_FACE_SIMILARITY_THRESHOLD` | Minimum face similarity (0.0–1.0) | No | 0.6 |
 | `KYC_LIVENESS_THRESHOLD` | Minimum liveness score (0.0–1.0) | No | 0.8 |
 | `KYC_MAX_FILE_SIZE_MB` | Maximum upload file size in MB | No | 10 |
+| `WHISPER_MODEL` | Whisper.cpp model name/size for `/transcribe` | No | base |
+| `WHISPER_LANGUAGE` | Forced language code (empty = auto-detect) | No | (auto) |
+| `SPEECH_MAX_AUDIO_BYTES` | Reject `/transcribe` audio larger than this | No | 26214400 |
 | `AWS_REGION` | AWS region for Bedrock | Yes | — |
 | `LIBRE_TRANSLATE_URL` | LibreTranslate service URL | Yes | — |
 

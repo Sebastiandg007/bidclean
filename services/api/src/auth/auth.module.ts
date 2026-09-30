@@ -16,6 +16,7 @@ import { AuthSession } from './entities/auth-session.entity';
 import { BiometricCredential } from './entities/biometric-credential.entity';
 import { BiometricChallenge } from './entities/biometric-challenge.entity';
 import { ChatModule } from '../chat/chat.module';
+import { ServiceTrackingModule } from '../service-tracking/service-tracking.module';
 
 /**
  * Authentication module.
@@ -28,6 +29,7 @@ import { ChatModule } from '../chat/chat.module';
     TypeOrmModule.forFeature([User, AuthSession, BiometricCredential, BiometricChallenge]),
     ScheduleModule.forRoot(),
     ChatModule,
+    ServiceTrackingModule,
   ],
   controllers: [AuthController, CentrifugoController],
   providers: [

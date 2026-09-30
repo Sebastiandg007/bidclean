@@ -6,6 +6,7 @@ import { DataSource, Repository } from 'typeorm';
 import { ChatRepository } from '../chat.repository';
 import { ChatParticipationService } from '../chat-participation.service';
 import { CentrifugoController } from '../../auth/centrifugo/centrifugo.controller';
+import { ServiceSessionParticipationService } from '../../service-tracking/service-session-participation.service';
 import { CentrifugoTokenService } from '../../auth/centrifugo/centrifugo-token.service';
 import { User } from '../../auth/entities/user.entity';
 import { JwtUserPayload } from '../../auth/guards/jwt.types';
@@ -233,12 +234,14 @@ describe('P10 (14.4) — token scoping', () => {
   } {
     const tokenService = new CentrifugoTokenService();
     const participation = { isParticipant: jest.fn().mockResolvedValue(isParticipant) };
+    const serviceParticipation = { isParticipant: jest.fn().mockResolvedValue(false) };
     const userRepository = {
       findOne: jest.fn().mockResolvedValue({ id: 'user-1' } as User),
     } as unknown as Repository<User>;
     const controller = new CentrifugoController(
       tokenService,
       participation as unknown as ChatParticipationService,
+      serviceParticipation as unknown as ServiceSessionParticipationService,
       userRepository,
     );
     return { controller, participation };

@@ -26,6 +26,8 @@ import { OfferDetailScreen } from '../screens/offers/OfferDetailScreen';
 import { OFFER_ROUTES } from '../screens/offers/offers.constants';
 import { ChatEntryScreen } from '../screens/chat/ChatEntryScreen';
 import { CHAT_ROUTE } from '../screens/chat/chat.constants';
+import { TrackingScreen } from '../screens/tracking/TrackingScreen';
+import { TRACKING_SCREEN_ROUTE } from '../screens/tracking/tracking.constants';
 
 // ─── Design Tokens ───────────────────────────────────────────────────────────
 
@@ -178,6 +180,12 @@ function OffersStackNavigator() {
     case CHAT_ROUTE:
       return (
         <ChatEntryScreen navigation={navigation} route={route as { params: { threadId: string } }} />
+      );
+
+    case TRACKING_SCREEN_ROUTE:
+      // Host watches the Cleaner approach on the map (Spec 17), keyed by the session id.
+      return (
+        <TrackingScreen navigation={navigation} route={route as { params: { sessionId: string } }} />
       );
 
     default:

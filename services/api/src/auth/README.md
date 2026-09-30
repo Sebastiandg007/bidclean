@@ -21,7 +21,7 @@ Handles user authentication and registration for BidClean. Manages Keycloak-dele
 | `session/session.types.ts` | Session metadata interfaces |
 | `guards/jwt-auth.guard.ts` | JWT validation guard (Keycloak JWKS) |
 | `guards/rate-limit.guard.ts` | Redis-backed rate limiting guard |
-| `centrifugo/centrifugo.controller.ts` | `GET /auth/centrifugo/token` — mints connection tokens, and per-channel subscription tokens only after the chat participation check confirms the caller is a participant |
+| `centrifugo/centrifugo.controller.ts` | `GET /auth/centrifugo/token` — mints connection tokens, and per-channel subscription tokens only after the participation check confirms the caller is a participant. Handles both `chat:conversation:{id}` (via `ChatParticipationService`) and `service:session:{id}` (Spec 17, via `ServiceSessionParticipationService`; read-only Host scope, no publish grant, TTL from `SERVICE_POSITION_TOKEN_TTL_SECONDS`) |
 | `centrifugo/centrifugo-token.service.ts` | Signs Centrifugo connection + subscription tokens (HMAC-SHA256) for the authenticated subject's own user id |
 | `dto/register.dto.ts` | Registration input validation |
 | `dto/register-biometric.dto.ts` | Biometric registration input validation |
@@ -34,6 +34,7 @@ Handles user authentication and registration for BidClean. Manages Keycloak-dele
 - **Redis** — Rate limiting counters, ephemeral data
 - **Centrifugo** — WebSocket transport; auth signs its connection/subscription tokens (shared `CENTRIFUGO_TOKEN_SECRET`)
 - **Chat module** — auth consults `ChatParticipationService.isParticipant()` before minting a per-channel subscription token; auth owns token issuance, chat owns participation
+- **Service-tracking module (Spec 17)** — auth consults `ServiceSessionParticipationService.isParticipant()` before minting a `service:session:{id}` subscription token (read-only Host, no publish grant); auth owns token issuance, service-tracking owns participation
 
 ## API
 
@@ -49,7 +50,7 @@ Handles user authentication and registration for BidClean. Manages Keycloak-dele
 | POST | `/auth/biometric/challenge` | Generate nonce for biometric verify | Device ID |
 | POST | `/auth/biometric/verify` | Verify biometric signature, issue tokens | Challenge + signature |
 | GET | `/auth/me` | Get current user info | Access token |
-| GET | `/auth/centrifugo/token` | Mint a Centrifugo connection token, or a per-channel subscription token when `?channel=chat:conversation:{id}` and the caller is a participant | Access token |
+| GET | `/auth/centrifugo/token` | Mint a Centrifugo connection token, or a per-channel subscription token when `?channel=chat:conversation:{id}` or `?channel=service:session:{id}` and the caller is a participant | Access token |
 
 ## Environment Variables
 
