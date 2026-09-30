@@ -15,6 +15,8 @@ import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { ChatModule } from './chat/chat.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { ServiceTrackingModule } from './service-tracking/service-tracking.module';
+import { VideoVerificationModule } from './video-verification/video-verification.module';
+import { ChecklistPhotosModule } from './checklist-photos/checklist-photos.module';
 
 /**
  * Root application module.
@@ -52,6 +54,8 @@ import { ServiceTrackingModule } from './service-tracking/service-tracking.modul
     ChatModule,
     NotificationsModule,
     ServiceTrackingModule,
+    VideoVerificationModule,
+    ChecklistPhotosModule,
   ],
 })
 export class AppModule {}

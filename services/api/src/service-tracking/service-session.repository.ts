@@ -268,6 +268,21 @@ export class ServiceSessionRepository {
     return rows.map((row) => ({ eventId: row.event_id, payload: row.payload }));
   }
 
+  /**
+   * Resolve the property's `checklistItems` read-only (never writes properties) for the
+   * `service_started` snapshot carried to checklist-photos (Spec 19). This is a read-only
+   * cross-module query mirroring the payments `resolveAgreedPriceCents` precedent; it captures the
+   * checklist as-of the IN_PROGRESS transition so an in-flight run is temporally exact. Returns an
+   * empty array when the property has no items or cannot be resolved (a zero-task run is valid).
+   */
+  async resolvePropertyChecklistItems(propertyId: string): Promise<string[]> {
+    const rows = await this.dataSource.query<Array<{ checklist_items: string[] }>>(
+      `SELECT "checklist_items" FROM "properties" WHERE "id" = $1 LIMIT 1`,
+      [propertyId],
+    );
+    return rows[0]?.checklist_items ?? [];
+  }
+
   /** Record service-tracking's ack of an upstream activation row (idempotent). */
   async markActivationConsumed(upstreamEventId: string): Promise<void> {
     await this.dataSource.query(

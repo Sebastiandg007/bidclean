@@ -74,6 +74,19 @@ export const SERVICE_ACTIVATION_DRAIN_INTERVAL_MS = envInt(
 /** HMAC-SHA256 secret used to sign the session channel subscription token (server-side, shared). */
 export const CENTRIFUGO_TOKEN_SECRET = process.env.CENTRIFUGO_TOKEN_SECRET ?? '';
 
+/**
+ * Checklist-photos policy snapshot values (Spec 19), read here so the `service_started` event can
+ * carry the checklist + policy snapshot as-of IN_PROGRESS without service-tracking importing the
+ * checklist-photos module. These mirror the `CHECKLIST_*` config the checklist module reads; a
+ * later config change never re-validates an in-flight run because the run snapshots the value the
+ * event carried. Defaults keep the event valid before the vars are configured.
+ */
+export const CHECKLIST_PHOTO_REQUIRED_POLICY =
+  process.env.CHECKLIST_PHOTO_REQUIRED_POLICY ?? 'NONE';
+export const CHECKLIST_COMPLETION_PRECONDITION =
+  process.env.CHECKLIST_COMPLETION_PRECONDITION ?? 'NONE';
+export const CHECKLIST_PHOTO_MAX_PER_TASK = envInt('CHECKLIST_PHOTO_MAX_PER_TASK', '5');
+
 /** BullMQ queue + repeatable job names for the service-tracking sweep. */
 export const SERVICE_SWEEP_QUEUE_NAME = 'service-tracking-sweep';
 export const SERVICE_SWEEP_JOB_NAME = 'service-tracking-sweep-job';

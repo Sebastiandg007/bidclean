@@ -948,3 +948,52 @@ The session state machine is `MATCHED → EN_ROUTE → ARRIVED → IN_PROGRESS` 
 
 *Last updated: September 30, 2026*
 *Update this document on EVERY structural change.*
+
+## 11. On-Arrival Video Verification (Spec 18 — video-verification)
+
+An advisory on-arrival identity check: when service-tracking's `service_arrived` fires, the Cleaner records a short clip and an async DeepFace worker compares it against the Cleaner's VERIFIED KYC selfie. The result is **derived data, never a gate** — it surfaces the Host a classification (verified / needs-review / unavailable), never blocks the service, seizes escrow, or changes KYC. Arrival video lives briefly (24–48h from `uploaded_at`) in a private MinIO bucket with **no playback endpoint**.
+
+```mermaid
+graph LR
+    ST[("service_outbox<br/>service_arrived (Spec 17)")] -->|"drain consumer_name='video'"| AC[VerificationArrivalConsumer]
+    AC -->|"createFromArrival (idempotent)"| VS[("verification_sessions<br/>PENDING_UPLOAD | DISABLED")]
+    CL["Cleaner (expo-camera)"] -->|"1. request-upload (grant first)"| API[VideoVerificationController]
+    API -->|"presigned PUT"| MV[("MinIO verification-videos<br/>private, SSE, 24-48h")]
+    CL -->|"2. PUT bytes direct"| MV
+    CL -->|"3. finalize (server inspect)"| API
+    API -->|"beginProcessing (atomic UPLOADED→PROCESSING +attempt)"| VS
+    W[FaceComparisonProcessor] -->|"read video (Option A)"| MV
+    W -->|"read VERIFIED selfie (read-only)"| KYC[("MinIO KYC bucket")]
+    W -->|"POST bytes"| AI["FastAPI /verify-face<br/>DeepFace (no storage creds)"]
+    AI -->|"{score, decision}"| W
+    W -->|"writeResultGuarded (latest attempt)"| VS
+    VS -->|"verification_outbox<br/>completed / flagged"| PUSH["push-notifications (Spec 16)"]
+    VS -->|"derived classification only"| HOST["Host indicator"]
+    DEL["Retention + Tombstone jobs"] -->|"hard-delete past horizon (idempotent)"| MV
+```
+
+Durable-first single-winner transitions write the `verification_outbox` row in the same transaction (decision-bearing terminals only). Deletion coherence mirrors the siblings: `cleaner_id`/`host_id` `ON DELETE SET NULL`, `service_session_id`/`offer_id` CASCADE, a `BEFORE DELETE` tombstone trigger queues any remaining object for eventual idempotent deletion, and the record itself has no `deleted_at`. See ADR-016.
+
+## 12. Checklist & Evidence Photos (Spec 19 — checklist-photos)
+
+While a service is `IN_PROGRESS`, the Cleaner works the property's cleaning checklist, marking tasks done and attaching before/after photo evidence. The durable completion record is what Spec 20 (completion + release) settles on and Spec 21 (disputes) uses as evidence. The run is created from the durable `service_started` event (own `consumer_name='checklist'` checkpoint), and the checklist tasks + policies are snapshotted **as-of IN_PROGRESS**, carried on the event (an additive, backward-safe payload extension).
+
+```mermaid
+graph LR
+    ST[("service_outbox<br/>service_started + checklist/policy snapshot")] -->|"drain consumer_name='checklist'"| SC[ChecklistStartedConsumer]
+    SC -->|"createFromStarted (idempotent)"| RUN[("checklist_runs (ACTIVE)<br/>+ checklist_tasks snapshot")]
+    CL["Cleaner"] -->|"mark task (run-locked count invariant)"| RUN
+    CL -->|"1. request-upload (atomic per-task slot reservation)"| API[ChecklistController]
+    API -->|"presigned PUT"| MP[("MinIO checklist-photos<br/>private")]
+    CL -->|"2. PUT bytes direct"| MP
+    CL -->|"3. finalize-photo (run-locked, cap re-validated)"| API
+    API -->|"insert checklist_task_photos"| RUN
+    HOST["Host / Cleaner"] -->|"playback-url (session-scoped, participant-gated)"| API
+    API -->|"presigned GET (key from DB)"| MP
+    CL -->|"finalize (run-locked, single-winner ACTIVE→COMPLETED)"| RUN
+    RUN -->|"checklist_outbox<br/>checklist_completed"| DOWN["Spec 20 completion + Spec 21 disputes"]
+    TERM["offer/session terminal"] -->|"force-ABANDONED (idempotent)"| RUN
+    DEL["Retention + Tombstone + Stale-grant jobs"] -->|"hard-delete past horizon (idempotent)"| MP
+```
+
+`finalize-photo` and `finalize-checklist` serialize on the same `checklist_runs` row lock, so a `COMPLETED` run's `photoCount` never omits a committed photo. Playback is session-scoped (a cross-session `photoId` → `404`) and the Host MAY view evidence (unlike the verification video). Deletion coherence: `issued_to_user_id`/`property_id` `ON DELETE SET NULL`, `service_session_id`/`offer_id`/`run_id`/`task_id` CASCADE, `BEFORE DELETE` tombstone trigger, no `deleted_at` on metadata. See ADR-017.

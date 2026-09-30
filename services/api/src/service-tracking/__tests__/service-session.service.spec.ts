@@ -62,6 +62,7 @@ function buildRepo(initial: ServiceSessionRow): {
       captured.touched += 1;
     }),
     evaluateGeofence: jest.fn(),
+    resolvePropertyChecklistItems: jest.fn(async () => [] as string[]),
     transition: jest.fn(
       async (
         id: string,

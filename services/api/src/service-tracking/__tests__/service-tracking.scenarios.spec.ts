@@ -95,6 +95,11 @@ class FakeRepo {
     }
   }
 
+  async resolvePropertyChecklistItems(_propertyId: string): Promise<string[]> {
+    void _propertyId;
+    return [];
+  }
+
   async transition(
     id: string,
     expected: SessionState,

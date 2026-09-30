@@ -8,6 +8,9 @@ import {
 } from '@nestjs/common';
 
 import {
+  CHECKLIST_COMPLETION_PRECONDITION,
+  CHECKLIST_PHOTO_MAX_PER_TASK,
+  CHECKLIST_PHOTO_REQUIRED_POLICY,
   SERVICE_GEOFENCE_RADIUS_M,
   SERVICE_POSITION_MAX_ACCURACY_M,
   SERVICE_POSITION_MAX_AGE_MS,
@@ -17,6 +20,7 @@ import {
 import { GeofenceService } from './geofence.service';
 import { ServiceSessionRepository, ServiceSessionRow } from './service-session.repository';
 import {
+  StartedChecklistSnapshot,
   buildArrivedOutboxRow,
   buildEnRouteOutboxRow,
   buildStartedOutboxRow,
@@ -85,17 +89,41 @@ export class ServiceSessionService {
     return this.requireWinner(winner, sessionId);
   }
 
-  /** Cleaner begins work: single-winner ARRIVED → IN_PROGRESS (+ service_started). */
+  /**
+   * Cleaner begins work: single-winner ARRIVED → IN_PROGRESS (+ service_started).
+   *
+   * The `service_started` event additionally carries the property's checklist + the checklist
+   * policy snapshot as-of this IN_PROGRESS transition (Spec 19, backward-safe payload extension), so
+   * checklist-photos can build a temporally-exact run without re-reading the live property/config.
+   * Resolving the checklist is a read-only cross-module query (never writes the property) and never
+   * blocks the transition — an unresolvable checklist yields a zero-task run downstream.
+   */
   async start(sessionId: string, userId: string): Promise<ServiceSessionView> {
     const session = await this.requireCleaner(sessionId, userId);
+    const snapshot = await this.resolveStartedSnapshot(session);
     const winner = await this.repository.transition(
       sessionId,
       SessionState.ARRIVED,
       SessionState.IN_PROGRESS,
       { startedAt: true, endedReason: EndedReason.STARTED },
-      buildStartedOutboxRow(this.outboxIds(session)),
+      buildStartedOutboxRow(this.outboxIds(session), snapshot),
     );
     return this.requireWinner(winner, sessionId);
+  }
+
+  /** Resolve the checklist + policy snapshot carried on `service_started` (Spec 19). */
+  private async resolveStartedSnapshot(
+    session: ServiceSessionRow,
+  ): Promise<StartedChecklistSnapshot> {
+    const checklistItems = session.property_id
+      ? await this.repository.resolvePropertyChecklistItems(session.property_id)
+      : [];
+    return {
+      checklistItems,
+      photoRequiredPolicy: CHECKLIST_PHOTO_REQUIRED_POLICY,
+      completionPrecondition: CHECKLIST_COMPLETION_PRECONDITION,
+      maxPhotosPerTask: CHECKLIST_PHOTO_MAX_PER_TASK,
+    };
   }
 
   /** Explicit participant cancel: single-winner non-terminal → CANCELED (CANCELED_BY_PARTICIPANT). */
@@ -246,18 +274,20 @@ export class ServiceSessionService {
     return session;
   }
 
-  /** The ids every outbox event carries (never PII). */
+  /** The ids every outbox event carries (never PII). `propertyId` is additive for Spec 19. */
   private outboxIds(session: ServiceSessionRow): {
     sessionId: string;
     offerId: string;
     cleanerId: string | null;
     hostId: string | null;
+    propertyId: string | null;
   } {
     return {
       sessionId: session.id,
       offerId: session.offer_id,
       cleanerId: session.cleaner_id,
       hostId: session.host_id,
+      propertyId: session.property_id,
     };
   }
 
