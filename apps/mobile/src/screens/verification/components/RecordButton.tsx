@@ -7,9 +7,9 @@
  */
 
 import React from 'react';
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { Pressable, Text } from 'react-native';
 
-import { VERIFICATION_COLORS } from '../verification.constants';
+import { makeStyles } from '../../../theme';
 
 export interface RecordButtonProps {
   readonly isRecording: boolean;
@@ -21,6 +21,7 @@ export interface RecordButtonProps {
 
 export function RecordButton(props: RecordButtonProps): React.JSX.Element {
   const { isRecording, disabled, recordLabel, stopLabel, onPress } = props;
+  const styles = useStyles();
   return (
     <Pressable
       testID="verification-record-button"
@@ -35,15 +36,15 @@ export function RecordButton(props: RecordButtonProps): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   button: {
     paddingVertical: 16,
     paddingHorizontal: 24,
     borderRadius: 32,
     alignItems: 'center',
   },
-  idle: { backgroundColor: VERIFICATION_COLORS.ACCENT },
-  recording: { backgroundColor: '#FF5A5F' },
+  idle: { backgroundColor: theme.accent },
+  recording: { backgroundColor: theme.danger },
   disabled: { opacity: 0.4 },
-  label: { color: VERIFICATION_COLORS.BACKGROUND, fontSize: 16, fontWeight: '700' },
-});
+  label: { color: theme.onAccent, fontSize: 16, fontWeight: '700' },
+}));

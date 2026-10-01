@@ -4,15 +4,10 @@
  */
 
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
-const COLORS = {
-  card: 'rgba(255, 92, 92, 0.12)',
-  border: '#FF5C5C',
-  title: '#FF8080',
-  body: 'rgba(255, 255, 255, 0.75)',
-} as const;
+import { makeStyles } from '../../../theme';
 
 const SPACING = { xs: 4, sm: 8, md: 16 } as const;
 const FONT_SIZE = { title: 15, body: 13 } as const;
@@ -24,6 +19,7 @@ export interface DisputeBannerProps {
 
 export function DisputeBanner({ testID }: DisputeBannerProps): React.JSX.Element {
   const { t } = useTranslation('payments');
+  const styles = useStyles();
 
   return (
     <View style={styles.card} testID={testID ?? 'dispute-banner'}>
@@ -33,10 +29,10 @@ export function DisputeBanner({ testID }: DisputeBannerProps): React.JSX.Element
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   card: {
-    backgroundColor: COLORS.card,
-    borderColor: COLORS.border,
+    backgroundColor: theme.surfaceElevated,
+    borderColor: theme.danger,
     borderWidth: 1,
     borderRadius: RADIUS,
     padding: SPACING.md,
@@ -45,10 +41,10 @@ const styles = StyleSheet.create({
   title: {
     fontSize: FONT_SIZE.title,
     fontWeight: '700',
-    color: COLORS.title,
+    color: theme.danger,
   },
   body: {
     fontSize: FONT_SIZE.body,
-    color: COLORS.body,
+    color: theme.textSecondary,
   },
-});
+}));

@@ -13,7 +13,6 @@ import {
   Modal,
   Platform,
   Pressable,
-  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
@@ -21,22 +20,10 @@ import {
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
+import { makeStyles, useTheme } from '../../../../theme';
 import { useRadarStore } from '../../useRadarStore';
 
 // ─── Design Tokens ───────────────────────────────────────────────────────────
-
-const COLORS = {
-  background: '#0B0C10',
-  card: '#1F2833',
-  accent: '#00F5D4',
-  accentSubtle: 'rgba(0, 245, 212, 0.12)',
-  textPrimary: '#FFFFFF',
-  textSecondary: 'rgba(255, 255, 255, 0.6)',
-  chipBorder: 'rgba(255, 255, 255, 0.15)',
-  chipSelectedBorder: '#00F5D4',
-  overlay: 'rgba(0, 0, 0, 0.6)',
-  inputBorder: 'rgba(255, 255, 255, 0.2)',
-} as const;
 
 const SPACING = {
   xs: 4,
@@ -159,6 +146,8 @@ function parseDateInput(dateStr: string): string | null {
 
 export function DateRangeFilter(): React.JSX.Element {
   const { t } = useTranslation('radar');
+  const styles = useStyles();
+  const { theme } = useTheme();
   const scheduledAfter = useRadarStore((state) => state.filters.scheduledAfter);
   const scheduledBefore = useRadarStore((state) => state.filters.scheduledBefore);
   const setFilters = useRadarStore((state) => state.setFilters);
@@ -262,7 +251,7 @@ export function DateRangeFilter(): React.JSX.Element {
                 value={customAfter}
                 onChangeText={setCustomAfter}
                 placeholder="YYYY-MM-DD"
-                placeholderTextColor={COLORS.textSecondary}
+                placeholderTextColor={theme.textSecondary}
                 keyboardType={Platform.OS === 'ios' ? 'numbers-and-punctuation' : 'default'}
                 testID="custom-date-after-input"
               />
@@ -276,7 +265,7 @@ export function DateRangeFilter(): React.JSX.Element {
                 value={customBefore}
                 onChangeText={setCustomBefore}
                 placeholder="YYYY-MM-DD"
-                placeholderTextColor={COLORS.textSecondary}
+                placeholderTextColor={theme.textSecondary}
                 keyboardType={Platform.OS === 'ios' ? 'numbers-and-punctuation' : 'default'}
                 testID="custom-date-before-input"
               />
@@ -311,14 +300,14 @@ export function DateRangeFilter(): React.JSX.Element {
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   container: {
     width: '100%',
   },
   label: {
     fontSize: FONT_SIZE.label,
     fontWeight: '600',
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
     marginBottom: SPACING.md,
   },
   chipContainer: {
@@ -331,25 +320,25 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.sm,
     borderRadius: CHIP_BORDER_RADIUS,
     borderWidth: CHIP_BORDER_WIDTH,
-    borderColor: COLORS.chipBorder,
+    borderColor: theme.border,
     backgroundColor: 'transparent',
   },
   chipSelected: {
-    borderColor: COLORS.chipSelectedBorder,
-    backgroundColor: COLORS.accentSubtle,
+    borderColor: theme.accent,
+    backgroundColor: theme.surfaceElevated,
   },
   chipText: {
     fontSize: FONT_SIZE.chip,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
     fontWeight: '500',
   },
   chipTextSelected: {
-    color: COLORS.accent,
+    color: theme.accent,
   },
   // Modal
   modalOverlay: {
     flex: 1,
-    backgroundColor: COLORS.overlay,
+    backgroundColor: theme.overlay,
   },
   modalContainer: {
     position: 'absolute',
@@ -361,7 +350,7 @@ const styles = StyleSheet.create({
     top: 0,
   },
   modalContent: {
-    backgroundColor: COLORS.card,
+    backgroundColor: theme.surface,
     borderRadius: MODAL_BORDER_RADIUS,
     padding: SPACING.xl,
     marginHorizontal: SPACING.lg,
@@ -371,7 +360,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: FONT_SIZE.label,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
     marginBottom: SPACING.lg,
     textAlign: 'center',
   },
@@ -380,16 +369,16 @@ const styles = StyleSheet.create({
   },
   inputLabel: {
     fontSize: FONT_SIZE.chip,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
     marginBottom: SPACING.xs,
   },
   dateInput: {
     borderWidth: INPUT_BORDER_WIDTH,
-    borderColor: COLORS.inputBorder,
+    borderColor: theme.border,
     borderRadius: INPUT_BORDER_RADIUS,
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
     fontSize: FONT_SIZE.input,
   },
   modalActions: {
@@ -406,22 +395,22 @@ const styles = StyleSheet.create({
   },
   cancelButtonText: {
     fontSize: FONT_SIZE.button,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
     fontWeight: '500',
   },
   applyButton: {
     flex: 1,
     paddingVertical: SPACING.md,
     borderRadius: BUTTON_BORDER_RADIUS,
-    backgroundColor: COLORS.accent,
+    backgroundColor: theme.accent,
     alignItems: 'center',
     marginLeft: SPACING.sm,
   },
   applyButtonText: {
     fontSize: FONT_SIZE.button,
-    color: COLORS.background,
+    color: theme.onAccent,
     fontWeight: '700',
   },
-});
+}));
 
 export default DateRangeFilter;

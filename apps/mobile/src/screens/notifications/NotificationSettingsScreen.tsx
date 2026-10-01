@@ -2,12 +2,12 @@
  * NotificationSettingsScreen — toggle notification categories and quiet hours.
  *
  * Reads/writes the caller's preferences via the notifications store (backend-persisted). Uses the
- * BidClean dark design tokens (`#00F5D4` accent, `#0B0C10`/`#1F2833` backgrounds) and i18n keys
- * (en/es parity). No business text is hardcoded; every label is a `t(...)` key.
+ * BidClean semantic theme tokens via `useThemedStyles`/`useTheme` and i18n keys (en/es parity). No
+ * business text is hardcoded; every label is a `t(...)` key.
  */
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import { useNotificationsStore } from './notifications.store';
@@ -17,15 +17,7 @@ import {
   type NotificationCategory,
 } from './notifications.constants';
 import type { NotificationPreferences } from './notifications.types';
-
-// ─── Design tokens (BidClean dark) ─────────────────────────────────────────────
-const COLORS = {
-  accent: '#00F5D4',
-  background: '#0B0C10',
-  card: '#1F2833',
-  text: '#FFFFFF',
-  muted: '#9AA5B1',
-} as const;
+import { makeStyles, useTheme } from '../../theme';
 
 const SPACING = { sm: 8, md: 16, lg: 24 } as const;
 
@@ -40,6 +32,8 @@ function CategoryRow({
   onToggle: (next: boolean) => void;
 }): React.JSX.Element {
   const { t } = useTranslation();
+  const styles = useStyles();
+  const { theme } = useTheme();
   return (
     <View style={styles.row} testID={`category-row-${category}`}>
       <Text style={styles.rowLabel}>{t(NOTIFICATIONS_I18N_KEYS.CATEGORY[category])}</Text>
@@ -47,7 +41,7 @@ function CategoryRow({
         testID={`category-switch-${category}`}
         value={enabled}
         onValueChange={onToggle}
-        trackColor={{ false: COLORS.muted, true: COLORS.accent }}
+        trackColor={{ false: theme.textMuted, true: theme.accent }}
       />
     </View>
   );
@@ -55,6 +49,7 @@ function CategoryRow({
 
 export function NotificationSettingsScreen(): React.JSX.Element {
   const { t } = useTranslation();
+  const styles = useStyles();
   const preferences = useNotificationsStore((state) => state.preferences);
   const loadPreferences = useNotificationsStore((state) => state.loadPreferences);
   const savePreferences = useNotificationsStore((state) => state.savePreferences);
@@ -130,12 +125,12 @@ export function NotificationSettingsScreen(): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: COLORS.background },
+const useStyles = makeStyles((theme) => ({
+  screen: { flex: 1, backgroundColor: theme.background },
   content: { padding: SPACING.lg },
-  title: { color: COLORS.text, fontSize: 24, fontWeight: '700', marginBottom: SPACING.lg },
+  title: { color: theme.textPrimary, fontSize: 24, fontWeight: '700', marginBottom: SPACING.lg },
   sectionTitle: {
-    color: COLORS.muted,
+    color: theme.textMuted,
     fontSize: 14,
     textTransform: 'uppercase',
     marginTop: SPACING.lg,
@@ -145,22 +140,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: COLORS.card,
+    backgroundColor: theme.surface,
     paddingVertical: SPACING.md,
     paddingHorizontal: SPACING.md,
     borderRadius: 12,
     marginBottom: SPACING.sm,
   },
-  rowLabel: { color: COLORS.text, fontSize: 16 },
-  rowValue: { color: COLORS.muted, fontSize: 16 },
+  rowLabel: { color: theme.textPrimary, fontSize: 16 },
+  rowValue: { color: theme.textMuted, fontSize: 16 },
   saveButton: {
-    backgroundColor: COLORS.accent,
+    backgroundColor: theme.accent,
     paddingVertical: SPACING.md,
     borderRadius: 12,
     alignItems: 'center',
     marginTop: SPACING.lg,
   },
-  saveButtonText: { color: COLORS.background, fontSize: 16, fontWeight: '700' },
-});
+  saveButtonText: { color: theme.onAccent, fontSize: 16, fontWeight: '700' },
+}));
 
 export default NotificationSettingsScreen;

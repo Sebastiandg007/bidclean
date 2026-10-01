@@ -7,22 +7,14 @@
  */
 
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import { CHAT_I18N_KEYS } from '../chat.constants';
 import type { ConnectionStatus } from '../chat.types';
+import { makeStyles, useTheme } from '../../../theme';
 
 // ─── Design Tokens ───────────────────────────────────────────────────────────
-
-const COLORS = {
-  background: '#0B0C10',
-  card: '#1F2833',
-  accent: '#00F5D4',
-  textPrimary: '#FFFFFF',
-  textMuted: 'rgba(255, 255, 255, 0.5)',
-  offline: '#FF6B6B',
-} as const;
 
 const SPACING = {
   xs: 4,
@@ -63,6 +55,8 @@ export function ConversationHeader({
   title,
 }: ConversationHeaderProps): React.JSX.Element {
   const { t } = useTranslation();
+  const styles = useStyles();
+  const { theme } = useTheme();
   const isConnected = connectionStatus === 'connected';
 
   return (
@@ -83,7 +77,7 @@ export function ConversationHeader({
 
       <View style={styles.status} testID="chat-connection-status">
         <View
-          style={[styles.dot, { backgroundColor: isConnected ? COLORS.accent : COLORS.offline }]}
+          style={[styles.dot, { backgroundColor: isConnected ? theme.accent : theme.danger }]}
         />
         <Text style={styles.statusLabel}>{t(CONNECTION_LABEL_KEYS[connectionStatus])}</Text>
       </View>
@@ -93,32 +87,32 @@ export function ConversationHeader({
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
-    backgroundColor: COLORS.background,
+    backgroundColor: theme.background,
     gap: SPACING.sm,
   },
   backButton: {
     width: BACK_BUTTON_SIZE,
     height: BACK_BUTTON_SIZE,
     borderRadius: BACK_BUTTON_SIZE / 2,
-    backgroundColor: COLORS.card,
+    backgroundColor: theme.surface,
     justifyContent: 'center',
     alignItems: 'center',
   },
   backIcon: {
     fontSize: FONT_SIZE.backIcon,
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
   },
   title: {
     flex: 1,
     fontSize: FONT_SIZE.title,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
   },
   status: {
     flexDirection: 'row',
@@ -132,8 +126,8 @@ const styles = StyleSheet.create({
   },
   statusLabel: {
     fontSize: FONT_SIZE.caption,
-    color: COLORS.textMuted,
+    color: theme.textMuted,
   },
-});
+}));
 
 export default ConversationHeader;

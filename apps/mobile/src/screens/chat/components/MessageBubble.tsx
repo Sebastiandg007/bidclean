@@ -7,22 +7,14 @@
  */
 
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import { CHAT_I18N_KEYS } from '../chat.constants';
 import type { ChatMessage } from '../chat.types';
+import { makeStyles } from '../../../theme';
 
 // ─── Design Tokens ───────────────────────────────────────────────────────────
-
-const COLORS = {
-  accent: '#00F5D4',
-  card: '#1F2833',
-  textPrimary: '#FFFFFF',
-  textOnAccent: '#0B0C10',
-  textMuted: 'rgba(255, 255, 255, 0.5)',
-  failed: '#FF6B6B',
-} as const;
 
 const SPACING = {
   xs: 4,
@@ -50,6 +42,7 @@ export interface MessageBubbleProps {
 
 export function MessageBubble({ message, isOwn }: MessageBubbleProps): React.JSX.Element {
   const { t } = useTranslation();
+  const styles = useStyles();
 
   const stateLabel = ((): string | null => {
     if (!isOwn || message.sendState === undefined) {
@@ -88,7 +81,7 @@ export function MessageBubble({ message, isOwn }: MessageBubbleProps): React.JSX
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   row: {
     marginVertical: SPACING.xs,
     paddingHorizontal: SPACING.md,
@@ -108,26 +101,26 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.sm,
   },
   bubbleOwn: {
-    backgroundColor: COLORS.accent,
+    backgroundColor: theme.accent,
   },
   bubbleOther: {
-    backgroundColor: COLORS.card,
+    backgroundColor: theme.surface,
   },
   body: {
     fontSize: FONT_SIZE.body,
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
   },
   bodyOwn: {
-    color: COLORS.textOnAccent,
+    color: theme.onAccent,
   },
   state: {
     fontSize: FONT_SIZE.caption,
-    color: COLORS.textMuted,
+    color: theme.textMuted,
     marginTop: SPACING.xs,
   },
   stateFailed: {
-    color: COLORS.failed,
+    color: theme.danger,
   },
-});
+}));
 
 export default MessageBubble;

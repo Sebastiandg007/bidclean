@@ -1048,3 +1048,40 @@ graph LR
 ```
 
 Two durable intents (crash-safe, lease-reclaimed) survive the case via `dispute_id ON DELETE SET NULL` (+ `payment_id NOT NULL`), so a cascade never destroys a pending money command. Single-winner terminality (resolve vs SLA-expiry) yields exactly one RESOLVED/EXPIRED + one financial intent; EXPIRED always carries a fallback resolution so the escrow is never blocked forever. The at-most-one-dispute-driven-effect-per-payment guarantee (P15) lives in Spec 9 via a `dispute_settled_at` claim under lock, not merely in a per-dispute constraint. See ADR-019.
+
+## 15. Favorites (Spec 22 — favorites)
+
+A directed Host→Cleaner favorite relationship. favorites owns only the membership (one `favorites` table); it holds no Cleaner-lifecycle logic and exposes a delivery-facing query for offer-radar (Spec 7), which owns eligibility filtering and the favorites-first delivery window.
+
+```mermaid
+graph LR
+    HOST["Host (mobile)"] -->|"add / remove / list (optimistic)"| FC[FavoritesController]
+    FC --> FS[FavoritesService]
+    FS -->|"add under pg_advisory_xact_lock(host_id): exists? → cap? → INSERT ON CONFLICT"| PG[("favorites<br/>UNIQUE(host_id,cleaner_id)<br/>CHECK(host<>cleaner)<br/>both FK ON DELETE CASCADE")]
+    FS -->|"getRoleTier(hostId, HOST)"| SUB["subscriptions (Spec 11)"]
+    FS -. "FavoriteEligibilityPolicy seam (when ALLOW_ADD_WITHOUT_SERVICE=false)" .-> SC["service-completion (Spec 20)<br/>hasQualifyingService"]
+    OR["offer-radar (Spec 7)"] -->|"FavoritesQuery: listFavoriteCleanerIds / isFavorite (ids only, ineligible included)"| FS
+    USERS[("users")] -->|"ON DELETE CASCADE (live relation, not history)"| PG
+```
+
+The CASCADE-from-users here is the deliberate exception to the Spec 13 `SET NULL` invariant: a favorite is a live relation (not an audit fact), so deleting a user removes their favorites. The tier cap is config-driven with no sentinels (`null` = unlimited); a PRO→FREE downgrade is non-destructive (over-cap favorites are retained, only new adds blocked). See ADR-021.
+
+## 16. Theming — Dark/Light (Spec 24 — dark-light-theme)
+
+A centralized, type-safe theming layer (mobile-only). `primitives.ts` is the single physical home of every hex; theme files do only semantic mapping; screens consume tokens via `useTheme()`/`makeStyles`. The whole app was migrated so no color literal lives outside `primitives.ts`.
+
+```mermaid
+graph TD
+    PRIM["primitives.ts<br/>(ONLY hex lives here)"] --> DARK["dark.theme.ts<br/>(semantic mapping)"]
+    PRIM --> LIGHT["light.theme.ts<br/>(semantic mapping)"]
+    DARK --> TOKENS["SemanticTokens<br/>(13 roles, identical shape, compile-enforced parity)"]
+    LIGHT --> TOKENS
+    STORE["useThemeStore<br/>expo-secure-store {version, mode}<br/>last-write-wins; bad/missing → DARK"] --> PROV
+    OS["useColorScheme (live OS)"] --> PROV["ThemeProvider<br/>resolve(mode + OS) → resolvedTheme<br/>NO-FOUC: holds native splash until resolved"]
+    PROV --> TOKENS
+    PROV --> CHROME["useSystemChromeTheme<br/>status bar · RN navigation theme · Android nav bar · keyboard"]
+    TOKENS --> SCREENS["every screen/component<br/>useTheme() / makeStyles(theme => styles)"]
+    APPEAR["AppearanceScreen<br/>Dark / Light / System selector"] --> STORE
+```
+
+`mode` (persisted DARK|LIGHT|SYSTEM) is distinct from `resolvedTheme` (rendered DARK|LIGHT). The accent mint (`#00F5D4`) is interactive emphasis only, never a surface, in both modes. Dark is the default and the reference appearance; the migration preserved it exactly. See ADR-020.

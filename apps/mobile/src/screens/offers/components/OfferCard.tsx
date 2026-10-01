@@ -7,17 +7,17 @@
  */
 
 import React, { useMemo } from 'react';
-import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, Text, TouchableOpacity, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import type { Offer } from '../offers.types';
 import {
-  COLORS,
   FONT_SIZE,
   SERVICE_TYPES,
   SPACING,
   STATE_COLORS,
 } from '../offers.constants';
+import { makeStyles } from '../../../theme';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -39,7 +39,6 @@ const SHADOW_OPACITY = 0.25;
 const SHADOW_RADIUS = 4;
 const ELEVATION = 3;
 const STATE_BADGE_OPACITY = 0.15;
-const SHADOW_COLOR = '#000000';
 const SEPARATOR_CHAR = '•';
 const PLACEHOLDER_ICON = '🏠';
 const ACTIVE_OPACITY = 0.7;
@@ -96,6 +95,7 @@ function hexOpacity(opacity: number): string {
 
 export function OfferCard({ offer, onPress }: OfferCardProps): React.JSX.Element {
   const { t } = useTranslation();
+  const styles = useStyles();
 
   const serviceTypeConfig = useMemo(
     () => SERVICE_TYPES.find((st) => st.value === offer.serviceType),
@@ -208,14 +208,14 @@ export function OfferCard({ offer, onPress }: OfferCardProps): React.JSX.Element
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   card: {
     flexDirection: 'row',
-    backgroundColor: COLORS.card,
+    backgroundColor: theme.surface,
     borderRadius: CARD_BORDER_RADIUS,
     padding: SPACING.md,
     marginBottom: SPACING.sm,
-    shadowColor: SHADOW_COLOR,
+    shadowColor: theme.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: SHADOW_OPACITY,
     shadowRadius: SHADOW_RADIUS,
@@ -230,7 +230,7 @@ const styles = StyleSheet.create({
     borderRadius: PHOTO_BORDER_RADIUS,
   },
   photoPlaceholder: {
-    backgroundColor: COLORS.accentMuted,
+    backgroundColor: theme.surfaceElevated,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -244,13 +244,13 @@ const styles = StyleSheet.create({
   propertyName: {
     fontSize: FONT_SIZE.body,
     fontWeight: '600',
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
   },
   serviceTypeBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
-    backgroundColor: COLORS.accentMuted,
+    backgroundColor: theme.surfaceElevated,
     borderRadius: BADGE_BORDER_RADIUS,
     paddingHorizontal: SPACING.sm,
     paddingVertical: SPACING.xs,
@@ -262,7 +262,7 @@ const styles = StyleSheet.create({
   },
   serviceTypeLabel: {
     fontSize: FONT_SIZE.caption,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
     fontWeight: '500',
   },
   priceRow: {
@@ -273,16 +273,16 @@ const styles = StyleSheet.create({
   priceOffered: {
     fontSize: FONT_SIZE.subtitle,
     fontWeight: '700',
-    color: COLORS.accent,
+    color: theme.accent,
   },
   priceSeparator: {
     fontSize: FONT_SIZE.caption,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
     marginHorizontal: SPACING.xs,
   },
   priceTotal: {
     fontSize: FONT_SIZE.caption,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
   },
   bottomRow: {
     flexDirection: 'row',
@@ -292,7 +292,7 @@ const styles = StyleSheet.create({
   },
   scheduledDate: {
     fontSize: FONT_SIZE.caption,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
   },
   stateBadge: {
     borderRadius: BADGE_BORDER_RADIUS,
@@ -304,6 +304,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textTransform: 'uppercase',
   },
-});
+}));
 
 export default OfferCard;

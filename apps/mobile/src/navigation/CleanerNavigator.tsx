@@ -9,28 +9,21 @@
  */
 
 import { useCallback, useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withSpring,
 } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
+import { makeStyles, useTheme } from '../theme';
 import RoleSwitchButton from '../screens/roles/RoleSwitchButton';
 import { ChatEntryScreen } from '../screens/chat/ChatEntryScreen';
 import { CHAT_ROUTE } from '../screens/chat/chat.constants';
 import { EnRouteScreen } from '../screens/tracking/EnRouteScreen';
 import { EN_ROUTE_SCREEN_ROUTE } from '../screens/tracking/tracking.constants';
 
-// ─── Design Tokens ───────────────────────────────────────────────────────────
-
-const COLORS = {
-  background: '#0B0C10',
-  card: '#1F2833',
-  accent: '#00F5D4',
-  textPrimary: '#FFFFFF',
-  textMuted: 'rgba(255, 255, 255, 0.5)',
-} as const;
+// ─── Layout Tokens ─────────────────────────────────────────────────────────
 
 const SPACING = {
   xs: 4,
@@ -121,6 +114,7 @@ interface StackNavigation {
  */
 function ActiveStackNavigator() {
   const { t } = useTranslation();
+  const styles = useStyles();
   const [stack, setStack] = useState<StackEntry[]>([{ screen: ACTIVE_ROUTES.ActiveList }]);
 
   const navigation: StackNavigation = useMemo(
@@ -174,6 +168,7 @@ function ActiveStackNavigator() {
  */
 function TabScreen({ tabKey, label }: { tabKey: string; label: string }) {
   const { t } = useTranslation();
+  const styles = useStyles();
 
   if (tabKey === 'active') {
     return <ActiveStackNavigator />;
@@ -205,6 +200,8 @@ interface TabButtonProps {
  */
 function TabButton({ tab, isActive, onPress }: TabButtonProps) {
   const { t } = useTranslation();
+  const { theme } = useTheme();
+  const styles = useStyles();
   const scale = useSharedValue(1);
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -219,7 +216,7 @@ function TabButton({ tab, isActive, onPress }: TabButtonProps) {
     scale.value = withSpring(1, SPRING_CONFIG);
   }, [scale]);
 
-  const labelColor = isActive ? COLORS.accent : COLORS.textMuted;
+  const labelColor = isActive ? theme.accent : theme.textMuted;
 
   return (
     <Pressable
@@ -256,6 +253,7 @@ interface TabBarProps {
  * Custom bottom tab bar rendering all Cleaner tabs.
  */
 function CleanerTabBar({ activeIndex, onTabPress }: TabBarProps) {
+  const styles = useStyles();
   return (
     <View
       style={styles.tabBar}
@@ -285,6 +283,7 @@ function CleanerTabBar({ activeIndex, onTabPress }: TabBarProps) {
 export default function CleanerNavigator() {
   const [activeIndex, setActiveIndex] = useState(DEFAULT_TAB_INDEX);
   const { t } = useTranslation();
+  const styles = useStyles();
 
   const handleTabPress = useCallback((index: number) => {
     setActiveIndex(index);
@@ -307,17 +306,17 @@ export default function CleanerNavigator() {
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: theme.background,
   },
   screenArea: {
     flex: 1,
   },
   screenContainer: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: theme.background,
     justifyContent: 'center',
     alignItems: 'center',
     padding: SPACING.lg,
@@ -325,19 +324,19 @@ const styles = StyleSheet.create({
   screenTitle: {
     fontSize: FONT_SIZE.screenTitle,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
     marginBottom: SPACING.sm,
   },
   screenSubtitle: {
     fontSize: FONT_SIZE.screenSubtitle,
-    color: COLORS.textMuted,
+    color: theme.textMuted,
   },
   tabBar: {
     flexDirection: 'row',
     height: TAB_BAR_HEIGHT,
-    backgroundColor: COLORS.card,
+    backgroundColor: theme.surface,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.08)',
+    borderTopColor: theme.divider,
     paddingBottom: SPACING.xs,
   },
   tabButton: {
@@ -364,6 +363,6 @@ const styles = StyleSheet.create({
     width: SPACING.xl,
     height: 3,
     borderRadius: 2,
-    backgroundColor: COLORS.accent,
+    backgroundColor: theme.accent,
   },
-});
+}));

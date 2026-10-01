@@ -19,6 +19,7 @@ import { VideoVerificationModule } from './video-verification/video-verification
 import { ChecklistPhotosModule } from './checklist-photos/checklist-photos.module';
 import { ServiceCompletionModule } from './service-completion/service-completion.module';
 import { DisputeSystemModule } from './dispute-system/dispute-system.module';
+import { FavoritesModule } from './favorites/favorites.module';
 
 /**
  * Root application module.
@@ -60,6 +61,7 @@ import { DisputeSystemModule } from './dispute-system/dispute-system.module';
     ChecklistPhotosModule,
     ServiceCompletionModule,
     DisputeSystemModule,
+    FavoritesModule,
   ],
 })
 export class AppModule {}

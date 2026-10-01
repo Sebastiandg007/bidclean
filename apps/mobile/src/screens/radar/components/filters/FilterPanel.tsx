@@ -15,13 +15,13 @@ import {
   PanResponder,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
+import { makeStyles } from '../../../../theme';
 import { useRadarStore } from '../../useRadarStore';
 import { ServiceTypeChips } from './ServiceTypeChips';
 import { PriceRangeSlider } from './PriceRangeSlider';
@@ -29,16 +29,6 @@ import { DistanceSlider } from './DistanceSlider';
 import { DateRangeFilter } from './DateRangeFilter';
 
 // ─── Design Tokens ───────────────────────────────────────────────────────────
-
-const COLORS = {
-  background: '#0B0C10',
-  card: '#1F2833',
-  accent: '#00F5D4',
-  textPrimary: '#FFFFFF',
-  textSecondary: 'rgba(255, 255, 255, 0.6)',
-  overlay: 'rgba(0, 0, 0, 0.6)',
-  handle: 'rgba(255, 255, 255, 0.3)',
-} as const;
 
 const SPACING = {
   xs: 4,
@@ -76,6 +66,7 @@ export interface FilterPanelProps {
 
 export function FilterPanel({ visible, onClose }: FilterPanelProps): React.JSX.Element {
   const { t } = useTranslation('radar');
+  const styles = useStyles();
   const clearFilters = useRadarStore((state) => state.clearFilters);
   const activeFilterCount = useRadarStore((state) => state.getActiveFilterCount());
 
@@ -182,10 +173,10 @@ export function FilterPanel({ visible, onClose }: FilterPanelProps): React.JSX.E
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   overlay: {
     flex: 1,
-    backgroundColor: COLORS.overlay,
+    backgroundColor: theme.overlay,
   },
   sheet: {
     position: 'absolute',
@@ -193,7 +184,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     maxHeight: '80%',
-    backgroundColor: COLORS.card,
+    backgroundColor: theme.surface,
     borderTopLeftRadius: SHEET_BORDER_RADIUS,
     borderTopRightRadius: SHEET_BORDER_RADIUS,
     paddingBottom: SPACING.xl,
@@ -206,7 +197,7 @@ const styles = StyleSheet.create({
     width: HANDLE_WIDTH,
     height: HANDLE_HEIGHT,
     borderRadius: HANDLE_HEIGHT / 2,
-    backgroundColor: COLORS.handle,
+    backgroundColor: theme.textMuted,
   },
   header: {
     flexDirection: 'row',
@@ -222,13 +213,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: FONT_SIZE.title,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
   },
   badge: {
     width: BADGE_SIZE,
     height: BADGE_SIZE,
     borderRadius: BADGE_SIZE / 2,
-    backgroundColor: COLORS.accent,
+    backgroundColor: theme.accent,
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: SPACING.sm,
@@ -236,11 +227,11 @@ const styles = StyleSheet.create({
   badgeText: {
     fontSize: FONT_SIZE.badge,
     fontWeight: '700',
-    color: COLORS.background,
+    color: theme.onAccent,
   },
   clearAllText: {
     fontSize: FONT_SIZE.body,
-    color: COLORS.accent,
+    color: theme.accent,
     fontWeight: '500',
   },
   scrollView: {
@@ -253,6 +244,6 @@ const styles = StyleSheet.create({
   section: {
     marginBottom: SECTION_GAP,
   },
-});
+}));
 
 export default FilterPanel;

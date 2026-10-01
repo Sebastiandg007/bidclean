@@ -9,24 +9,16 @@
  */
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Audio } from 'expo-av';
 
 import { requestPlaybackUrl } from '../voice.api';
 import { CHAT_I18N_KEYS } from '../chat.constants';
 import type { ChatMessage } from '../chat.types';
+import { makeStyles } from '../../../theme';
 
 // ─── Design Tokens ───────────────────────────────────────────────────────────
-
-const COLORS = {
-  accent: '#00F5D4',
-  card: '#1F2833',
-  textPrimary: '#FFFFFF',
-  textOnAccent: '#0B0C10',
-  textMuted: 'rgba(255, 255, 255, 0.5)',
-  waveform: 'rgba(255, 255, 255, 0.35)',
-} as const;
 
 const SPACING = { xs: 4, sm: 8, md: 12 } as const;
 const FONT_SIZE = { body: 14, caption: 11 } as const;
@@ -48,6 +40,7 @@ export interface VoiceNotePlayerProps {
 
 export function VoiceNotePlayer({ message, isOwn }: VoiceNotePlayerProps): React.JSX.Element {
   const { t } = useTranslation();
+  const styles = useStyles();
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const soundRef = useRef<SoundLike | null>(null);
@@ -114,7 +107,7 @@ export function VoiceNotePlayer({ message, isOwn }: VoiceNotePlayerProps): React
     }
   }, [isPlaying, resolveSource]);
 
-  const transcriptNode = renderTranscript(voice, t);
+  const transcriptNode = renderTranscript(voice, t, styles);
 
   return (
     <View
@@ -150,6 +143,7 @@ export function VoiceNotePlayer({ message, isOwn }: VoiceNotePlayerProps): React
 function renderTranscript(
   voice: ChatMessage['voiceNote'],
   t: (key: string) => string,
+  styles: ReturnType<typeof useStyles>,
 ): React.JSX.Element | null {
   if (voice === undefined) {
     return null;
@@ -187,6 +181,7 @@ function Waveform({
   waveform: number[] | null;
   isOwn: boolean;
 }): React.JSX.Element {
+  const styles = useStyles();
   const bars = normalizeWaveform(waveform);
   return (
     <View style={styles.waveform} testID="voice-note-waveform">
@@ -225,13 +220,13 @@ function formatDuration(ms: number): string {
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   row: { marginVertical: SPACING.xs, paddingHorizontal: SPACING.md, maxWidth: '80%' },
   rowOwn: { alignSelf: 'flex-end', alignItems: 'flex-end' },
   rowOther: { alignSelf: 'flex-start', alignItems: 'flex-start' },
   bubble: { borderRadius: 16, paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm, minWidth: 200 },
-  bubbleOwn: { backgroundColor: COLORS.accent },
-  bubbleOther: { backgroundColor: COLORS.card },
+  bubbleOwn: { backgroundColor: theme.accent },
+  bubbleOther: { backgroundColor: theme.surface },
   playerRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
   playButton: {
     width: 32,
@@ -239,24 +234,24 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    backgroundColor: theme.surfaceElevated,
   },
-  playButtonOwn: { backgroundColor: 'rgba(11, 12, 16, 0.2)' },
-  playIcon: { color: COLORS.textPrimary, fontSize: FONT_SIZE.body },
-  playIconOwn: { color: COLORS.textOnAccent },
+  playButtonOwn: { backgroundColor: theme.overlay },
+  playIcon: { color: theme.textPrimary, fontSize: FONT_SIZE.body },
+  playIconOwn: { color: theme.onAccent },
   waveform: { flex: 1, flexDirection: 'row', alignItems: 'center', height: 28, gap: 2 },
   waveformBar: { flex: 1, borderRadius: 2 },
-  waveformBarOwn: { backgroundColor: 'rgba(11, 12, 16, 0.35)' },
-  waveformBarOther: { backgroundColor: COLORS.waveform },
-  duration: { color: COLORS.textMuted, fontSize: FONT_SIZE.caption, minWidth: 34, textAlign: 'right' },
-  durationOwn: { color: COLORS.textOnAccent },
-  transcript: { color: COLORS.textPrimary, fontSize: FONT_SIZE.body, marginTop: SPACING.sm },
+  waveformBarOwn: { backgroundColor: theme.overlay },
+  waveformBarOther: { backgroundColor: theme.textMuted },
+  duration: { color: theme.textMuted, fontSize: FONT_SIZE.caption, minWidth: 34, textAlign: 'right' },
+  durationOwn: { color: theme.onAccent },
+  transcript: { color: theme.textPrimary, fontSize: FONT_SIZE.body, marginTop: SPACING.sm },
   transcriptHint: {
-    color: COLORS.textMuted,
+    color: theme.textMuted,
     fontSize: FONT_SIZE.caption,
     fontStyle: 'italic',
     marginTop: SPACING.xs,
   },
-});
+}));
 
 export default VoiceNotePlayer;

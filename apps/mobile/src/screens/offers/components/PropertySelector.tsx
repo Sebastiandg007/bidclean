@@ -13,12 +13,13 @@ import {
   ActivityIndicator,
   FlatList,
   Image,
-  StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
+
+import { makeStyles, useTheme } from '../../../theme';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -40,17 +41,6 @@ export interface PropertySelectorProps {
 }
 
 // ─── Design Tokens ───────────────────────────────────────────────────────────
-
-const COLORS = {
-  background: '#0B0C10',
-  card: '#1F2833',
-  accent: '#00F5D4',
-  textPrimary: '#FFFFFF',
-  textSecondary: 'rgba(255, 255, 255, 0.6)',
-  border: 'rgba(255, 255, 255, 0.1)',
-  placeholder: '#2B3A4A',
-  error: '#FF6B6B',
-} as const;
 
 const SPACING = {
   xs: 4,
@@ -93,6 +83,7 @@ interface PropertyCardProps {
 }
 
 function PropertyCard({ property, isSelected, onPress }: PropertyCardProps): React.JSX.Element {
+  const styles = useStyles();
   const handlePress = useCallback(() => {
     onPress(property.id);
   }, [onPress, property.id]);
@@ -156,6 +147,8 @@ export function PropertySelector({
   onCreateProperty,
 }: PropertySelectorProps): React.JSX.Element {
   const { t } = useTranslation();
+  const styles = useStyles();
+  const { theme } = useTheme();
   const [properties, setProperties] = useState<OfferReadyProperty[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -218,7 +211,7 @@ export function PropertySelector({
   if (isLoading) {
     return (
       <View style={styles.centeredContainer} testID="property-selector-loading">
-        <ActivityIndicator size="large" color={COLORS.accent} />
+        <ActivityIndicator size="large" color={theme.accent} />
         <Text style={styles.loadingText}>
           {t('offers.propertySelector.loading')}
         </Text>
@@ -282,12 +275,13 @@ export function PropertySelector({
 // ─── Separator ───────────────────────────────────────────────────────────────
 
 function ItemSeparator(): React.JSX.Element {
+  const styles = useStyles();
   return <View style={styles.separator} />;
 }
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   container: {
     flex: 1,
   },
@@ -300,7 +294,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: FONT_SIZE.title,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
     marginBottom: SPACING.md,
   },
   listContent: {
@@ -313,14 +307,14 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.card,
+    backgroundColor: theme.surface,
     borderRadius: 12,
     padding: SPACING.md,
     borderWidth: BORDER_WIDTH_SELECTED,
     borderColor: 'transparent',
   },
   cardSelected: {
-    borderColor: COLORS.accent,
+    borderColor: theme.accent,
   },
   cardContent: {
     flex: 1,
@@ -329,11 +323,11 @@ const styles = StyleSheet.create({
   propertyName: {
     fontSize: FONT_SIZE.body,
     fontWeight: '600',
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
   },
   propertyCity: {
     fontSize: FONT_SIZE.caption,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
     marginTop: SPACING.xs,
   },
   // ─── Photo ─────────────────────────────────────────────────────────────────
@@ -346,7 +340,7 @@ const styles = StyleSheet.create({
     width: CARD_PHOTO_SIZE,
     height: CARD_PHOTO_SIZE,
     borderRadius: 8,
-    backgroundColor: COLORS.placeholder,
+    backgroundColor: theme.surfaceElevated,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -358,7 +352,7 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: COLORS.accent,
+    backgroundColor: theme.accent,
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: SPACING.sm,
@@ -366,12 +360,12 @@ const styles = StyleSheet.create({
   checkmarkText: {
     fontSize: 14,
     fontWeight: '700',
-    color: COLORS.background,
+    color: theme.onAccent,
   },
   // ─── Empty State ───────────────────────────────────────────────────────────
   emptyText: {
     fontSize: FONT_SIZE.body,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
     textAlign: 'center',
     marginBottom: SPACING.md,
   },
@@ -382,21 +376,21 @@ const styles = StyleSheet.create({
   createLinkText: {
     fontSize: FONT_SIZE.link,
     fontWeight: '600',
-    color: COLORS.accent,
+    color: theme.accent,
     textDecorationLine: 'underline',
   },
   // ─── Loading State ─────────────────────────────────────────────────────────
   loadingText: {
     fontSize: FONT_SIZE.body,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
     marginTop: SPACING.md,
   },
   // ─── Error State ───────────────────────────────────────────────────────────
   errorText: {
     fontSize: FONT_SIZE.body,
-    color: COLORS.error,
+    color: theme.danger,
     textAlign: 'center',
   },
-});
+}));
 
 export default PropertySelector;

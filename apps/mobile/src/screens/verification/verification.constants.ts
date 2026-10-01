@@ -7,6 +7,7 @@
  * playback endpoint (the client never fetches the footage).
  */
 
+import { palette } from '../../theme/primitives';
 import type { Classification, DisplayStatus, VerificationState } from './verification.types';
 
 /** Backend REST endpoints for video verification. */
@@ -25,12 +26,12 @@ export const VERIFICATION_MAX_DURATION_MS = parseInt(
 /** Navigation route names for the verification screens. */
 export const ARRIVAL_VERIFICATION_SCREEN_ROUTE = 'ArrivalVerification';
 
-/** BidClean dark design tokens used by the verification screens. */
+/** BidClean design tokens used by the verification screens (dark reference via palette). */
 export const VERIFICATION_COLORS = {
-  ACCENT: '#00F5D4',
-  CARD: '#1F2833',
-  BACKGROUND: '#0B0C10',
-  TEXT: '#FFFFFF',
+  ACCENT: palette.mint,
+  CARD: palette.surfaceDark,
+  BACKGROUND: palette.obsidian,
+  TEXT: palette.white,
 } as const;
 
 /** Map a server verification state to the Host-facing derived classification (mirrors backend). */

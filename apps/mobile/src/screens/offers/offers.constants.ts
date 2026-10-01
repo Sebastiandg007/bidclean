@@ -5,6 +5,7 @@
  * validation limits, and design tokens for offer screens.
  */
 
+import { palette } from '../../theme/primitives';
 import type { OfferState, ServiceType } from './offers.types';
 
 // ─── Route Names ─────────────────────────────────────────────────────────────
@@ -37,13 +38,13 @@ export const SERVICE_TYPES: ServiceTypeConfig[] = [
 // ─── Offer State Color Mapping ───────────────────────────────────────────────
 
 export const STATE_COLORS: Record<OfferState, string> = {
-  DRAFT: '#8E8E93',
-  PUBLISHED: '#FFD93D',
-  ACTIVE: '#00F5D4',
-  MATCHED: '#5E5CE6',
-  COMPLETED: '#30D158',
-  CANCELLED: '#FF6B6B',
-  EXPIRED: '#636366',
+  DRAFT: palette.stateGrey,
+  PUBLISHED: palette.warning,
+  ACTIVE: palette.mint,
+  MATCHED: palette.stateIndigo,
+  COMPLETED: palette.stateGreen,
+  CANCELLED: palette.offerDanger,
+  EXPIRED: palette.stateGreyDim,
 };
 
 // ─── Validation Limits ───────────────────────────────────────────────────────
@@ -73,20 +74,25 @@ export const OFFERS_PAGE_SIZE = Number(
 
 // ─── Design Tokens ───────────────────────────────────────────────────────────
 
+/**
+ * Shared offer palette. Maps onto dark theme primitives by reference (no raw hex here). Many offer
+ * surfaces still consume this static object at module scope; values equal the previous hardcoded
+ * palette, preserving the dark appearance.
+ */
 export const COLORS = {
-  background: '#0B0C10',
-  card: '#1F2833',
-  accent: '#00F5D4',
-  accentSubtle: 'rgba(0, 245, 212, 0.12)',
-  accentMuted: 'rgba(0, 245, 212, 0.08)',
-  textPrimary: '#FFFFFF',
-  textSecondary: 'rgba(255, 255, 255, 0.6)',
-  border: 'rgba(255, 255, 255, 0.2)',
-  error: '#FF6B6B',
-  errorSubtle: 'rgba(255, 107, 107, 0.1)',
-  success: '#00F5D4',
-  warning: '#FFD93D',
-  disabled: 'rgba(255, 255, 255, 0.3)',
+  background: palette.obsidian,
+  card: palette.surfaceDark,
+  accent: palette.mint,
+  accentSubtle: palette.accentSubtle,
+  accentMuted: palette.accentMuted,
+  textPrimary: palette.white,
+  textSecondary: palette.whiteAlpha60,
+  border: palette.whiteAlpha20,
+  error: palette.offerDanger,
+  errorSubtle: palette.errorSubtle,
+  success: palette.mint,
+  warning: palette.warning,
+  disabled: palette.whiteAlpha30,
 } as const;
 
 export const SPACING = {

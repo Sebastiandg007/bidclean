@@ -7,12 +7,13 @@
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, Text, TextInput, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import { CHAT_I18N_KEYS, CHAT_MESSAGE_MAX_LENGTH } from '../chat.constants';
 import { useVoiceRecorder } from '../useVoiceRecorder';
 import type { RecordedClip } from '../chat.types';
+import { makeStyles, useTheme } from '../../../theme';
 
 const MS_PER_SECOND = 1000;
 const SECONDS_PER_MINUTE = 60;
@@ -26,15 +27,6 @@ function formatElapsed(ms: number): string {
 }
 
 // ─── Design Tokens ───────────────────────────────────────────────────────────
-
-const COLORS = {
-  accent: '#00F5D4',
-  card: '#1F2833',
-  textPrimary: '#FFFFFF',
-  textOnAccent: '#0B0C10',
-  textMuted: 'rgba(255, 255, 255, 0.4)',
-  disabled: 'rgba(0, 245, 212, 0.35)',
-} as const;
 
 const SPACING = {
   sm: 8,
@@ -68,6 +60,8 @@ export function MessageComposer({
   disabled = false,
 }: MessageComposerProps): React.JSX.Element {
   const { t } = useTranslation();
+  const styles = useStyles();
+  const { theme } = useTheme();
   const [draft, setDraft] = useState('');
   const recorder = useVoiceRecorder();
 
@@ -160,7 +154,7 @@ export function MessageComposer({
         multiline
         maxLength={CHAT_MESSAGE_MAX_LENGTH}
         placeholder={t(CHAT_I18N_KEYS.COMPOSER_PLACEHOLDER)}
-        placeholderTextColor={COLORS.textMuted}
+        placeholderTextColor={theme.textMuted}
         accessibilityLabel={t(CHAT_I18N_KEYS.COMPOSER_PLACEHOLDER)}
         testID="chat-composer-input"
       />
@@ -193,14 +187,14 @@ export function MessageComposer({
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   container: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
     gap: SPACING.sm,
-    backgroundColor: COLORS.card,
+    backgroundColor: theme.surface,
   },
   input: {
     flex: 1,
@@ -208,37 +202,37 @@ const styles = StyleSheet.create({
     borderRadius: INPUT_RADIUS,
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
     fontSize: FONT_SIZE.body,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    backgroundColor: theme.surfaceElevated,
   },
   sendButton: {
     minHeight: INPUT_MIN_HEIGHT,
     paddingHorizontal: SPACING.md,
     borderRadius: INPUT_RADIUS,
-    backgroundColor: COLORS.accent,
+    backgroundColor: theme.accent,
     justifyContent: 'center',
     alignItems: 'center',
   },
   sendButtonDisabled: {
-    backgroundColor: COLORS.disabled,
+    backgroundColor: theme.surfaceElevated,
   },
   sendText: {
     fontSize: FONT_SIZE.button,
     fontWeight: '700',
-    color: COLORS.textOnAccent,
+    color: theme.onAccent,
   },
   recordButton: {
     minHeight: INPUT_MIN_HEIGHT,
     width: INPUT_MIN_HEIGHT,
     borderRadius: INPUT_RADIUS,
-    backgroundColor: COLORS.accent,
+    backgroundColor: theme.accent,
     justifyContent: 'center',
     alignItems: 'center',
   },
   recordIcon: {
     fontSize: FONT_SIZE.button + 3,
-    color: COLORS.textOnAccent,
+    color: theme.onAccent,
   },
   secondaryButton: {
     minHeight: INPUT_MIN_HEIGHT,
@@ -246,17 +240,17 @@ const styles = StyleSheet.create({
     borderRadius: INPUT_RADIUS,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: theme.surfaceElevated,
   },
   secondaryText: {
     fontSize: FONT_SIZE.button,
     fontWeight: '600',
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
   },
   recordingLabel: {
     flex: 1,
     fontSize: FONT_SIZE.body,
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
     textAlign: 'center',
   },
   errorText: {
@@ -265,8 +259,8 @@ const styles = StyleSheet.create({
     left: SPACING.md,
     right: SPACING.md,
     fontSize: 12,
-    color: '#FF6B6B',
+    color: theme.danger,
   },
-});
+}));
 
 export default MessageComposer;

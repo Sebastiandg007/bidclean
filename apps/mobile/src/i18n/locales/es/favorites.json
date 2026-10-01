@@ -1,0 +1,27 @@
+{
+  "favorites": {
+    "list": {
+      "title": "Tus favoritos",
+      "empty": "Todavía no tienes profesionales favoritos. Marca como favoritos a quienes confías para ofrecerles trabajos primero.",
+      "loadMore": "Cargar más"
+    },
+    "toggle": {
+      "add": "Agregar a favoritos",
+      "remove": "Quitar de favoritos"
+    },
+    "card": {
+      "remove": "Quitar",
+      "unavailable": "No disponible por ahora"
+    },
+    "limit": {
+      "title": "Límite de favoritos alcanzado",
+      "message": "Alcanzaste tu límite de favoritos en el plan gratuito. Quita uno para agregar otro.",
+      "upsell": "Hazte PRO para favoritos ilimitados",
+      "dismiss": "Entendido"
+    },
+    "error": {
+      "generic": "Algo salió mal. Inténtalo de nuevo.",
+      "limit": "Alcanzaste tu límite de favoritos."
+    }
+  }
+}

@@ -8,9 +8,10 @@
  */
 
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 
-import { VERIFICATION_COLORS } from '../verification.constants';
+import { makeStyles, useTheme } from '../../../theme';
+import type { SemanticTokens } from '../../../theme';
 import type { DisplayStatus } from '../verification.types';
 
 export interface ResultBadgeProps {
@@ -19,31 +20,34 @@ export interface ResultBadgeProps {
 }
 
 /** Resolve the badge colour for a display status (no raw score is ever shown). */
-function colorForStatus(status: DisplayStatus): string {
+function colorForStatus(status: DisplayStatus, theme: SemanticTokens): string {
   if (status === 'verified') {
-    return VERIFICATION_COLORS.ACCENT;
+    return theme.accent;
   }
   if (status === 'needs-review') {
-    return '#F6C453';
+    return theme.warning;
   }
-  return 'rgba(255,255,255,0.6)';
+  return theme.textMuted;
 }
 
 export function ResultBadge(props: ResultBadgeProps): React.JSX.Element {
   const { status, label } = props;
+  const styles = useStyles();
+  const { theme } = useTheme();
+  const color = colorForStatus(status, theme);
   return (
     <View style={styles.badge} testID={`verification-badge-${status}`}>
-      <View style={[styles.dot, { backgroundColor: colorForStatus(status) }]} />
-      <Text style={[styles.label, { color: colorForStatus(status) }]}>{label}</Text>
+      <View style={[styles.dot, { backgroundColor: color }]} />
+      <Text style={[styles.label, { color }]}>{label}</Text>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   badge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: VERIFICATION_COLORS.CARD,
+    backgroundColor: theme.surface,
     paddingVertical: 10,
     paddingHorizontal: 14,
     borderRadius: 12,
@@ -51,4 +55,4 @@ const styles = StyleSheet.create({
   },
   dot: { width: 10, height: 10, borderRadius: 5, marginRight: 8 },
   label: { fontSize: 15, fontWeight: '600' },
-});
+}));

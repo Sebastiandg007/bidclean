@@ -6,6 +6,8 @@
  * authoritative). No secret and nothing security-sensitive is hardcoded here.
  */
 
+import { palette } from '../../theme/primitives';
+
 /** Backend REST endpoints for checklist-photos (nested under a service session). */
 export const CHECKLIST_ENDPOINTS = {
   checklist: (sessionId: string): string => `/service-sessions/${sessionId}/checklist`,
@@ -33,13 +35,13 @@ export const CHECKLIST_PHOTO_MAX_SIZE_BYTES = parseInt(
   10,
 );
 
-/** BidClean dark design tokens used by the checklist screens. */
+/** BidClean design tokens used by the checklist screens (dark reference via palette). */
 export const CHECKLIST_COLORS = {
-  ACCENT: '#00F5D4',
-  CARD: '#1F2833',
-  BACKGROUND: '#0B0C10',
-  TEXT: '#FFFFFF',
-  TEXT_SECONDARY: '#C5C6C7',
+  ACCENT: palette.mint,
+  CARD: palette.surfaceDark,
+  BACKGROUND: palette.obsidian,
+  TEXT: palette.white,
+  TEXT_SECONDARY: palette.textSecondaryDark,
 } as const;
 
 /** i18n keys for the checklist UI (en/es in parity). */

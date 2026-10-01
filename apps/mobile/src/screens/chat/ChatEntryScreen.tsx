@@ -8,21 +8,16 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text } from 'react-native';
+import { ActivityIndicator, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 
 import { ChatScreen } from './ChatScreen';
 import { CHAT_I18N_KEYS } from './chat.constants';
 import { useChatStore } from './chat.store';
+import { makeStyles, useTheme } from '../../theme';
 
 // ─── Design Tokens ───────────────────────────────────────────────────────────
-
-const COLORS = {
-  background: '#0B0C10',
-  accent: '#00F5D4',
-  textMuted: 'rgba(255, 255, 255, 0.5)',
-} as const;
 
 const SPACING = {
   xl: 32,
@@ -44,6 +39,8 @@ export interface ChatEntryScreenProps {
 export function ChatEntryScreen({ route, navigation }: ChatEntryScreenProps): React.JSX.Element {
   const { threadId } = route.params;
   const { t } = useTranslation();
+  const styles = useStyles();
+  const { theme } = useTheme();
 
   const openConversation = useChatStore((state) => state.openConversation);
   const [conversationId, setConversationId] = useState<string | null>(null);
@@ -77,7 +74,7 @@ export function ChatEntryScreen({ route, navigation }: ChatEntryScreenProps): Re
   if (conversationId === null) {
     return (
       <SafeAreaView style={styles.centered} testID="chat-entry-loading">
-        <ActivityIndicator size="large" color={COLORS.accent} />
+        <ActivityIndicator size="large" color={theme.accent} />
       </SafeAreaView>
     );
   }
@@ -89,19 +86,19 @@ export function ChatEntryScreen({ route, navigation }: ChatEntryScreenProps): Re
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   centered: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: theme.background,
     justifyContent: 'center',
     alignItems: 'center',
     padding: SPACING.xl,
   },
   errorText: {
-    color: COLORS.textMuted,
+    color: theme.textMuted,
     fontSize: FONT_SIZE.body,
     textAlign: 'center',
   },
-});
+}));
 
 export default ChatEntryScreen;

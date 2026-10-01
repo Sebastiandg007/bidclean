@@ -7,6 +7,8 @@
  * cadence is a client-side pre-throttle only — the server INDEPENDENTLY rate-limits.
  */
 
+import { palette } from '../../theme/primitives';
+
 /** Backend REST endpoints for service tracking. */
 export const TRACKING_ENDPOINTS = {
   session: (id: string): string => `/service-sessions/${id}`,
@@ -54,10 +56,10 @@ export const MAP_DEFAULT_ZOOM = parseInt(process.env.EXPO_PUBLIC_TRACKING_MAP_ZO
 
 /** BidClean dark design tokens used by the tracking screens. */
 export const TRACKING_COLORS = {
-  ACCENT: '#00F5D4',
-  CARD: '#1F2833',
-  BACKGROUND: '#0B0C10',
-  TEXT: '#FFFFFF',
+  ACCENT: palette.mint,
+  CARD: palette.surfaceDark,
+  BACKGROUND: palette.obsidian,
+  TEXT: palette.white,
 } as const;
 
 /** i18n keys for the tracking UI (en/es in parity). */

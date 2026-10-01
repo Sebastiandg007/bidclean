@@ -7,15 +7,8 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
-const COLORS = {
-  neutral: '#1F2833',
-  neutralText: 'rgba(255, 255, 255, 0.8)',
-  positive: '#00F5D4',
-  positiveText: '#0B0C10',
-  warning: '#F5A623',
-  danger: '#FF5C5C',
-  dangerText: '#FFFFFF',
-} as const;
+import { useTheme } from '../../../theme';
+import type { SemanticTokens } from '../../../theme';
 
 const SPACING = { xs: 4, sm: 8 } as const;
 const FONT_SIZE = 12;
@@ -31,16 +24,16 @@ export interface PaymentStatusBadgeProps {
   testID?: string;
 }
 
-function toneStyle(tone: BadgeTone): { bg: string; fg: string } {
+function toneStyle(tone: BadgeTone, theme: SemanticTokens): { bg: string; fg: string } {
   switch (tone) {
     case 'positive':
-      return { bg: COLORS.positive, fg: COLORS.positiveText };
+      return { bg: theme.accent, fg: theme.onAccent };
     case 'warning':
-      return { bg: COLORS.warning, fg: COLORS.dangerText };
+      return { bg: theme.warning, fg: theme.textPrimary };
     case 'danger':
-      return { bg: COLORS.danger, fg: COLORS.dangerText };
+      return { bg: theme.danger, fg: theme.textPrimary };
     default:
-      return { bg: COLORS.neutral, fg: COLORS.neutralText };
+      return { bg: theme.surface, fg: theme.textSecondary };
   }
 }
 
@@ -50,7 +43,8 @@ export function PaymentStatusBadge({
   testID,
 }: PaymentStatusBadgeProps): React.JSX.Element {
   const { t } = useTranslation('payments');
-  const { bg, fg } = toneStyle(tone);
+  const { theme } = useTheme();
+  const { bg, fg } = toneStyle(tone, theme);
 
   return (
     <View style={[styles.badge, { backgroundColor: bg }]} testID={testID ?? 'payment-status-badge'}>

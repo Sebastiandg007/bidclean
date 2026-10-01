@@ -11,12 +11,13 @@
  */
 
 import React, { useCallback, useEffect, useMemo } from 'react';
-import { FlatList, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Text, View } from 'react-native';
 import type { ListRenderItemInfo } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 
 import { useAuthStore } from '../../stores/auth.store';
+import { makeStyles } from '../../theme';
 import { ConversationHeader } from './components/ConversationHeader';
 import { MessageBubble } from './components/MessageBubble';
 import { MessageComposer } from './components/MessageComposer';
@@ -33,12 +34,6 @@ import { useCallSignaling } from './voip/useCallSignaling';
 import { useVoipStore } from './voip/voip.store';
 
 // ─── Design Tokens ───────────────────────────────────────────────────────────
-
-const COLORS = {
-  background: '#0B0C10',
-  accent: '#00F5D4',
-  textMuted: 'rgba(255, 255, 255, 0.5)',
-} as const;
 
 const SPACING = {
   md: 16,
@@ -61,6 +56,7 @@ export interface ChatScreenProps {
 export function ChatScreen({ route, navigation }: ChatScreenProps): React.JSX.Element {
   const { conversationId } = route.params;
   const { t } = useTranslation();
+  const styles = useStyles();
 
   const currentUserId = useAuthStore((state) => state.user?.id ?? null);
 
@@ -195,6 +191,7 @@ function keyForMessage(message: ChatMessage): string {
 }
 
 function EmptyState({ label }: { label: string }): React.JSX.Element {
+  const styles = useStyles();
   return (
     <View style={styles.emptyContainer} testID="chat-empty">
       <Text style={styles.emptyText}>{label}</Text>
@@ -204,10 +201,10 @@ function EmptyState({ label }: { label: string }): React.JSX.Element {
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   safeArea: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: theme.background,
   },
   callBar: {
     flexDirection: 'row',
@@ -223,14 +220,14 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   errorBanner: {
-    color: COLORS.accent,
+    color: theme.accent,
     fontSize: FONT_SIZE.body,
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.md,
     textAlign: 'center',
   },
   closedNotice: {
-    color: COLORS.textMuted,
+    color: theme.textMuted,
     fontSize: FONT_SIZE.body,
     padding: SPACING.md,
     textAlign: 'center',
@@ -242,10 +239,10 @@ const styles = StyleSheet.create({
     padding: SPACING.xl,
   },
   emptyText: {
-    color: COLORS.textMuted,
+    color: theme.textMuted,
     fontSize: FONT_SIZE.body,
     textAlign: 'center',
   },
-});
+}));
 
 export default ChatScreen;

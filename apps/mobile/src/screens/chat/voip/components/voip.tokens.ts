@@ -5,14 +5,21 @@
  * uses the same palette/spacing. Mirrors the tokens used across the chat screens.
  */
 
+import { palette } from '../../../../theme/primitives';
+
+/**
+ * The call UI is an immersive, always-dark surface (Spec 15), so these tokens map onto the dark
+ * palette by reference — no raw hex lives here. Values are identical to the previous hardcoded
+ * palette, preserving the dark call appearance.
+ */
 export const VOIP_COLORS = {
-  background: '#0B0C10',
-  card: '#1F2833',
-  accent: '#00F5D4',
-  textPrimary: '#FFFFFF',
-  textMuted: 'rgba(255, 255, 255, 0.5)',
-  danger: '#FF6B6B',
-  overlay: 'rgba(11, 12, 16, 0.92)',
+  background: palette.obsidian,
+  card: palette.surfaceDark,
+  accent: palette.mint,
+  textPrimary: palette.white,
+  textMuted: palette.whiteAlpha50,
+  danger: palette.danger,
+  overlay: palette.overlayCallDark,
 } as const;
 
 export const VOIP_SPACING = {

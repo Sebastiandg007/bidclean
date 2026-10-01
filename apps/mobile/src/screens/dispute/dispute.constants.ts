@@ -8,6 +8,8 @@
  * hardcoded here; `EXPO_PUBLIC_DISPUTE_EVIDENCE_MAX_SIZE_BYTES` is a UX pre-check only.
  */
 
+import { palette } from '../../theme/primitives';
+
 /** Backend REST endpoints for dispute-system. */
 export const DISPUTE_ENDPOINTS = {
   dispute: (id: string): string => `/disputes/${id}`,
@@ -29,12 +31,12 @@ export const DISPUTE_EVIDENCE_MAX_SIZE_BYTES = Number(
 
 /** BidClean dark design tokens used by the dispute screens. */
 export const DISPUTE_COLORS = {
-  ACCENT: '#00F5D4',
-  CARD: '#1F2833',
-  BACKGROUND: '#0B0C10',
-  TEXT: '#FFFFFF',
-  TEXT_SECONDARY: '#C5C6C7',
-  DANGER: '#FF6B6B',
+  ACCENT: palette.mint,
+  CARD: palette.surfaceDark,
+  BACKGROUND: palette.obsidian,
+  TEXT: palette.white,
+  TEXT_SECONDARY: palette.textSecondaryDark,
+  DANGER: palette.offerDanger,
 } as const;
 
 /** i18n keys for the dispute UI (en/es in parity). */

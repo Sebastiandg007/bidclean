@@ -7,7 +7,7 @@
  */
 
 import React, { useEffect } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -16,14 +16,9 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
 
-// ─── Design Tokens ───────────────────────────────────────────────────────────
+import { makeStyles } from '../../../theme';
 
-const COLORS = {
-  accent: '#00F5D4',
-  track: '#1F2833',
-  textPrimary: '#FFFFFF',
-  background: '#0B0C10',
-} as const;
+// ─── Design Tokens ───────────────────────────────────────────────────────────
 
 const RING_SIZE = 100;
 const RING_STROKE_WIDTH = 8;
@@ -49,6 +44,7 @@ export function CompletenessRing({
   size = RING_SIZE,
 }: CompletenessRingProps): React.JSX.Element {
   const { t } = useTranslation();
+  const styles = useStyles();
   const progress = useSharedValue(0);
   const clampedPercentage = Math.min(Math.max(percentage, 0), 100);
 
@@ -175,7 +171,7 @@ export function CompletenessRing({
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   container: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -183,7 +179,7 @@ const styles = StyleSheet.create({
   },
   track: {
     position: 'absolute',
-    borderColor: COLORS.track,
+    borderColor: theme.surface,
   },
   halfClip: {
     position: 'absolute',
@@ -191,18 +187,18 @@ const styles = StyleSheet.create({
   },
   halfFill: {
     position: 'absolute',
-    borderColor: COLORS.accent,
+    borderColor: theme.accent,
   },
   center: {
     position: 'absolute',
-    backgroundColor: COLORS.background,
+    backgroundColor: theme.background,
   },
   percentageText: {
     position: 'absolute',
     fontSize: 18,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
   },
-});
+}));
 
 export default CompletenessRing;

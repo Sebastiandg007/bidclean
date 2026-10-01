@@ -7,6 +7,8 @@
  * secret and nothing security-sensitive is hardcoded here.
  */
 
+import { palette } from '../../theme/primitives';
+
 /** Backend REST endpoints for service-completion. */
 export const COMPLETION_ENDPOINTS = {
   completion: (id: string): string => `/service-completions/${id}`,
@@ -26,12 +28,12 @@ export const COMPLETION_RATING_MAX_STARS = 5;
 
 /** BidClean dark design tokens used by the completion screens. */
 export const COMPLETION_COLORS = {
-  ACCENT: '#00F5D4',
-  CARD: '#1F2833',
-  BACKGROUND: '#0B0C10',
-  TEXT: '#FFFFFF',
-  TEXT_SECONDARY: '#C5C6C7',
-  DANGER: '#FF6B6B',
+  ACCENT: palette.mint,
+  CARD: palette.surfaceDark,
+  BACKGROUND: palette.obsidian,
+  TEXT: palette.white,
+  TEXT_SECONDARY: palette.textSecondaryDark,
+  DANGER: palette.offerDanger,
 } as const;
 
 /** i18n keys for the completion UI (en/es in parity). */

@@ -10,11 +10,12 @@
  */
 
 import React, { useCallback, useEffect } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity } from 'react-native';
+import { ScrollView, Text, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 
-import { CHECKLIST_COLORS, CHECKLIST_I18N_KEYS } from './checklist.constants';
+import { CHECKLIST_I18N_KEYS } from './checklist.constants';
+import { makeStyles } from '../../theme';
 import { ProgressBar } from './components/ProgressBar';
 import { TaskRow } from './components/TaskRow';
 import { getPlaybackUrlRequest } from './checklist.api';
@@ -29,6 +30,7 @@ export interface ChecklistScreenProps {
 export function ChecklistScreen({ route }: ChecklistScreenProps): React.JSX.Element {
   const { sessionId } = route.params;
   const { t } = useTranslation();
+  const styles = useStyles();
 
   const run = useChecklistStore((store) => store.run);
   const error = useChecklistStore((store) => store.error);
@@ -123,15 +125,15 @@ export function ChecklistScreen({ route }: ChecklistScreenProps): React.JSX.Elem
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   screen: {
     flex: 1,
-    backgroundColor: CHECKLIST_COLORS.BACKGROUND,
+    backgroundColor: theme.background,
     padding: 20,
     gap: 16,
   },
   title: {
-    color: CHECKLIST_COLORS.TEXT,
+    color: theme.textPrimary,
     fontSize: 24,
     fontWeight: '700',
   },
@@ -142,21 +144,21 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   empty: {
-    color: CHECKLIST_COLORS.TEXT_SECONDARY,
+    color: theme.textSecondary,
     fontSize: 15,
     textAlign: 'center',
     marginTop: 24,
   },
   permission: {
-    color: CHECKLIST_COLORS.TEXT_SECONDARY,
+    color: theme.textSecondary,
     fontSize: 13,
   },
   error: {
-    color: '#FF6B6B',
+    color: theme.danger,
     fontSize: 13,
   },
   finalize: {
-    backgroundColor: CHECKLIST_COLORS.ACCENT,
+    backgroundColor: theme.accent,
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
@@ -165,14 +167,14 @@ const styles = StyleSheet.create({
     opacity: 0.4,
   },
   finalizeText: {
-    color: CHECKLIST_COLORS.BACKGROUND,
+    color: theme.onAccent,
     fontSize: 16,
     fontWeight: '700',
   },
   completed: {
-    color: CHECKLIST_COLORS.ACCENT,
+    color: theme.accent,
     fontSize: 16,
     fontWeight: '700',
     textAlign: 'center',
   },
-});
+}));
