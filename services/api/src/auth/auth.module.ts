@@ -9,10 +9,14 @@ import { SessionService } from './session/session.service';
 import { BiometricService } from './biometric/biometric.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RateLimitGuard } from './guards/rate-limit.guard';
+import { CentrifugoController } from './centrifugo/centrifugo.controller';
+import { CentrifugoTokenService } from './centrifugo/centrifugo-token.service';
 import { User } from './entities/user.entity';
 import { AuthSession } from './entities/auth-session.entity';
 import { BiometricCredential } from './entities/biometric-credential.entity';
 import { BiometricChallenge } from './entities/biometric-challenge.entity';
+import { ChatModule } from '../chat/chat.module';
+import { ServiceTrackingModule } from '../service-tracking/service-tracking.module';
 
 /**
  * Authentication module.
@@ -24,8 +28,10 @@ import { BiometricChallenge } from './entities/biometric-challenge.entity';
   imports: [
     TypeOrmModule.forFeature([User, AuthSession, BiometricCredential, BiometricChallenge]),
     ScheduleModule.forRoot(),
+    ChatModule,
+    ServiceTrackingModule,
   ],
-  controllers: [AuthController],
+  controllers: [AuthController, CentrifugoController],
   providers: [
     AuthService,
     KeycloakService,
@@ -34,6 +40,7 @@ import { BiometricChallenge } from './entities/biometric-challenge.entity';
     BiometricService,
     JwtAuthGuard,
     RateLimitGuard,
+    CentrifugoTokenService,
   ],
   exports: [AuthService, KeycloakService, EmailVerificationSyncService, JwtAuthGuard, RateLimitGuard],
 })

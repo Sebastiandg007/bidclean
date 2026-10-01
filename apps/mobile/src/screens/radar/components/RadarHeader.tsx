@@ -9,19 +9,12 @@
  */
 
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Text, TouchableOpacity, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
-// ─── Design Tokens ───────────────────────────────────────────────────────────
+import { makeStyles } from '../../../theme';
 
-const COLORS = {
-  background: '#0B0C10',
-  accent: '#00F5D4',
-  textPrimary: '#FFFFFF',
-  badgeBg: '#00F5D4',
-  badgeText: '#0B0C10',
-  buttonBg: 'rgba(31, 40, 51, 0.9)',
-} as const;
+// ─── Design Tokens ───────────────────────────────────────────────────────────
 
 const SPACING = {
   sm: 8,
@@ -57,6 +50,7 @@ export function RadarHeader({
   onFilterPress,
 }: RadarHeaderProps): React.JSX.Element {
   const { t } = useTranslation('radar');
+  const styles = useStyles();
 
   return (
     <View style={styles.container} testID="radar-header">
@@ -84,7 +78,7 @@ export function RadarHeader({
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -95,35 +89,35 @@ const styles = StyleSheet.create({
   title: {
     fontSize: FONT_SIZE.title,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
   },
   filterButton: {
     flexDirection: 'row',
     alignItems: 'center',
     height: BUTTON_HEIGHT,
     paddingHorizontal: SPACING.md,
-    backgroundColor: COLORS.buttonBg,
+    backgroundColor: theme.surface,
     borderRadius: BUTTON_BORDER_RADIUS,
     gap: SPACING.sm,
   },
   filterButtonText: {
     fontSize: FONT_SIZE.button,
     fontWeight: '500',
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
   },
   badge: {
     width: BADGE_SIZE,
     height: BADGE_SIZE,
     borderRadius: BADGE_SIZE / 2,
-    backgroundColor: COLORS.badgeBg,
+    backgroundColor: theme.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
   badgeText: {
     fontSize: FONT_SIZE.badge,
     fontWeight: '700',
-    color: COLORS.badgeText,
+    color: theme.onAccent,
   },
-});
+}));
 
 export default RadarHeader;

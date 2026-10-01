@@ -40,6 +40,7 @@ import {
   SERVICE_TYPES,
 } from './offers.constants';
 import type { OfferDetailRouteParams, OfferState } from './offers.types';
+import { CHAT_ROUTE } from '../chat/chat.constants';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -71,6 +72,7 @@ interface OfferDetailScreenProps {
   route: { params: OfferDetailRouteParams };
   navigation: {
     goBack: () => void;
+    navigate?: (screen: string, params?: Record<string, unknown>) => void;
   };
 }
 
@@ -155,11 +157,27 @@ export function OfferDetailScreen({
     return null;
   }, [offer]);
 
+  // The matched thread id (recorded in the MATCHED transition metadata) is what opens the chat.
+  const matchedThreadId = useMemo(() => {
+    if (offer?.state !== 'MATCHED' || !offer.stateTransitions) return null;
+    const matchedTransition = offer.stateTransitions.find((tr) => tr.toState === 'MATCHED');
+    const threadId = matchedTransition?.metadata?.threadId;
+    return typeof threadId === 'string' ? threadId : null;
+  }, [offer]);
+
+  const canOpenChat = matchedThreadId !== null && typeof navigation.navigate === 'function';
+
   // ─── Handlers ─────────────────────────────────────────────────────────────
 
   const handleGoBack = useCallback(() => {
     navigation.goBack();
   }, [navigation]);
+
+  const handleOpenChat = useCallback(() => {
+    if (matchedThreadId !== null && navigation.navigate) {
+      navigation.navigate(CHAT_ROUTE, { threadId: matchedThreadId });
+    }
+  }, [matchedThreadId, navigation]);
 
   const handleCancel = useCallback(() => {
     Alert.alert(
@@ -356,6 +374,23 @@ export function OfferDetailScreen({
           </View>
         )}
 
+        {/* Message the Cleaner (matched offers only) */}
+        {canOpenChat && (
+          <Pressable
+            onPress={handleOpenChat}
+            style={({ pressed }) => [styles.chatButton, pressed && styles.chatButtonPressed]}
+            accessibilityRole="button"
+            accessibilityLabel={t('offers.detail.messageCleaner', {
+              defaultValue: 'Message the Cleaner',
+            })}
+            testID="open-chat-button"
+          >
+            <Text style={styles.chatButtonText}>
+              {t('offers.detail.messageCleaner', { defaultValue: 'Message the Cleaner' })}
+            </Text>
+          </Pressable>
+        )}
+
         {/* Cancel Button */}
         {canCancel && (
           <Pressable
@@ -525,6 +560,21 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZE.body,
     fontWeight: '500',
     color: COLORS.textPrimary,
+  },
+  chatButton: {
+    height: CANCEL_BUTTON_HEIGHT,
+    borderRadius: CARD_BORDER_RADIUS,
+    backgroundColor: COLORS.accent,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  chatButtonPressed: {
+    opacity: 0.8,
+  },
+  chatButtonText: {
+    fontSize: FONT_SIZE.button,
+    fontWeight: '700',
+    color: COLORS.background,
   },
   cancelButton: {
     height: CANCEL_BUTTON_HEIGHT,

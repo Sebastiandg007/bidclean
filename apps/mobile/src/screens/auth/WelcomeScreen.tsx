@@ -7,7 +7,6 @@
 
 import { useEffect } from 'react';
 import {
-  StyleSheet,
   Text,
   View,
   Pressable,
@@ -23,15 +22,9 @@ import Animated, {
 import { useRouter } from 'expo-router';
 
 import type { WelcomeScreenProps } from './auth.types';
+import { makeStyles } from '../../theme';
 
 // ─── Design Tokens ───────────────────────────────────────────────────────────
-
-const COLORS = {
-  background: '#0B0C10',
-  card: '#1F2833',
-  accent: '#00F5D4',
-  textPrimary: '#FFFFFF',
-} as const;
 
 const SPACING = {
   xs: 4,
@@ -62,6 +55,7 @@ const ANIMATION_DELAY_MS = 200;
 
 export default function WelcomeScreen({ onGetStarted, onLogIn }: WelcomeScreenProps) {
   const router = useRouter();
+  const styles = useStyles();
 
   // Shared values for logo entrance animation (scale + opacity)
   const logoScale = useSharedValue(0.6);
@@ -137,10 +131,10 @@ export default function WelcomeScreen({ onGetStarted, onLogIn }: WelcomeScreenPr
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: theme.background,
     paddingHorizontal: SPACING.lg,
   },
   heroSection: {
@@ -154,12 +148,12 @@ const styles = StyleSheet.create({
   brandText: {
     fontSize: FONT_SIZE.brand,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
     letterSpacing: -0.5,
   },
   tagline: {
     fontSize: FONT_SIZE.tagline,
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
     opacity: 0.7,
     marginTop: SPACING.sm,
     textAlign: 'center',
@@ -169,7 +163,7 @@ const styles = StyleSheet.create({
     gap: SPACING.md,
   },
   primaryButton: {
-    backgroundColor: COLORS.accent,
+    backgroundColor: theme.accent,
     borderRadius: 12,
     paddingVertical: SPACING.md,
     alignItems: 'center',
@@ -177,11 +171,11 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     fontSize: FONT_SIZE.button,
     fontWeight: '600',
-    color: COLORS.background,
+    color: theme.onAccent,
   },
   secondaryButton: {
     borderWidth: 1.5,
-    borderColor: COLORS.textPrimary,
+    borderColor: theme.textPrimary,
     borderRadius: 12,
     paddingVertical: SPACING.md,
     alignItems: 'center',
@@ -189,6 +183,6 @@ const styles = StyleSheet.create({
   secondaryButtonText: {
     fontSize: FONT_SIZE.button,
     fontWeight: '600',
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
   },
-});
+}));

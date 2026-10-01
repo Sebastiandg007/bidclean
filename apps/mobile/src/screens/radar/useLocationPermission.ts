@@ -270,7 +270,7 @@ export function useLocationPermission(): UseLocationPermissionReturn {
       isMountedRef.current = false;
       stopWatching();
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   // ─── Return ────────────────────────────────────────────────────────────
 

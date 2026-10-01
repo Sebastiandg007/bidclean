@@ -8,26 +8,15 @@ import React, { useState, useCallback } from 'react';
 import {
   Modal,
   Pressable,
-  StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
-// ─── Design Tokens ───────────────────────────────────────────────────────────
+import { makeStyles, useTheme } from '../../../theme';
 
-const COLORS = {
-  card: '#1F2833',
-  textPrimary: '#FFFFFF',
-  textSecondary: '#C5C6C7',
-  error: '#FF6B6B',
-  inputBackground: '#2A3140',
-  border: '#3A4250',
-  overlay: 'rgba(0, 0, 0, 0.7)',
-  dangerButton: '#FF6B6B',
-  disabledButton: '#3A4250',
-} as const;
+// ─── Design Tokens ───────────────────────────────────────────────────────────
 
 const SPACING = {
   sm: 8,
@@ -71,6 +60,8 @@ export function DeleteAccountModal({
   onCancel,
 }: DeleteAccountModalProps): React.JSX.Element {
   const { t } = useTranslation();
+  const styles = useStyles();
+  const { theme } = useTheme();
   const [inputValue, setInputValue] = useState('');
 
   const isConfirmEnabled = inputValue === CONFIRMATION_WORD && !isLoading;
@@ -115,7 +106,7 @@ export function DeleteAccountModal({
             value={inputValue}
             onChangeText={setInputValue}
             placeholder={t('profile.account.delete_modal.confirmation_placeholder')}
-            placeholderTextColor={COLORS.textSecondary}
+            placeholderTextColor={theme.textMuted}
             autoCapitalize="characters"
             autoCorrect={false}
             testID="delete-confirmation-input"
@@ -159,16 +150,16 @@ export function DeleteAccountModal({
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   overlay: {
     flex: 1,
-    backgroundColor: COLORS.overlay,
+    backgroundColor: theme.overlay,
     justifyContent: 'center',
     alignItems: 'center',
     padding: SPACING.lg,
   },
   modalContent: {
-    backgroundColor: COLORS.card,
+    backgroundColor: theme.surface,
     borderRadius: BORDER_RADIUS_MODAL,
     padding: SPACING.lg,
     width: '100%',
@@ -177,28 +168,28 @@ const styles = StyleSheet.create({
   title: {
     fontSize: FONT_SIZE.lg,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
     marginBottom: SPACING.md,
   },
   warning: {
     fontSize: FONT_SIZE.sm,
-    color: COLORS.error,
+    color: theme.danger,
     lineHeight: 20,
     marginBottom: SPACING.md,
   },
   confirmationLabel: {
     fontSize: FONT_SIZE.sm,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
     marginBottom: SPACING.sm,
   },
   input: {
-    backgroundColor: COLORS.inputBackground,
+    backgroundColor: theme.surfaceElevated,
     borderRadius: BORDER_RADIUS_INPUT,
     padding: SPACING.md,
     fontSize: FONT_SIZE.md,
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: theme.border,
     marginBottom: SPACING.lg,
   },
   buttonRow: {
@@ -211,32 +202,32 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.md,
     borderRadius: BORDER_RADIUS_BUTTON,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: theme.border,
     alignItems: 'center',
   },
   cancelButtonText: {
     fontSize: FONT_SIZE.md,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
     fontWeight: '600',
   },
   confirmButton: {
     flex: 1,
     paddingVertical: SPACING.md,
     borderRadius: BORDER_RADIUS_BUTTON,
-    backgroundColor: COLORS.dangerButton,
+    backgroundColor: theme.danger,
     alignItems: 'center',
   },
   confirmButtonDisabled: {
-    backgroundColor: COLORS.disabledButton,
+    backgroundColor: theme.surfaceElevated,
   },
   confirmButtonText: {
     fontSize: FONT_SIZE.md,
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
     fontWeight: '600',
   },
   confirmButtonTextDisabled: {
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
   },
-});
+}));
 
 export default DeleteAccountModal;

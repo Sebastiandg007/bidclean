@@ -1,0 +1,27 @@
+{
+  "favorites": {
+    "list": {
+      "title": "Your favorites",
+      "empty": "You haven't favorited any cleaners yet. Favorite the ones you trust to offer them jobs first.",
+      "loadMore": "Load more"
+    },
+    "toggle": {
+      "add": "Add to favorites",
+      "remove": "Remove from favorites"
+    },
+    "card": {
+      "remove": "Remove",
+      "unavailable": "Currently unavailable"
+    },
+    "limit": {
+      "title": "Favorites limit reached",
+      "message": "You've reached your favorites limit on the free plan. Remove one to add another.",
+      "upsell": "Go PRO for unlimited favorites",
+      "dismiss": "Got it"
+    },
+    "error": {
+      "generic": "Something went wrong. Please try again.",
+      "limit": "You've reached your favorites limit."
+    }
+  }
+}

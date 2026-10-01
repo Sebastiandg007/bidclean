@@ -2,7 +2,7 @@
 
 > This file tracks the state of all feature specs. Read this first in any new session to know where the project stands and what to work on next.
 
-## Current Sprint: Sprint 3 — Payments
+## Current Sprint: Sprint 4 — Communication
 
 ## Specs Status
 
@@ -33,26 +33,26 @@
 ### Sprint 4 — Communication
 | # | Spec | Status | Dependencies |
 |---|------|--------|-------------|
-| 13 | `realtime-chat` | ⬜ Pending | Spec 1, 8 |
-| 14 | `voice-notes` | ⬜ Pending | Spec 13 |
-| 15 | `voip-calls` | ⬜ Pending | Spec 13 |
-| 16 | `push-notifications` | ⬜ Pending | Spec 1 |
+| 13 | `realtime-chat` | ✅ Completed | Spec 1, 8 |
+| 14 | `voice-notes` | ✅ Completed | Spec 13 |
+| 15 | `voip-calls` | ✅ Completed | Spec 13 |
+| 16 | `push-notifications` | ✅ Completed | Spec 1 |
 
 ### Sprint 5 — Service Execution
 | # | Spec | Status | Dependencies |
 |---|------|--------|-------------|
-| 17 | `service-tracking` | ⬜ Pending | Spec 8 |
-| 18 | `video-verification` | ⬜ Pending | Spec 3, 17 |
-| 19 | `checklist-photos` | ⬜ Pending | Spec 17 |
-| 20 | `service-completion` | ⬜ Pending | Spec 9, 19 |
+| 17 | `service-tracking` | ✅ Completed | Spec 8 |
+| 18 | `video-verification` | ✅ Completed | Spec 3, 17 |
+| 19 | `checklist-photos` | ✅ Completed | Spec 17 |
+| 20 | `service-completion` | ✅ Completed | Spec 9, 19 |
 
 ### Sprint 6 — Polish & Extras
 | # | Spec | Status | Dependencies |
 |---|------|--------|-------------|
-| 21 | `dispute-system` | ⬜ Pending | Spec 20 |
-| 22 | `favorites` | ⬜ Pending | Spec 8 |
+| 21 | `dispute-system` | ✅ Completed | Spec 20 |
+| 22 | `favorites` | ✅ Completed | Spec 8 |
 | 23 | `samsung-optimization` | ⬜ Pending | All mobile specs |
-| 24 | `dark-light-theme` | ⬜ Pending | Spec 7 |
+| 24 | `dark-light-theme` | ✅ Completed | Spec 7 |
 
 ### Sprint 7 — QA & Formal Testing
 | # | Spec | Status | Dependencies |

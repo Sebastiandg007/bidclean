@@ -17,7 +17,6 @@ import {
   Alert,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   View,
@@ -37,19 +36,9 @@ import { useTranslation } from 'react-i18next';
 import type { CleanerOnboardingScreenProps } from './roles.types';
 import { useAuthStore } from '../../stores/auth.store';
 import { apiClient } from '../../services/api.service';
+import { makeStyles, useTheme } from '../../theme';
 
 // ─── Design Tokens ───────────────────────────────────────────────────────────
-
-const COLORS = {
-  background: '#0B0C10',
-  card: '#1F2833',
-  accent: '#00F5D4',
-  textPrimary: '#FFFFFF',
-  textSecondary: 'rgba(255, 255, 255, 0.6)',
-  border: 'rgba(255, 255, 255, 0.2)',
-  error: '#FF6B6B',
-  inputBackground: '#141920',
-} as const;
 
 const SPACING = {
   xs: 4,
@@ -139,6 +128,7 @@ interface StepIndicatorProps {
 
 function StepIndicator({ currentStep, totalSteps }: StepIndicatorProps) {
   const { t } = useTranslation();
+  const styles = useStyles();
   return (
     <View
       style={styles.stepIndicatorContainer}
@@ -176,6 +166,7 @@ interface KycStepProps {
 
 function KycStep({ onContinue }: KycStepProps) {
   const { t } = useTranslation();
+  const styles = useStyles();
   return (
     <Animated.View
       entering={FadeIn.duration(300)}
@@ -239,6 +230,8 @@ interface WorkZoneStepProps {
 
 function WorkZoneStep({ radiusKm, onRadiusChange, onContinue }: WorkZoneStepProps) {
   const { t } = useTranslation();
+  const styles = useStyles();
+  const { theme } = useTheme();
   const handleRadiusInput = useCallback(
     (text: string) => {
       const parsed = parseInt(text, 10);
@@ -291,7 +284,7 @@ function WorkZoneStep({ radiusKm, onRadiusChange, onContinue }: WorkZoneStepProp
           onChangeText={handleRadiusInput}
           keyboardType="numeric"
           placeholder={`${DEFAULT_RADIUS_KM}`}
-          placeholderTextColor={COLORS.textSecondary}
+          placeholderTextColor={theme.textMuted}
           accessibilityLabel={t('roles.cleanerOnboarding.workZoneStep.radiusA11y', { defaultValue: 'Work zone radius in kilometers' })}
           accessibilityRole="text"
         />
@@ -329,6 +322,7 @@ function AvailabilityStep({
   onContinue,
 }: AvailabilityStepProps) {
   const { t } = useTranslation();
+  const styles = useStyles();
   const hasAtLeastOneDay = DAYS_OF_WEEK.some(
     (day) => availability[day].enabled && availability[day].slots.length > 0,
   );
@@ -460,6 +454,7 @@ function SpecialtiesStep({
   isSubmitting,
 }: SpecialtiesStepProps) {
   const { t } = useTranslation();
+  const styles = useStyles();
 
   const specialtyLabels: Record<Specialty, string> = {
     airbnb: t('roles.cleanerOnboarding.specialtiesStep.options.airbnb', { defaultValue: '🏠 Airbnb' }),
@@ -565,6 +560,7 @@ export default function CleanerOnboardingScreen({
   onSkip,
 }: CleanerOnboardingScreenProps) {
   const { t } = useTranslation();
+  const styles = useStyles();
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
 
@@ -770,10 +766,10 @@ function buildAvailabilityPayload(
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: theme.background,
     paddingHorizontal: SPACING.lg,
   },
   headerSection: {
@@ -783,13 +779,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: FONT_SIZE.title,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
     letterSpacing: -0.5,
     marginTop: SPACING.md,
   },
   subtitle: {
     fontSize: FONT_SIZE.subtitle,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
     marginTop: SPACING.sm,
     lineHeight: 20,
   },
@@ -808,19 +804,19 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: COLORS.border,
+    backgroundColor: theme.border,
   },
   stepDotActive: {
-    backgroundColor: COLORS.accent,
+    backgroundColor: theme.accent,
     width: 24,
     borderRadius: 4,
   },
   stepDotCompleted: {
-    backgroundColor: COLORS.accent,
+    backgroundColor: theme.accent,
   },
   stepText: {
     fontSize: FONT_SIZE.stepIndicator,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
     marginLeft: SPACING.xs,
   },
 
@@ -833,12 +829,12 @@ const styles = StyleSheet.create({
   stepTitle: {
     fontSize: FONT_SIZE.cardTitle,
     fontWeight: '600',
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
     marginBottom: SPACING.sm,
   },
   stepDescription: {
     fontSize: FONT_SIZE.cardDescription,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
     lineHeight: 20,
     marginBottom: SPACING.lg,
   },
@@ -846,7 +842,7 @@ const styles = StyleSheet.create({
   // ─── Info Card ──────────────────────────────────────────────────────────
 
   infoCard: {
-    backgroundColor: COLORS.card,
+    backgroundColor: theme.surface,
     borderRadius: 16,
     padding: SPACING.lg,
     flexDirection: 'row',
@@ -863,12 +859,12 @@ const styles = StyleSheet.create({
   infoCardTitle: {
     fontSize: FONT_SIZE.label,
     fontWeight: '600',
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
     marginBottom: SPACING.xs,
   },
   infoCardDescription: {
     fontSize: FONT_SIZE.cardDescription,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
     lineHeight: 20,
   },
 
@@ -879,25 +875,25 @@ const styles = StyleSheet.create({
   },
   inputLabel: {
     fontSize: FONT_SIZE.label,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
     marginBottom: SPACING.sm,
     fontWeight: '500',
   },
   textInput: {
-    backgroundColor: COLORS.inputBackground,
+    backgroundColor: theme.surfaceElevated,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: theme.border,
     paddingHorizontal: SPACING.md,
     paddingVertical: 14,
     fontSize: FONT_SIZE.input,
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
   },
 
   // ─── Map Placeholder ───────────────────────────────────────────────────
 
   mapPlaceholder: {
-    backgroundColor: COLORS.card,
+    backgroundColor: theme.surface,
     borderRadius: 16,
     padding: SPACING.xl,
     alignItems: 'center',
@@ -910,7 +906,7 @@ const styles = StyleSheet.create({
     height: 120,
     borderRadius: 60,
     borderWidth: 2,
-    borderColor: COLORS.accent,
+    borderColor: theme.accent,
     borderStyle: 'dashed',
     alignItems: 'center',
     justifyContent: 'center',
@@ -919,18 +915,18 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: `${COLORS.accent}33`,
+    backgroundColor: theme.surfaceElevated,
     alignItems: 'center',
     justifyContent: 'center',
   },
   mapCircleText: {
     fontSize: FONT_SIZE.label,
     fontWeight: '600',
-    color: COLORS.accent,
+    color: theme.accent,
   },
   mapPlaceholderNote: {
     fontSize: FONT_SIZE.cardDescription,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
     marginTop: SPACING.md,
   },
 
@@ -944,26 +940,26 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
   },
   dayChip: {
-    backgroundColor: COLORS.inputBackground,
+    backgroundColor: theme.surfaceElevated,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: theme.border,
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
     alignSelf: 'flex-start',
     marginBottom: SPACING.sm,
   },
   dayChipActive: {
-    backgroundColor: COLORS.accent,
-    borderColor: COLORS.accent,
+    backgroundColor: theme.accent,
+    borderColor: theme.accent,
   },
   dayChipText: {
     fontSize: FONT_SIZE.chip,
     fontWeight: '600',
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
   },
   dayChipTextActive: {
-    color: COLORS.background,
+    color: theme.onAccent,
   },
   slotsRow: {
     flexDirection: 'row',
@@ -972,23 +968,23 @@ const styles = StyleSheet.create({
     paddingLeft: SPACING.sm,
   },
   slotChip: {
-    backgroundColor: COLORS.inputBackground,
+    backgroundColor: theme.surfaceElevated,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: theme.border,
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.xs,
   },
   slotChipActive: {
-    backgroundColor: COLORS.card,
-    borderColor: COLORS.accent,
+    backgroundColor: theme.surface,
+    borderColor: theme.accent,
   },
   slotChipText: {
     fontSize: FONT_SIZE.chip,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
   },
   slotChipTextActive: {
-    color: COLORS.accent,
+    color: theme.accent,
   },
 
   // ─── Specialties ───────────────────────────────────────────────────────
@@ -1000,23 +996,23 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.lg,
   },
   specialtyChip: {
-    backgroundColor: COLORS.inputBackground,
+    backgroundColor: theme.surfaceElevated,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: theme.border,
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
   },
   specialtyChipActive: {
-    backgroundColor: COLORS.card,
-    borderColor: COLORS.accent,
+    backgroundColor: theme.surface,
+    borderColor: theme.accent,
   },
   specialtyChipText: {
     fontSize: FONT_SIZE.chip,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
   },
   specialtyChipTextActive: {
-    color: COLORS.accent,
+    color: theme.accent,
     fontWeight: '600',
   },
 
@@ -1028,7 +1024,7 @@ const styles = StyleSheet.create({
     gap: SPACING.md,
   },
   primaryButton: {
-    backgroundColor: COLORS.accent,
+    backgroundColor: theme.accent,
     borderRadius: 12,
     paddingVertical: SPACING.md,
     alignItems: 'center',
@@ -1039,10 +1035,10 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     fontSize: FONT_SIZE.button,
     fontWeight: '600',
-    color: COLORS.background,
+    color: theme.onAccent,
   },
   primaryButtonTextDisabled: {
-    color: COLORS.background,
+    color: theme.onAccent,
   },
   skipButton: {
     alignItems: 'center',
@@ -1050,7 +1046,7 @@ const styles = StyleSheet.create({
   },
   skipButtonText: {
     fontSize: FONT_SIZE.label,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
     fontWeight: '500',
   },
-});
+}));

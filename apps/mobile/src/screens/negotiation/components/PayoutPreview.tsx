@@ -4,16 +4,11 @@
  */
 
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import { formatMoney } from '../negotiation.format';
-
-const COLORS = {
-  textPrimary: '#FFFFFF',
-  textSecondary: 'rgba(255, 255, 255, 0.6)',
-  accent: '#00F5D4',
-} as const;
+import { makeStyles } from '../../../theme';
 
 const SPACING = { xs: 4, sm: 8 } as const;
 const FONT_SIZE = { label: 13, value: 15 } as const;
@@ -33,6 +28,7 @@ export function PayoutPreview({
   perspective,
 }: PayoutPreviewProps): React.JSX.Element {
   const { t } = useTranslation('negotiation');
+  const styles = useStyles();
 
   const payout = formatMoney(cleanerPayoutCents, currency);
   const total = formatMoney(hostTotalCents, currency);
@@ -51,17 +47,17 @@ export function PayoutPreview({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   container: {
     gap: SPACING.xs,
   },
   value: {
     fontSize: FONT_SIZE.value,
     fontWeight: '600',
-    color: COLORS.accent,
+    color: theme.accent,
   },
   secondary: {
     fontSize: FONT_SIZE.label,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
   },
-});
+}));

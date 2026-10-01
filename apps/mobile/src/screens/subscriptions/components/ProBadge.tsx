@@ -7,16 +7,12 @@
  */
 
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
+import { makeStyles } from '../../../theme';
 import { useSubscriptionStore } from '../useSubscription';
 import { SubscriberRole, SubscriberTier } from '../subscriptions.types';
-
-const COLORS = {
-  accent: '#00F5D4',
-  onAccent: '#0B0C10',
-} as const;
 
 export interface ProBadgeProps {
   /** The role whose PRO tier gates this badge. */
@@ -26,6 +22,7 @@ export interface ProBadgeProps {
 export function ProBadge({ role }: ProBadgeProps): React.JSX.Element | null {
   const { t } = useTranslation('subscriptions');
   const serverView = useSubscriptionStore((s) => s.serverView);
+  const styles = useStyles();
 
   const isPro = serverView?.roleTiers[role] === SubscriberTier.PRO;
   if (!isPro) {
@@ -39,18 +36,18 @@ export function ProBadge({ role }: ProBadgeProps): React.JSX.Element | null {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   badge: {
     alignSelf: 'flex-start',
-    backgroundColor: COLORS.accent,
+    backgroundColor: theme.accent,
     borderRadius: 6,
     paddingHorizontal: 8,
     paddingVertical: 2,
   },
   label: {
-    color: COLORS.onAccent,
+    color: theme.onAccent,
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 0.5,
   },
-});
+}));

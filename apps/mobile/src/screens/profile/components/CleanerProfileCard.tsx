@@ -7,23 +7,13 @@
  */
 
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
+import { makeStyles } from '../../../theme';
 import type { CleanerProfile } from '../profile.types';
 
 // ─── Design Tokens ───────────────────────────────────────────────────────────
-
-const COLORS = {
-  card: '#1F2833',
-  accent: '#00F5D4',
-  textPrimary: '#FFFFFF',
-  textSecondary: '#C5C6C7',
-  divider: '#2B3A4A',
-  chipBg: '#0B0C10',
-  kycVerified: '#00F5D4',
-  kycPending: '#C5C6C7',
-} as const;
 
 const SPACING = {
   sm: 8,
@@ -72,6 +62,7 @@ interface StatRowProps {
 }
 
 function StatRow({ label, value, testID }: StatRowProps): React.JSX.Element {
+  const styles = useStyles();
   return (
     <View style={styles.statRow} testID={testID}>
       <Text style={styles.statLabel}>{label}</Text>
@@ -85,6 +76,7 @@ interface ChipProps {
 }
 
 function Chip({ label }: ChipProps): React.JSX.Element {
+  const styles = useStyles();
   return (
     <View style={styles.chip}>
       <Text style={styles.chipText}>{label}</Text>
@@ -103,6 +95,7 @@ export function CleanerProfileCard({
   memberSince,
 }: CleanerProfileCardProps): React.JSX.Element {
   const { t } = useTranslation();
+  const styles = useStyles();
   const availableDays = countAvailableDays(cleaner.availability);
 
   return (
@@ -208,9 +201,9 @@ export function CleanerProfileCard({
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   container: {
-    backgroundColor: COLORS.card,
+    backgroundColor: theme.surface,
     borderRadius: SPACING.md,
     padding: SPACING.lg,
     marginBottom: SPACING.md,
@@ -223,36 +216,36 @@ const styles = StyleSheet.create({
   title: {
     fontSize: FONT_SIZE.md,
     fontWeight: '700',
-    color: COLORS.accent,
+    color: theme.accent,
   },
   kycBadge: {
     paddingHorizontal: SPACING.sm,
     paddingVertical: SPACING.sm / 2,
     borderRadius: SPACING.sm,
     borderWidth: 1,
-    borderColor: COLORS.kycPending,
+    borderColor: theme.textMuted,
   },
   kycBadgeVerified: {
-    borderColor: COLORS.kycVerified,
-    backgroundColor: `${COLORS.kycVerified}15`,
+    borderColor: theme.success,
+    backgroundColor: `${theme.success}15`,
   },
   kycText: {
     fontSize: FONT_SIZE.xs,
     fontWeight: '600',
-    color: COLORS.kycPending,
+    color: theme.textMuted,
   },
   kycTextVerified: {
-    color: COLORS.kycVerified,
+    color: theme.success,
   },
   divider: {
     height: 1,
-    backgroundColor: COLORS.divider,
+    backgroundColor: theme.divider,
     marginVertical: SPACING.sm,
   },
   sectionLabel: {
     fontSize: FONT_SIZE.xs,
     fontWeight: '600',
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
     marginBottom: SPACING.sm / 2,
     marginTop: SPACING.sm / 2,
   },
@@ -263,20 +256,20 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.sm,
   },
   chip: {
-    backgroundColor: COLORS.chipBg,
+    backgroundColor: theme.surfaceElevated,
     borderRadius: SPACING.md,
     paddingHorizontal: SPACING.sm,
     paddingVertical: SPACING.sm / 2,
     borderWidth: 1,
-    borderColor: COLORS.accent,
+    borderColor: theme.accent,
   },
   chipText: {
     fontSize: FONT_SIZE.xs,
-    color: COLORS.accent,
+    color: theme.accent,
   },
   emptyText: {
     fontSize: FONT_SIZE.xs,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
     fontStyle: 'italic',
   },
   bioSection: {
@@ -284,7 +277,7 @@ const styles = StyleSheet.create({
   },
   bioText: {
     fontSize: FONT_SIZE.sm,
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
     lineHeight: FONT_SIZE.sm * 1.4,
   },
   statRow: {
@@ -295,13 +288,13 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     fontSize: FONT_SIZE.sm,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
   },
   statValue: {
     fontSize: FONT_SIZE.sm,
     fontWeight: '600',
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
   },
-});
+}));
 
 export default CleanerProfileCard;

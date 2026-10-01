@@ -18,7 +18,6 @@ import {
   ActivityIndicator,
   FlatList,
   SafeAreaView,
-  StyleSheet,
   Text,
   TouchableOpacity,
   View,
@@ -29,7 +28,8 @@ import { useTranslation } from 'react-i18next';
 import type { Offer, OfferState } from './offers.types';
 import { useOffersStore } from './useOffers';
 import { OfferCard } from './components/OfferCard';
-import { COLORS, FONT_SIZE, OFFER_ROUTES, SPACING } from './offers.constants';
+import { FONT_SIZE, OFFER_ROUTES, SPACING } from './offers.constants';
+import { makeStyles, useTheme } from '../../theme';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -86,6 +86,8 @@ const EMPTY_STATE_MESSAGES: Record<OfferState, string> = {
 
 export function OfferListScreen({ navigation }: OfferListScreenProps): React.JSX.Element {
   const { t } = useTranslation();
+  const styles = useStyles();
+  const { theme } = useTheme();
   const [activeTabIndex, setActiveTabIndex] = useState(DEFAULT_TAB_INDEX);
   const flatListRef = useRef<FlatList<Offer>>(null);
 
@@ -152,7 +154,7 @@ export function OfferListScreen({ navigation }: OfferListScreenProps): React.JSX
     if (!isLoading || offers.length === 0) return null;
     return (
       <View style={styles.footer} testID="offer-list-loading-footer">
-        <ActivityIndicator color={COLORS.accent} size="small" />
+        <ActivityIndicator color={theme.accent} size="small" />
       </View>
     );
   }, [isLoading, offers.length]);
@@ -249,19 +251,19 @@ export function OfferListScreen({ navigation }: OfferListScreenProps): React.JSX
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   safeArea: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: theme.background,
   },
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: theme.background,
   },
   title: {
     fontSize: FONT_SIZE.title,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
     paddingHorizontal: SPACING.md,
     paddingTop: SPACING.lg,
     paddingBottom: SPACING.sm,
@@ -269,7 +271,7 @@ const styles = StyleSheet.create({
   tabBar: {
     flexDirection: 'row',
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: theme.border,
     marginHorizontal: SPACING.md,
   },
   tabItem: {
@@ -281,10 +283,10 @@ const styles = StyleSheet.create({
   tabLabel: {
     fontSize: FONT_SIZE.subtitle,
     fontWeight: '500',
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
   },
   tabLabelActive: {
-    color: COLORS.accent,
+    color: theme.accent,
     fontWeight: '600',
   },
   tabUnderline: {
@@ -294,7 +296,7 @@ const styles = StyleSheet.create({
     right: SPACING.sm,
     height: TAB_UNDERLINE_HEIGHT,
     borderRadius: TAB_UNDERLINE_RADIUS,
-    backgroundColor: COLORS.accent,
+    backgroundColor: theme.accent,
   },
   listContent: {
     paddingHorizontal: SPACING.md,
@@ -318,7 +320,7 @@ const styles = StyleSheet.create({
   },
   emptyMessage: {
     fontSize: FONT_SIZE.body,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
     textAlign: 'center',
     paddingHorizontal: SPACING.xl,
   },
@@ -329,10 +331,10 @@ const styles = StyleSheet.create({
     width: FAB_SIZE,
     height: FAB_SIZE,
     borderRadius: FAB_BORDER_RADIUS,
-    backgroundColor: COLORS.accent,
+    backgroundColor: theme.accent,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000000',
+    shadowColor: theme.shadow,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 6,
@@ -341,9 +343,9 @@ const styles = StyleSheet.create({
   fabIcon: {
     fontSize: FAB_ICON_SIZE,
     fontWeight: '300',
-    color: COLORS.background,
+    color: theme.onAccent,
     lineHeight: FAB_ICON_SIZE + 2,
   },
-});
+}));
 
 export default OfferListScreen;

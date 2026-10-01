@@ -4,22 +4,14 @@
  */
 
 import React, { useCallback, useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Text, TouchableOpacity, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import type { HostInboxItem } from '../negotiation.types';
 import { formatMoney } from '../negotiation.format';
 import { ProposalStatusBadge } from './ProposalStatusBadge';
 import { CounterBackInput } from './CounterBackInput';
-
-const COLORS = {
-  card: '#1F2833',
-  accent: '#00F5D4',
-  textPrimary: '#FFFFFF',
-  textSecondary: 'rgba(255, 255, 255, 0.6)',
-  reject: '#FF6B6B',
-  outline: 'rgba(255, 255, 255, 0.2)',
-} as const;
+import { makeStyles } from '../../../theme';
 
 const SPACING = { xs: 4, sm: 8, md: 16 } as const;
 const FONT_SIZE = { title: 16, body: 14, button: 14 } as const;
@@ -48,6 +40,7 @@ export function HostCounterofferCard({
   onCounter,
 }: HostCounterofferCardProps): React.JSX.Element {
   const { t } = useTranslation('negotiation');
+  const styles = useStyles();
   const [isCountering, setIsCountering] = useState(false);
 
   const { proposal, cleaner, propertyName } = item;
@@ -130,9 +123,9 @@ export function HostCounterofferCard({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   card: {
-    backgroundColor: COLORS.card,
+    backgroundColor: theme.surface,
     borderRadius: RADIUS,
     padding: SPACING.md,
     marginBottom: SPACING.sm,
@@ -148,17 +141,17 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: FONT_SIZE.title,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
     marginRight: SPACING.sm,
   },
   body: {
     fontSize: FONT_SIZE.body,
     fontWeight: '600',
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
   },
   secondary: {
     fontSize: FONT_SIZE.body,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
   },
   actions: {
     flexDirection: 'row',
@@ -173,28 +166,28 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   acceptButton: {
-    backgroundColor: COLORS.accent,
+    backgroundColor: theme.accent,
   },
   outlineButton: {
     borderWidth: 1,
-    borderColor: COLORS.outline,
+    borderColor: theme.border,
   },
   acceptText: {
     fontSize: FONT_SIZE.button,
     fontWeight: '700',
-    color: '#0B0C10',
+    color: theme.onAccent,
   },
   outlineText: {
     fontSize: FONT_SIZE.button,
     fontWeight: '600',
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
   },
   rejectText: {
     fontSize: FONT_SIZE.button,
     fontWeight: '600',
-    color: COLORS.reject,
+    color: theme.danger,
   },
   counterContainer: {
     marginTop: SPACING.sm,
   },
-});
+}));

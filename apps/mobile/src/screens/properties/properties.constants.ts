@@ -5,6 +5,7 @@
  * environment-dependent settings, and design tokens.
  */
 
+import { palette } from '../../theme/primitives';
 import type { PropertyType, SupportedCountry } from './properties.types';
 
 // ─── Environment-Derived Configuration ───────────────────────────────────────
@@ -128,18 +129,18 @@ export const DEFAULT_PAGE_SIZE = Number(
 // ─── Design Tokens ───────────────────────────────────────────────────────────
 
 export const COLORS = {
-  background: '#0B0C10',
-  card: '#1F2833',
-  accent: '#00F5D4',
-  accentSubtle: 'rgba(0, 245, 212, 0.12)',
-  accentMuted: 'rgba(0, 245, 212, 0.1)',
-  textPrimary: '#FFFFFF',
-  textSecondary: 'rgba(255, 255, 255, 0.6)',
-  border: 'rgba(255, 255, 255, 0.2)',
-  error: '#FF6B6B',
-  errorSubtle: 'rgba(255, 107, 107, 0.1)',
-  success: '#00F5D4',
-  warning: '#FFD93D',
+  background: palette.obsidian,
+  card: palette.surfaceDark,
+  accent: palette.mint,
+  accentSubtle: palette.accentSubtle,
+  accentMuted: palette.accentMutedTenth,
+  textPrimary: palette.white,
+  textSecondary: palette.whiteAlpha60,
+  border: palette.whiteAlpha20,
+  error: palette.offerDanger,
+  errorSubtle: palette.errorSubtle,
+  success: palette.mint,
+  warning: palette.warning,
 } as const;
 
 export const SPACING = {

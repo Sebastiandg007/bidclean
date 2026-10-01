@@ -4,24 +4,32 @@
  */
 
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import type { ProposalStatus } from '../negotiation.types';
+import { makeStyles, useTheme } from '../../../theme';
+import type { SemanticTokens } from '../../../theme';
 
-const STATUS_COLORS: Record<ProposalStatus, string> = {
-  PENDING: '#FFD93D',
-  ACCEPTED: '#30D158',
-  REJECTED: '#FF6B6B',
-  COUNTERED: '#5E5CE6',
-  SUPERSEDED: '#636366',
-  EXPIRED: '#8E8E93',
-} as const;
-
-const COLORS = { badgeText: '#0B0C10' } as const;
 const BADGE_RADIUS = 6;
 const SPACING = { xs: 4, sm: 8 } as const;
 const FONT_SIZE = { badge: 11 } as const;
+
+/** Map a proposal status to the semantic token that best conveys its state. */
+function statusColor(status: ProposalStatus, theme: SemanticTokens): string {
+  switch (status) {
+    case 'PENDING':
+      return theme.warning;
+    case 'ACCEPTED':
+      return theme.success;
+    case 'REJECTED':
+      return theme.danger;
+    case 'COUNTERED':
+      return theme.accent;
+    default:
+      return theme.textMuted;
+  }
+}
 
 export interface ProposalStatusBadgeProps {
   status: ProposalStatus;
@@ -29,10 +37,12 @@ export interface ProposalStatusBadgeProps {
 
 export function ProposalStatusBadge({ status }: ProposalStatusBadgeProps): React.JSX.Element {
   const { t } = useTranslation('negotiation');
+  const styles = useStyles();
+  const { theme } = useTheme();
 
   return (
     <View
-      style={[styles.badge, { backgroundColor: STATUS_COLORS[status] }]}
+      style={[styles.badge, { backgroundColor: statusColor(status, theme) }]}
       testID={`proposal-status-${status}`}
     >
       <Text style={styles.text}>{t(`status.${status}`)}</Text>
@@ -40,7 +50,7 @@ export function ProposalStatusBadge({ status }: ProposalStatusBadgeProps): React
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   badge: {
     alignSelf: 'flex-start',
     paddingHorizontal: SPACING.sm,
@@ -50,6 +60,6 @@ const styles = StyleSheet.create({
   text: {
     fontSize: FONT_SIZE.badge,
     fontWeight: '700',
-    color: COLORS.badgeText,
+    color: theme.onAccent,
   },
-});
+}));

@@ -222,8 +222,10 @@ graph TB
     Negotiation --> |"COMMISSION_RATES: resolveCleanerRate (match)"| Commission
     Payments --> DB
     Payments --> |"Stripe SDK"| Stripe["Stripe Connect"]
+    Chat --> DB
     Chat --> Cache
     Chat --> |"Centrifugo API"| Centrifugo["Centrifugo"]
+    Auth --> |"isParticipant (subscription-token gate)"| Chat
     Notifications --> |"OneSignal API"| OneSignal["OneSignal"]
     Subscriptions --> |"RevenueCat API"| RevenueCat["RevenueCat"]
     Events --> Notifications
@@ -521,6 +523,57 @@ erDiagram
 
 ---
 
+## 5g. Configuration Surfaces & Public/Secret Boundary
+
+> The `secrets-inventory` tooling (`tools/config-inventory/`, ADR-010) derives a single catalog of every external configuration input from the code/config sources, then reconciles the committed `.env.example` against it. The catalog is the derived source of truth for a variable's existence, classification, and requiredness; `.env.example` is a generated PRESENTATION projection. Every variable is assigned to exactly one of four surfaces, and the public/secret boundary is hard: only `EXPO_PUBLIC_*` values (explicitly classified `PUBLIC`) ever reach the mobile client — no `SECRET` does.
+
+```mermaid
+graph TB
+    subgraph Sources["Config sources — authoritative for existence / classification / requiredness"]
+        APP["APPLICATION<br/>*.constants.ts + validateXxxConfig()<br/>pydantic BaseSettings<br/>app.config.ts / EXPO_PUBLIC_*"]
+        BLD["BUILD<br/>eas.json profiles / build tokens"]
+        DEP["DEPLOY<br/>deploy scripts / VPS env / Traefik"]
+        INF["INFRA<br/>docker-compose*.yml (${VAR})"]
+        CI["CI<br/>.github/workflows env / codemagic env"]
+        RT["RUNTIME<br/>dynamic process.env / os.environ"]
+    end
+
+    subgraph Tool["tools/config-inventory (ADR-010)"]
+        Model["Canonical inventory model<br/>ConfigVariable[] — derived source of truth<br/>(each var carries DiscoveryProvenance)"]
+        Recon["reconcile + classify + exposure scan"]
+    end
+
+    subgraph Surfaces["Runtime surfaces"]
+        APISurf["API (NestJS)<br/>server .env / VPS env / Vault"]
+        AISurf["AI (FastAPI)<br/>own .env — NO storage creds (Option A)"]
+        MobileSurf["MOBILE (Expo)<br/>EXPO_PUBLIC_* only — never a SECRET"]
+        InfraSurf["INFRA (compose)<br/>service bootstrap env"]
+    end
+
+    APP --> Model
+    BLD --> Model
+    DEP --> Model
+    INF --> Model
+    CI --> Model
+    RT --> Model
+
+    Model --> Recon
+    Recon --> EnvEx[".env.example<br/>(PRESENTATION/SHAPE — placeholders only)"]
+    Recon --> Doc["docs/CONFIGURATION-INVENTORY.md<br/>+ machine JSON + findings"]
+
+    Model --> APISurf
+    Model --> AISurf
+    Model --> MobileSurf
+    Model --> InfraSurf
+
+    Recon -->|"SECRET on MOBILE / mis-prefixed EXPO_PUBLIC_"| Leak["BLOCKING: SECRET_ON_CLIENT"]
+    Recon -->|"secret pattern in tracked artifact"| Exposure["BLOCKING: SECRET_EXPOSURE<br/>(reported, NOT compliant, untouched)"]
+```
+
+Two orthogonal axes classify each variable: `requiredScope` (`runtime | build | deploy | infra` — *what lifecycle scope* needs it) and `envApplicability` (`local | staging | production` — *which environments* it applies to). No environment token ever appears in `requiredScope` and no scope token in `envApplicability`. Compliance is `true` only when there are zero blocking findings; no credential is ever rotated, moved, or echoed — findings name the file, line, and matched pattern, never the secret value.
+
+---
+
 ## 6. Auth & Security Flow
 
 ```mermaid
@@ -569,5 +622,466 @@ sequenceDiagram
 
 ---
 
-*Last updated: August 28, 2026*
+## 7. Chat Message Lifecycle (Realtime Chat)
+
+> Post-match Host↔Cleaner messaging (Spec 13, ADR-009). **PostgreSQL is the source of truth; Centrifugo is transport only.** A send persists first, then publishes best-effort — a publish failure never loses the message. There is no immediate-delivery guarantee: recipients recover missed messages via the `after` reconciliation cursor on reconnect. Auth issues Centrifugo tokens; chat owns the participation rule.
+
+```mermaid
+sequenceDiagram
+    participant S as Sender App
+    participant R as Recipient App
+    participant Auth as Auth (token endpoint)
+    participant API as Chat Module (API)
+    participant DB as PostgreSQL
+    participant C as Centrifugo
+
+    Note over S,C: Subscribe (both participants)
+    S->>Auth: GET /auth/centrifugo/token?channel=chat:conversation:{id}
+    Auth->>API: ChatParticipationService.isParticipant(subject, id)
+    API-->>Auth: participant? (by JWT subject, not channel string)
+    Auth-->>S: subscription token (only if participant)
+    S->>C: subscribe chat:conversation:{id}
+
+    Note over S,DB: Send = one serialized transaction (persist-then-publish)
+    S->>API: POST /chat/conversations/:id/messages (Idempotency-Key + clientMessageId)
+    API->>DB: BEGIN · SELECT ... FOR UPDATE conversation
+    API->>DB: verify OPEN · dedup(client_message_id) · next sequence_number · insert · bump last_message_at · COMMIT
+    API-->>S: 201 (persisted; deduplicated when a retry)
+    API-->>C: publish {type: chat_message} (best-effort)
+    C-->>R: live message
+    Note over API,C: publish failure → logged (never the body), request still succeeds
+
+    Note over R,DB: Reconnect reconciliation (no immediate-delivery guarantee)
+    R->>C: reconnect
+    R->>API: GET /chat/conversations/:id/messages?after=<lastSeq>
+    API->>DB: keyset read (sequence_number > lastSeq)
+    API-->>R: missed messages (client dedups by id + clientMessageId, orders by sequenceNumber)
+```
+
+---
+
+## 7b. Voice Notes Schema (extends Chat)
+
+> Voice notes (Spec 14, migration `1700000023000-CreateVoiceNoteTables`, ADR-012) are **not a new domain** — a voice note is a `chat_messages` row with `type = 'VOICE'` whose `body` is `NULL` and whose audio lives in MinIO, referenced by an opaque object key. The migration extends `chat_messages` (allows `VOICE`, makes `body` nullable, adds a type/body shape check) and adds three tables. **Authority split:** PostgreSQL owns the message + metadata; MinIO owns the audio bytes; the Whisper transcript is derived data, never authoritative.
+
+```mermaid
+erDiagram
+    chat_messages ||--o| chat_voice_notes : "VOICE message → 1:1 audio metadata (CASCADE)"
+    chat_conversations ||--o{ voice_note_upload_grants : "conversation_id (CASCADE)"
+    users ||--o{ voice_note_upload_grants : "issued_to_user_id (SET NULL)"
+    chat_messages ||--o{ voice_note_upload_grants : "consumed_message_id (SET NULL)"
+
+    chat_voice_notes {
+        uuid id PK
+        uuid message_id FK "UNIQUE (1:1 VOICE message)"
+        varchar object_key "UNIQUE (opaque MinIO key)"
+        int duration_ms "server-observed (authoritative)"
+        int size_bytes "server-observed (authoritative)"
+        varchar mime_type "server-observed (authoritative)"
+        jsonb waveform "optional player visual"
+        text transcript "derived, never authoritative"
+        varchar transcript_status "PENDING|READY|FAILED|DISABLED"
+        varchar transcript_lang
+        int transcript_attempt "monotonic; stale-overwrite guard"
+    }
+
+    voice_note_upload_grants {
+        varchar object_key PK
+        uuid conversation_id FK
+        uuid issued_to_user_id FK "nullable"
+        varchar status "ISSUED|CONSUMED"
+        timestamptz expires_at
+        uuid consumed_message_id FK "nullable, at most one"
+    }
+
+    voice_note_object_deletions {
+        uuid id PK
+        varchar object_key "freed key to delete from MinIO"
+        varchar status "PENDING|DONE"
+        timestamptz created_at
+        timestamptz deleted_at
+    }
+```
+
+Two invariants make this safe. **(1) An object key is a grant, not a credential:** every key is bound server-side to an upload grant `{ conversation, issued-to user, single-use, expiry }`, so possession of a key never authorizes a send. **(2) Deletion never loses the key:** a `BEFORE DELETE` trigger on `chat_voice_notes` (`voice_note_tombstone_object()`) writes the freed `object_key` into `voice_note_object_deletions` *inside the deleting transaction* (rolling back with it), so a cleanup worker can delete the MinIO object even after the metadata row is gone by direct delete or CASCADE (message → conversation → thread → offer). Deletion coherence relies on the Spec 13 invariant that `chat_messages.sender_id` and the conversation participant FKs are `ON DELETE SET NULL` — voice notes add no user-cascade path, so deleting a user never destroys shared history.
+
+### 7c. Voice Note Send / Transcription / Playback / Cleanup Flow
+
+> Audio bytes never transit the API. Upload and playback are direct client↔MinIO over short-lived pre-signed URLs; transcription is asynchronous, best-effort, and stale-update-safe (Whisper.cpp in the AI service receives **bytes only** — Option A, no storage access). The send reuses the Spec 13 serialized transaction with a `VOICE` branch.
+
+```mermaid
+sequenceDiagram
+    participant S as Sender App
+    participant API as Chat Module (API)
+    participant Minio as MinIO (chat-voice-notes)
+    participant DB as PostgreSQL
+    participant C as Centrifugo
+    participant Q as BullMQ (voice-notes-transcription)
+    participant AI as AI Service (/transcribe, Whisper.cpp)
+    participant R as Recipient App
+
+    Note over S,Minio: 1) Grant-first upload (key is a grant, not a credential)
+    S->>API: POST voice-notes/upload-url (participant + OPEN)
+    API->>DB: persist grant {objectKey, conv, issued_to, ISSUED, expires_at} (BEFORE URL)
+    API->>Minio: presign PUT (single object, short TTL)
+    API-->>S: { objectKey, uploadUrl, expiresAt }
+    S->>Minio: PUT audio bytes (direct; API never sees the bytes)
+
+    Note over S,DB: 2) Durable send = one serialized transaction
+    S->>API: POST messages {type:VOICE, clientMessageId, objectKey, durationMs, sizeBytes, mimeType, waveform?}
+    API->>DB: BEGIN · SELECT ... FOR UPDATE conversation
+    API->>DB: dedup(fingerprint) · OPEN · verify grant (issued_to=caller, unexpired, unconsumed)
+    API->>Minio: inspectObject → real size / content-type / duration (AUTHORITATIVE)
+    API->>DB: insert chat_messages(VOICE, body NULL) + chat_voice_notes(server-observed) · consume grant · bump last_message_at · COMMIT
+    API-->>S: 201 (persisted)
+    API-->>C: publish {type: chat_message} (best-effort)
+    C-->>R: live VOICE message
+    API->>Q: enqueue transcription (best-effort; only if STT enabled, else status DISABLED)
+
+    Note over Q,AI: 3) Async transcription (non-blocking, attempt-versioned)
+    Q->>API: worker: claim transcript_attempt
+    API->>Minio: getObject (bytes)
+    API->>AI: POST /transcribe (multipart bytes; no storage ref)
+    AI-->>API: { text, language }
+    API->>DB: attachTranscript READY|FAILED (only if attempt is latest — stale-safe)
+    API-->>C: publish {type: voice_transcript_updated, messageId, attempt, status}
+    C-->>R: transcript update (client upserts by id, ignores older attempt)
+
+    Note over S,Minio: 4) Playback (participant-gated; key resolved from DB)
+    R->>API: GET voice-notes/:messageId/playback-url
+    API->>DB: authorize by participation · resolve objectKey by messageId
+    API->>Minio: presign GET (short TTL)
+    API-->>R: { playbackUrl } → R streams from MinIO
+
+    Note over API,Minio: 5) Cleanup (eventual, idempotent, repeatable)
+    API->>DB: sweep expired ISSUED grants · drain tombstones · reconciler backstop · stuck-PENDING re-enqueue
+    API->>Minio: deleteObjectSafe (orphan/tombstoned objects)
+```
+
+---
+
+## 8. Notification Flow (Push Notifications)
+
+> Push notifications (Spec 16, ADR-013). The `notifications` module **reacts** to a **durable transactional outbox**, never a source of business truth. An emitting domain writes a `<domain>_outbox` row **in the same transaction as the business fact**; a relay drains committed rows into deduped intents; a BullMQ worker delivers per **consented player id (Model B)** via OneSignal. **Delivery intent is exactly-once in PostgreSQL; external OneSignal delivery is at-least-once/best-effort.** `EventEmitter2`/Centrifugo are fast-paths, never the trigger. (Migrations `1700000030000`–`1700000034000`.)
+
+```mermaid
+graph TB
+    subgraph Emitters["Emitting domains (unchanged sources of truth) — Task 12 pending"]
+        Fact["Commit business fact"]
+        Outbox["Write &lt;domain&gt;_outbox row (SAME TX)<br/>event_id UNIQUE, version, payload"]
+        Fact --> Outbox
+    end
+
+    subgraph Notifications["notifications module (reacts, never business truth)"]
+        Relay["OutboxRelayProcessor (repeatable)<br/>drain relayed_at IS NULL"]
+        Mapper["Per-domain mapper → NotificationIntent<br/>{ recipient, type, dedupKey, deepLink (ids only) }"]
+        Decide["PreferenceService.decide()<br/>metadata-driven · calls EXEMPT · fail-open"]
+        Svc["NotificationService.createIntent()<br/>durable-first · atomic suppression · UNIQUE dedup_key"]
+        Worker["DeliveryWorker (BullMQ)<br/>single-winner PENDING→PROCESSING"]
+        Registry["DeviceRegistryService (Model B)<br/>resolve consented, non-stale player ids"]
+        Catalog["ContentCatalog (en/es parity)"]
+        Client["OneSignalClient (best-effort, server-only key)"]
+        Webhook["OneSignalWebhookController<br/>signed · provider_event_id UNIQUE"]
+        Sweep["ReconcileSweepProcessor (bounded drift repair)"]
+    end
+
+    subgraph Infra["Infra"]
+        PG[("PostgreSQL<br/>*_outbox · notification_devices<br/>notification_preferences · notifications")]
+        Redis["Redis + BullMQ"]
+        OneSignal["OneSignal (APNs/FCM, tags/segments)"]
+        Cent["Centrifugo (foreground realtime — existing)"]
+    end
+
+    Outbox --> PG
+    Relay -->|drain committed rows| PG
+    Relay --> Mapper --> Svc
+    Svc --> Decide
+    Svc -->|persist PENDING/SUPPRESSED| PG
+    Svc -->|enqueue only after PENDING committed| Redis
+    Redis --> Worker
+    Worker --> Registry
+    Worker --> Catalog
+    Worker --> Client --> OneSignal
+    Worker -->|SENT / FAILED_* / SUPPRESSED| PG
+    Registry -->|external-user-id + tags| OneSignal
+    OneSignal -->|delivery / subscription callback| Webhook --> Registry
+    Redis --> Sweep --> Registry
+    OneSignal -->|push| Mobile["Mobile: useNotificationRouting<br/>deep-link → screen + GET reconcile<br/>incoming_call → IncomingCallSheet"]
+    Cent -.->|foreground alert (fail-open dedup)| Mobile
+```
+
+**Authority split.** The emitting domain owns the fact; **PostgreSQL** owns the notification delivery intent (`notifications.dedup_key` UNIQUE → exactly-once intent) and the device registry (`notification_devices`, Model B per-device consent); **OneSignal** owns device tokens and OS delivery (targeted per consented player id, kept synchronized bidirectionally); **Centrifugo** remains the foreground realtime channel with client-preferred, fail-open de-dup. Notification data is **user-owned** — `notification_devices`, `notification_preferences`, and `notifications` are `ON DELETE CASCADE` from `users` (the deliberate contrast with chat/voip `SET NULL`). The only shared code is the domain-agnostic `OutboxWriter` in `packages/shared`; per-domain `event_id`/payload shaping lives in each emitting domain and domain→intent mapping lives only in the notifications mappers. **Task 12 (emitting-domain outbox writes) is pending** — coordinated after the parallel voice-notes (chat) and voip work; until then the relay drains empty outbox tables (a safe no-op).
+
+---
+
+## 9. VoIP Call Lifecycle (In-Conversation Calls)
+
+> In-conversation voice/video calling (Spec 15, ADR-014). **A call is a conversation event, not a new domain** — a `voip_calls` row is bound to one Spec 13 `chat_conversations` row (migration `1700000040000`). **PostgreSQL** is the source of truth for *that a call happened* + its lifecycle; **LiveKit** (self-hosted SFU) is the source of truth for the live media (an ephemeral room); **Centrifugo** carries best-effort call-control signaling on the **existing** `chat:conversation:{id}` channel. **Media (audio/video RTP) never transits the API or PostgreSQL** — it flows client ↔ SFU only, reachable only via a short-lived, room-scoped, identity-scoped access token minted server-side per a status+role gate. A room name is a reference, never a credential. Every terminal transition is a **single-winner** conditional write, and liveness is **server-authoritative** (a signed LiveKit webhook + two bounded sweeps) — never a client heartbeat.
+
+```mermaid
+graph TB
+    subgraph Mobile["Mobile (Expo / RN)"]
+        Affordance["CallAffordance (chat header)"]
+        Store["voip.store (Zustand)<br/>single active call · idempotent signals · reconcile via GET"]
+        Signal["useCallSignaling (existing chat channel)"]
+        LKRoom["useLiveKitRoom (@livekit/react-native)"]
+        Sheet["IncomingCallSheet + InCallScreen"]
+    end
+
+    subgraph API["NestJS API — chat/voip"]
+        Ctrl["VoipController<br/>initiate / answer / decline / cancel / end / token / get / list"]
+        Svc["VoipService<br/>serialized initiate · single-winner state machine · status+role token gate"]
+        Repo["VoipRepository (voip_calls)"]
+        TokenSvc["LiveKitTokenService (short-lived, room-scoped)"]
+        RoomSvc["LiveKitRoomService (opaque room name · best-effort delete)"]
+        Webhook["LiveKitWebhookController<br/>POST /webhooks/livekit (signed, idempotent)"]
+        Sweep["VoipSweepProcessor (ring-timeout + stale-call, BullMQ)"]
+        TermList["OfferTerminalCallListener (force-end on conversation close)"]
+        Pub["CHAT_REALTIME_PUBLISHER (CentrifugoClient)"]
+    end
+
+    subgraph Infra["Infra"]
+        PG[("PostgreSQL<br/>voip_calls")]
+        Cent["Centrifugo (chat:conversation:{id})"]
+        LiveKit["LiveKit SFU (rooms, media)"]
+    end
+
+    Affordance --> Store
+    Store --> Ctrl
+    Store --> Signal
+    Store --> LKRoom
+    Sheet --> Store
+    Signal -.->|control events| Cent
+    LKRoom <-->|audio/video RTP| LiveKit
+
+    Ctrl --> Svc
+    Svc --> Repo
+    Svc --> TokenSvc
+    Svc --> RoomSvc
+    Svc -->|best-effort publish| Pub --> Cent
+    Repo --> PG
+    LiveKit -->|signed webhook| Webhook --> Repo
+    Sweep --> Repo
+    Sweep -->|best-effort call_end| Pub
+    TermList --> Svc
+    Cent -.->|control events| Signal
+```
+
+**Lifecycle:** `RINGING → { ONGOING → ENDED } | MISSED | DECLINED | CANCELED | FAILED` (terminal statuses immutable). Initiate is durable-first (persist `RINGING` before any token/signal); a partial UNIQUE index over non-terminal status enforces at most one active call per conversation (a concurrent second → `409 busy`). The media-token **status+role gate**: initiator while `RINGING` (via initiate), callee only via `answer`, either participant while `ONGOING`, none when terminal. Sweeps force-end stuck calls (unanswered ring → `MISSED`/`TIMEOUT_NO_ANSWER`; stale/over-max `ONGOING` → `ENDED`/`TIMEOUT`); `room_finished` is a liveness signal interpreted by cause (never a blind generic `ENDED`). **Deletion coherence:** `initiator_id`/`callee_id` are `ON DELETE SET NULL`, `conversation_id`/`offer_id` CASCADE (never a user-cascade) — deleting a participant never destroys shared call history. **Push seam:** at `RINGING`, `VoipService.initiate` marks the single `voip_outbox` `call-invited` trigger point for push-notifications (Spec 16) with a `TODO(orchestrator)` comment; this spec does not write the outbox.
+
+---
+
+## 10. Service Tracking Lifecycle (En-Route → Arrival)
+
+> The post-match, pre-work phase (Spec 17, ADR-015). **A service session is a matched-offer lifecycle, not a new domain** — a `service_sessions` row is bound 1:1 to a matched+charged offer (migration `1700000041000`). **PostgreSQL** is the source of truth for the session lifecycle + the arrival geofence-crossing fact; **the server owns the geofence computation** (PostGIS over a creation-time snapshot); **Centrifugo** is best-effort transport (server → Host). Live position is **ephemeral** — evaluated then re-published, never persisted; the only durable location datum is `arrival_distance_m`. **Position ingress is Option A** — the Cleaner POSTs to the backend and never publishes to the channel; the Host is a read-only subscriber. Reported coordinates are client telemetry, **not** proof of physical presence (anti-spoofing is out of scope; Spec 18 complements it).
+
+```mermaid
+graph TB
+    subgraph Emit["Offer / Escrow (source of the activation fact)"]
+        Escrow["EscrowChargeService<br/>on capture success (HELD)"]
+        ActOut[("service_activation_outbox<br/>service_activation_ready — SAME tx as HELD")]
+    end
+
+    subgraph Mobile["Mobile (Expo / RN)"]
+        Cleaner["EnRouteScreen (Cleaner)<br/>usePositionReporter — throttled POST, never publishes"]
+        Host["TrackingScreen (Host)<br/>useTrackingChannel — read-only subscribe"]
+        Store["tracking.store (Zustand)<br/>idempotent state signals (no regression) · reconcile via GET"]
+    end
+
+    subgraph API["NestJS API — service-tracking"]
+        ActConsumer["ServiceActivationConsumer<br/>drains via own service_activation_consumed cursor"]
+        Svc["ServiceSessionService<br/>single-winner state machine · Option A ingress"]
+        Geo["GeofenceService<br/>eligibility gate + PostGIS ST_DWithin over snapshot"]
+        RL["PositionRateLimiter (Redis, per user+session)"]
+        Repo["ServiceSessionRepository (service_sessions)"]
+        Sweep["ServiceSweepProcessor<br/>abandon → EXPIRED_NEVER_STARTED · stale → EXPIRED_NO_PROGRESS"]
+        TermList["OfferTerminalSessionListener (force-cancel)"]
+        AuthTok["auth CentrifugoController<br/>service:session:{id} token (read-only Host)"]
+        Pub["SERVICE_REALTIME_PUBLISHER (CentrifugoClient)"]
+    end
+
+    subgraph Infra["Infra"]
+        PG[("PostgreSQL + PostGIS<br/>service_sessions · service_outbox ·<br/>service_outbox_consumers · service_activation_consumed")]
+        Cent["Centrifugo (service:session:{id})"]
+        Redis["Redis (rate limit + sweep)"]
+    end
+
+    subgraph Consumers["Downstream (independent per-consumer checkpoints)"]
+        Notif["notifications (Spec 16)"]
+        Video["video (Spec 18)"]
+    end
+
+    Escrow -->|SAME tx| ActOut
+    ActOut -->|NOT EXISTS drain| ActConsumer
+    ActConsumer --> Svc
+    Svc --> Repo
+    Repo --> PG
+
+    Cleaner -->|POST /position| RL
+    RL --> Svc
+    Svc --> Geo
+    Geo --> PG
+    Svc -->|best-effort re-publish| Pub
+    Pub --> Cent
+    Cent -->|position + state| Host
+    Host -->|GET reconcile| Svc
+    Store --> Host
+    Store --> Cleaner
+
+    Host -->|sub token| AuthTok
+    AuthTok --> Svc
+
+    TermList --> Svc
+    Sweep --> Repo
+    Sweep --> Redis
+    RL --> Redis
+
+    PG -->|service_outbox fan-out| Notif
+    PG -->|service_outbox fan-out| Video
+    Notif -->|ack event_id,'notifications'| PG
+    Video -->|ack event_id,'video'| PG
+```
+
+The session state machine is `MATCHED → EN_ROUTE → ARRIVED → IN_PROGRESS` plus terminal `CANCELED | EXPIRED`. Every advancing/terminal transition is a **single-winner** conditional write (`UPDATE ... WHERE id=:id AND state=:expected`) that, in the SAME transaction, sets the derived timestamps AND writes the `service_outbox` event — so history can never observe an `ARRIVED` session without `arrived_at`, nor a `service_arrived` event without a committed arrival. **Fan-out has no shared `relayed_at`:** the notifications (Spec 16) and video (Spec 18) consumers each drain `service_outbox` via their own `(event_id, consumer_name)` row in `service_outbox_consumers`, so one acking `service_arrived` never starves the other; service-tracking itself consumes the upstream `service_activation_ready` via its own `service_activation_consumed` cursor rather than a shared marker. **Deletion coherence (Spec 13 invariant):** `offer_id` CASCADEs; `host_id`/`cleaner_id`/`property_id` are `ON DELETE SET NULL`; there is no `deleted_at` and no user-cascade path. The geofence survives a mid-session property deletion because it uses `property_location_snapshot`, not the live property row.
+
+---
+
+*Last updated: September 30, 2026*
 *Update this document on EVERY structural change.*
+
+## 11. On-Arrival Video Verification (Spec 18 — video-verification)
+
+An advisory on-arrival identity check: when service-tracking's `service_arrived` fires, the Cleaner records a short clip and an async DeepFace worker compares it against the Cleaner's VERIFIED KYC selfie. The result is **derived data, never a gate** — it surfaces the Host a classification (verified / needs-review / unavailable), never blocks the service, seizes escrow, or changes KYC. Arrival video lives briefly (24–48h from `uploaded_at`) in a private MinIO bucket with **no playback endpoint**.
+
+```mermaid
+graph LR
+    ST[("service_outbox<br/>service_arrived (Spec 17)")] -->|"drain consumer_name='video'"| AC[VerificationArrivalConsumer]
+    AC -->|"createFromArrival (idempotent)"| VS[("verification_sessions<br/>PENDING_UPLOAD | DISABLED")]
+    CL["Cleaner (expo-camera)"] -->|"1. request-upload (grant first)"| API[VideoVerificationController]
+    API -->|"presigned PUT"| MV[("MinIO verification-videos<br/>private, SSE, 24-48h")]
+    CL -->|"2. PUT bytes direct"| MV
+    CL -->|"3. finalize (server inspect)"| API
+    API -->|"beginProcessing (atomic UPLOADED→PROCESSING +attempt)"| VS
+    W[FaceComparisonProcessor] -->|"read video (Option A)"| MV
+    W -->|"read VERIFIED selfie (read-only)"| KYC[("MinIO KYC bucket")]
+    W -->|"POST bytes"| AI["FastAPI /verify-face<br/>DeepFace (no storage creds)"]
+    AI -->|"{score, decision}"| W
+    W -->|"writeResultGuarded (latest attempt)"| VS
+    VS -->|"verification_outbox<br/>completed / flagged"| PUSH["push-notifications (Spec 16)"]
+    VS -->|"derived classification only"| HOST["Host indicator"]
+    DEL["Retention + Tombstone jobs"] -->|"hard-delete past horizon (idempotent)"| MV
+```
+
+Durable-first single-winner transitions write the `verification_outbox` row in the same transaction (decision-bearing terminals only). Deletion coherence mirrors the siblings: `cleaner_id`/`host_id` `ON DELETE SET NULL`, `service_session_id`/`offer_id` CASCADE, a `BEFORE DELETE` tombstone trigger queues any remaining object for eventual idempotent deletion, and the record itself has no `deleted_at`. See ADR-016.
+
+## 12. Checklist & Evidence Photos (Spec 19 — checklist-photos)
+
+While a service is `IN_PROGRESS`, the Cleaner works the property's cleaning checklist, marking tasks done and attaching before/after photo evidence. The durable completion record is what Spec 20 (completion + release) settles on and Spec 21 (disputes) uses as evidence. The run is created from the durable `service_started` event (own `consumer_name='checklist'` checkpoint), and the checklist tasks + policies are snapshotted **as-of IN_PROGRESS**, carried on the event (an additive, backward-safe payload extension).
+
+```mermaid
+graph LR
+    ST[("service_outbox<br/>service_started + checklist/policy snapshot")] -->|"drain consumer_name='checklist'"| SC[ChecklistStartedConsumer]
+    SC -->|"createFromStarted (idempotent)"| RUN[("checklist_runs (ACTIVE)<br/>+ checklist_tasks snapshot")]
+    CL["Cleaner"] -->|"mark task (run-locked count invariant)"| RUN
+    CL -->|"1. request-upload (atomic per-task slot reservation)"| API[ChecklistController]
+    API -->|"presigned PUT"| MP[("MinIO checklist-photos<br/>private")]
+    CL -->|"2. PUT bytes direct"| MP
+    CL -->|"3. finalize-photo (run-locked, cap re-validated)"| API
+    API -->|"insert checklist_task_photos"| RUN
+    HOST["Host / Cleaner"] -->|"playback-url (session-scoped, participant-gated)"| API
+    API -->|"presigned GET (key from DB)"| MP
+    CL -->|"finalize (run-locked, single-winner ACTIVE→COMPLETED)"| RUN
+    RUN -->|"checklist_outbox<br/>checklist_completed"| DOWN["Spec 20 completion + Spec 21 disputes"]
+    TERM["offer/session terminal"] -->|"force-ABANDONED (idempotent)"| RUN
+    DEL["Retention + Tombstone + Stale-grant jobs"] -->|"hard-delete past horizon (idempotent)"| MP
+```
+
+`finalize-photo` and `finalize-checklist` serialize on the same `checklist_runs` row lock, so a `COMPLETED` run's `photoCount` never omits a committed photo. Playback is session-scoped (a cross-session `photoId` → `404`) and the Host MAY view evidence (unlike the verification video). Deletion coherence: `issued_to_user_id`/`property_id` `ON DELETE SET NULL`, `service_session_id`/`offer_id`/`run_id`/`task_id` CASCADE, `BEFORE DELETE` tombstone trigger, no `deleted_at` on metadata. See ADR-017.
+
+## 13. Service Completion & Escrow Release (Spec 20 — service-completion)
+
+Closes the service loop. After `checklist_completed` (carrying the authoritative `completedAt`), the Host confirms satisfaction, does nothing (server-authoritative auto-release after a snapshotted 24h deadline), or opens a dispute (routed to Spec 21, pausing auto-release). It **owns the decision and durably enqueues the release intent; it never moves money** — the escrow (Spec 9) remains the money authority. A mutual rating is captured, never gating release.
+
+```mermaid
+graph LR
+    CO[("checklist_outbox<br/>checklist_completed + completedAt (Spec 19)")] -->|"drain consumer_name='completion'"| CC[CompletionCreatedConsumer]
+    CC -->|"createFromChecklistCompleted (idempotent, deadline snapshotted)"| SC[("service_completions<br/>AWAITING_CONFIRMATION")]
+    HOST["Host"] -->|"confirm (single-winner)"| DEC[CompletionDecisionService]
+    SWEEP["AutoReleaseSweepProcessor<br/>(deadline passed)"] -->|"single-winner"| DEC
+    HOST -->|"dispute (suppress auto-release)"| DEC
+    DEC -->|"transition + release_intent PENDING (same tx)"| SC
+    DEC -->|"release_intent"| RI[("release_intents<br/>durable financial command<br/>ON DELETE SET NULL")]
+    W[ReleaseIntentWorker] -->|"claimForDispatch (lease)"| RI
+    W -->|"release(paymentId, reason)"| ESC["EscrowReleaseService (Spec 9)<br/>single-winner, deferred, dispute-paused"]
+    ESC -->|"Stripe Transfer (money authority)"| STRIPE["Stripe"]
+    SC -->|"completion_outbox<br/>service_confirmed / service_disputed / service_rated"| PUSH["push (Spec 16)"]
+    SC -->|"service_disputed"| DISP["dispute-system (Spec 21)"]
+    SC -->|"service_rated"| REP["reputation/favorites (Spec 22)"]
+    HOST2["Host / Cleaner"] -->|"rate (never gating)"| RAT[("service_ratings<br/>one per side")]
+```
+
+The DECISION state (`CONFIRMED`/`AUTO_RELEASED`) is distinct from the release EXECUTION state carried on the `release_intent` (`PENDING → DISPATCHED → ACCEPTED`); `ACCEPTED` means Spec 9 durably accepted the release command, not that funds settled (a deferred payout is still `ACCEPTED`). A crash between the committed decision and the Stripe call is recoverable via the durable intent + lease reclaim, so a terminal completion is never left with no release path. Single-winner decision × Spec 9's single-winner release ⇒ at most one Transfer per payment. `release_intents.service_completion_id` is `ON DELETE SET NULL` (not CASCADE) so the release path survives completion deletion. See ADR-018.
+
+## 14. Dispute System & Escrow Resolution (Spec 21 — dispute-system)
+
+Closes the "the job didn't go right" loop. A dispute case is created only from Spec 20's durable `service_disputed` event; evidence is gathered from the durable facts the service already produced; a resolution is reached; and that resolution durably drives Spec 9's refund/reversal/release. It **owns the case and durably enqueues the money command; it never moves money** — Spec 9 remains the money authority. The escrow stays blocked (`disputeStatus = OPEN`) until Spec 9 durably applies the action (**clear-escrow-LAST**).
+
+```mermaid
+graph LR
+    CO[("completion_outbox<br/>service_disputed (Spec 20)")] -->|"drain consumer_name='dispute'"| DC[DisputeCreatedConsumer]
+    DC -->|"createFromRouting (idempotent, phase from payout_status)"| D[("disputes<br/>OPEN")]
+    DC -->|"OPEN escrow-block intent (same tx)"| EI[("dispute_escrow_intents")]
+    EI --> EW[EscrowIntentWorker]
+    EW -->|"setDisputeStatus(OPEN) — atomic block-vs-release"| ESC["stripe-escrow (Spec 9)"]
+    PARTS["Host / Cleaner"] -->|"evidence: grant-gated PUT (window)"| ME[("MinIO dispute-evidence<br/>private")]
+    UP["checklist (19) / verification (18) / arrival (17)"] -.->|"typed refs (read-only)"| D
+    RES["Resolver / SLA sweep"] -->|"resolve | expire (single-winner)"| D
+    D -->|"exactly one financial intent (same tx)"| FI[("dispute_financial_intents")]
+    FI --> FW[FinancialIntentWorker]
+    FW -->|"releaseForDispute / refundForDispute → EscrowActionOutcome"| ESC
+    ESC -->|"APPLIED / CEILING_CLAMPED / NO_OP"| FW
+    ESC -->|"BLOCKED (PAYMENT_ALREADY_SETTLED)"| FW
+    FW -->|"on applied: enqueue NONE clear-escrow-LAST"| EI
+    FW -->|"on BLOCKED: ACTION_BLOCKED needs-review (escrow stays OPEN)"| FI
+    D -->|"dispute_opened / dispute_resolved"| PUSH["push (Spec 16)"]
+    DEL["Retention + Tombstone + Stale-grant jobs"] -->|"hard-delete TERMINAL-dispute objects past horizon"| ME
+```
+
+Two durable intents (crash-safe, lease-reclaimed) survive the case via `dispute_id ON DELETE SET NULL` (+ `payment_id NOT NULL`), so a cascade never destroys a pending money command. Single-winner terminality (resolve vs SLA-expiry) yields exactly one RESOLVED/EXPIRED + one financial intent; EXPIRED always carries a fallback resolution so the escrow is never blocked forever. The at-most-one-dispute-driven-effect-per-payment guarantee (P15) lives in Spec 9 via a `dispute_settled_at` claim under lock, not merely in a per-dispute constraint. See ADR-019.
+
+## 15. Favorites (Spec 22 — favorites)
+
+A directed Host→Cleaner favorite relationship. favorites owns only the membership (one `favorites` table); it holds no Cleaner-lifecycle logic and exposes a delivery-facing query for offer-radar (Spec 7), which owns eligibility filtering and the favorites-first delivery window.
+
+```mermaid
+graph LR
+    HOST["Host (mobile)"] -->|"add / remove / list (optimistic)"| FC[FavoritesController]
+    FC --> FS[FavoritesService]
+    FS -->|"add under pg_advisory_xact_lock(host_id): exists? → cap? → INSERT ON CONFLICT"| PG[("favorites<br/>UNIQUE(host_id,cleaner_id)<br/>CHECK(host<>cleaner)<br/>both FK ON DELETE CASCADE")]
+    FS -->|"getRoleTier(hostId, HOST)"| SUB["subscriptions (Spec 11)"]
+    FS -. "FavoriteEligibilityPolicy seam (when ALLOW_ADD_WITHOUT_SERVICE=false)" .-> SC["service-completion (Spec 20)<br/>hasQualifyingService"]
+    OR["offer-radar (Spec 7)"] -->|"FavoritesQuery: listFavoriteCleanerIds / isFavorite (ids only, ineligible included)"| FS
+    USERS[("users")] -->|"ON DELETE CASCADE (live relation, not history)"| PG
+```
+
+The CASCADE-from-users here is the deliberate exception to the Spec 13 `SET NULL` invariant: a favorite is a live relation (not an audit fact), so deleting a user removes their favorites. The tier cap is config-driven with no sentinels (`null` = unlimited); a PRO→FREE downgrade is non-destructive (over-cap favorites are retained, only new adds blocked). See ADR-021.
+
+## 16. Theming — Dark/Light (Spec 24 — dark-light-theme)
+
+A centralized, type-safe theming layer (mobile-only). `primitives.ts` is the single physical home of every hex; theme files do only semantic mapping; screens consume tokens via `useTheme()`/`makeStyles`. The whole app was migrated so no color literal lives outside `primitives.ts`.
+
+```mermaid
+graph TD
+    PRIM["primitives.ts<br/>(ONLY hex lives here)"] --> DARK["dark.theme.ts<br/>(semantic mapping)"]
+    PRIM --> LIGHT["light.theme.ts<br/>(semantic mapping)"]
+    DARK --> TOKENS["SemanticTokens<br/>(13 roles, identical shape, compile-enforced parity)"]
+    LIGHT --> TOKENS
+    STORE["useThemeStore<br/>expo-secure-store {version, mode}<br/>last-write-wins; bad/missing → DARK"] --> PROV
+    OS["useColorScheme (live OS)"] --> PROV["ThemeProvider<br/>resolve(mode + OS) → resolvedTheme<br/>NO-FOUC: holds native splash until resolved"]
+    PROV --> TOKENS
+    PROV --> CHROME["useSystemChromeTheme<br/>status bar · RN navigation theme · Android nav bar · keyboard"]
+    TOKENS --> SCREENS["every screen/component<br/>useTheme() / makeStyles(theme => styles)"]
+    APPEAR["AppearanceScreen<br/>Dark / Light / System selector"] --> STORE
+```
+
+`mode` (persisted DARK|LIGHT|SYSTEM) is distinct from `resolvedTheme` (rendered DARK|LIGHT). The accent mint (`#00F5D4`) is interactive emphasis only, never a surface, in both modes. Dark is the default and the reference appearance; the migration preserved it exactly. See ADR-020.

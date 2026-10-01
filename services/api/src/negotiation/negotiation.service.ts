@@ -38,6 +38,7 @@ import {
 } from './negotiation.types';
 import { NegotiationThread } from './entities/negotiation-thread.entity';
 import { NegotiationProposal } from './entities/negotiation-proposal.entity';
+import { buildNegotiationOutboxRow, NegotiationOutboxEventType } from './negotiation-outbox';
 
 /** DTO shape for a price proposal (Cleaner counteroffer or Host counter-back) */
 interface PriceProposalInput {
@@ -174,6 +175,8 @@ export class NegotiationService {
           thread,
           ProposalActor.CLEANER,
           input.proposedPriceCents,
+          offer.hostId,
+          NegotiationOutboxEventType.CREATED,
         );
 
         await this.publisher.publishProposalCreatedToHost(offer.hostId, {
@@ -218,7 +221,18 @@ export class NegotiationService {
           throw new ConflictException(match.reason ?? NEGOTIATION_ERROR_MESSAGES.OFFER_UNAVAILABLE);
         }
 
-        await this.negotiationRepo.markProposalAccepted(proposal.id);
+        // Notify the proposal's author (the counterparty of the accepter) that it was accepted.
+        const acceptedRecipientId =
+          proposal.actor === ProposalActor.CLEANER ? thread.cleanerId : thread.hostId;
+        await this.negotiationRepo.markProposalAccepted(
+          proposal.id,
+          buildNegotiationOutboxRow({
+            proposalId: proposal.id,
+            threadId: thread.id,
+            recipientUserId: acceptedRecipientId,
+            type: NegotiationOutboxEventType.ACCEPTED,
+          }),
+        );
 
         const breakdown = await this.resolveAndSnapshotCleanerRate(
           offer,
@@ -269,11 +283,20 @@ export class NegotiationService {
         this.assertProposalPending(proposal);
         this.assertCanAcceptCounterparty(userId, proposal, thread);
 
+        // Notify the proposal's author (the counterparty of the rejector).
+        const rejectedRecipientId =
+          proposal.actor === ProposalActor.CLEANER ? thread.cleanerId : thread.hostId;
         await this.negotiationRepo.setProposalStatus(proposal.id, ProposalStatus.REJECTED, {
           markResponded: true,
+          // Push Task 12: notify the proposal author their proposal was rejected, atomically.
+          outbox: buildNegotiationOutboxRow({
+            proposalId: proposal.id,
+            threadId: thread.id,
+            recipientUserId: rejectedRecipientId,
+            type: NegotiationOutboxEventType.REJECTED,
+          }),
         });
 
-        // Notify the proposal's author (the counterparty of the rejector).
         const rejectedChannel =
           proposal.actor === ProposalActor.CLEANER
             ? NEGOTIATION_CHANNELS.cleaner(thread.cleanerId)
@@ -316,11 +339,16 @@ export class NegotiationService {
 
         await this.negotiationRepo.markProposalCountered(proposal.id);
 
+        // The counter notifies the counterparty of the countering actor.
+        const counterRecipientId =
+          counteringActor === ProposalActor.HOST ? thread.cleanerId : thread.hostId;
         const inserted = await this.insertProposal(
           offer,
           thread,
           counteringActor,
           input.proposedPriceCents,
+          counterRecipientId,
+          NegotiationOutboxEventType.COUNTERED,
         );
 
         // Notify the counterparty of the countering actor.
@@ -486,12 +514,17 @@ export class NegotiationService {
     return { proposal, thread, offer };
   }
 
-  /** Insert a proposal with computed breakdown and a fresh expires_at. */
+  /**
+   * Insert a proposal with computed breakdown and a fresh expires_at. Writes the push-notification
+   * outbox row (Task 12) atomically with the proposal, targeting `recipientUserId` with `eventType`.
+   */
   private async insertProposal(
     offer: Offer,
     thread: NegotiationThread,
     actor: ProposalActor,
     proposedPriceCents: number,
+    recipientUserId: string,
+    eventType: NegotiationOutboxEventType,
   ): Promise<{ proposal: NegotiationProposal; threadVersion: number }> {
     const breakdown = this.pricing.computeBreakdown(offer, proposedPriceCents);
     const expiresAt = new Date(Date.now() + NEGOTIATION_RESPONSE_WINDOW_MS);
@@ -504,6 +537,13 @@ export class NegotiationService {
       hostTotalCents: breakdown.hostTotalCents,
       currency: offer.currency,
       expiresAt,
+      outboxFor: (proposalId) =>
+        buildNegotiationOutboxRow({
+          proposalId,
+          threadId: thread.id,
+          recipientUserId,
+          type: eventType,
+        }),
     });
   }
 

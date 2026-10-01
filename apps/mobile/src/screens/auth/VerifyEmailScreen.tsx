@@ -7,7 +7,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, {
   useSharedValue,
@@ -18,18 +18,9 @@ import Animated, {
 import { useRouter, useLocalSearchParams } from 'expo-router';
 
 import type { VerifyEmailScreenProps } from './auth.types';
+import { makeStyles } from '../../theme';
 
 // ─── Design Tokens ───────────────────────────────────────────────────────────
-
-const COLORS = {
-  background: '#0B0C10',
-  card: '#1F2833',
-  accent: '#00F5D4',
-  textPrimary: '#FFFFFF',
-  textSecondary: 'rgba(255, 255, 255, 0.6)',
-  border: 'rgba(255, 255, 255, 0.2)',
-  error: '#FF6B6B',
-} as const;
 
 const SPACING = {
   xs: 4,
@@ -72,6 +63,7 @@ export default function VerifyEmailScreen({
   onVerified,
 }: VerifyEmailScreenProps) {
   const router = useRouter();
+  const styles = useStyles();
   const params = useLocalSearchParams<{ email: string }>();
 
   // Prefer prop over route param — supports both direct usage and navigation
@@ -242,10 +234,10 @@ export default function VerifyEmailScreen({
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: theme.background,
     paddingHorizontal: SPACING.lg,
   },
   content: {
@@ -266,26 +258,26 @@ const styles = StyleSheet.create({
   title: {
     fontSize: FONT_SIZE.title,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
     letterSpacing: -0.5,
     textAlign: 'center',
   },
   subtitle: {
     fontSize: FONT_SIZE.subtitle,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
     marginTop: SPACING.sm,
     textAlign: 'center',
   },
   emailText: {
     fontSize: FONT_SIZE.body,
     fontWeight: '600',
-    color: COLORS.accent,
+    color: theme.accent,
     marginTop: SPACING.xs,
     textAlign: 'center',
   },
   helperText: {
     fontSize: FONT_SIZE.subtitle,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
     marginTop: SPACING.md,
     textAlign: 'center',
     lineHeight: 20,
@@ -295,25 +287,25 @@ const styles = StyleSheet.create({
   },
   resendButton: {
     borderWidth: 1.5,
-    borderColor: COLORS.textPrimary,
+    borderColor: theme.textPrimary,
     borderRadius: 12,
     paddingVertical: SPACING.md,
     alignItems: 'center',
   },
   resendButtonDisabled: {
-    borderColor: COLORS.border,
+    borderColor: theme.border,
     opacity: 0.5,
   },
   resendButtonText: {
     fontSize: FONT_SIZE.button,
     fontWeight: '600',
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
   },
   resendButtonTextDisabled: {
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
   },
   continueButton: {
-    backgroundColor: COLORS.accent,
+    backgroundColor: theme.accent,
     borderRadius: 12,
     paddingVertical: SPACING.md,
     alignItems: 'center',
@@ -321,6 +313,6 @@ const styles = StyleSheet.create({
   continueButtonText: {
     fontSize: FONT_SIZE.button,
     fontWeight: '600',
-    color: COLORS.background,
+    color: theme.onAccent,
   },
-});
+}));

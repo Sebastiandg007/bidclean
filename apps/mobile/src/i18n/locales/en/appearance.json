@@ -1,0 +1,13 @@
+{
+  "title": "Appearance",
+  "subtitle": "Choose how BidClean looks on this device.",
+  "section": {
+    "theme": "Theme"
+  },
+  "mode": {
+    "dark": "Dark",
+    "light": "Light",
+    "system": "System"
+  },
+  "hint": "System follows your device's appearance setting."
+}

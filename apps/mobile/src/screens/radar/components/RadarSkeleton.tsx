@@ -8,15 +8,9 @@
  */
 
 import React, { useEffect, useRef } from 'react';
-import { Animated, StyleSheet, View } from 'react-native';
+import { Animated, View } from 'react-native';
 
-// ─── Design Tokens ───────────────────────────────────────────────────────────
-
-const COLORS = {
-  background: '#0B0C10',
-  skeletonBase: '#1F2833',
-  skeletonHighlight: 'rgba(255, 255, 255, 0.06)',
-} as const;
+import { makeStyles } from '../../../theme';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -33,6 +27,7 @@ const TOGGLE_BORDER_RADIUS = 18;
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export function RadarSkeleton(): React.JSX.Element {
+  const styles = useStyles();
   const shimmerAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -85,10 +80,10 @@ export function RadarSkeleton(): React.JSX.Element {
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: theme.background,
     paddingHorizontal: 16,
   },
   toggleRow: {
@@ -99,11 +94,11 @@ const styles = StyleSheet.create({
     width: TOGGLE_WIDTH,
     height: TOGGLE_HEIGHT,
     borderRadius: TOGGLE_BORDER_RADIUS,
-    backgroundColor: COLORS.skeletonBase,
+    backgroundColor: theme.surface,
   },
   mapPlaceholder: {
     flex: MAP_PLACEHOLDER_HEIGHT_RATIO,
-    backgroundColor: COLORS.skeletonBase,
+    backgroundColor: theme.surface,
     borderRadius: CARD_BORDER_RADIUS,
     marginBottom: CARD_GAP,
   },
@@ -112,9 +107,9 @@ const styles = StyleSheet.create({
   },
   cardPlaceholder: {
     height: CARD_HEIGHT,
-    backgroundColor: COLORS.skeletonBase,
+    backgroundColor: theme.surface,
     borderRadius: CARD_BORDER_RADIUS,
   },
-});
+}));
 
 export default RadarSkeleton;

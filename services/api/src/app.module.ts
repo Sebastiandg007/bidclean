@@ -12,6 +12,14 @@ import { NegotiationModule } from './negotiation/negotiation.module';
 import { PaymentsModule } from './payments/payments.module';
 import { CommissionModule } from './commission/commission.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
+import { ChatModule } from './chat/chat.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { ServiceTrackingModule } from './service-tracking/service-tracking.module';
+import { VideoVerificationModule } from './video-verification/video-verification.module';
+import { ChecklistPhotosModule } from './checklist-photos/checklist-photos.module';
+import { ServiceCompletionModule } from './service-completion/service-completion.module';
+import { DisputeSystemModule } from './dispute-system/dispute-system.module';
+import { FavoritesModule } from './favorites/favorites.module';
 
 /**
  * Root application module.
@@ -46,6 +54,14 @@ import { SubscriptionsModule } from './subscriptions/subscriptions.module';
     PaymentsModule,
     SubscriptionsModule,
     CommissionModule,
+    ChatModule,
+    NotificationsModule,
+    ServiceTrackingModule,
+    VideoVerificationModule,
+    ChecklistPhotosModule,
+    ServiceCompletionModule,
+    DisputeSystemModule,
+    FavoritesModule,
   ],
 })
 export class AppModule {}
