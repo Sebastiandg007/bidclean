@@ -1085,3 +1085,64 @@ graph TD
 ```
 
 `mode` (persisted DARK|LIGHT|SYSTEM) is distinct from `resolvedTheme` (rendered DARK|LIGHT). The accent mint (`#00F5D4`) is interactive emphasis only, never a surface, in both modes. Dark is the default and the reference appearance; the migration preserved it exactly. See ADR-020.
+
+## 17. Deployment-Readiness Audit (full-audit — meta-spec)
+
+The platform's **final gate before go-live**. `full-audit` is a tooling + documentation artifact under `tools/full-audit/` — **not** a NestJS module or a mobile screen, and it adds **no product services, tables, or endpoints**. It verifies the whole assembled system (API, AI, mobile, infra) is present, wired, reachable, healthy, and end-to-end functional against the *running* deployment, first in local Docker then on the VPS, and that the mobile app is store-submission-ready. It observes, verifies, reports, and gates; it never patches behavior/config, never re-runs Spec 25's suites, never rotates secrets, and never auto-triggers real money.
+
+The design's spine is a one-directional authority chain. A health `200` is a **liveness signal only**, never integration proof — the audit never reduces to `GET /health`.
+
+```mermaid
+flowchart LR
+    REG["Component registry (versioned)<br/>services + internal modules<br/>reconciled vs specs/ARCHITECTURE first"] --> BUILD[checklist.builder]
+    BUILD --> CL["Readiness checklist<br/>invariant (same across envs)<br/>+ per-env probe + tri-state status"]
+    CL --> PROBES["7 probe families<br/>presence · health (liveness only) ·<br/>edge (reachable+auth) · external-integration ·<br/>live-journey · store · devops-security"]
+    PROBES --> EVAL["readiness-evaluator (PURE)<br/>parity + N/A validation + verdict"]
+    EVAL -->|"mandatory+applicable PASS in BOTH envs<br/>+ N/A justified + valid store + no blocking finding"| READY["READY"]
+    EVAL -->|"any FAIL / parity break / unjustified N/A /<br/>REGISTRY_STALE / SECRET_EXPOSURE"| NOTREADY["NOT_READY"]
+    EVAL --> REP["findings-reporter (PURE)<br/>one finding per violation, routed to owner,<br/>mutates nothing"]
+```
+
+**Audited topology** — every node is a component-presence + service-health item; every solid edge is a functional inter-service-edge item (reachable + authenticated), probed in both environments; dotted edges to observability are telemetry/export edges verified as "monitoring wired" under `DEVOPS_SECURITY`.
+
+```mermaid
+graph TB
+    APP["Mobile (Expo)<br/>feature modules"] --> TRAEFIK["Traefik<br/>SSL + api/ws/rtc/storage/auth subdomains"]
+    TRAEFIK --> API["API (NestJS)<br/>Nest modules · BullMQ workers ·<br/>outbox/event consumers · scheduled jobs · webhooks"]
+    APP -. WS .-> CENT[Centrifugo]
+    APP -. media .-> LK[LiveKit]
+    APP -. presigned .-> MINIO[(MinIO)]
+    API --> PG[(PostgreSQL+PostGIS)]
+    API --> REDIS[(Redis + BullMQ)]
+    API --> MINIO
+    API --> KC[Keycloak]
+    API --> CENT
+    API --> LK
+    API --> AI["AI (FastAPI)<br/>/transcribe · /verify-face · /ai/*"]
+    API --> STRIPE[Stripe Connect]
+    API --> RC[RevenueCat]
+    API --> OS[OneSignal]
+    API --> BED[AWS Bedrock]
+    API --> LT[LibreTranslate]
+    API --> WSP[Whisper.cpp]
+    API --> PIP[Piper]
+    API -. metrics/logs .-> OBS["Prometheus/Grafana/Loki · Sentry · Uptime Kuma"]
+```
+
+**Two-environment parity:** the same invariants run twice with environment-appropriate probes. Green locally is not enough; a mandatory+applicable item PASS locally but FAIL on the VPS is a blocking `PARITY_BREAK`. Items meaningful in only one environment (real certs, prod domains, VPS routing) are `N/A` in the other with a justification.
+
+```mermaid
+flowchart LR
+    R["reconcile registry<br/>(REGISTRY_STALE blocks)"] --> L["LOCAL audit<br/>docker compose"]
+    L -->|all mandatory+applicable PASS| D["operator: deploy to VPS"]
+    L -->|findings| LF["route to owner → fix → re-audit"]
+    D --> V["VPS audit<br/>Traefik + real domains/SSL"]
+    V -->|all PASS, parity holds| PKG["operator: package mobile → submit"]
+    V -->|findings incl. PARITY_BREAK| VF["route to owner → fix → re-audit"]
+```
+
+The audit is operator-run per environment (the live VPS is not available to CI); CI's own green-HEAD is one item the DevOps probe checks. External-payment edges are validated in three separated modes (sandbox / non-transacting live-readiness / operator-gated live-money never in the automatic audit). See ADR-022; the maintained artifacts are `docs/deployment/READINESS-CHECKLIST.md` + `docs/deployment/READINESS-RUNBOOK.md`.
+
+---
+
+*Deployment-Readiness Audit section last updated: deployment-readiness Fase 1.*

@@ -59,6 +59,16 @@
 |---|------|--------|-------------|
 | 25 | `quality-assurance-pbt` | ⬜ Pending | All specs (1-24) |
 
+### Sprint 8 — Deployment Readiness
+| # | Spec | Status | Dependencies |
+|---|------|--------|-------------|
+| 26 | `full-audit` | 🔄 In Progress (Fase 1 core + CLI + docs + 11 property tests done; Fase 2 = operator integration against the live stack local+VPS and store builds) | All specs (1-25), `secrets-inventory` |
+
+> **Sprint 8 scope (`full-audit`, deployment-readiness meta-spec):** the final gate before go-live. A tooling + documentation artifact under `tools/full-audit/` (not a NestJS module or mobile screen) that verifies the LIVE assembled system (API, AI, mobile, infra) is present, wired, reachable, healthy, and end-to-end functional — first in local Docker, then on the VPS behind Traefik — and that the mobile app is store-submission-ready.
+> - Authority chain: COMPONENT REGISTRY → PROBES (running system) → CHECKLIST → VERDICT; health 200 is a liveness signal only, never integration proof.
+> - **Fase 1 (done):** versioned component registry (50 real components) + reconciliation, tri-state checklist model + builder, three-mode payment policy, the seven probe families (interpretation logic), the pure readiness-evaluator + findings-reporter, the audit CLI, and the 11 correctness-property tests (fast-check, ≥100 iters) + unit tests. The CLI runs today and produces an honest NOT_READY whose FAILs are the edges/journeys that require the live stack.
+> - **Fase 2 (operator):** run the probes against the running stack (local then VPS), exercise the durable event chains + live journeys, verify VPS specifics + DevOps/security/monitoring on the live target, and build/validate the store artifacts. Live-money validation is a manual, operator-gated action OUTSIDE the automatic audit.
+
 > **Sprint 7 scope:** Exhaustive testing of the ENTIRE system after all features are implemented.
 > - Property-Based Testing (fast-check + Hypothesis) with 100+ iterations per property and shrinking
 > - Correctness Properties verification across ALL modules
