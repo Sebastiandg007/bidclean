@@ -1,5 +1,3 @@
-version: '3.9'
-
 # BidClean — Local Development Environment
 # Run: docker compose up -d
 # All services needed for local development.
@@ -38,9 +36,15 @@ services:
 
   # === OBJECT STORAGE ===
   minio:
-    image: minio/minio:latest
+    # MinIO withdrew its public Docker Hub / quay.io images (community edition archived ~2026).
+    # Use the CloudPirates community rebuild (vanilla, built from official MinIO source, S3-compatible).
+    image: cloudpirates/image-minio:latest
     container_name: bidclean-minio
-    command: server /data --console-address ":9001"
+    # The CloudPirates rebuild's bundled entrypoint treats its first arg as the data dir, which is
+    # inconsistent with its own default CMD. Bypass it and invoke the minio binary directly so the
+    # server args are passed exactly (same behaviour the official minio/minio image had).
+    entrypoint: ['minio']
+    command: ['server', '/data', '--console-address', ':9001']
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-bidclean}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-bidclean_local}

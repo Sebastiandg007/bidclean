@@ -94,8 +94,8 @@
       "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": false,
       "authorizationServicesEnabled": false,
-      "rootUrl": "bidclean://",
-      "baseUrl": "bidclean://",
+      "rootUrl": "",
+      "baseUrl": "",
       "redirectUris": [
         "bidclean://callback",
         "http://localhost:19006/*"
@@ -144,38 +144,12 @@
         "syncMode": "IMPORT",
         "useJwksUrl": "true"
       }
-    },
-    {
-      "alias": "apple",
-      "displayName": "Apple",
-      "providerId": "apple",
-      "enabled": true,
-      "trustEmail": true,
-      "storeToken": false,
-      "addReadTokenRoleOnCreate": false,
-      "firstBrokerLoginFlowAlias": "first broker login",
-      "config": {
-        "clientId": "",
-        "clientSecret": "",
-        "defaultScope": "openid email name",
-        "syncMode": "IMPORT"
-      }
     }
   ],
   "identityProviderMappers": [
     {
       "name": "google-email-mapper",
       "identityProviderAlias": "google",
-      "identityProviderMapper": "hardcoded-attribute-idp-mapper",
-      "config": {
-        "syncMode": "INHERIT",
-        "attribute": "emailVerified",
-        "attribute.value": "true"
-      }
-    },
-    {
-      "name": "apple-email-mapper",
-      "identityProviderAlias": "apple",
       "identityProviderMapper": "hardcoded-attribute-idp-mapper",
       "config": {
         "syncMode": "INHERIT",
