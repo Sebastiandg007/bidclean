@@ -63,7 +63,9 @@ import {
     ServiceSessionService,
     ServiceSessionRepository,
     GeofenceService,
-    PositionRateLimiter,
+    // PositionRateLimiter's constructor takes (redis?, intervalMs?) with runtime defaults for DI
+    // (tests inject a fake). Register via factory so Nest does not try to resolve those params.
+    { provide: PositionRateLimiter, useFactory: () => new PositionRateLimiter() },
     ServiceSessionParticipationService,
     ServiceActivationConsumer,
     ServiceOutboxConsumerCheckpoint,

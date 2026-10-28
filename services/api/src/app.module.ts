@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { BullModule } from '@nestjs/bullmq';
 import { HealthModule } from './health/health.module';
 import { AuthModule } from './auth/auth.module';
 import { RolesModule } from './roles/roles.module';
@@ -42,6 +43,22 @@ import { FavoritesModule } from './favorites/favorites.module';
         synchronize: false,
         logging: configService.get<string>('NODE_ENV') === 'development',
       }),
+    }),
+    // Global BullMQ connection (shared by every module's registerQueue + its workers).
+    // Without a forRoot connection, worker registration throws "Worker requires a connection".
+    BullModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => {
+        const url = new URL(configService.get<string>('REDIS_URL') ?? 'redis://localhost:6379');
+        return {
+          connection: {
+            host: url.hostname,
+            port: Number(url.port || 6379),
+            ...(url.password ? { password: url.password } : {}),
+          },
+        };
+      },
     }),
     HealthModule,
     AuthModule,
