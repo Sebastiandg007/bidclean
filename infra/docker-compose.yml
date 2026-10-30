@@ -12,8 +12,9 @@ services:
       POSTGRES_USER: bidclean
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-bidclean_local}
     ports:
-      # Host port 5433 to avoid colliding with a native Windows PostgreSQL service on 5432.
-      - '5433:5432'
+      # Host port 15432: a native Windows PostgreSQL holds 5432, and Windows' WinNAT dynamically
+      # reserves ranges (e.g. 5433) after reboots. 15432 is a high port outside any reserved range.
+      - '15432:5432'
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -26,7 +27,9 @@ services:
     image: redis:7-alpine
     container_name: bidclean-redis
     ports:
-      - '6379:6379'
+      # Host port 16379: Windows dynamically reserves the 6287-6386 range (WinNAT) after reboots,
+      # which blocks 6379. 16379 is outside any reserved range. Container stays on 6379.
+      - '16379:6379'
     volumes:
       - redis-data:/data
     healthcheck:
