@@ -19,6 +19,8 @@ export function resolveTargets(environment: Environment): Readonly<Record<string
       rtc: env('FULL_AUDIT_VPS_RTC_URL', 'https://rtc.bidclean.tech'),
       storage: env('FULL_AUDIT_VPS_STORAGE_URL', 'https://storage.bidclean.tech'),
       auth: env('FULL_AUDIT_VPS_AUTH_URL', 'https://auth.bidclean.tech'),
+      centrifugo: env('FULL_AUDIT_VPS_CENTRIFUGO_URL', 'https://ws.bidclean.tech'),
+      libretranslate: env('FULL_AUDIT_VPS_LIBRETRANSLATE_URL', 'https://api.bidclean.tech'),
     };
   }
   return {
@@ -27,6 +29,8 @@ export function resolveTargets(environment: Environment): Readonly<Record<string
     rtc: env('FULL_AUDIT_LOCAL_RTC_URL', 'http://localhost:7880'),
     storage: env('FULL_AUDIT_LOCAL_STORAGE_URL', 'http://localhost:9000'),
     auth: env('FULL_AUDIT_LOCAL_AUTH_URL', 'http://localhost:8080'),
+    centrifugo: env('FULL_AUDIT_LOCAL_CENTRIFUGO_URL', 'http://localhost:8001'),
+    libretranslate: env('FULL_AUDIT_LOCAL_LIBRETRANSLATE_URL', 'http://localhost:5000'),
   };
 }
 

@@ -100,3 +100,31 @@ No secret is ever printed, rotated, or emitted in evidence/findings/reports.
 - Phased delivery: Fase 1 ships the pure core + CLI + docs + property tests; the
   probes' execution against the running stack and the store builds are Fase 2
   operator steps, documented in the runbook.
+
+## Fase 2 update — live health/presence probes wired to the running stack
+
+The `service-health` and `component-presence` probes now issue REAL observations
+against the running local stack when `FULL_AUDIT_LIVE_STACK=1`, instead of the
+Fase-1 honest FAIL placeholder:
+
+- HTTP liveness (`observeHealth`): a bounded `GET` (AbortController, 5s) to each
+  component's resolved liveness URL — `api` `/health`, `ai` `/health/`, `keycloak`
+  `/`, `minio` `/minio/health/live`, `centrifugo` `/health`, `libretranslate`
+  `/languages`. Any transport failure synthesizes `httpStatus:0` ("down") so a probe
+  never crashes the audit.
+- TCP liveness (`observeTcp`): services with no HTTP surface (`postgres`, `redis`)
+  are confirmed by a bounded TCP connect to their resolved host/port
+  (`FULL_AUDIT_LOCAL_POSTGRES_PORT` / `FULL_AUDIT_LOCAL_REDIS_PORT`), reusing the
+  same `HealthObservation` contract.
+- Endpoints/ports are resolved from env vars with non-secret defaults in
+  `config/targets.ts` + `probes/live-fetch.ts` — never hardcoded inside probe logic
+  — preserving the "environment-appropriate probe" and secret-safe-evidence
+  properties.
+
+Measured against the live local stack, this took the `--env local` audit from 107
+findings (all probes stubbed) to 37 — resolving every DEAD_EDGE / LIVE_JOURNEY /
+DEVOPS placeholder plus all HTTP/TCP service health + presence. The remaining 37 are
+honest: API-internal modules with no HTTP introspection route, VPS-only infra not run
+locally (LiveKit, Whisper, Piper, Sentry, Prometheus/Grafana/Loki), and the
+not-yet-built mobile store artifact. Edge / external-integration / live-journey
+probes remain Fase-1 placeholders pending their own Fase-2 wiring.

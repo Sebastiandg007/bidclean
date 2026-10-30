@@ -9,6 +9,7 @@
 
 import type { ChecklistItem, ProbeResult } from '../checklist/checklist.model';
 import { type ProbeContext, probeResult } from './probe.types';
+import { observeHealth, observeTcp, resolveLivenessUrl, resolveTcpEndpoint } from './live-fetch';
 
 /** A minimal liveness observation the host supplies for a target. */
 export interface PresenceObservation {
@@ -39,8 +40,11 @@ export function interpretPresence(subject: string, observation: PresenceObservat
 }
 
 /**
- * The runnable probe. In Fase 1 the live stack is not up, so presence cannot be
- * confirmed → FAIL (never a silent N/A/PASS). Fase 2 supplies real observations.
+ * The runnable probe. When the live stack is unavailable presence cannot be
+ * confirmed → FAIL (never a silent N/A/PASS). When available (Fase 2) it issues a
+ * REAL bounded GET: any HTTP response (even a 4xx/5xx) proves the process is
+ * present + listening, while a transport failure (status 0) means missing/down.
+ * A component with no local HTTP endpoint fails honestly rather than assuming up.
  */
 export const componentPresenceProbe = async (
   ctx: ProbeContext,
@@ -54,6 +58,26 @@ export const componentPresenceProbe = async (
       detail: 'stack not running — Fase 2',
     });
   }
-  // Fase 2: the host resolves a real PresenceObservation for the target.
-  return interpretPresence(subject, { present: true });
+  const probeId = item.probes[ctx.environment]?.probeRef.probeId ?? '';
+  const url = resolveLivenessUrl(probeId, ctx.targets);
+  if (url !== undefined) {
+    const observation = await observeHealth(url);
+    return interpretPresence(subject, {
+      present: observation.httpStatus > 0,
+      detail:
+        observation.httpStatus > 0 ? `listening (status ${observation.httpStatus})` : 'no response',
+    });
+  }
+  const tcp = resolveTcpEndpoint(probeId);
+  if (tcp !== undefined) {
+    const observation = await observeTcp(tcp.host, tcp.port);
+    return interpretPresence(subject, {
+      present: observation.httpStatus > 0,
+      detail: observation.httpStatus > 0 ? `tcp connect ${tcp.host}:${tcp.port}` : 'tcp refused',
+    });
+  }
+  return interpretPresence(subject, {
+    present: false,
+    detail: 'no local HTTP endpoint to confirm presence',
+  });
 };

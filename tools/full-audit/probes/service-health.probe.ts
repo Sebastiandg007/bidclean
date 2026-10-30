@@ -10,6 +10,7 @@
 
 import type { ChecklistItem, ProbeResult } from '../checklist/checklist.model';
 import { type ProbeContext, probeResult } from './probe.types';
+import { observeHealth, observeTcp, resolveLivenessUrl, resolveTcpEndpoint } from './live-fetch';
 
 /** A health observation the host supplies for a target. */
 export interface HealthObservation {
@@ -38,7 +39,13 @@ export function interpretHealth(subject: string, observation: HealthObservation)
   });
 }
 
-/** The runnable probe. Fase 1: stack down → FAIL with the liveness-only marker. */
+/**
+ * The runnable probe. When the live stack is unavailable it returns an honest
+ * FAIL. When available (Fase 2) it issues a REAL bounded GET to the component's
+ * resolved liveness URL and interprets the observed status. A component with no
+ * local HTTP liveness endpoint (Postgres/Redis TCP, CPU binaries, VPS-only infra)
+ * fails honestly with "no local HTTP liveness endpoint" rather than a fake 200.
+ */
 export const serviceHealthProbe = async (
   ctx: ProbeContext,
   item: ChecklistItem,
@@ -51,5 +58,18 @@ export const serviceHealthProbe = async (
       detail: `stack not running — Fase 2; ${LIVENESS_ONLY_MARKER}`,
     });
   }
-  return interpretHealth(subject, { httpStatus: 200, reportedStatus: 'ok' });
+  const probeId = item.probes[ctx.environment]?.probeRef.probeId ?? '';
+  const url = resolveLivenessUrl(probeId, ctx.targets);
+  if (url !== undefined) {
+    return interpretHealth(subject, await observeHealth(url));
+  }
+  const tcp = resolveTcpEndpoint(probeId);
+  if (tcp !== undefined) {
+    return interpretHealth(subject, await observeTcp(tcp.host, tcp.port));
+  }
+  return probeResult('FAIL', {
+    subject,
+    outcome: 'health unknown',
+    detail: `no local HTTP liveness endpoint; ${LIVENESS_ONLY_MARKER}`,
+  });
 };
