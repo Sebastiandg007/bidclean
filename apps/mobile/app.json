@@ -1,0 +1,29 @@
+{
+  "expo": {
+    "name": "BidClean",
+    "slug": "bidclean",
+    "version": "0.1.0",
+    "scheme": "bidclean",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "tech.bidclean.app"
+    },
+    "android": {
+      "package": "tech.bidclean.app"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store"
+    ],
+    "experiments": {
+      "typedRoutes": false
+    }
+  }
+}
