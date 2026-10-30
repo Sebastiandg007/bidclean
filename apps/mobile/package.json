@@ -12,7 +12,9 @@
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix",
     "typecheck": "tsc --noEmit",
-    "hex-guard": "node scripts/hex-guard.js"
+    "hex-guard": "node scripts/hex-guard.js",
+    "android": "expo run:android",
+    "ios": "expo run:ios"
   },
   "dependencies": {
     "@bidclean/shared": "*",

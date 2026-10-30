@@ -54,7 +54,7 @@ export default function Index(): React.JSX.Element {
   }
 
   if (isAuthenticated && activeRole) {
-    return <Redirect href="/(app)" />;
+    return <Redirect href="/home" />;
   }
 
   if (isAuthenticated && !activeRole) {

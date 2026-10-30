@@ -16,6 +16,7 @@ import React from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Stack } from 'expo-router';
 
+import '../src/i18n';
 import { ThemeProvider } from '../src/theme';
 
 export default function RootLayout(): React.JSX.Element {
