@@ -50,11 +50,11 @@
 | COMPONENT_PRESENCE | api.worker.stripe-webhook is present + up (BullMQ queue 'payments-stripe-webhook' (StripeWebhookProcessor)) | stripe-escrow | yes | FAIL | N/A |
 | COMPONENT_PRESENCE | api.worker.tier-delivery is present + up (BullMQ queue 'offer-tier-delivery' (TierDeliveryProcessor)) | offer-radar | yes | FAIL | N/A |
 | COMPONENT_PRESENCE | api.worker.voice-transcription is present + up (BullMQ queue 'voice-notes-transcription' (VoiceTranscriptionProcessor)) | voice-notes | yes | FAIL | N/A |
-| COMPONENT_PRESENCE | ext.bedrock is present + up (AWS Bedrock (cloud AI models)) | services/ai | yes | PASS | N/A |
-| COMPONENT_PRESENCE | ext.mapbox is present + up (Mapbox (maps, custom dark style)) | apps/mobile | yes | PASS | N/A |
-| COMPONENT_PRESENCE | ext.onesignal is present + up (OneSignal API (push delivery)) | push-notifications | yes | PASS | N/A |
-| COMPONENT_PRESENCE | ext.revenuecat is present + up (RevenueCat API (subscriptions, ads)) | revenuecat-subscriptions | yes | PASS | N/A |
-| COMPONENT_PRESENCE | ext.stripe is present + up (Stripe Connect API (escrow, multi-currency)) | stripe-escrow | yes | PASS | N/A |
+| COMPONENT_PRESENCE | ext.bedrock is present + up (AWS Bedrock (cloud AI models)) | services/ai | yes | FAIL | N/A |
+| COMPONENT_PRESENCE | ext.mapbox is present + up (Mapbox (maps, custom dark style)) | apps/mobile | yes | FAIL | N/A |
+| COMPONENT_PRESENCE | ext.onesignal is present + up (OneSignal API (push delivery)) | push-notifications | yes | FAIL | N/A |
+| COMPONENT_PRESENCE | ext.revenuecat is present + up (RevenueCat API (subscriptions, ads)) | revenuecat-subscriptions | yes | FAIL | N/A |
+| COMPONENT_PRESENCE | ext.stripe is present + up (Stripe Connect API (escrow, multi-currency)) | stripe-escrow | yes | FAIL | N/A |
 | COMPONENT_PRESENCE | mobile.feature.chat is present + up (screens/chat (realtime chat + voip)) | realtime-chat | yes | PASS | N/A |
 | COMPONENT_PRESENCE | mobile.feature.payments is present + up (screens/payments (escrow, Stripe sheet)) | stripe-escrow | yes | PASS | N/A |
 | COMPONENT_PRESENCE | mobile.feature.radar is present + up (screens/radar (real-time offer radar)) | offer-radar | yes | PASS | N/A |
@@ -79,29 +79,29 @@
 | DEVOPS_SECURITY | svc.sentry is wired into the running system (edge reachable + authenticated) | infra | yes | PASS | N/A |
 | DEVOPS_SECURITY | svc.traefik is wired into the running system (edge reachable + authenticated) | infra | yes | N/A | N/A |
 | DEVOPS_SECURITY | svc.uptime-kuma is wired into the running system (edge reachable + authenticated) | infra | yes | N/A | N/A |
-| EXTERNAL_INTEGRATION | api.job.auto-release is wired into the running system (edge reachable + authenticated) | service-completion | yes | PASS | N/A |
-| EXTERNAL_INTEGRATION | api.job.payment-reconciliation is wired into the running system (edge reachable + authenticated) | stripe-escrow | yes | PASS | N/A |
-| EXTERNAL_INTEGRATION | api.module.notifications is wired into the running system (edge reachable + authenticated) | push-notifications | yes | PASS | N/A |
-| EXTERNAL_INTEGRATION | api.module.payments is wired into the running system (edge reachable + authenticated) | stripe-escrow | yes | PASS | N/A |
-| EXTERNAL_INTEGRATION | api.module.subscriptions is wired into the running system (edge reachable + authenticated) | revenuecat-subscriptions | yes | PASS | N/A |
-| EXTERNAL_INTEGRATION | api.webhook.onesignal is wired: consumes onesignal-delivery-confirmation fire end-to-end | push-notifications | yes | PASS | N/A |
-| EXTERNAL_INTEGRATION | api.webhook.revenuecat is wired: consumes revenuecat-event fire end-to-end | revenuecat-subscriptions | yes | PASS | N/A |
-| EXTERNAL_INTEGRATION | api.webhook.stripe is wired: consumes stripe-event fire end-to-end | stripe-escrow | yes | PASS | N/A |
-| EXTERNAL_INTEGRATION | api.worker.notifications-delivery is wired: consumes delivery-intent fire end-to-end | push-notifications | yes | PASS | N/A |
-| EXTERNAL_INTEGRATION | ext.bedrock is wired into the running system (edge reachable + authenticated) | services/ai | yes | PASS | N/A |
-| EXTERNAL_INTEGRATION | ext.mapbox is wired into the running system (edge reachable + authenticated) | apps/mobile | yes | PASS | N/A |
-| EXTERNAL_INTEGRATION | ext.onesignal is wired into the running system (edge reachable + authenticated) | push-notifications | yes | PASS | N/A |
-| EXTERNAL_INTEGRATION | ext.revenuecat is wired into the running system (edge reachable + authenticated) | revenuecat-subscriptions | yes | PASS | N/A |
-| EXTERNAL_INTEGRATION | ext.stripe is wired into the running system (edge reachable + authenticated) | stripe-escrow | yes | PASS | N/A |
-| EXTERNAL_INTEGRATION | mobile.feature.tracking is wired into the running system (edge reachable + authenticated) | service-tracking | yes | PASS | N/A |
+| EXTERNAL_INTEGRATION | api.job.auto-release is wired into the running system (edge reachable + authenticated) | service-completion | yes | FAIL | N/A |
+| EXTERNAL_INTEGRATION | api.job.payment-reconciliation is wired into the running system (edge reachable + authenticated) | stripe-escrow | yes | FAIL | N/A |
+| EXTERNAL_INTEGRATION | api.module.notifications is wired into the running system (edge reachable + authenticated) | push-notifications | yes | FAIL | N/A |
+| EXTERNAL_INTEGRATION | api.module.payments is wired into the running system (edge reachable + authenticated) | stripe-escrow | yes | FAIL | N/A |
+| EXTERNAL_INTEGRATION | api.module.subscriptions is wired into the running system (edge reachable + authenticated) | revenuecat-subscriptions | yes | FAIL | N/A |
+| EXTERNAL_INTEGRATION | api.webhook.onesignal is wired: consumes onesignal-delivery-confirmation fire end-to-end | push-notifications | yes | FAIL | N/A |
+| EXTERNAL_INTEGRATION | api.webhook.revenuecat is wired: consumes revenuecat-event fire end-to-end | revenuecat-subscriptions | yes | FAIL | N/A |
+| EXTERNAL_INTEGRATION | api.webhook.stripe is wired: consumes stripe-event fire end-to-end | stripe-escrow | yes | FAIL | N/A |
+| EXTERNAL_INTEGRATION | api.worker.notifications-delivery is wired: consumes delivery-intent fire end-to-end | push-notifications | yes | FAIL | N/A |
+| EXTERNAL_INTEGRATION | ext.bedrock is wired into the running system (edge reachable + authenticated) | services/ai | yes | FAIL | N/A |
+| EXTERNAL_INTEGRATION | ext.mapbox is wired into the running system (edge reachable + authenticated) | apps/mobile | yes | FAIL | N/A |
+| EXTERNAL_INTEGRATION | ext.onesignal is wired into the running system (edge reachable + authenticated) | push-notifications | yes | FAIL | N/A |
+| EXTERNAL_INTEGRATION | ext.revenuecat is wired into the running system (edge reachable + authenticated) | revenuecat-subscriptions | yes | FAIL | N/A |
+| EXTERNAL_INTEGRATION | ext.stripe is wired into the running system (edge reachable + authenticated) | stripe-escrow | yes | FAIL | N/A |
+| EXTERNAL_INTEGRATION | mobile.feature.tracking is wired into the running system (edge reachable + authenticated) | service-tracking | yes | FAIL | N/A |
 | INTER_SERVICE_EDGE | ai.kyc is wired into the running system (edge reachable + authenticated) | kyc-verification | yes | PASS | N/A |
 | INTER_SERVICE_EDGE | ai.transcribe is wired into the running system (edge reachable + authenticated) | voice-notes | yes | PASS | N/A |
 | INTER_SERVICE_EDGE | ai.verify-face is wired into the running system (edge reachable + authenticated) | video-verification | yes | PASS | N/A |
 | INTER_SERVICE_EDGE | api.job.service-sweep is wired into the running system (edge reachable + authenticated) | service-tracking | yes | PASS | N/A |
 | INTER_SERVICE_EDGE | api.module.auth is wired into the running system (edge reachable + authenticated) | user-authentication | yes | PASS | N/A |
 | INTER_SERVICE_EDGE | api.module.chat is wired into the running system (edge reachable + authenticated) | realtime-chat | yes | PASS | N/A |
-| INTER_SERVICE_EDGE | api.relay.notifications-outbox is wired: consumes offer.matched, consumes offer.cancelled, consumes offer.expired, consumes offer.completed, produces delivery-intent fire end-to-end | push-notifications | yes | PASS | N/A |
-| INTER_SERVICE_EDGE | api.webhook.livekit is wired: consumes livekit-room-event fire end-to-end | voip-calls | yes | PASS | N/A |
+| INTER_SERVICE_EDGE | api.relay.notifications-outbox is wired: consumes offer.matched, consumes offer.cancelled, consumes offer.expired, consumes offer.completed, produces delivery-intent fire end-to-end | push-notifications | yes | FAIL | N/A |
+| INTER_SERVICE_EDGE | api.webhook.livekit is wired: consumes livekit-room-event fire end-to-end | voip-calls | yes | FAIL | N/A |
 | INTER_SERVICE_EDGE | api.worker.face-comparison is wired: consumes compare-face fire end-to-end | video-verification | yes | PASS | N/A |
 | INTER_SERVICE_EDGE | api.worker.favorites-window is wired: consumes favorites-expired fire end-to-end | favorites | yes | PASS | N/A |
 | INTER_SERVICE_EDGE | api.worker.radius-expansion is wired: consumes expand-radius fire end-to-end | offer-radar | yes | PASS | N/A |
@@ -109,14 +109,14 @@
 | INTER_SERVICE_EDGE | api.worker.stripe-webhook is wired: consumes stripe-event fire end-to-end | stripe-escrow | yes | PASS | N/A |
 | INTER_SERVICE_EDGE | api.worker.tier-delivery is wired: consumes deliver-to-tier, produces offer.matched fire end-to-end | offer-radar | yes | PASS | N/A |
 | INTER_SERVICE_EDGE | api.worker.voice-transcription is wired: consumes transcribe-voice-note fire end-to-end | voice-notes | yes | PASS | N/A |
-| INTER_SERVICE_EDGE | mobile.feature.chat is wired into the running system (edge reachable + authenticated) | realtime-chat | yes | PASS | N/A |
+| INTER_SERVICE_EDGE | mobile.feature.chat is wired into the running system (edge reachable + authenticated) | realtime-chat | yes | FAIL | N/A |
 | INTER_SERVICE_EDGE | mobile.feature.payments is wired into the running system (edge reachable + authenticated) | stripe-escrow | yes | PASS | N/A |
 | INTER_SERVICE_EDGE | mobile.feature.radar is wired into the running system (edge reachable + authenticated) | offer-radar | yes | PASS | N/A |
-| LIVE_JOURNEY | api.consumer.completion-created is wired: consumes checklist_completed, produces service_disputed fire end-to-end | service-completion | yes | PASS | N/A |
-| LIVE_JOURNEY | api.consumer.dispute-created is wired: consumes service_disputed fire end-to-end | dispute-system | yes | PASS | N/A |
-| LIVE_JOURNEY | api.consumer.service-activation is wired: consumes service_activation_ready, produces service_arrived fire end-to-end | service-tracking | yes | PASS | N/A |
-| LIVE_JOURNEY | api.consumer.verification-arrival is wired: consumes service_arrived fire end-to-end | video-verification | yes | PASS | N/A |
-| LIVE_JOURNEY | api.listener.offer-matched-escrow is wired: consumes offer.matched fire end-to-end | stripe-escrow | yes | PASS | N/A |
+| LIVE_JOURNEY | api.consumer.completion-created is wired: consumes checklist_completed, produces service_disputed fire end-to-end | service-completion | yes | FAIL | N/A |
+| LIVE_JOURNEY | api.consumer.dispute-created is wired: consumes service_disputed fire end-to-end | dispute-system | yes | FAIL | N/A |
+| LIVE_JOURNEY | api.consumer.service-activation is wired: consumes service_activation_ready, produces service_arrived fire end-to-end | service-tracking | yes | FAIL | N/A |
+| LIVE_JOURNEY | api.consumer.verification-arrival is wired: consumes service_arrived fire end-to-end | video-verification | yes | FAIL | N/A |
+| LIVE_JOURNEY | api.listener.offer-matched-escrow is wired: consumes offer.matched fire end-to-end | stripe-escrow | yes | FAIL | N/A |
 | STORE_READINESS | svc.mobile-build is wired into the running system (edge reachable + authenticated) | apps/mobile | yes | PASS | N/A |
 
 ## Findings
@@ -135,28 +135,56 @@
 | MISSING_OR_DOWN | presence:api.module.offers | local | offer-publishing | api.module.offers is present + up (OffersModule): missing or down (no local HTTP endpoint to confirm presence) |
 | MISSING_OR_DOWN | integration:api.module.offers | local | offer-publishing | api.module.offers is wired into the running system (edge reachable + authenticated): missing or down (no local HTTP endpoint to confirm presence) |
 | MISSING_OR_DOWN | presence:api.module.payments | local | stripe-escrow | api.module.payments is present + up (PaymentsModule): missing or down (no local HTTP endpoint to confirm presence) |
+| DEAD_EDGE | integration:api.module.payments | local | stripe-escrow | api.module.payments is wired into the running system (edge reachable + authenticated): DEAD_EDGE (placeholder credential — set a real key on the VPS to verify this integration) |
 | MISSING_OR_DOWN | presence:api.module.subscriptions | local | revenuecat-subscriptions | api.module.subscriptions is present + up (SubscriptionsModule): missing or down (no local HTTP endpoint to confirm presence) |
+| DEAD_EDGE | integration:api.module.subscriptions | local | revenuecat-subscriptions | api.module.subscriptions is wired into the running system (edge reachable + authenticated): DEAD_EDGE (placeholder credential — set a real key on the VPS to verify this integration) |
 | MISSING_OR_DOWN | presence:api.module.notifications | local | push-notifications | api.module.notifications is present + up (NotificationsModule): missing or down (no local HTTP endpoint to confirm presence) |
+| DEAD_EDGE | integration:api.module.notifications | local | push-notifications | api.module.notifications is wired into the running system (edge reachable + authenticated): DEAD_EDGE (placeholder credential — set a real key on the VPS to verify this integration) |
 | MISSING_OR_DOWN | presence:api.module.chat | local | realtime-chat | api.module.chat is present + up (ChatModule): missing or down (no local HTTP endpoint to confirm presence) |
 | MISSING_OR_DOWN | presence:api.worker.radius-expansion | local | offer-radar | api.worker.radius-expansion is present + up (BullMQ queue 'offer-radius-expansion' (RadiusExpansionProcessor)): missing or down (no local HTTP endpoint to confirm presence) |
 | MISSING_OR_DOWN | presence:api.worker.tier-delivery | local | offer-radar | api.worker.tier-delivery is present + up (BullMQ queue 'offer-tier-delivery' (TierDeliveryProcessor)): missing or down (no local HTTP endpoint to confirm presence) |
 | MISSING_OR_DOWN | presence:api.worker.favorites-window | local | favorites | api.worker.favorites-window is present + up (BullMQ queue 'offer-favorites-window' (FavoritesWindowProcessor)): missing or down (no local HTTP endpoint to confirm presence) |
 | MISSING_OR_DOWN | presence:api.worker.stripe-webhook | local | stripe-escrow | api.worker.stripe-webhook is present + up (BullMQ queue 'payments-stripe-webhook' (StripeWebhookProcessor)): missing or down (no local HTTP endpoint to confirm presence) |
 | MISSING_OR_DOWN | presence:api.worker.notifications-delivery | local | push-notifications | api.worker.notifications-delivery is present + up (BullMQ queue 'notifications-delivery' (DeliveryWorker → OneSignal)): missing or down (no local HTTP endpoint to confirm presence) |
+| DEAD_EDGE | integration:api.worker.notifications-delivery | local | push-notifications | api.worker.notifications-delivery is wired: consumes delivery-intent fire end-to-end: DEAD_EDGE (placeholder credential — set a real key on the VPS to verify this integration) |
 | MISSING_OR_DOWN | presence:api.worker.revenuecat-webhook | local | revenuecat-subscriptions | api.worker.revenuecat-webhook is present + up (BullMQ queue 'subscriptions-revenuecat-webhook' (RevenueCatWebhookProcessor)): missing or down (no local HTTP endpoint to confirm presence) |
 | MISSING_OR_DOWN | presence:api.worker.face-comparison | local | video-verification | api.worker.face-comparison is present + up (BullMQ queue 'video-face-comparison' (FaceComparisonProcessor)): missing or down (no local HTTP endpoint to confirm presence) |
 | MISSING_OR_DOWN | presence:api.worker.voice-transcription | local | voice-notes | api.worker.voice-transcription is present + up (BullMQ queue 'voice-notes-transcription' (VoiceTranscriptionProcessor)): missing or down (no local HTTP endpoint to confirm presence) |
 | MISSING_OR_DOWN | presence:api.relay.notifications-outbox | local | push-notifications | api.relay.notifications-outbox is present + up (@Interval OutboxRelayProcessor (offer/payment/negotiation/chat/voip _outbox)): missing or down (no local HTTP endpoint to confirm presence) |
+| DEAD_EDGE | integration:api.relay.notifications-outbox | local | push-notifications | api.relay.notifications-outbox is wired: consumes offer.matched, consumes offer.cancelled, consumes offer.expired, consumes offer.completed, produces delivery-intent fire end-to-end: DEAD_EDGE (not reachable) |
 | MISSING_OR_DOWN | presence:api.listener.offer-matched-escrow | local | stripe-escrow | api.listener.offer-matched-escrow is present + up (@OnEvent(offer.matched) OfferMatchedListener → EscrowChargeService): missing or down (no local HTTP endpoint to confirm presence) |
+| LIVE_JOURNEY_FAILED | integration:api.listener.offer-matched-escrow | local | stripe-escrow | api.listener.offer-matched-escrow is wired: consumes offer.matched fire end-to-end: LIVE_JOURNEY_FAILED (failed at: journey prerequisites unavailable — needs a real Stripe sandbox credential (VPS)) |
 | MISSING_OR_DOWN | presence:api.consumer.service-activation | local | service-tracking | api.consumer.service-activation is present + up (@Interval ServiceActivationConsumer (service_activation_outbox)): missing or down (no local HTTP endpoint to confirm presence) |
+| LIVE_JOURNEY_FAILED | integration:api.consumer.service-activation | local | service-tracking | api.consumer.service-activation is wired: consumes service_activation_ready, produces service_arrived fire end-to-end: LIVE_JOURNEY_FAILED (failed at: journey prerequisites unavailable — needs a real Stripe sandbox credential (VPS)) |
 | MISSING_OR_DOWN | presence:api.consumer.verification-arrival | local | video-verification | api.consumer.verification-arrival is present + up (@Interval VerificationArrivalConsumer (service_outbox, consumer_name=video)): missing or down (no local HTTP endpoint to confirm presence) |
+| LIVE_JOURNEY_FAILED | integration:api.consumer.verification-arrival | local | video-verification | api.consumer.verification-arrival is wired: consumes service_arrived fire end-to-end: LIVE_JOURNEY_FAILED (failed at: journey prerequisites unavailable — needs a real Stripe sandbox credential (VPS)) |
 | MISSING_OR_DOWN | presence:api.consumer.completion-created | local | service-completion | api.consumer.completion-created is present + up (@Interval CompletionCreatedConsumer (checklist_outbox, consumer_name=completion)): missing or down (no local HTTP endpoint to confirm presence) |
+| LIVE_JOURNEY_FAILED | integration:api.consumer.completion-created | local | service-completion | api.consumer.completion-created is wired: consumes checklist_completed, produces service_disputed fire end-to-end: LIVE_JOURNEY_FAILED (failed at: journey prerequisites unavailable — needs a real Stripe sandbox credential (VPS)) |
 | MISSING_OR_DOWN | presence:api.consumer.dispute-created | local | dispute-system | api.consumer.dispute-created is present + up (@Interval DisputeCreatedConsumer (completion_outbox, consumer_name=dispute)): missing or down (no local HTTP endpoint to confirm presence) |
+| LIVE_JOURNEY_FAILED | integration:api.consumer.dispute-created | local | dispute-system | api.consumer.dispute-created is wired: consumes service_disputed fire end-to-end: LIVE_JOURNEY_FAILED (failed at: journey prerequisites unavailable — needs a real Stripe sandbox credential (VPS)) |
 | MISSING_OR_DOWN | presence:api.job.payment-reconciliation | local | stripe-escrow | api.job.payment-reconciliation is present + up (@Interval PaymentReconciliationService (charges + disputes sweeps)): missing or down (no local HTTP endpoint to confirm presence) |
+| DEAD_EDGE | integration:api.job.payment-reconciliation | local | stripe-escrow | api.job.payment-reconciliation is wired into the running system (edge reachable + authenticated): DEAD_EDGE (placeholder credential — set a real key on the VPS to verify this integration) |
 | MISSING_OR_DOWN | presence:api.job.auto-release | local | service-completion | api.job.auto-release is present + up (@Interval AutoReleaseWorker / AutoReleaseSweepProcessor): missing or down (no local HTTP endpoint to confirm presence) |
+| DEAD_EDGE | integration:api.job.auto-release | local | service-completion | api.job.auto-release is wired into the running system (edge reachable + authenticated): DEAD_EDGE (placeholder credential — set a real key on the VPS to verify this integration) |
 | MISSING_OR_DOWN | presence:api.job.service-sweep | local | service-tracking | api.job.service-sweep is present + up (BullMQ repeatable 'service-tracking-sweep' (ServiceSweepProcessor)): missing or down (no local HTTP endpoint to confirm presence) |
 | MISSING_OR_DOWN | presence:api.webhook.stripe | local | stripe-escrow | api.webhook.stripe is present + up (POST /payments/webhooks/stripe (StripeWebhookController)): missing or down (no local HTTP endpoint to confirm presence) |
+| DEAD_EDGE | integration:api.webhook.stripe | local | stripe-escrow | api.webhook.stripe is wired: consumes stripe-event fire end-to-end: DEAD_EDGE (placeholder credential — set a real key on the VPS to verify this integration) |
 | MISSING_OR_DOWN | presence:api.webhook.revenuecat | local | revenuecat-subscriptions | api.webhook.revenuecat is present + up (POST /webhooks/revenuecat (RevenueCatWebhookController, HMAC)): missing or down (no local HTTP endpoint to confirm presence) |
+| DEAD_EDGE | integration:api.webhook.revenuecat | local | revenuecat-subscriptions | api.webhook.revenuecat is wired: consumes revenuecat-event fire end-to-end: DEAD_EDGE (placeholder credential — set a real key on the VPS to verify this integration) |
 | MISSING_OR_DOWN | presence:api.webhook.onesignal | local | push-notifications | api.webhook.onesignal is present + up (POST /webhooks/onesignal (OneSignalWebhookController)): missing or down (no local HTTP endpoint to confirm presence) |
+| DEAD_EDGE | integration:api.webhook.onesignal | local | push-notifications | api.webhook.onesignal is wired: consumes onesignal-delivery-confirmation fire end-to-end: DEAD_EDGE (placeholder credential — set a real key on the VPS to verify this integration) |
 | MISSING_OR_DOWN | presence:api.webhook.livekit | local | voip-calls | api.webhook.livekit is present + up (POST /webhooks/* (LiveKitWebhookController, room/egress events)): missing or down (no local HTTP endpoint to confirm presence) |
+| DEAD_EDGE | integration:api.webhook.livekit | local | voip-calls | api.webhook.livekit is wired: consumes livekit-room-event fire end-to-end: DEAD_EDGE (not reachable) |
+| MISSING_OR_DOWN | presence:ext.stripe | local | stripe-escrow | ext.stripe is present + up (Stripe Connect API (escrow, multi-currency)): DEAD_EDGE (placeholder credential — set a real key on the VPS to verify this integration) |
+| DEAD_EDGE | integration:ext.stripe | local | stripe-escrow | ext.stripe is wired into the running system (edge reachable + authenticated): DEAD_EDGE (placeholder credential — set a real key on the VPS to verify this integration) |
+| MISSING_OR_DOWN | presence:ext.revenuecat | local | revenuecat-subscriptions | ext.revenuecat is present + up (RevenueCat API (subscriptions, ads)): DEAD_EDGE (placeholder credential — set a real key on the VPS to verify this integration) |
+| DEAD_EDGE | integration:ext.revenuecat | local | revenuecat-subscriptions | ext.revenuecat is wired into the running system (edge reachable + authenticated): DEAD_EDGE (placeholder credential — set a real key on the VPS to verify this integration) |
+| MISSING_OR_DOWN | presence:ext.onesignal | local | push-notifications | ext.onesignal is present + up (OneSignal API (push delivery)): DEAD_EDGE (placeholder credential — set a real key on the VPS to verify this integration) |
+| DEAD_EDGE | integration:ext.onesignal | local | push-notifications | ext.onesignal is wired into the running system (edge reachable + authenticated): DEAD_EDGE (placeholder credential — set a real key on the VPS to verify this integration) |
+| MISSING_OR_DOWN | presence:ext.bedrock | local | services/ai | ext.bedrock is present + up (AWS Bedrock (cloud AI models)): DEAD_EDGE (placeholder credential — set a real key on the VPS to verify this integration) |
+| DEAD_EDGE | integration:ext.bedrock | local | services/ai | ext.bedrock is wired into the running system (edge reachable + authenticated): DEAD_EDGE (placeholder credential — set a real key on the VPS to verify this integration) |
+| MISSING_OR_DOWN | presence:ext.mapbox | local | apps/mobile | ext.mapbox is present + up (Mapbox (maps, custom dark style)): DEAD_EDGE (placeholder credential — set a real key on the VPS to verify this integration) |
+| DEAD_EDGE | integration:ext.mapbox | local | apps/mobile | ext.mapbox is wired into the running system (edge reachable + authenticated): DEAD_EDGE (placeholder credential — set a real key on the VPS to verify this integration) |
+| DEAD_EDGE | integration:mobile.feature.tracking | local | service-tracking | mobile.feature.tracking is wired into the running system (edge reachable + authenticated): DEAD_EDGE (placeholder credential — set a real key on the VPS to verify this integration) |
+| DEAD_EDGE | integration:mobile.feature.chat | local | realtime-chat | mobile.feature.chat is wired into the running system (edge reachable + authenticated): DEAD_EDGE (not reachable) |
 | INVALID_STORE_ARTIFACT | store:artifacts | both | apps/mobile | store artifacts are not all present + valid |

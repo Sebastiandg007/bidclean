@@ -10,6 +10,7 @@
 
 import type { ChecklistItem, ProbeResult } from '../checklist/checklist.model';
 import { type ProbeContext, probeResult } from './probe.types';
+import { observeEdge } from './live-fetch';
 
 /** The outcome of an authenticated call attempt across an edge. */
 export interface EdgeCallOutcome {
@@ -55,7 +56,14 @@ function describeDeadEdge(outcome: EdgeCallOutcome): string {
   return 'authenticated but call did not complete';
 }
 
-/** The runnable probe. Fase 1: stack down → FAIL DEAD_EDGE (never N/A/PASS). */
+/**
+ * The runnable probe. When the stack is unavailable → FAIL (DEAD_EDGE). When
+ * available (Fase 3) it performs the REAL authenticated round-trip for the edge
+ * (Keycloak JWKS, Centrifugo broker, Redis/BullMQ, API↔AI, mobile→API) and
+ * interprets the outcome. An edge whose dependency is VPS-only (LiveKit) or is a
+ * purely in-process edge (outbox→push) with no externally observable endpoint
+ * fails honestly with that reason rather than a fabricated PASS.
+ */
 export const interServiceEdgeProbe = async (
   ctx: ProbeContext,
   item: ChecklistItem,
@@ -69,6 +77,15 @@ export const interServiceEdgeProbe = async (
       detail: 'stack not running — Fase 2',
     });
   }
-  // Fase 2: the host performs a real authenticated call and supplies the outcome.
-  return interpretEdge(subject, { reachable: true, authenticated: true, completed: true });
+  const probeId = item.probes[ctx.environment]?.probeRef.probeId ?? '';
+  const outcome = await observeEdge(probeId, ctx.targets);
+  if (outcome === undefined) {
+    return interpretEdge(subject, {
+      reachable: false,
+      authenticated: false,
+      completed: false,
+      detail: 'edge not locally verifiable (VPS-only dependency or in-process edge)',
+    });
+  }
+  return interpretEdge(subject, outcome);
 };

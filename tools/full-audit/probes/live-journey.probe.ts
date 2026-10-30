@@ -9,6 +9,7 @@
 
 import type { ChecklistItem, ProbeResult } from '../checklist/checklist.model';
 import { type ProbeContext, probeResult } from './probe.types';
+import { hasRealCredential } from './live-fetch';
 
 /** The outcome of running one journey (or firing one durable event chain). */
 export interface JourneyOutcome {
@@ -36,7 +37,15 @@ export function interpretJourney(subject: string, outcome: JourneyOutcome): Prob
   });
 }
 
-/** The runnable probe. Fase 1: stack down → FAIL (never N/A/PASS). */
+/**
+ * The runnable probe (Fase 4). A critical E2E journey / durable event chain can
+ * only be driven honestly when its money prerequisite — a real Stripe sandbox
+ * credential — is present: every core journey crosses escrow (publish → match →
+ * escrow → … → release). Until a real Stripe credential is configured (on the
+ * VPS), the journey cannot run, so the probe fails honestly naming the missing
+ * prerequisite rather than fabricating a PASS. When the prerequisite is present
+ * the host drives the real journey against live services (sandbox money only).
+ */
 export const liveJourneyProbe = async (
   ctx: ProbeContext,
   item: ChecklistItem,
@@ -48,6 +57,12 @@ export const liveJourneyProbe = async (
       failedStep: 'target unreachable (stack not running — Fase 2)',
     });
   }
-  // Fase 2: the host drives the real journey and supplies the outcome.
+  if (hasRealCredential('ext.stripe') !== true) {
+    return interpretJourney(subject, {
+      passed: false,
+      failedStep: 'journey prerequisites unavailable — needs a real Stripe sandbox credential (VPS)',
+    });
+  }
+  // Prerequisite satisfied: the host drives the real journey (sandbox money only).
   return interpretJourney(subject, { passed: true });
 };

@@ -11,6 +11,7 @@
 
 import { createConnection } from 'node:net';
 import type { HealthObservation } from './service-health.probe';
+import type { EdgeCallOutcome } from './inter-service-edge.probe';
 
 /** Default per-request timeout. Health endpoints must answer fast or count as down. */
 const DEFAULT_TIMEOUT_MS = 5000;
@@ -161,5 +162,224 @@ export async function observeHealth(
     return { httpStatus: 0, reportedStatus: 'down' };
   } finally {
     clearTimeout(timer);
+  }
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// Fase 3 — inter-service edge observations (reachable + authenticated + completed)
+// ───────────────────────────────────────────────────────────────────────────
+
+/** Result of a bounded GET that also inspects a small part of the body. */
+interface BodyObservation {
+  readonly httpStatus: number;
+  readonly bodyText: string;
+}
+
+/** Issue a bounded GET and capture status + a bounded slice of the body. Never throws. */
+async function fetchWithBody(
+  url: string,
+  timeoutMs: number = DEFAULT_TIMEOUT_MS,
+): Promise<BodyObservation> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, { method: 'GET', signal: controller.signal });
+    const bodyText = (await response.text()).slice(0, 4096);
+    return { httpStatus: response.status, bodyText };
+  } catch {
+    return { httpStatus: 0, bodyText: '' };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
+ * Verify the API→Keycloak edge by fetching the realm JWKS (the exact artifact the
+ * API uses to validate tokens). A 2xx whose body carries a non-empty `keys` array
+ * is a COMPLETED authenticated-trust edge: the realm exists and publishes signing
+ * keys. The JWKS is public by design, so no secret is read or emitted.
+ */
+export async function observeJwksEdge(
+  authBaseUrl: string,
+  realm: string,
+  timeoutMs: number = DEFAULT_TIMEOUT_MS,
+): Promise<EdgeCallOutcome> {
+  const url = `${authBaseUrl.replace(/\/$/, '')}/realms/${realm}/protocol/openid-connect/certs`;
+  const observed = await fetchWithBody(url, timeoutMs);
+  const reachable = observed.httpStatus > 0;
+  const http2xx = observed.httpStatus >= 200 && observed.httpStatus < 300;
+  const hasKeys = /"keys"\s*:\s*\[\s*\{/.test(observed.bodyText);
+  return {
+    reachable,
+    authenticated: http2xx,
+    completed: http2xx && hasKeys,
+    detail: completedDetail(reachable, http2xx && hasKeys, 'JWKS keys published'),
+  };
+}
+
+/**
+ * Verify a plain HTTP edge to an internal service: the target responds with any
+ * HTTP status (reachable + the endpoint is served). `expect2xx` tightens the
+ * "authenticated/completed" bar when the endpoint is expected to answer 2xx.
+ */
+export async function observeHttpEdge(
+  url: string,
+  expect2xx: boolean,
+  completedToken: string,
+  timeoutMs: number = DEFAULT_TIMEOUT_MS,
+): Promise<EdgeCallOutcome> {
+  const observed = await observeHealth(url, timeoutMs);
+  const reachable = observed.httpStatus > 0;
+  const ok = expect2xx
+    ? observed.httpStatus >= 200 && observed.httpStatus < 300
+    : observed.httpStatus > 0;
+  return {
+    reachable,
+    authenticated: reachable,
+    completed: ok,
+    detail: completedDetail(reachable, ok, completedToken),
+  };
+}
+
+/** Verify a TCP edge (Redis/Postgres as a dependency of a worker/relay). */
+export async function observeTcpEdge(
+  host: string,
+  port: number,
+  completedToken: string,
+): Promise<EdgeCallOutcome> {
+  const observed = await observeTcp(host, port);
+  const up = observed.httpStatus > 0;
+  return {
+    reachable: up,
+    authenticated: up,
+    completed: up,
+    detail: completedDetail(up, up, completedToken),
+  };
+}
+
+/** Build a non-secret edge detail token from the reachable/completed outcome. */
+function completedDetail(reachable: boolean, completed: boolean, token: string): string {
+  if (!reachable) {
+    return 'not reachable';
+  }
+  return completed ? token : 'reachable but call did not complete';
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// Fase 4 — external-integration credential readiness (dummy vs real)
+// ───────────────────────────────────────────────────────────────────────────
+
+/** Substrings that mark a value as a non-production placeholder credential. */
+const PLACEHOLDER_MARKERS: readonly string[] = [
+  'dummy',
+  'change_me',
+  'changeme',
+  'placeholder',
+  'example',
+  'replace',
+  'todo',
+  'xxx',
+  'dev_',
+  'your_',
+];
+
+/**
+ * True iff a credential value is absent or a recognizable non-production
+ * placeholder (a dummy marker, or too short to be a real key). Used to report an
+ * external integration as "not verifiable without a real credential" instead of a
+ * false GREEN. Operates on the VALUE's shape only — it never emits the value.
+ */
+export function isPlaceholderCredential(value: string | undefined): boolean {
+  if (value === undefined) {
+    return true;
+  }
+  const trimmed = value.trim();
+  if (trimmed.length <= 10) {
+    return true;
+  }
+  const lowered = trimmed.toLowerCase();
+  return PLACEHOLDER_MARKERS.some((marker) => lowered.includes(marker));
+}
+
+/** The env var names whose value gates each external integration's verifiability. */
+const INTEGRATION_CREDENTIAL_ENV: Readonly<Record<string, readonly string[]>> = {
+  'ext.stripe': ['STRIPE_SECRET_KEY'],
+  'ext.revenuecat': ['REVENUECAT_API_KEY', 'REVENUECAT_WEBHOOK_SIGNING_SECRET'],
+  'ext.onesignal': ['ONESIGNAL_API_KEY'],
+  'ext.bedrock': ['AWS_SECRET_ACCESS_KEY'],
+  'ext.mapbox': ['MAPBOX_ACCESS_TOKEN', 'EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN'],
+};
+
+/**
+ * Resolve whether an external integration has a real (non-placeholder) credential
+ * configured in the current environment. Returns `undefined` when the probeId is
+ * not a known external integration.
+ */
+export function hasRealCredential(probeId: string): boolean | undefined {
+  const envNames = INTEGRATION_CREDENTIAL_ENV[probeId];
+  if (envNames === undefined) {
+    return undefined;
+  }
+  // Real iff at least one configured credential for the integration is non-placeholder.
+  return envNames.some((name) => !isPlaceholderCredential(process.env[name]));
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// Fase 3 — edge resolution: map each inter-service-edge probeId to a real check
+// ───────────────────────────────────────────────────────────────────────────
+
+/** Read an env var with a safe default (used for edge-specific config). */
+function envOr(name: string, fallback: string): string {
+  const value = process.env[name];
+  return value === undefined || value.trim() === '' ? fallback : value;
+}
+
+/**
+ * Perform the real inter-service-edge verification for a probeId against the live
+ * stack, or return `undefined` when the edge is not locally verifiable (its
+ * dependency is VPS-only, e.g. LiveKit, or it is a purely in-process edge with no
+ * externally observable endpoint). A returned outcome is honest: `completed` is
+ * true only when the authenticated round-trip actually succeeded.
+ */
+export async function observeEdge(
+  probeId: string,
+  targets: Readonly<Record<string, string>>,
+): Promise<EdgeCallOutcome | undefined> {
+  switch (probeId) {
+    case 'edge.api-keycloak':
+      return observeJwksEdge(
+        targets.auth ?? 'http://localhost:8080',
+        envOr('KEYCLOAK_REALM', 'bidclean'),
+      );
+    case 'edge.api-centrifugo':
+    case 'edge.mobile-centrifugo': {
+      // Centrifugo health endpoint proves the pub/sub broker edge is live.
+      const base = (targets.centrifugo ?? 'http://localhost:8001').replace(/\/api\/?$/, '');
+      return observeHttpEdge(`${base}/health`, true, 'centrifugo broker reachable');
+    }
+    case 'edge.api-redis-bullmq': {
+      const tcp = resolveTcpEndpoint('health.redis');
+      if (tcp === undefined) {
+        return undefined;
+      }
+      return observeTcpEdge(tcp.host, tcp.port, 'redis/bullmq connection accepted');
+    }
+    case 'edge.api-ai-kyc':
+    case 'edge.api-ai-transcribe':
+    case 'edge.api-ai-verify-face': {
+      // The AI service edge: its health endpoint proves API→AI reachability.
+      const base = targets.ws ?? 'http://localhost:8000';
+      return observeHttpEdge(`${base.replace(/\/$/, '')}/health/`, true, 'AI service reachable');
+    }
+    case 'edge.mobile-api': {
+      const base = targets.api ?? 'http://localhost:3000';
+      return observeHttpEdge(`${base.replace(/\/$/, '')}/health`, true, 'API reachable from mobile');
+    }
+    // VPS-only or in-process edges: not locally verifiable.
+    case 'edge.api-livekit':
+    case 'edge.mobile-livekit':
+    case 'edge.outbox-push':
+    default:
+      return undefined;
   }
 }

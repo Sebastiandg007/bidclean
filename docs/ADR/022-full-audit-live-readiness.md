@@ -126,5 +126,38 @@ findings (all probes stubbed) to 37 — resolving every DEAD_EDGE / LIVE_JOURNEY
 DEVOPS placeholder plus all HTTP/TCP service health + presence. The remaining 37 are
 honest: API-internal modules with no HTTP introspection route, VPS-only infra not run
 locally (LiveKit, Whisper, Piper, Sentry, Prometheus/Grafana/Loki), and the
-not-yet-built mobile store artifact. Edge / external-integration / live-journey
-probes remain Fase-1 placeholders pending their own Fase-2 wiring.
+not-yet-built mobile store artifact.
+
+## Fases 3–4 update — edge / external-integration / live-journey probes wired
+
+The remaining three probe families now observe the live stack instead of their
+placeholder:
+
+- **inter-service-edge (Fase 3)** — `observeEdge` performs the REAL authenticated
+  round-trip per edge: API→Keycloak fetches the realm JWKS and requires a non-empty
+  `keys` array (the exact artifact the API validates tokens with); API→Centrifugo and
+  mobile→Centrifugo hit the broker `/health`; API→Redis/BullMQ opens a TCP connection;
+  API→AI (KYC / transcribe / verify-face) hits the AI `/health/`; mobile→API hits the
+  API `/health`. An edge whose dependency is VPS-only (LiveKit) or purely in-process
+  (outbox→push) fails honestly ("edge not locally verifiable") — never a fabricated
+  PASS. Result: 15/18 internal edges GREEN against the live stack.
+- **external-integration (Fase 4)** — `hasRealCredential` inspects only the SHAPE of
+  the configured credential (dummy markers, or too-short placeholder) and reports
+  "placeholder credential — set a real key on the VPS" instead of a false GREEN; a
+  real credential triggers a non-transacting `live-readiness` reachability check. The
+  credential value is never read into evidence. Stripe / RevenueCat / OneSignal /
+  Bedrock / Mapbox are therefore honestly RED locally (all placeholders) and flip
+  GREEN once real keys are set on the VPS — no code change needed.
+- **live-journey (Fase 4)** — a journey/event-chain only runs honestly when its money
+  prerequisite (a real Stripe sandbox credential) is present, since every core
+  journey crosses escrow; until then it fails naming the missing prerequisite rather
+  than fabricating a PASS.
+
+Net: `--env local` reports 65 classified findings (vs the 37 when edge/integration/
+journey were a single grouped placeholder) — the increase is honest granularity, not
+regression. The pure interpreters (`interpretEdge` / `interpretIntegration` /
+`interpretJourney`) and the no-real-money guard (Property 8) are untouched; `tsc`
+EXIT 0, `jest` 7 suites / 32 tests EXIT 0. What stays RED locally is exactly what
+needs the VPS + real credentials (Stripe/RevenueCat/OneSignal/Bedrock/Mapbox),
+VPS-only infra (LiveKit/Whisper/Piper/Sentry/monitoring), the API-internal modules
+with no HTTP introspection route, and the not-yet-built store artifact.
