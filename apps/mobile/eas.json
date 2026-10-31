@@ -17,7 +17,8 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://api.bidclean.tech"
+        "EXPO_PUBLIC_API_URL": "https://api.bidclean.tech",
+        "EXPO_ROUTER_APP_ROOT": "./app"
       }
     },
     "production": {
