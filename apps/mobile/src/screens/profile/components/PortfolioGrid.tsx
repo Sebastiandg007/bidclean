@@ -16,20 +16,11 @@ import {
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
+import { makeStyles, useTheme } from '../../../theme';
 import type { PortfolioPhoto } from '../profile.types';
 import { PORTFOLIO } from '../profile.constants';
 
 // ─── Design Tokens ───────────────────────────────────────────────────────────
-
-const COLORS = {
-  background: '#0B0C10',
-  card: '#1F2833',
-  textPrimary: '#FFFFFF',
-  textSecondary: '#C5C6C7',
-  accent: '#00F5D4',
-  danger: '#FF4D4F',
-  overlay: 'rgba(0,0,0,0.5)',
-} as const;
 
 const SPACING = {
   xs: 4,
@@ -80,6 +71,7 @@ function PhotoItem({
   onMoveDown,
 }: PhotoItemProps): React.JSX.Element {
   const { t } = useTranslation();
+  const styles = useStyles();
 
   const handleDelete = useCallback(() => {
     onDelete(photo.id);
@@ -134,6 +126,7 @@ function PhotoItem({
 
 function UploadButton({ onPress, disabled }: UploadButtonProps): React.JSX.Element {
   const { t } = useTranslation();
+  const styles = useStyles();
 
   return (
     <TouchableOpacity
@@ -153,6 +146,7 @@ function UploadButton({ onPress, disabled }: UploadButtonProps): React.JSX.Eleme
 
 function EmptyState(): React.JSX.Element {
   const { t } = useTranslation();
+  const styles = useStyles();
 
   return (
     <View style={styles.emptyState} testID="portfolio-empty-state">
@@ -178,6 +172,8 @@ export function PortfolioGrid({
   onLoadMore,
 }: PortfolioGridProps): React.JSX.Element {
   const { t } = useTranslation();
+  const styles = useStyles();
+  const { theme } = useTheme();
   const isMaxReached = photos.length >= PORTFOLIO.MAX_PHOTOS;
 
   const renderItem = useCallback(
@@ -209,7 +205,7 @@ export function PortfolioGrid({
     if (isLoading && photos.length > 0) {
       return (
         <View style={styles.footer} testID="portfolio-loading-more">
-          <ActivityIndicator color={COLORS.accent} />
+          <ActivityIndicator color={theme.accent} />
         </View>
       );
     }
@@ -224,7 +220,7 @@ export function PortfolioGrid({
   if (isLoading && photos.length === 0) {
     return (
       <View style={styles.loadingContainer} testID="portfolio-loading">
-        <ActivityIndicator size="large" color={COLORS.accent} />
+        <ActivityIndicator size="large" color={theme.accent} />
         <Text style={styles.loadingText}>{t('profile.portfolio.loading')}</Text>
       </View>
     );
@@ -260,7 +256,7 @@ export function PortfolioGrid({
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   gridContent: {
     paddingBottom: SPACING.md,
   },
@@ -273,7 +269,7 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     borderRadius: BORDER_RADIUS,
     overflow: 'hidden',
-    backgroundColor: COLORS.card,
+    backgroundColor: theme.surface,
   },
   photo: {
     width: '100%',
@@ -286,7 +282,7 @@ const styles = StyleSheet.create({
     padding: SPACING.xs,
   },
   deleteButton: {
-    backgroundColor: COLORS.danger,
+    backgroundColor: theme.danger,
     width: 24,
     height: 24,
     borderRadius: 12,
@@ -294,7 +290,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   deleteIcon: {
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
     fontSize: 12,
     fontWeight: '700',
   },
@@ -303,7 +299,7 @@ const styles = StyleSheet.create({
     gap: SPACING.xs,
   },
   reorderButton: {
-    backgroundColor: COLORS.overlay,
+    backgroundColor: theme.overlay,
     width: 24,
     height: 24,
     borderRadius: 12,
@@ -311,7 +307,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   reorderIcon: {
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
     fontSize: 10,
   },
   uploadButton: {
@@ -319,31 +315,31 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     borderRadius: BORDER_RADIUS,
     borderWidth: 2,
-    borderColor: COLORS.accent,
+    borderColor: theme.accent,
     borderStyle: 'dashed',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.card,
+    backgroundColor: theme.surface,
   },
   uploadButtonDisabled: {
-    borderColor: COLORS.textSecondary,
+    borderColor: theme.textSecondary,
     opacity: 0.5,
   },
   uploadIcon: {
     fontSize: 32,
-    color: COLORS.accent,
+    color: theme.accent,
     fontWeight: '300',
   },
   uploadIconDisabled: {
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
   },
   uploadLabel: {
     fontSize: 11,
-    color: COLORS.accent,
+    color: theme.accent,
     marginTop: SPACING.xs,
   },
   uploadLabelDisabled: {
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
   },
   emptyState: {
     alignItems: 'center',
@@ -352,12 +348,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
     marginBottom: SPACING.sm,
   },
   emptyDescription: {
     fontSize: 14,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
     textAlign: 'center',
   },
   uploadAloneContainer: {
@@ -372,7 +368,7 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.md * 3,
   },
   loadingText: {
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
     marginTop: SPACING.sm,
     fontSize: 14,
   },
@@ -380,6 +376,6 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.md,
     alignItems: 'center',
   },
-});
+}));
 
 export default PortfolioGrid;

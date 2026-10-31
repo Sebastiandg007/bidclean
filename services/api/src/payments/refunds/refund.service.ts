@@ -21,6 +21,7 @@ import {
 import { STRIPE_WEBHOOK_EVENTS } from '../stripe/stripe.constants';
 import { PaymentView } from '../payments.types';
 import { toPaymentView } from '../payments.mapper';
+import { buildPaymentOutboxRow, PaymentOutboxEventType } from '../payment-outbox';
 
 /** Refund request payload */
 export interface RefundRequest {
@@ -120,6 +121,13 @@ export class RefundService {
       refundAmountCents: decision.refundAmountCents,
       reversalAmountCents: decision.reversalAmountCents,
       resultingStatus,
+      // Push Task 12: notify the Host (payer) their refund was applied, atomically with the
+      // REFUNDED/PARTIALLY_REFUNDED transition.
+      outbox: buildPaymentOutboxRow({
+        paymentId: payment.id,
+        recipientUserId: payment.hostId,
+        type: PaymentOutboxEventType.REFUNDED,
+      }),
     });
 
     await this.repo.appendEvent({

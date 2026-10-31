@@ -15,7 +15,6 @@ import {
   FlatList,
   Image,
   ScrollView,
-  StyleSheet,
   Text,
   View,
 } from 'react-native';
@@ -26,20 +25,9 @@ import { useLocalSearchParams } from 'expo-router';
 import { useSignedUrl } from './useSignedUrl';
 import type { PortfolioPhoto, PublicProfile } from './profile.types';
 import { apiClient } from '../../services/api.service';
+import { makeStyles, useTheme } from '../../theme';
 
 // ─── Design Tokens ───────────────────────────────────────────────────────────
-
-const COLORS = {
-  background: '#0B0C10',
-  card: '#1F2833',
-  textPrimary: '#FFFFFF',
-  textSecondary: '#C5C6C7',
-  accent: '#00F5D4',
-  kycVerified: '#00F5D4',
-  chipBg: '#0B0C10',
-  divider: '#2B3A4A',
-  error: '#FF6B6B',
-} as const;
 
 const SPACING = {
   sm: 8,
@@ -91,6 +79,7 @@ interface ProfilePhotoProps {
 }
 
 function ProfilePhoto({ photoUrl, displayName }: ProfilePhotoProps): React.JSX.Element {
+  const styles = useStyles();
   const signedUrl = useSignedUrl(photoUrl);
 
   return (
@@ -118,6 +107,7 @@ interface SpecialtyChipProps {
 }
 
 function SpecialtyChip({ label }: SpecialtyChipProps): React.JSX.Element {
+  const styles = useStyles();
   return (
     <View style={styles.chip}>
       <Text style={styles.chipText}>{label}</Text>
@@ -132,6 +122,7 @@ interface StatRowProps {
 }
 
 function StatRow({ label, value, testID }: StatRowProps): React.JSX.Element {
+  const styles = useStyles();
   return (
     <View style={styles.statRow} testID={testID}>
       <Text style={styles.statLabel}>{label}</Text>
@@ -145,6 +136,7 @@ interface PortfolioItemProps {
 }
 
 function PortfolioItem({ photo }: PortfolioItemProps): React.JSX.Element {
+  const styles = useStyles();
   const signedUrl = useSignedUrl(photo.url);
 
   return (
@@ -166,6 +158,8 @@ function PortfolioItem({ photo }: PortfolioItemProps): React.JSX.Element {
 
 export function PublicProfileScreen(): React.JSX.Element {
   const { t } = useTranslation();
+  const styles = useStyles();
+  const { theme } = useTheme();
   const { userId } = useLocalSearchParams<{ userId: string }>();
 
   const [profile, setProfile] = useState<PublicProfileResponse | null>(null);
@@ -201,7 +195,7 @@ export function PublicProfileScreen(): React.JSX.Element {
   if (isLoading) {
     return (
       <SafeAreaView style={styles.centered} testID="public-profile-loading">
-        <ActivityIndicator size="large" color={COLORS.accent} />
+        <ActivityIndicator size="large" color={theme.accent} />
         <Text style={styles.loadingText}>{t('profile.public.loading')}</Text>
       </SafeAreaView>
     );
@@ -335,10 +329,10 @@ export function PublicProfileScreen(): React.JSX.Element {
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   safeArea: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: theme.background,
   },
   scrollView: {
     flex: 1,
@@ -349,7 +343,7 @@ const styles = StyleSheet.create({
   },
   centered: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: theme.background,
     alignItems: 'center',
     justifyContent: 'center',
     padding: SPACING.lg,
@@ -357,23 +351,23 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: SPACING.md,
     fontSize: FONT_SIZE.sm,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
   },
   errorText: {
     fontSize: FONT_SIZE.md,
     fontWeight: '600',
-    color: COLORS.error,
+    color: theme.danger,
     textAlign: 'center',
   },
   headerCard: {
-    backgroundColor: COLORS.card,
+    backgroundColor: theme.surface,
     borderRadius: SPACING.md,
     padding: SPACING.lg,
     marginBottom: SPACING.md,
     alignItems: 'center',
   },
   card: {
-    backgroundColor: COLORS.card,
+    backgroundColor: theme.surface,
     borderRadius: SPACING.md,
     padding: SPACING.lg,
     marginBottom: SPACING.md,
@@ -392,30 +386,30 @@ const styles = StyleSheet.create({
   photoPlaceholder: {
     width: PHOTO_SIZE,
     height: PHOTO_SIZE,
-    backgroundColor: COLORS.accent,
+    backgroundColor: theme.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
   photoPlaceholderText: {
     fontSize: FONT_SIZE.xl,
     fontWeight: '700',
-    color: COLORS.background,
+    color: theme.onAccent,
   },
   displayName: {
     fontSize: FONT_SIZE.lg,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
     textAlign: 'center',
   },
   businessName: {
     fontSize: FONT_SIZE.sm,
-    color: COLORS.accent,
+    color: theme.accent,
     marginTop: SPACING.sm / 2,
     textAlign: 'center',
   },
   memberSince: {
     fontSize: FONT_SIZE.xs,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
     marginTop: SPACING.sm,
   },
   kycBadge: {
@@ -424,23 +418,23 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.sm / 2,
     borderRadius: SPACING.sm,
     borderWidth: 1,
-    borderColor: COLORS.kycVerified,
-    backgroundColor: `${COLORS.kycVerified}15`,
+    borderColor: theme.accent,
+    backgroundColor: theme.surfaceElevated,
   },
   kycText: {
     fontSize: FONT_SIZE.xs,
     fontWeight: '600',
-    color: COLORS.kycVerified,
+    color: theme.accent,
   },
   sectionTitle: {
     fontSize: FONT_SIZE.sm,
     fontWeight: '600',
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
     marginBottom: SPACING.sm,
   },
   bioText: {
     fontSize: FONT_SIZE.sm,
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
     lineHeight: FONT_SIZE.sm * 1.5,
   },
   chipContainer: {
@@ -449,16 +443,16 @@ const styles = StyleSheet.create({
     gap: SPACING.sm / 2,
   },
   chip: {
-    backgroundColor: COLORS.chipBg,
+    backgroundColor: theme.background,
     borderRadius: SPACING.md,
     paddingHorizontal: SPACING.sm,
     paddingVertical: SPACING.sm / 2,
     borderWidth: 1,
-    borderColor: COLORS.accent,
+    borderColor: theme.accent,
   },
   chipText: {
     fontSize: FONT_SIZE.xs,
-    color: COLORS.accent,
+    color: theme.accent,
   },
   statRow: {
     flexDirection: 'row',
@@ -468,12 +462,12 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     fontSize: FONT_SIZE.sm,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
   },
   statValue: {
     fontSize: FONT_SIZE.sm,
     fontWeight: '600',
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
   },
   portfolioRow: {
     gap: PORTFOLIO_GAP,
@@ -484,7 +478,7 @@ const styles = StyleSheet.create({
     height: PORTFOLIO_ITEM_SIZE,
     borderRadius: SPACING.sm,
     overflow: 'hidden',
-    backgroundColor: COLORS.divider,
+    backgroundColor: theme.divider,
   },
   portfolioImage: {
     width: '100%',
@@ -493,8 +487,8 @@ const styles = StyleSheet.create({
   portfolioPlaceholder: {
     width: '100%',
     height: '100%',
-    backgroundColor: COLORS.divider,
+    backgroundColor: theme.divider,
   },
-});
+}));
 
 export default PublicProfileScreen;

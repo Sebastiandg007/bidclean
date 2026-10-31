@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { DataSource, EntityManager } from 'typeorm';
+import { OutboxRow, writeOutbox } from '../common/outbox/outbox-writer';
 import { NegotiationThread } from './entities/negotiation-thread.entity';
 import { NegotiationProposal } from './entities/negotiation-proposal.entity';
 import {
@@ -10,6 +11,13 @@ import {
   HostInboxRow,
 } from './negotiation.types';
 
+/**
+ * Builds the push-notification outbox row for a freshly inserted proposal (Task 12). Deferred to a
+ * callback because the new proposal id — part of the deterministic `event_id` — only exists after
+ * the insert. The domain (service) owns the shaping; the repo just writes it in the same tx.
+ */
+export type NewProposalOutboxBuilder = (proposalId: string) => OutboxRow;
+
 /** Parameters to insert a new proposal within a locked thread transaction */
 export interface InsertProposalParams {
   readonly threadId: string;
@@ -19,6 +27,8 @@ export interface InsertProposalParams {
   readonly hostTotalCents: number;
   readonly currency: string;
   readonly expiresAt: Date;
+  /** Optional builder for the push outbox row written atomically with the proposal (Task 12). */
+  readonly outboxFor?: NewProposalOutboxBuilder;
 }
 
 /** Result of a proposal insert (includes the allocated sequence + new thread version) */
@@ -156,6 +166,12 @@ export class NegotiationRepository {
         [nextSequence, nextVersion, saved.id, params.threadId],
       );
 
+      // Push Task 12: write the proposal-created/countered outbox row in the SAME transaction as
+      // the proposal insert, keyed on the freshly allocated proposal id.
+      if (params.outboxFor) {
+        await writeOutbox(manager, params.outboxFor(saved.id));
+      }
+
       return { proposal: saved, threadVersion: nextVersion };
     });
   }
@@ -177,15 +193,31 @@ export class NegotiationRepository {
   async setProposalStatus(
     proposalId: string,
     status: ProposalStatus,
-    options: { supersededReason?: SupersededReason; markResponded?: boolean } = {},
+    options: {
+      supersededReason?: SupersededReason;
+      markResponded?: boolean;
+      /** Optional push outbox row written atomically with the status change (Task 12). */
+      outbox?: OutboxRow;
+    } = {},
   ): Promise<void> {
     const respondedClause = options.markResponded ? `, "responded_at" = NOW()` : '';
-    await this.dataSource.query(
-      `UPDATE "negotiation_proposals"
+    const sql = `UPDATE "negotiation_proposals"
        SET "status" = $1, "superseded_reason" = $2${respondedClause}, "updated_at" = NOW()
-       WHERE "id" = $3 AND "status" = 'PENDING'`,
-      [status, options.supersededReason ?? null, proposalId],
-    );
+       WHERE "id" = $3 AND "status" = 'PENDING'`;
+    const paramsList = [status, options.supersededReason ?? null, proposalId];
+
+    // When a push outbox row accompanies the fact (e.g. proposal rejected), run both writes in one
+    // transaction so a rollback reverts the outbox row too (Task 12). Otherwise keep the single
+    // auto-committed statement unchanged.
+    if (!options.outbox) {
+      await this.dataSource.query(sql, paramsList);
+      return;
+    }
+    const outbox = options.outbox;
+    await this.dataSource.transaction(async (manager: EntityManager) => {
+      await manager.query(sql, paramsList);
+      await writeOutbox(manager, outbox);
+    });
   }
 
   /**
@@ -281,6 +313,22 @@ export class NegotiationRepository {
     return rows[0]?.cleaner_id ?? null;
   }
 
+  /**
+   * Whether a specific thread is matched — i.e. it has an ACCEPTED proposal belonging to it.
+   * Used by realtime-chat to gate conversation creation on a match for exactly that thread
+   * (not merely for the thread's offer).
+   */
+  async isThreadMatched(threadId: string): Promise<boolean> {
+    const rows = await this.dataSource.query<{ exists: boolean }[]>(
+      `SELECT EXISTS (
+         SELECT 1 FROM "negotiation_proposals"
+         WHERE "thread_id" = $1 AND "status" = 'ACCEPTED'
+       ) AS exists`,
+      [threadId],
+    );
+    return rows[0]?.exists === true;
+  }
+
   /** Whether the Cleaner has a SENT delivery record for the offer. */
   async hasSentDelivery(offerId: string, cleanerId: string): Promise<boolean> {
     const rows = await this.dataSource.query<{ exists: boolean }[]>(
@@ -318,13 +366,21 @@ export class NegotiationRepository {
   }
 
   /** Mark the winning proposal ACCEPTED and persist the agreed price/breakdown. */
-  async markProposalAccepted(proposalId: string): Promise<void> {
-    await this.dataSource.query(
-      `UPDATE "negotiation_proposals"
+  async markProposalAccepted(proposalId: string, outbox?: OutboxRow): Promise<void> {
+    const sql = `UPDATE "negotiation_proposals"
        SET "status" = 'ACCEPTED', "responded_at" = NOW(), "updated_at" = NOW()
-       WHERE "id" = $1 AND "status" = 'PENDING'`,
-      [proposalId],
-    );
+       WHERE "id" = $1 AND "status" = 'PENDING'`;
+
+    // Push Task 12: when accepting, write the outbox row in the SAME transaction as the ACCEPTED
+    // flip so a rollback reverts both. Callers without a recipient keep the single-statement path.
+    if (!outbox) {
+      await this.dataSource.query(sql, [proposalId]);
+      return;
+    }
+    await this.dataSource.transaction(async (manager: EntityManager) => {
+      await manager.query(sql, [proposalId]);
+      await writeOutbox(manager, outbox);
+    });
   }
 
   /**

@@ -1,0 +1,28 @@
+{
+  "verification": {
+    "cleaner": {
+      "title": "Confirma tu llegada",
+      "instruction": "Graba un clip corto. Di: \"Hola, vengo para el servicio de limpieza.\"",
+      "record": "Grabar",
+      "stop": "Detener",
+      "uploading": "Subiendo tu clip...",
+      "recorded": "Clip grabado",
+      "skipHint": "Es opcional y nunca bloquea tu trabajo.",
+      "permissionDenied": "El acceso a la cámara y el micrófono está desactivado",
+      "permissionExplainer": "Usamos un clip rápido para confirmar tu identidad en la puerta. Puedes iniciar el servicio sin él."
+    },
+    "host": {
+      "title": "Verificación de llegada",
+      "needsReviewHint": "La verificación de llegada necesita una revisión. No es una acusación.",
+      "disputePath": "Abre una disputa si algo no cuadra"
+    },
+    "status": {
+      "recording": "Grabando",
+      "checking": "Verificando...",
+      "verified": "Verificado",
+      "needsReview": "Requiere revisión",
+      "unavailable": "No disponible"
+    },
+    "loadError": "No pudimos cargar la verificación. Inténtalo de nuevo."
+  }
+}

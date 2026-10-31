@@ -1,0 +1,568 @@
+# =============================================================================
+# BidClean deployment-readiness component registry (versioned)
+# =============================================================================
+# The checkable definition of "every component". Authoritative for "what must
+# exist and be wired" — a component is "real" only because it is declared here.
+# Covers top-level services/infra AND the internal modules that can be "up but
+# unwired" (Nest modules, BullMQ workers, outbox/event consumers, scheduled
+# jobs, webhook ingresses, AI endpoints, mobile feature modules).
+#
+# Event-driven entries declare `consumes`/`produces`: those declared events are
+# exactly what the integrationProbe verifies end-to-end on the running system.
+# Event name strings are the REAL strings in services/api/src (verified against
+# code), not invented.
+#
+# Reconcile this file against the owning specs / docs/ARCHITECTURE.md BEFORE
+# every audit (see READINESS-RUNBOOK.md). A divergence is a blocking
+# REGISTRY_STALE finding.
+# =============================================================================
+version: 1
+
+components:
+  # ---------------------------------------------------------------------------
+  # Top-level services + infrastructure (the audited-topology diagram)
+  # ---------------------------------------------------------------------------
+  - componentId: svc.api
+    owner: services/api
+    surface: API
+    entryPoint: https://api.bidclean.tech (NestJS HTTP)
+    dependencies: [svc.postgres, svc.redis, svc.minio, svc.keycloak]
+    requiredInEnvironment: both
+    healthProbe: { probeType: service-health, probeId: health.api }
+    integrationProbe: { probeType: component-presence, probeId: presence.api }
+
+  - componentId: svc.ai
+    owner: services/ai
+    surface: AI
+    entryPoint: FastAPI (uvicorn) /health
+    dependencies: []
+    requiredInEnvironment: both
+    healthProbe: { probeType: service-health, probeId: health.ai }
+    integrationProbe: { probeType: component-presence, probeId: presence.ai }
+
+  - componentId: svc.mobile-build
+    owner: apps/mobile
+    surface: MOBILE
+    entryPoint: Expo build (eas) → AAB/IPA
+    dependencies: [svc.api]
+    requiredInEnvironment: both
+    healthProbe: { probeType: store-readiness, probeId: store.mobile-build }
+    integrationProbe: { probeType: store-readiness, probeId: store.mobile-build }
+
+  - componentId: svc.postgres
+    owner: infra
+    surface: INFRA
+    entryPoint: postgres:5432 (PostgreSQL + PostGIS)
+    dependencies: []
+    requiredInEnvironment: both
+    healthProbe: { probeType: service-health, probeId: health.postgres }
+    integrationProbe: { probeType: component-presence, probeId: presence.postgres }
+
+  - componentId: svc.redis
+    owner: infra
+    surface: INFRA
+    entryPoint: redis:6379 (Redis + BullMQ)
+    dependencies: []
+    requiredInEnvironment: both
+    healthProbe: { probeType: service-health, probeId: health.redis }
+    integrationProbe: { probeType: component-presence, probeId: presence.redis }
+
+  - componentId: svc.minio
+    owner: infra
+    surface: INFRA
+    entryPoint: minio:9000 (S3-compatible object storage)
+    dependencies: []
+    requiredInEnvironment: both
+    healthProbe: { probeType: service-health, probeId: health.minio }
+    integrationProbe: { probeType: component-presence, probeId: presence.minio }
+
+  - componentId: svc.keycloak
+    owner: user-authentication
+    surface: INFRA
+    entryPoint: keycloak:8080 (OAuth2/OIDC, JWKS)
+    dependencies: [svc.postgres]
+    requiredInEnvironment: both
+    healthProbe: { probeType: service-health, probeId: health.keycloak }
+    integrationProbe: { probeType: component-presence, probeId: presence.keycloak }
+
+  - componentId: svc.centrifugo
+    owner: realtime-chat
+    surface: INFRA
+    entryPoint: centrifugo:8000 (WebSocket pub/sub)
+    dependencies: [svc.redis]
+    requiredInEnvironment: both
+    healthProbe: { probeType: service-health, probeId: health.centrifugo }
+    integrationProbe: { probeType: component-presence, probeId: presence.centrifugo }
+
+  - componentId: svc.livekit
+    owner: voip-calls
+    surface: INFRA
+    entryPoint: livekit:7880 (WebRTC SFU)
+    dependencies: [svc.redis]
+    requiredInEnvironment: both
+    healthProbe: { probeType: service-health, probeId: health.livekit }
+    integrationProbe: { probeType: component-presence, probeId: presence.livekit }
+
+  - componentId: svc.libretranslate
+    owner: realtime-chat
+    surface: INFRA
+    entryPoint: libretranslate:5000 (self-hosted translation)
+    dependencies: []
+    requiredInEnvironment: both
+    healthProbe: { probeType: service-health, probeId: health.libretranslate }
+    integrationProbe: { probeType: component-presence, probeId: presence.libretranslate }
+
+  - componentId: svc.whisper
+    owner: voice-notes
+    surface: INFRA
+    entryPoint: whisper.cpp (speech-to-text, CPU)
+    dependencies: []
+    requiredInEnvironment: both
+    healthProbe: { probeType: service-health, probeId: health.whisper }
+    integrationProbe: { probeType: component-presence, probeId: presence.whisper }
+
+  - componentId: svc.piper
+    owner: voice-notes
+    surface: INFRA
+    entryPoint: piper (text-to-speech, CPU)
+    dependencies: []
+    requiredInEnvironment: both
+    healthProbe: { probeType: service-health, probeId: health.piper }
+    integrationProbe: { probeType: component-presence, probeId: presence.piper }
+
+  - componentId: svc.traefik
+    owner: infra
+    surface: INFRA
+    entryPoint: traefik:443 (reverse proxy, Let's Encrypt SSL)
+    dependencies: []
+    requiredInEnvironment: vps
+    healthProbe: { probeType: service-health, probeId: health.traefik }
+    integrationProbe: { probeType: devops-security, probeId: devops.traefik-ssl }
+
+  - componentId: svc.prometheus-grafana-loki
+    owner: infra
+    surface: INFRA
+    entryPoint: prometheus:9090 / grafana:3000 / loki:3100 (metrics, dashboards, logs)
+    dependencies: []
+    requiredInEnvironment: both
+    healthProbe: { probeType: service-health, probeId: health.monitoring }
+    integrationProbe: { probeType: devops-security, probeId: devops.monitoring-wired }
+
+  - componentId: svc.sentry
+    owner: infra
+    surface: INFRA
+    entryPoint: Sentry (error telemetry ingest)
+    dependencies: []
+    requiredInEnvironment: both
+    healthProbe: { probeType: service-health, probeId: health.sentry }
+    integrationProbe: { probeType: devops-security, probeId: devops.sentry-wired }
+
+  - componentId: svc.uptime-kuma
+    owner: infra
+    surface: INFRA
+    entryPoint: uptime-kuma:3001 (availability monitoring)
+    dependencies: []
+    requiredInEnvironment: vps
+    healthProbe: { probeType: service-health, probeId: health.uptime-kuma }
+    integrationProbe: { probeType: devops-security, probeId: devops.uptime-kuma-wired }
+
+  # ---------------------------------------------------------------------------
+  # AI endpoints (FastAPI routers — services/ai/src)
+  # ---------------------------------------------------------------------------
+  - componentId: ai.transcribe
+    owner: voice-notes
+    surface: AI
+    entryPoint: POST /transcribe (speech/router.py)
+    dependencies: [svc.ai, svc.whisper]
+    requiredInEnvironment: both
+    healthProbe: { probeType: service-health, probeId: health.ai }
+    integrationProbe: { probeType: inter-service-edge, probeId: edge.api-ai-transcribe }
+
+  - componentId: ai.verify-face
+    owner: video-verification
+    surface: AI
+    entryPoint: POST /verify-face (video_verification/router.py)
+    dependencies: [svc.ai]
+    requiredInEnvironment: both
+    healthProbe: { probeType: service-health, probeId: health.ai }
+    integrationProbe: { probeType: inter-service-edge, probeId: edge.api-ai-verify-face }
+
+  - componentId: ai.kyc
+    owner: kyc-verification
+    surface: AI
+    entryPoint: POST /ai/ocr, /ai/face-compare, /ai/liveness (kyc/router.py)
+    dependencies: [svc.ai]
+    requiredInEnvironment: both
+    healthProbe: { probeType: service-health, probeId: health.ai }
+    integrationProbe: { probeType: inter-service-edge, probeId: edge.api-ai-kyc }
+
+  # ---------------------------------------------------------------------------
+  # API Nest feature modules (registered in app.module.ts)
+  # ---------------------------------------------------------------------------
+  - componentId: api.module.auth
+    owner: user-authentication
+    surface: API
+    entryPoint: AuthModule (JWKS validation guard)
+    dependencies: [svc.keycloak]
+    requiredInEnvironment: both
+    healthProbe: { probeType: component-presence, probeId: presence.module }
+    integrationProbe: { probeType: inter-service-edge, probeId: edge.api-keycloak }
+
+  - componentId: api.module.offers
+    owner: offer-publishing
+    surface: API
+    entryPoint: OffersModule
+    dependencies: [svc.postgres, svc.redis]
+    requiredInEnvironment: both
+    healthProbe: { probeType: component-presence, probeId: presence.module }
+    integrationProbe: { probeType: component-presence, probeId: presence.module }
+
+  - componentId: api.module.payments
+    owner: stripe-escrow
+    surface: API
+    entryPoint: PaymentsModule
+    dependencies: [svc.postgres]
+    requiredInEnvironment: both
+    healthProbe: { probeType: component-presence, probeId: presence.module }
+    integrationProbe: { probeType: external-integration, probeId: ext.stripe }
+
+  - componentId: api.module.subscriptions
+    owner: revenuecat-subscriptions
+    surface: API
+    entryPoint: SubscriptionsModule
+    dependencies: [svc.postgres]
+    requiredInEnvironment: both
+    healthProbe: { probeType: component-presence, probeId: presence.module }
+    integrationProbe: { probeType: external-integration, probeId: ext.revenuecat }
+
+  - componentId: api.module.notifications
+    owner: push-notifications
+    surface: API
+    entryPoint: NotificationsModule
+    dependencies: [svc.postgres, svc.redis]
+    requiredInEnvironment: both
+    healthProbe: { probeType: component-presence, probeId: presence.module }
+    integrationProbe: { probeType: external-integration, probeId: ext.onesignal }
+
+  - componentId: api.module.chat
+    owner: realtime-chat
+    surface: API
+    entryPoint: ChatModule
+    dependencies: [svc.postgres, svc.centrifugo]
+    requiredInEnvironment: both
+    healthProbe: { probeType: component-presence, probeId: presence.module }
+    integrationProbe: { probeType: inter-service-edge, probeId: edge.api-centrifugo }
+
+  # ---------------------------------------------------------------------------
+  # API BullMQ workers / processors (real queue names in *.constants.ts)
+  # ---------------------------------------------------------------------------
+  - componentId: api.worker.radius-expansion
+    owner: offer-radar
+    surface: API
+    entryPoint: BullMQ queue 'offer-radius-expansion' (RadiusExpansionProcessor)
+    dependencies: [svc.redis, svc.postgres]
+    consumes: [{ eventName: expand-radius, channel: offer-radius-expansion }]
+    requiredInEnvironment: both
+    healthProbe: { probeType: component-presence, probeId: presence.worker }
+    integrationProbe: { probeType: inter-service-edge, probeId: edge.api-redis-bullmq }
+
+  - componentId: api.worker.tier-delivery
+    owner: offer-radar
+    surface: API
+    entryPoint: BullMQ queue 'offer-tier-delivery' (TierDeliveryProcessor)
+    dependencies: [svc.redis]
+    consumes: [{ eventName: deliver-to-tier, channel: offer-tier-delivery }]
+    produces: [{ eventName: offer.matched, channel: offer_outbox }]
+    requiredInEnvironment: both
+    healthProbe: { probeType: component-presence, probeId: presence.worker }
+    integrationProbe: { probeType: inter-service-edge, probeId: edge.api-redis-bullmq }
+
+  - componentId: api.worker.favorites-window
+    owner: favorites
+    surface: API
+    entryPoint: BullMQ queue 'offer-favorites-window' (FavoritesWindowProcessor)
+    dependencies: [svc.redis]
+    consumes: [{ eventName: favorites-expired, channel: offer-favorites-window }]
+    requiredInEnvironment: both
+    healthProbe: { probeType: component-presence, probeId: presence.worker }
+    integrationProbe: { probeType: inter-service-edge, probeId: edge.api-redis-bullmq }
+
+  - componentId: api.worker.stripe-webhook
+    owner: stripe-escrow
+    surface: API
+    entryPoint: BullMQ queue 'payments-stripe-webhook' (StripeWebhookProcessor)
+    dependencies: [svc.redis]
+    consumes: [{ eventName: stripe-event, channel: payments-stripe-webhook }]
+    requiredInEnvironment: both
+    healthProbe: { probeType: component-presence, probeId: presence.worker }
+    integrationProbe: { probeType: inter-service-edge, probeId: edge.api-redis-bullmq }
+
+  - componentId: api.worker.notifications-delivery
+    owner: push-notifications
+    surface: API
+    entryPoint: BullMQ queue 'notifications-delivery' (DeliveryWorker → OneSignal)
+    dependencies: [svc.redis]
+    consumes: [{ eventName: delivery-intent, channel: notifications-delivery }]
+    requiredInEnvironment: both
+    healthProbe: { probeType: component-presence, probeId: presence.worker }
+    integrationProbe: { probeType: external-integration, probeId: ext.onesignal }
+
+  - componentId: api.worker.revenuecat-webhook
+    owner: revenuecat-subscriptions
+    surface: API
+    entryPoint: BullMQ queue 'subscriptions-revenuecat-webhook' (RevenueCatWebhookProcessor)
+    dependencies: [svc.redis]
+    consumes: [{ eventName: process-revenuecat-event, channel: subscriptions-revenuecat-webhook }]
+    requiredInEnvironment: both
+    healthProbe: { probeType: component-presence, probeId: presence.worker }
+    integrationProbe: { probeType: inter-service-edge, probeId: edge.api-redis-bullmq }
+
+  - componentId: api.worker.face-comparison
+    owner: video-verification
+    surface: API
+    entryPoint: BullMQ queue 'video-face-comparison' (FaceComparisonProcessor)
+    dependencies: [svc.redis, svc.ai]
+    consumes: [{ eventName: compare-face, channel: video-face-comparison }]
+    requiredInEnvironment: both
+    healthProbe: { probeType: component-presence, probeId: presence.worker }
+    integrationProbe: { probeType: inter-service-edge, probeId: edge.api-ai-verify-face }
+
+  - componentId: api.worker.voice-transcription
+    owner: voice-notes
+    surface: API
+    entryPoint: BullMQ queue 'voice-notes-transcription' (VoiceTranscriptionProcessor)
+    dependencies: [svc.redis, svc.ai]
+    consumes: [{ eventName: transcribe-voice-note, channel: voice-notes-transcription }]
+    requiredInEnvironment: both
+    healthProbe: { probeType: component-presence, probeId: presence.worker }
+    integrationProbe: { probeType: inter-service-edge, probeId: edge.api-ai-transcribe }
+
+  # ---------------------------------------------------------------------------
+  # API outbox relay + durable event consumers (real event strings)
+  # ---------------------------------------------------------------------------
+  - componentId: api.relay.notifications-outbox
+    owner: push-notifications
+    surface: API
+    entryPoint: "@Interval OutboxRelayProcessor (offer/payment/negotiation/chat/voip _outbox)"
+    dependencies: [svc.postgres]
+    consumes:
+      - { eventName: offer.matched, channel: offer_outbox }
+      - { eventName: offer.cancelled, channel: offer_outbox }
+      - { eventName: offer.expired, channel: offer_outbox }
+      - { eventName: offer.completed, channel: offer_outbox }
+    produces: [{ eventName: delivery-intent, channel: notifications-delivery }]
+    requiredInEnvironment: both
+    healthProbe: { probeType: component-presence, probeId: presence.consumer }
+    integrationProbe: { probeType: inter-service-edge, probeId: edge.outbox-push }
+
+  - componentId: api.listener.offer-matched-escrow
+    owner: stripe-escrow
+    surface: API
+    entryPoint: "@OnEvent(offer.matched) OfferMatchedListener → EscrowChargeService"
+    dependencies: [api.module.offers, api.module.payments]
+    consumes: [{ eventName: offer.matched }]
+    requiredInEnvironment: both
+    healthProbe: { probeType: component-presence, probeId: presence.consumer }
+    integrationProbe: { probeType: live-journey, probeId: chain.offer-matched-escrow }
+
+  - componentId: api.consumer.service-activation
+    owner: service-tracking
+    surface: API
+    entryPoint: "@Interval ServiceActivationConsumer (service_activation_outbox)"
+    dependencies: [svc.postgres]
+    consumes: [{ eventName: service_activation_ready, channel: service_activation_outbox }]
+    produces: [{ eventName: service_arrived, channel: service_outbox }]
+    requiredInEnvironment: both
+    healthProbe: { probeType: component-presence, probeId: presence.consumer }
+    integrationProbe: { probeType: live-journey, probeId: chain.activation-session }
+
+  - componentId: api.consumer.verification-arrival
+    owner: video-verification
+    surface: API
+    entryPoint: "@Interval VerificationArrivalConsumer (service_outbox, consumer_name=video)"
+    dependencies: [svc.postgres]
+    consumes: [{ eventName: service_arrived, channel: service_outbox }]
+    requiredInEnvironment: both
+    healthProbe: { probeType: component-presence, probeId: presence.consumer }
+    integrationProbe: { probeType: live-journey, probeId: chain.arrival-verification }
+
+  - componentId: api.consumer.completion-created
+    owner: service-completion
+    surface: API
+    entryPoint: "@Interval CompletionCreatedConsumer (checklist_outbox, consumer_name=completion)"
+    dependencies: [svc.postgres]
+    consumes: [{ eventName: checklist_completed, channel: checklist_outbox }]
+    produces: [{ eventName: service_disputed, channel: completion_outbox }]
+    requiredInEnvironment: both
+    healthProbe: { probeType: component-presence, probeId: presence.consumer }
+    integrationProbe: { probeType: live-journey, probeId: chain.checklist-completion }
+
+  - componentId: api.consumer.dispute-created
+    owner: dispute-system
+    surface: API
+    entryPoint: "@Interval DisputeCreatedConsumer (completion_outbox, consumer_name=dispute)"
+    dependencies: [svc.postgres]
+    consumes: [{ eventName: service_disputed, channel: completion_outbox }]
+    requiredInEnvironment: both
+    healthProbe: { probeType: component-presence, probeId: presence.consumer }
+    integrationProbe: { probeType: live-journey, probeId: chain.dispute-routing }
+
+  # ---------------------------------------------------------------------------
+  # API scheduled jobs (@Interval sweeps / reconciliation)
+  # ---------------------------------------------------------------------------
+  - componentId: api.job.payment-reconciliation
+    owner: stripe-escrow
+    surface: API
+    entryPoint: "@Interval PaymentReconciliationService (charges + disputes sweeps)"
+    dependencies: [svc.postgres]
+    requiredInEnvironment: both
+    healthProbe: { probeType: component-presence, probeId: presence.job }
+    integrationProbe: { probeType: external-integration, probeId: ext.stripe }
+
+  - componentId: api.job.auto-release
+    owner: service-completion
+    surface: API
+    entryPoint: "@Interval AutoReleaseWorker / AutoReleaseSweepProcessor"
+    dependencies: [svc.postgres]
+    requiredInEnvironment: both
+    healthProbe: { probeType: component-presence, probeId: presence.job }
+    integrationProbe: { probeType: external-integration, probeId: ext.stripe }
+
+  - componentId: api.job.service-sweep
+    owner: service-tracking
+    surface: API
+    entryPoint: BullMQ repeatable 'service-tracking-sweep' (ServiceSweepProcessor)
+    dependencies: [svc.redis, svc.postgres]
+    requiredInEnvironment: both
+    healthProbe: { probeType: component-presence, probeId: presence.job }
+    integrationProbe: { probeType: inter-service-edge, probeId: edge.api-redis-bullmq }
+
+  # ---------------------------------------------------------------------------
+  # API webhook ingresses (real controller routes)
+  # ---------------------------------------------------------------------------
+  - componentId: api.webhook.stripe
+    owner: stripe-escrow
+    surface: API
+    entryPoint: POST /payments/webhooks/stripe (StripeWebhookController)
+    dependencies: [api.module.payments]
+    consumes: [{ eventName: stripe-event }]
+    requiredInEnvironment: both
+    healthProbe: { probeType: component-presence, probeId: presence.webhook }
+    integrationProbe: { probeType: external-integration, probeId: ext.stripe }
+
+  - componentId: api.webhook.revenuecat
+    owner: revenuecat-subscriptions
+    surface: API
+    entryPoint: POST /webhooks/revenuecat (RevenueCatWebhookController, HMAC)
+    dependencies: [api.module.subscriptions]
+    consumes: [{ eventName: revenuecat-event }]
+    requiredInEnvironment: both
+    healthProbe: { probeType: component-presence, probeId: presence.webhook }
+    integrationProbe: { probeType: external-integration, probeId: ext.revenuecat }
+
+  - componentId: api.webhook.onesignal
+    owner: push-notifications
+    surface: API
+    entryPoint: POST /webhooks/onesignal (OneSignalWebhookController)
+    dependencies: [api.module.notifications]
+    consumes: [{ eventName: onesignal-delivery-confirmation }]
+    requiredInEnvironment: both
+    healthProbe: { probeType: component-presence, probeId: presence.webhook }
+    integrationProbe: { probeType: external-integration, probeId: ext.onesignal }
+
+  - componentId: api.webhook.livekit
+    owner: voip-calls
+    surface: API
+    entryPoint: POST /webhooks/* (LiveKitWebhookController, room/egress events)
+    dependencies: [svc.livekit]
+    consumes: [{ eventName: livekit-room-event }]
+    requiredInEnvironment: both
+    healthProbe: { probeType: component-presence, probeId: presence.webhook }
+    integrationProbe: { probeType: inter-service-edge, probeId: edge.api-livekit }
+
+  # ---------------------------------------------------------------------------
+  # External integrations (per-environment: sandbox or live)
+  # ---------------------------------------------------------------------------
+  - componentId: ext.stripe
+    owner: stripe-escrow
+    surface: API
+    entryPoint: Stripe Connect API (escrow, multi-currency)
+    dependencies: [api.module.payments]
+    requiredInEnvironment: both
+    healthProbe: { probeType: external-integration, probeId: ext.stripe }
+    integrationProbe: { probeType: external-integration, probeId: ext.stripe }
+
+  - componentId: ext.revenuecat
+    owner: revenuecat-subscriptions
+    surface: API
+    entryPoint: RevenueCat API (subscriptions, ads)
+    dependencies: [api.module.subscriptions]
+    requiredInEnvironment: both
+    healthProbe: { probeType: external-integration, probeId: ext.revenuecat }
+    integrationProbe: { probeType: external-integration, probeId: ext.revenuecat }
+
+  - componentId: ext.onesignal
+    owner: push-notifications
+    surface: API
+    entryPoint: OneSignal API (push delivery)
+    dependencies: [api.module.notifications]
+    requiredInEnvironment: both
+    healthProbe: { probeType: external-integration, probeId: ext.onesignal }
+    integrationProbe: { probeType: external-integration, probeId: ext.onesignal }
+
+  - componentId: ext.bedrock
+    owner: services/ai
+    surface: API
+    entryPoint: AWS Bedrock (cloud AI models)
+    dependencies: []
+    requiredInEnvironment: both
+    healthProbe: { probeType: external-integration, probeId: ext.bedrock }
+    integrationProbe: { probeType: external-integration, probeId: ext.bedrock }
+
+  - componentId: ext.mapbox
+    owner: apps/mobile
+    surface: MOBILE
+    entryPoint: Mapbox (maps, custom dark style)
+    dependencies: [svc.mobile-build]
+    requiredInEnvironment: both
+    healthProbe: { probeType: external-integration, probeId: ext.mapbox }
+    integrationProbe: { probeType: external-integration, probeId: ext.mapbox }
+
+  # ---------------------------------------------------------------------------
+  # Mobile feature modules (apps/mobile/src/screens + stores)
+  # ---------------------------------------------------------------------------
+  - componentId: mobile.feature.radar
+    owner: offer-radar
+    surface: MOBILE
+    entryPoint: screens/radar (real-time offer radar)
+    dependencies: [svc.api, svc.centrifugo]
+    requiredInEnvironment: both
+    healthProbe: { probeType: store-readiness, probeId: store.mobile-build }
+    integrationProbe: { probeType: inter-service-edge, probeId: edge.mobile-centrifugo }
+
+  - componentId: mobile.feature.tracking
+    owner: service-tracking
+    surface: MOBILE
+    entryPoint: screens/tracking (live service tracking)
+    dependencies: [svc.api, ext.mapbox]
+    requiredInEnvironment: both
+    healthProbe: { probeType: store-readiness, probeId: store.mobile-build }
+    integrationProbe: { probeType: external-integration, probeId: ext.mapbox }
+
+  - componentId: mobile.feature.chat
+    owner: realtime-chat
+    surface: MOBILE
+    entryPoint: screens/chat (realtime chat + voip)
+    dependencies: [svc.api, svc.centrifugo, svc.livekit]
+    requiredInEnvironment: both
+    healthProbe: { probeType: store-readiness, probeId: store.mobile-build }
+    integrationProbe: { probeType: inter-service-edge, probeId: edge.mobile-livekit }
+
+  - componentId: mobile.feature.payments
+    owner: stripe-escrow
+    surface: MOBILE
+    entryPoint: screens/payments (escrow, Stripe sheet)
+    dependencies: [svc.api]
+    requiredInEnvironment: both
+    healthProbe: { probeType: store-readiness, probeId: store.mobile-build }
+    integrationProbe: { probeType: inter-service-edge, probeId: edge.mobile-api }

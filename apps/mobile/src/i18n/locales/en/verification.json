@@ -1,0 +1,28 @@
+{
+  "verification": {
+    "cleaner": {
+      "title": "Confirm your arrival",
+      "instruction": "Record a short clip. Say: \"Hi, I'm here for the cleaning service.\"",
+      "record": "Record",
+      "stop": "Stop",
+      "uploading": "Uploading your clip...",
+      "recorded": "Clip recorded",
+      "skipHint": "This is optional and never blocks your work.",
+      "permissionDenied": "Camera and microphone access is off",
+      "permissionExplainer": "We use a quick clip to confirm your identity at the door. You can still start the service without it."
+    },
+    "host": {
+      "title": "Arrival verification",
+      "needsReviewHint": "The arrival check needs a closer look. This is not an accusation.",
+      "disputePath": "Open a dispute if something seems off"
+    },
+    "status": {
+      "recording": "Recording",
+      "checking": "Checking...",
+      "verified": "Verified",
+      "needsReview": "Needs review",
+      "unavailable": "Not available"
+    },
+    "loadError": "We couldn't load the verification. Please try again."
+  }
+}

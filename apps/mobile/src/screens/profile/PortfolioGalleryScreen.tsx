@@ -5,7 +5,7 @@
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { Alert, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import * as ImagePicker from 'expo-image-picker';
@@ -14,15 +14,9 @@ import { PortfolioGrid } from './components/PortfolioGrid';
 import { PORTFOLIO, PROFILE_PHOTO } from './profile.constants';
 import type { PortfolioPhoto } from './profile.types';
 import { apiClient } from '../../services/api.service';
+import { makeStyles } from '../../theme';
 
 // ─── Design Tokens ───────────────────────────────────────────────────────────
-
-const COLORS = {
-  background: '#0B0C10',
-  textPrimary: '#FFFFFF',
-  textSecondary: '#C5C6C7',
-  accent: '#00F5D4',
-} as const;
 
 const SPACING = {
   sm: 8,
@@ -56,6 +50,7 @@ function extractErrorMessage(err: unknown, fallbackKey: string): string {
 
 export function PortfolioGalleryScreen(): React.JSX.Element {
   const { t } = useTranslation();
+  const styles = useStyles();
 
   const [photos, setPhotos] = useState<PortfolioPhoto[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -251,10 +246,10 @@ export function PortfolioGalleryScreen(): React.JSX.Element {
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   safeArea: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: theme.background,
   },
   content: {
     flex: 1,
@@ -269,25 +264,25 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: FONT_SIZE.xl,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
   },
   photoCount: {
     fontSize: FONT_SIZE.sm,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
   },
   maxBanner: {
-    backgroundColor: COLORS.accent,
+    backgroundColor: theme.accent,
     borderRadius: 8,
     paddingVertical: SPACING.sm,
     paddingHorizontal: SPACING.md,
     marginBottom: SPACING.md,
   },
   maxBannerText: {
-    color: COLORS.background,
+    color: theme.onAccent,
     fontSize: FONT_SIZE.sm,
     fontWeight: '600',
     textAlign: 'center',
   },
-});
+}));
 
 export default PortfolioGalleryScreen;

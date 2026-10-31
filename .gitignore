@@ -22,8 +22,6 @@ env/
 dist/
 
 # Environment variables (NEVER commit secrets)
-.env
-.env.local
 .env.staging
 .env.production
 *.local
@@ -92,9 +90,12 @@ pgdata/
 # Redis data (local)
 redis-data/
 
-# Stripe
+# Stripe / Stripe Projects
+# Per Stripe docs: state.json AND state.local.json ARE committed (team needs them).
+# Only the vault, cache and .env outputs are secret. init adds these automatically.
 .stripe/
-.projects/state.local.json
+.projects/vault/
+.projects/cache/
 
 # Temporary files
 tmp/
@@ -105,3 +106,11 @@ temp/
 *.pem
 *.key
 secrets/
+
+.projects/cache
+.projects/vault
+.projects/state.test.json
+.projects/state.local.test.json
+.env
+.env.*
+!.env.example

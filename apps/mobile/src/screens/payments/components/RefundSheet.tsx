@@ -5,21 +5,11 @@
  */
 
 import React, { useState } from 'react';
-import { StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import { formatMoney } from '../payments.format';
-
-const COLORS = {
-  card: '#1F2833',
-  accent: '#00F5D4',
-  accentText: '#0B0C10',
-  title: '#FFFFFF',
-  body: 'rgba(255, 255, 255, 0.7)',
-  inputBg: '#0B0C10',
-  inputText: '#FFFFFF',
-  disabled: 'rgba(0, 245, 212, 0.3)',
-} as const;
+import { makeStyles, useTheme } from '../../../theme';
 
 const SPACING = { xs: 4, sm: 8, md: 16 } as const;
 const FONT_SIZE = { title: 16, body: 13, input: 18, button: 15 } as const;
@@ -44,6 +34,8 @@ export function RefundSheet({
   testID,
 }: RefundSheetProps): React.JSX.Element {
   const { t } = useTranslation('payments');
+  const styles = useStyles();
+  const { theme } = useTheme();
   const [isFull, setIsFull] = useState(true);
   const [amountText, setAmountText] = useState('');
 
@@ -84,7 +76,7 @@ export function RefundSheet({
             value={amountText}
             onChangeText={setAmountText}
             placeholder="0.00"
-            placeholderTextColor={COLORS.body}
+            placeholderTextColor={theme.textMuted}
             testID="refund-sheet-amount-input"
           />
         </View>
@@ -118,9 +110,9 @@ function parseAmountToCents(text: string): number | null {
   return Math.round(value * CENTS_PER_UNIT);
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   card: {
-    backgroundColor: COLORS.card,
+    backgroundColor: theme.surface,
     borderRadius: RADIUS,
     padding: SPACING.md,
     gap: SPACING.sm,
@@ -128,11 +120,11 @@ const styles = StyleSheet.create({
   title: {
     fontSize: FONT_SIZE.title,
     fontWeight: '700',
-    color: COLORS.title,
+    color: theme.textPrimary,
   },
   body: {
     fontSize: FONT_SIZE.body,
-    color: COLORS.body,
+    color: theme.textSecondary,
   },
   row: {
     flexDirection: 'row',
@@ -143,27 +135,27 @@ const styles = StyleSheet.create({
     gap: SPACING.xs,
   },
   input: {
-    backgroundColor: COLORS.inputBg,
+    backgroundColor: theme.background,
     borderRadius: RADIUS,
     paddingVertical: SPACING.sm,
     paddingHorizontal: SPACING.md,
     fontSize: FONT_SIZE.input,
-    color: COLORS.inputText,
+    color: theme.textPrimary,
   },
   button: {
     marginTop: SPACING.sm,
     height: 48,
     borderRadius: RADIUS,
-    backgroundColor: COLORS.accent,
+    backgroundColor: theme.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
   buttonDisabled: {
-    backgroundColor: COLORS.disabled,
+    backgroundColor: theme.surfaceElevated,
   },
   buttonText: {
     fontSize: FONT_SIZE.button,
     fontWeight: '700',
-    color: COLORS.accentText,
+    color: theme.onAccent,
   },
-});
+}));

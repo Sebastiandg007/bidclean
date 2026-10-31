@@ -5,6 +5,8 @@
  * environment-dependent settings, and design tokens.
  */
 
+import { palette } from '../../theme/primitives';
+
 // ─── Environment-Derived Configuration ───────────────────────────────────────
 
 /** Minimum acceptable image width in pixels */
@@ -39,15 +41,15 @@ export const DOCUMENT_FILL_RATIO = 0.6;
 // ─── Design Tokens ───────────────────────────────────────────────────────────
 
 export const COLORS = {
-  background: '#0B0C10',
-  card: '#1F2833',
-  accent: '#00F5D4',
-  textPrimary: '#FFFFFF',
-  textSecondary: 'rgba(255, 255, 255, 0.6)',
-  border: 'rgba(255, 255, 255, 0.2)',
-  error: '#FF6B6B',
-  overlayDark: 'rgba(0, 0, 0, 0.6)',
-  warning: '#FFD93D',
+  background: palette.obsidian,
+  card: palette.surfaceDark,
+  accent: palette.mint,
+  textPrimary: palette.white,
+  textSecondary: palette.whiteAlpha60,
+  border: palette.whiteAlpha20,
+  error: palette.offerDanger,
+  overlayDark: palette.overlayBlackSoft,
+  warning: palette.warning,
 } as const;
 
 export const SPACING = {

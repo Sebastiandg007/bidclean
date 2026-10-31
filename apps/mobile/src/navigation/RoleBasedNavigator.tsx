@@ -13,20 +13,14 @@
  * REQ-5: Switching roles instantly swaps the entire navigation.
  */
 
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
 import { useRouter } from 'expo-router';
 
+import { makeStyles, useTheme } from '../theme';
 import { useAuthStore, selectActiveRole, selectIsLoading } from '../stores/auth.store';
 import type { UserRole } from '../screens/roles/roles.types';
 import HostNavigator from './HostNavigator';
 import CleanerNavigator from './CleanerNavigator';
-
-// ─── Design Tokens ───────────────────────────────────────────────────────────
-
-const COLORS = {
-  background: '#0B0C10',
-  accent: '#00F5D4',
-} as const;
 
 // ─── Route Constants ─────────────────────────────────────────────────────────
 
@@ -76,13 +70,15 @@ export default function RoleBasedNavigator() {
  * Loading state shown while auth data hydrates from persistence.
  */
 function LoadingView() {
+  const { theme } = useTheme();
+  const styles = useStyles();
   return (
     <View
       style={styles.loadingContainer}
       accessibilityRole="progressbar"
       testID="role-navigator-loading"
     >
-      <ActivityIndicator size="large" color={COLORS.accent} />
+      <ActivityIndicator size="large" color={theme.accent} />
     </View>
   );
 }
@@ -100,11 +96,11 @@ function redirectToRoleSelection(router: ReturnType<typeof useRouter>) {
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   loadingContainer: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: theme.background,
     justifyContent: 'center',
     alignItems: 'center',
   },
-});
+}));

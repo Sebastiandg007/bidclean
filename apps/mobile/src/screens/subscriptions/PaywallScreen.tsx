@@ -7,16 +7,15 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import Purchases, { type PurchasesOffering } from 'react-native-purchases';
 import RevenueCatUI from 'react-native-purchases-ui';
 
+import { makeStyles, useTheme } from '../../theme';
 import { useSubscriptionStore } from './useSubscription';
 import { RC_OFFERING_IDS, SUBSCRIPTIONS_I18N_KEYS } from './subscriptions.constants';
 import { SubscriberRole } from './subscriptions.types';
-
-const COLORS = { bg: '#0B0C10', title: '#FFFFFF', error: '#FF6B6B' } as const;
 
 export interface PaywallScreenProps {
   /** The active role; selects the role-appropriate offering. */
@@ -27,6 +26,8 @@ export interface PaywallScreenProps {
 
 export function PaywallScreen({ role, onDismiss }: PaywallScreenProps): React.JSX.Element {
   const { t } = useTranslation('subscriptions');
+  const { theme } = useTheme();
+  const styles = useStyles();
   const refreshServerView = useSubscriptionStore((s) => s.refreshServerView);
 
   const [offering, setOffering] = useState<PurchasesOffering | null>(null);
@@ -62,7 +63,7 @@ export function PaywallScreen({ role, onDismiss }: PaywallScreenProps): React.JS
   if (isLoading) {
     return (
       <View style={styles.centered} testID="paywall-loading">
-        <ActivityIndicator color={COLORS.title} />
+        <ActivityIndicator color={theme.textPrimary} />
       </View>
     );
   }
@@ -92,21 +93,21 @@ export function PaywallScreen({ role, onDismiss }: PaywallScreenProps): React.JS
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   screen: {
     flex: 1,
-    backgroundColor: COLORS.bg,
+    backgroundColor: theme.background,
   },
   centered: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.bg,
+    backgroundColor: theme.background,
     padding: 24,
   },
   error: {
-    color: COLORS.error,
+    color: theme.danger,
     fontSize: 15,
     textAlign: 'center',
   },
-});
+}));

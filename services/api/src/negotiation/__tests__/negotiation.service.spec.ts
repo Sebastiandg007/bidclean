@@ -268,7 +268,15 @@ describe('NegotiationService', () => {
       const result = await service.acceptProposal('host-1', 'proposal-1', 'key-3');
       expect(offerMatch.match).toHaveBeenCalledWith('offer-1', 'cleaner-1', 'negotiation');
       expect(result.matchedProposalId).toBe('proposal-1');
-      expect(negotiationRepo.markProposalAccepted).toHaveBeenCalledWith('proposal-1');
+      // Push Task 12: accept now carries an atomic negotiation_outbox row (to the proposal author).
+      expect(negotiationRepo.markProposalAccepted).toHaveBeenCalledWith(
+        'proposal-1',
+        expect.objectContaining({
+          tableName: 'negotiation_outbox',
+          type: 'negotiation_proposal_accepted',
+          payload: expect.objectContaining({ threadId: 'thread-1' }),
+        }),
+      );
     });
 
     it('Property P7: a Cleaner cannot accept a CLEANER proposal (their own actor)', async () => {

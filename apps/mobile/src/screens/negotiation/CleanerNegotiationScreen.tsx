@@ -8,7 +8,7 @@
  */
 
 import React, { useCallback, useEffect, useMemo } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 
@@ -16,13 +16,7 @@ import { useNegotiationStore } from './useNegotiation';
 import { AcceptBar } from './components/AcceptBar';
 import { CounterofferInput } from './components/CounterofferInput';
 import { ProposalStatusBadge } from './components/ProposalStatusBadge';
-
-const COLORS = {
-  background: '#0B0C10',
-  textPrimary: '#FFFFFF',
-  textSecondary: 'rgba(255, 255, 255, 0.6)',
-  error: '#FF6B6B',
-} as const;
+import { makeStyles } from '../../theme';
 
 const SPACING = { sm: 8, md: 16, lg: 24 } as const;
 const FONT_SIZE = { title: 22, section: 15, error: 13 } as const;
@@ -46,6 +40,7 @@ export function CleanerNegotiationScreen({
   navigation,
 }: CleanerNegotiationScreenProps): React.JSX.Element {
   const { t } = useTranslation('negotiation');
+  const styles = useStyles();
   const { offerId, basePriceCents, currency, hostFeeRateBps, cleanerRateBps } = route.params;
 
   const myThreads = useNegotiationStore((s) => s.myThreads);
@@ -175,10 +170,10 @@ export function CleanerNegotiationScreen({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: theme.background,
   },
   content: {
     padding: SPACING.md,
@@ -187,7 +182,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: FONT_SIZE.title,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
   },
   section: {
     gap: SPACING.sm,
@@ -195,11 +190,11 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontSize: FONT_SIZE.section,
     fontWeight: '600',
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
   },
   error: {
     fontSize: FONT_SIZE.error,
-    color: COLORS.error,
+    color: theme.danger,
   },
   declineButton: {
     alignItems: 'center',
@@ -208,6 +203,6 @@ const styles = StyleSheet.create({
   declineText: {
     fontSize: FONT_SIZE.section,
     fontWeight: '600',
-    color: COLORS.error,
+    color: theme.danger,
   },
-});
+}));

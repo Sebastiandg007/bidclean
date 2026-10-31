@@ -1,0 +1,41 @@
+{
+  "dispute": {
+    "host": {
+      "title": "Abrir una disputa",
+      "reasonLabel": "¿Qué salió mal?",
+      "reasonPlaceholder": "Agrega detalles (opcional)"
+    },
+    "cleaner": {
+      "title": "Disputa",
+      "addNote": "Agrega una nota para responder",
+      "autoReleasePaused": "Hay una disputa abierta. La liberación automática está en pausa mientras se revisa."
+    },
+    "evidence": {
+      "title": "Evidencia",
+      "empty": "Aún no hay evidencia.",
+      "submit": "Enviar"
+    },
+    "countdown": {
+      "label": "Habrá una decisión en",
+      "expired": "Resolviendo…"
+    },
+    "state": {
+      "open": "Abierta",
+      "underReview": "En revisión",
+      "resolved": "Resuelta",
+      "expired": "Cerrada"
+    },
+    "outcome": {
+      "favorCleaner": "Resuelta a favor del profesional de limpieza",
+      "favorHost": "Resuelta a favor del anfitrión",
+      "partial": "Resuelta con un reembolso parcial"
+    },
+    "effect": {
+      "released": "Pago liberado al profesional de limpieza",
+      "refunded": "Pago reembolsado al anfitrión",
+      "partiallyRefunded": "Pago reembolsado parcialmente"
+    },
+    "loadError": "No se pudo cargar la disputa. Inténtalo de nuevo.",
+    "actionError": "Algo salió mal. Inténtalo de nuevo."
+  }
+}

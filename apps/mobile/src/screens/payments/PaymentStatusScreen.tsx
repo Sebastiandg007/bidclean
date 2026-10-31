@@ -6,9 +6,10 @@
  */
 
 import React, { useEffect } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
+import { makeStyles } from '../../theme';
 import { usePaymentsStore } from './usePayments';
 import { formatMoney } from './payments.format';
 import { PaymentStatusBadge } from './components/PaymentStatusBadge';
@@ -22,13 +23,6 @@ import {
   payoutLabelKey,
   payoutTone,
 } from './payments.status-map';
-
-const COLORS = {
-  bg: '#0B0C10',
-  card: '#1F2833',
-  title: '#FFFFFF',
-  label: 'rgba(255, 255, 255, 0.6)',
-} as const;
 
 const SPACING = { sm: 8, md: 16, lg: 24 } as const;
 const FONT_SIZE = { title: 22, label: 13, amount: 16 } as const;
@@ -44,6 +38,7 @@ export function PaymentStatusScreen({
   isHost,
 }: PaymentStatusScreenProps): React.JSX.Element {
   const { t } = useTranslation('payments');
+  const styles = useStyles();
   const payment = usePaymentsStore((s) => s.paymentByOffer.get(offerId));
   const fetchPayment = usePaymentsStore((s) => s.fetchPayment);
   const requestRefund = usePaymentsStore((s) => s.requestRefund);
@@ -135,6 +130,7 @@ interface StatusRowProps {
 }
 
 function StatusRow({ label, labelKey, tone, testID }: StatusRowProps): React.JSX.Element {
+  const styles = useStyles();
   return (
     <View style={styles.row} testID={testID}>
       <Text style={styles.label}>{label}</Text>
@@ -143,10 +139,10 @@ function StatusRow({ label, labelKey, tone, testID }: StatusRowProps): React.JSX
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   screen: {
     flex: 1,
-    backgroundColor: COLORS.bg,
+    backgroundColor: theme.background,
   },
   content: {
     padding: SPACING.md,
@@ -155,10 +151,10 @@ const styles = StyleSheet.create({
   title: {
     fontSize: FONT_SIZE.title,
     fontWeight: '700',
-    color: COLORS.title,
+    color: theme.textPrimary,
   },
   card: {
-    backgroundColor: COLORS.card,
+    backgroundColor: theme.surface,
     borderRadius: 12,
     padding: SPACING.md,
     gap: SPACING.sm,
@@ -170,11 +166,11 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: FONT_SIZE.label,
-    color: COLORS.label,
+    color: theme.textSecondary,
   },
   amount: {
     fontSize: FONT_SIZE.amount,
     fontWeight: '600',
-    color: COLORS.title,
+    color: theme.textPrimary,
   },
-});
+}));
