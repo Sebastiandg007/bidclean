@@ -25,6 +25,7 @@ module.exports = () => ({
   expo: {
     name: 'BidClean',
     slug: 'bidclean',
+    owner: 'bidclean',
     version: '0.1.0',
     scheme: 'bidclean',
     orientation: 'portrait',
@@ -98,6 +99,11 @@ module.exports = () => ({
     ],
     experiments: {
       typedRoutes: false,
+    },
+    extra: {
+      eas: {
+        projectId: 'b609e615-e417-45aa-8c92-177c523be7b7',
+      },
     },
   },
 });
