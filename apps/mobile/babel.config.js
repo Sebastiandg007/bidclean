@@ -17,25 +17,36 @@ const path = require('node:path');
 const APP_ROUTER_ROOT = path.join(__dirname, 'app');
 
 /**
- * Replace `process.env.EXPO_ROUTER_APP_ROOT` reads with the absolute routes path,
- * replicating what babel-preset-expo's expo-router plugin does when it registers.
+ * The static values babel-preset-expo would inline for expo-router's env reads.
+ * `require.context` requires ALL of its arguments to be static literals, so both
+ * the routes root and the import mode must be substituted.
  */
-function inlineExpoRouterAppRoot() {
+const EXPO_ROUTER_ENV_LITERALS = {
+  EXPO_ROUTER_APP_ROOT: APP_ROUTER_ROOT,
+  EXPO_ROUTER_IMPORT_MODE: 'sync',
+};
+
+/**
+ * Replace expo-router's `process.env.EXPO_ROUTER_*` reads with static string
+ * literals, replicating what babel-preset-expo's expo-router plugin does when it
+ * registers (it does not here because expo-router is not hoisted).
+ */
+function inlineExpoRouterEnv() {
   return {
-    name: 'bidclean-inline-expo-router-app-root',
+    name: 'bidclean-inline-expo-router-env',
     visitor: {
       MemberExpression(nodePath) {
         const object = nodePath.get('object');
         const property = nodePath.node.property;
+        const name = property && property.name;
         const isEnvRead =
           object.matchesPattern('process.env') &&
-          property &&
-          property.name === 'EXPO_ROUTER_APP_ROOT';
+          Object.prototype.hasOwnProperty.call(EXPO_ROUTER_ENV_LITERALS, name);
         const isAssignmentTarget =
           nodePath.parent.type === 'AssignmentExpression' &&
           nodePath.parent.left === nodePath.node;
         if (isEnvRead && !isAssignmentTarget) {
-          nodePath.replaceWith({ type: 'StringLiteral', value: APP_ROUTER_ROOT });
+          nodePath.replaceWith({ type: 'StringLiteral', value: EXPO_ROUTER_ENV_LITERALS[name] });
         }
       },
     },
@@ -46,7 +57,7 @@ module.exports = function babelConfig(api) {
   api.cache(true);
   return {
     presets: ['babel-preset-expo'],
-    plugins: [inlineExpoRouterAppRoot],
+    plugins: [inlineExpoRouterEnv],
     env: {
       test: {
         plugins: ['babel-plugin-dynamic-import-node'],
