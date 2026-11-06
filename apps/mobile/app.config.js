@@ -30,7 +30,11 @@ module.exports = () => ({
     scheme: 'bidclean',
     orientation: 'portrait',
     userInterfaceStyle: 'automatic',
-    newArchEnabled: true,
+    // New Architecture disabled: on RN 0.76 it fails to initialize silently
+    // (blank screen, before any JS runs) with native deps that don't fully
+    // support it yet (LiveKit/WebRTC, Mapbox). Re-enable once all native deps
+    // are new-arch ready.
+    newArchEnabled: false,
     ios: {
       supportsTablet: false,
       bundleIdentifier: 'tech.bidclean.app',
