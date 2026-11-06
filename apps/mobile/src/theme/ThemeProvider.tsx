@@ -37,6 +37,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }): Reac
 
   const osScheme = useColorScheme();
   const [osSchemeRead, setOsSchemeRead] = useState(false);
+  const [gateTimedOut, setGateTimedOut] = useState(false);
 
   // Kick off the persisted-preference read once.
   useEffect(() => {
@@ -48,7 +49,15 @@ export function ThemeProvider({ children }: { children: React.ReactNode }): Reac
     setOsSchemeRead(true);
   }, []);
 
-  const resolved = isLoaded && osSchemeRead;
+  // Failsafe: never stay gated on `null` forever. If resolution has not completed
+  // shortly after mount, open the gate with the default theme so the app always
+  // renders something (a hung store read must not leave a permanent blank screen).
+  useEffect(() => {
+    const timer = setTimeout(() => setGateTimedOut(true), 2000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const resolved = (isLoaded && osSchemeRead) || gateTimedOut;
   const resolvedTheme: ResolvedTheme = resolve(mode, osScheme);
 
   // Native chrome tracks the resolved theme (centralized in the provider). Called unconditionally
