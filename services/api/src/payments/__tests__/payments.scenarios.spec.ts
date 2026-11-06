@@ -66,7 +66,12 @@ class FakeRepo {
   events: { stripeEventId: string | null }[] = [];
   private seq = 0;
 
-  offerRates = { currency: 'USD', hostServiceFeeRateBps: 1000, cleanerCommissionRateBps: 300 };
+  offerRates = {
+    currency: 'USD',
+    hostServiceFeeRateBps: 1000,
+    cleanerCommissionRateBps: 300,
+    propertyId: 'property-1',
+  };
   agreedPrice = 10000;
 
   async findPaymentByOffer(offerId: string): Promise<FakePayment | null> {

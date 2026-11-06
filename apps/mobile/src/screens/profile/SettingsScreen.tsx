@@ -14,7 +14,6 @@ import {
   Modal,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   View,
 } from 'react-native';
@@ -29,20 +28,9 @@ import {
 } from './useSettings';
 import type { SupportedLanguage } from './useSettings';
 import type { ThemePreference } from './profile.types';
+import { makeStyles, useTheme } from '../../theme';
 
 // ─── Design Tokens ───────────────────────────────────────────────────────────
-
-const COLORS = {
-  background: '#0B0C10',
-  card: '#1F2833',
-  textPrimary: '#FFFFFF',
-  textSecondary: '#C5C6C7',
-  accent: '#00F5D4',
-  error: '#FF6B6B',
-  inputBackground: '#2A3140',
-  border: '#3A4250',
-  overlay: 'rgba(0, 0, 0, 0.7)',
-} as const;
 
 const SPACING = {
   xs: 4,
@@ -70,6 +58,7 @@ const BORDER_RADIUS_OPTION = 8;
 // ─── Sub-Components ──────────────────────────────────────────────────────────
 
 function SectionHeader({ title }: { title: string }): React.JSX.Element {
+  const styles = useStyles();
   return <Text style={styles.sectionHeader}>{title}</Text>;
 }
 
@@ -77,6 +66,8 @@ function SectionHeader({ title }: { title: string }): React.JSX.Element {
 
 export function SettingsScreen(): React.JSX.Element {
   const { t } = useTranslation();
+  const styles = useStyles();
+  const { theme: activeTheme } = useTheme();
 
   const settings = useSettingsStore((s) => s.settings);
   const isLoading = useSettingsStore((s) => s.isLoading);
@@ -132,7 +123,7 @@ export function SettingsScreen(): React.JSX.Element {
   if (isLoading && !settings) {
     return (
       <SafeAreaView style={styles.centered} testID="settings-loading">
-        <ActivityIndicator color={COLORS.accent} size="large" />
+        <ActivityIndicator color={activeTheme.accent} size="large" />
         <Text style={styles.loadingText}>
           {t('profile.settings.loading')}
         </Text>
@@ -281,6 +272,7 @@ function PickerModal({
   onClose,
   testID,
 }: PickerModalProps): React.JSX.Element {
+  const styles = useStyles();
   return (
     <Modal
       visible={visible}
@@ -339,10 +331,10 @@ function getThemeDisplayName(
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   safeArea: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: theme.background,
   },
   scrollView: {
     flex: 1,
@@ -353,14 +345,14 @@ const styles = StyleSheet.create({
   },
   centered: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: theme.background,
     alignItems: 'center',
     justifyContent: 'center',
     padding: SPACING.lg,
   },
   loadingText: {
     fontSize: FONT_SIZE.sm,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
     marginTop: SPACING.md,
   },
   header: {
@@ -369,29 +361,29 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: FONT_SIZE.xl,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
   },
   sectionHeader: {
     fontSize: FONT_SIZE.md,
     fontWeight: '600',
-    color: COLORS.accent,
+    color: theme.accent,
     marginTop: SPACING.lg,
     marginBottom: SPACING.sm,
   },
   card: {
-    backgroundColor: COLORS.card,
+    backgroundColor: theme.surface,
     borderRadius: BORDER_RADIUS_CARD,
     padding: SPACING.md,
   },
   overlay: {
     flex: 1,
-    backgroundColor: COLORS.overlay,
+    backgroundColor: theme.overlay,
     justifyContent: 'center',
     alignItems: 'center',
     padding: SPACING.lg,
   },
   modalContent: {
-    backgroundColor: COLORS.card,
+    backgroundColor: theme.surface,
     borderRadius: BORDER_RADIUS_MODAL,
     padding: SPACING.lg,
     width: '100%',
@@ -400,7 +392,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: FONT_SIZE.lg,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
     marginBottom: SPACING.md,
   },
   optionRow: {
@@ -409,25 +401,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: SPACING.md,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: theme.border,
   },
   optionRowSelected: {
-    backgroundColor: COLORS.inputBackground,
+    backgroundColor: theme.surfaceElevated,
     borderRadius: BORDER_RADIUS_OPTION,
     paddingHorizontal: SPACING.sm,
   },
   optionText: {
     fontSize: FONT_SIZE.md,
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
   },
   optionTextSelected: {
-    color: COLORS.accent,
+    color: theme.accent,
     fontWeight: '600',
   },
   checkmark: {
     fontSize: FONT_SIZE.md,
-    color: COLORS.accent,
+    color: theme.accent,
   },
-});
+}));
 
 export default SettingsScreen;

@@ -7,17 +7,11 @@
  */
 
 import React from 'react';
-import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { Pressable, Switch, Text, View } from 'react-native';
+
+import { makeStyles, useTheme } from '../../../theme';
 
 // ─── Design Tokens ───────────────────────────────────────────────────────────
-
-const COLORS = {
-  card: '#1F2833',
-  textPrimary: '#FFFFFF',
-  textSecondary: '#C5C6C7',
-  accent: '#00F5D4',
-  border: '#3A4250',
-} as const;
 
 const SPACING = {
   xs: 4,
@@ -56,6 +50,8 @@ export type SettingsItemProps = ToggleProps | SelectorProps;
 
 export function SettingsItem(props: SettingsItemProps): React.JSX.Element {
   const { label, icon, testID } = props;
+  const styles = useStyles();
+  const { theme } = useTheme();
 
   if (props.mode === 'toggle') {
     return (
@@ -67,8 +63,8 @@ export function SettingsItem(props: SettingsItemProps): React.JSX.Element {
         <Switch
           value={props.value}
           onValueChange={props.onValueChange}
-          trackColor={{ false: COLORS.border, true: COLORS.accent }}
-          thumbColor={COLORS.textPrimary}
+          trackColor={{ false: theme.border, true: theme.accent }}
+          thumbColor={theme.textPrimary}
           testID={testID ? `${testID}-switch` : undefined}
         />
       </View>
@@ -91,14 +87,14 @@ export function SettingsItem(props: SettingsItemProps): React.JSX.Element {
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: SPACING.md,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: theme.border,
   },
   labelContainer: {
     flexDirection: 'row',
@@ -111,7 +107,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: FONT_SIZE.md,
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
   },
   valueContainer: {
     flexDirection: 'row',
@@ -119,13 +115,13 @@ const styles = StyleSheet.create({
   },
   value: {
     fontSize: FONT_SIZE.sm,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
     marginRight: SPACING.xs,
   },
   chevron: {
     fontSize: FONT_SIZE.md,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
   },
-});
+}));
 
 export default SettingsItem;

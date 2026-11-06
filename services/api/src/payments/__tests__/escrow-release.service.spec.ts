@@ -45,7 +45,18 @@ describe('EscrowReleaseService', () => {
       expect.objectContaining({ amount: 9700, destination: 'acct_1' }),
       'release:pay-1',
     );
-    expect(repo.markReleased).toHaveBeenCalledWith({ paymentId: 'pay-1', stripeTransferId: 'tr_1' });
+    // Push Task 12: release now carries an atomic payment_outbox row (to the Cleaner payee).
+    expect(repo.markReleased).toHaveBeenCalledWith(
+      expect.objectContaining({
+        paymentId: 'pay-1',
+        stripeTransferId: 'tr_1',
+        outbox: expect.objectContaining({
+          tableName: 'payment_outbox',
+          type: 'payment.released',
+          payload: expect.objectContaining({ recipientUserId: 'cleaner-1', paymentId: 'pay-1' }),
+        }),
+      }),
+    );
     expect(publisher.emitReleased).toHaveBeenCalledTimes(1);
   });
 

@@ -5,26 +5,20 @@
  */
 
 import React, { useEffect } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Text, TouchableOpacity, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import * as WebBrowser from 'expo-web-browser';
 
 import { usePaymentsStore } from './usePayments';
 import { PayoutOnboardingBanner } from './components/PayoutOnboardingBanner';
-
-const COLORS = {
-  bg: '#0B0C10',
-  title: '#FFFFFF',
-  body: 'rgba(255, 255, 255, 0.7)',
-  accent: '#00F5D4',
-  accentText: '#0B0C10',
-} as const;
+import { makeStyles } from '../../theme';
 
 const SPACING = { sm: 8, md: 16, lg: 24 } as const;
 const FONT_SIZE = { title: 22, body: 14, button: 15 } as const;
 
 export function CleanerPayoutOnboardingScreen(): React.JSX.Element {
   const { t } = useTranslation('payments');
+  const styles = useStyles();
   const accountStatus = usePaymentsStore((s) => s.accountStatus);
   const isSubmitting = usePaymentsStore((s) => s.isSubmitting);
   const refreshAccountStatus = usePaymentsStore((s) => s.refreshAccountStatus);
@@ -78,32 +72,32 @@ export function CleanerPayoutOnboardingScreen(): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   screen: {
     flex: 1,
-    backgroundColor: COLORS.bg,
+    backgroundColor: theme.background,
     padding: SPACING.md,
     gap: SPACING.md,
   },
   title: {
     fontSize: FONT_SIZE.title,
     fontWeight: '700',
-    color: COLORS.title,
+    color: theme.textPrimary,
   },
   body: {
     fontSize: FONT_SIZE.body,
-    color: COLORS.body,
+    color: theme.textSecondary,
   },
   completed: {
     fontSize: FONT_SIZE.body,
     fontWeight: '700',
-    color: COLORS.accent,
+    color: theme.accent,
   },
   button: {
     marginTop: SPACING.sm,
     height: 52,
     borderRadius: 12,
-    backgroundColor: COLORS.accent,
+    backgroundColor: theme.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -113,6 +107,6 @@ const styles = StyleSheet.create({
   buttonText: {
     fontSize: FONT_SIZE.button,
     fontWeight: '700',
-    color: COLORS.accentText,
+    color: theme.onAccent,
   },
-});
+}));

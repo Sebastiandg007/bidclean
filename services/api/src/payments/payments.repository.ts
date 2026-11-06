@@ -1,5 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { ConflictException, Injectable } from '@nestjs/common';
 import { DataSource, EntityManager } from 'typeorm';
+import { OutboxRow, writeOutbox } from '../common/outbox/outbox-writer';
 import { Payment } from './entities/payment.entity';
 import { PaymentAttempt } from './entities/payment-attempt.entity';
 import { StripeAccount } from './entities/stripe-account.entity';
@@ -85,6 +86,20 @@ export class PaymentsRepository {
     return this.dataSource.getRepository(Payment).findOne({ where: { id: paymentId } });
   }
 
+  /**
+   * Resolve the `{ offerId, hostId }` for a payment id (Spec 21). `RefundService.refund` is keyed
+   * by host + offer; the dispute-system EscrowClient has only the payment id, so this bridges it.
+   */
+  async findOfferAndHostByPayment(
+    paymentId: string,
+  ): Promise<{ offerId: string; hostId: string } | null> {
+    const payment = await this.findPaymentById(paymentId);
+    if (!payment) {
+      return null;
+    }
+    return { offerId: payment.offerId, hostId: payment.hostId };
+  }
+
   /** List attempts for a payment ordered by attempt number ascending. */
   async listAttempts(paymentId: string): Promise<PaymentAttempt[]> {
     return this.dataSource.getRepository(PaymentAttempt).find({
@@ -123,20 +138,27 @@ export class PaymentsRepository {
     return offer[0]?.offered_price_cents ?? null;
   }
 
-  /** Load an offer's currency and snapshotted commission rate bps. */
+  /**
+   * Load an offer's currency, snapshotted commission rate bps, and its `property_id`. The
+   * `property_id` is a read-only additive column used by the service-tracking activation seam
+   * (Spec 17) to carry the geofence property in the `service_activation_ready` fact; payments never
+   * writes the offers table.
+   */
   async findOfferRates(offerId: string): Promise<{
     currency: string;
     hostServiceFeeRateBps: number;
     cleanerCommissionRateBps: number;
+    propertyId: string;
   } | null> {
     const rows = await this.dataSource.query<
       {
         currency: string;
         host_service_fee_rate_bps: number;
         cleaner_commission_rate_bps: number;
+        property_id: string;
       }[]
     >(
-      `SELECT "currency", "host_service_fee_rate_bps", "cleaner_commission_rate_bps"
+      `SELECT "currency", "host_service_fee_rate_bps", "cleaner_commission_rate_bps", "property_id"
        FROM "offers" WHERE "id" = $1 LIMIT 1`,
       [offerId],
     );
@@ -148,6 +170,7 @@ export class PaymentsRepository {
       currency: row.currency,
       hostServiceFeeRateBps: row.host_service_fee_rate_bps,
       cleanerCommissionRateBps: row.cleaner_commission_rate_bps,
+      propertyId: row.property_id,
     };
   }
 
@@ -341,6 +364,14 @@ export class PaymentsRepository {
     stripePaymentIntentId: string;
     stripeChargeId: string;
     stripeFeeCents: number;
+    /** Optional push-notification outbox row written atomically with the state change (Task 12). */
+    outbox?: OutboxRow;
+    /**
+     * Optional extra domain outbox rows written atomically with the HELD transition — used by the
+     * service-tracking activation seam (Spec 17) to emit `service_activation_ready` into its own
+     * dedicated table in the SAME transaction. A rollback of the HELD transition reverts them too.
+     */
+    extraOutbox?: readonly OutboxRow[];
   }): Promise<void> {
     await this.dataSource.transaction(async (manager: EntityManager) => {
       await manager.query(
@@ -366,6 +397,11 @@ export class PaymentsRepository {
          WHERE "id" = $4`,
         [PaymentStatus.HELD, params.stripeFeeCents, netRevenue, params.paymentId],
       );
+
+      await this.writeOutboxIfPresent(manager, params.outbox);
+      for (const row of params.extraOutbox ?? []) {
+        await writeOutbox(manager, row);
+      }
     });
   }
 
@@ -374,6 +410,8 @@ export class PaymentsRepository {
     paymentId: string;
     attemptId: string;
     failureReason: string;
+    /** Optional push-notification outbox row written atomically with the state change (Task 12). */
+    outbox?: OutboxRow;
   }): Promise<void> {
     await this.dataSource.transaction(async (manager: EntityManager) => {
       await manager.query(
@@ -388,6 +426,8 @@ export class PaymentsRepository {
         `UPDATE "payments" SET "payment_status" = $1, "updated_at" = NOW() WHERE "id" = $2`,
         [PaymentStatus.FAILED, params.paymentId],
       );
+
+      await this.writeOutboxIfPresent(manager, params.outbox);
     });
   }
 
@@ -396,12 +436,58 @@ export class PaymentsRepository {
    * RELEASED, store the transfer id. Guarded by a row lock + state validation so a
    * concurrent trigger cannot release twice (P4).
    */
-  async markReleased(params: { paymentId: string; stripeTransferId: string }): Promise<void> {
+  async markReleased(params: {
+    paymentId: string;
+    stripeTransferId: string;
+    /** Optional push-notification outbox row written atomically with the release (Task 12). */
+    outbox?: OutboxRow;
+  }): Promise<void> {
     await this.dataSource.transaction(async (manager: EntityManager) => {
       const payment = await this.lockPayment(manager, params.paymentId);
       // Idempotent under concurrent triggers (P4): if another writer already recorded
       // the release inside its own lock, this is a clean no-op — not an error. The
       // Stripe Transfer itself is deduped by the `release:paymentId` idempotency key.
+      if (
+        payment.payout_status === PayoutStatus.TRANSFER_CREATED ||
+        payment.payout_status === PayoutStatus.PAID
+      ) {
+        return;
+      }
+      // Atomic block-vs-release guard (dispute-system contract (a), Spec 21): under the SAME row
+      // lock a platform dispute uses to set OPEN, a release cannot be accepted while the block is
+      // OPEN. This closes the pre-release race: setDisputeStatus(OPEN) and markReleased are
+      // serialized on the payment aggregate, so exactly one wins and money is never released out
+      // from under an open dispute.
+      if (payment.dispute_status === DisputeStatus.OPEN) {
+        throw new ConflictException(
+          `Payment ${params.paymentId} cannot be released while disputed`,
+        );
+      }
+      this.assertPayoutTransition(payment.payout_status, PayoutStatus.TRANSFER_CREATED);
+      this.assertPaymentTransition(payment.payment_status, PaymentStatus.RELEASED);
+      await manager.query(
+        `UPDATE "payments"
+         SET "payout_status" = $1, "payment_status" = $2,
+             "stripe_transfer_id" = $3, "released_at" = NOW(), "updated_at" = NOW()
+         WHERE "id" = $4`,
+        [PayoutStatus.TRANSFER_CREATED, PaymentStatus.RELEASED, params.stripeTransferId, params.paymentId],
+      );
+
+      // Only on a real release (not the idempotent no-op above) so a duplicate release trigger
+      // never enqueues a second push (exactly-once intent is still guarded by the ledger dedup).
+      await this.writeOutboxIfPresent(manager, params.outbox);
+    });
+  }
+
+  /**
+   * Persist a dispute-driven release (Spec 21): identical to `markReleased` but WITHOUT the
+   * dispute-open block — the dispute IS the authority and deliberately holds the block OPEN
+   * (clear-escrow-LAST). Still idempotent under a crash re-drive (already-released → no-op) and
+   * still row-locked + state-validated. The `dispute_settled_at` stamp is claimed separately.
+   */
+  async markReleasedForDispute(paymentId: string, stripeTransferId: string): Promise<void> {
+    await this.dataSource.transaction(async (manager: EntityManager) => {
+      const payment = await this.lockPayment(manager, paymentId);
       if (
         payment.payout_status === PayoutStatus.TRANSFER_CREATED ||
         payment.payout_status === PayoutStatus.PAID
@@ -415,7 +501,7 @@ export class PaymentsRepository {
          SET "payout_status" = $1, "payment_status" = $2,
              "stripe_transfer_id" = $3, "released_at" = NOW(), "updated_at" = NOW()
          WHERE "id" = $4`,
-        [PayoutStatus.TRANSFER_CREATED, PaymentStatus.RELEASED, params.stripeTransferId, params.paymentId],
+        [PayoutStatus.TRANSFER_CREATED, PaymentStatus.RELEASED, stripeTransferId, paymentId],
       );
     });
   }
@@ -445,7 +531,11 @@ export class PaymentsRepository {
   }
 
   /** Transition the dispute status (orthogonal to payment_status). */
-  async setDisputeStatus(paymentId: string, target: DisputeStatus): Promise<void> {
+  async setDisputeStatus(
+    paymentId: string,
+    target: DisputeStatus,
+    outbox?: OutboxRow,
+  ): Promise<void> {
     await this.dataSource.transaction(async (manager: EntityManager) => {
       const payment = await this.lockPayment(manager, paymentId);
       this.assertDisputeTransition(payment.dispute_status, target);
@@ -453,7 +543,85 @@ export class PaymentsRepository {
         `UPDATE "payments" SET "dispute_status" = $1, "updated_at" = NOW() WHERE "id" = $2`,
         [target, paymentId],
       );
+
+      await this.writeOutboxIfPresent(manager, outbox);
     });
+  }
+
+  /**
+   * dispute-system (Spec 21) settlement read: the fields needed to derive `phase` and to enforce
+   * the at-most-one-effect-per-payment guarantee (P15). `disputeSettledAt` is non-null once a
+   * dispute-driven financial effect has durably landed for this payment.
+   */
+  async findDisputeSettlement(paymentId: string): Promise<{
+    payoutStatus: PayoutStatus;
+    disputeStatus: DisputeStatus;
+    disputeSettledAt: Date | null;
+  } | null> {
+    const rows = await this.dataSource.query<
+      Array<{ payout_status: string; dispute_status: string; dispute_settled_at: Date | null }>
+    >(
+      `SELECT "payout_status", "dispute_status", "dispute_settled_at"
+       FROM "payments" WHERE "id" = $1 LIMIT 1`,
+      [paymentId],
+    );
+    const row = rows[0];
+    if (!row) {
+      return null;
+    }
+    return {
+      payoutStatus: row.payout_status as PayoutStatus,
+      disputeStatus: row.dispute_status as DisputeStatus,
+      disputeSettledAt: row.dispute_settled_at,
+    };
+  }
+
+  /**
+   * Mark a payment dispute-settled (Spec 21 P15 authority): stamp `dispute_settled_at` the first
+   * time a dispute-driven financial effect lands. Idempotent — only the first stamp sticks
+   * (`COALESCE`), so re-drives never change the authoritative settlement time. Runs under the row
+   * lock so it is serialized with the dispute-driven financial action that set it.
+   */
+  async markDisputeSettled(manager: EntityManager, paymentId: string): Promise<void> {
+    await manager.query(
+      `UPDATE "payments"
+       SET "dispute_settled_at" = COALESCE("dispute_settled_at", NOW()), "updated_at" = NOW()
+       WHERE "id" = $1`,
+      [paymentId],
+    );
+  }
+
+  /**
+   * Claim the single dispute-driven financial effect for a payment (Spec 21 P15). Under the row
+   * lock: if `dispute_settled_at` is already set, returns false (a prior dispute effect landed →
+   * the caller surfaces BLOCKED/PAYMENT_ALREADY_SETTLED); otherwise stamps it and returns true so
+   * exactly one dispute-driven effect per payment ever proceeds, even across sequential disputes.
+   */
+  async claimDisputeSettlement(paymentId: string): Promise<boolean> {
+    return this.dataSource.transaction(async (manager) => {
+      const settlement = await this.lockDisputeSettlement(manager, paymentId);
+      if (settlement.dispute_settled_at !== null) {
+        return false;
+      }
+      await this.markDisputeSettled(manager, paymentId);
+      return true;
+    });
+  }
+
+  /** Lock + read the dispute-settlement fields (Spec 21). */
+  private async lockDisputeSettlement(
+    manager: EntityManager,
+    paymentId: string,
+  ): Promise<{ dispute_settled_at: Date | null }> {
+    const rows = await manager.query<Array<{ dispute_settled_at: Date | null }>>(
+      `SELECT "dispute_settled_at" FROM "payments" WHERE "id" = $1 FOR UPDATE`,
+      [paymentId],
+    );
+    const row = rows[0];
+    if (!row) {
+      throw new Error(`Payment ${paymentId} not found`);
+    }
+    return row;
   }
 
   /**
@@ -466,6 +634,8 @@ export class PaymentsRepository {
     refundAmountCents: number;
     reversalAmountCents: number;
     resultingStatus: PaymentStatus;
+    /** Optional push-notification outbox row written atomically with the refund (Task 12). */
+    outbox?: OutboxRow;
   }): Promise<void> {
     // Defensive boundary guards: the refund policy enforces these upstream, but this
     // method is public and its net-revenue math relies on them holding.
@@ -501,6 +671,8 @@ export class PaymentsRepository {
          WHERE "id" = $5`,
         [newRefunded, newReversed, newNetRevenue, params.resultingStatus, params.paymentId],
       );
+
+      await this.writeOutboxIfPresent(manager, params.outbox);
     });
   }
 
@@ -607,6 +779,20 @@ export class PaymentsRepository {
   }
 
   // ─── Internal helpers ──────────────────────────────────────────────────────
+
+  /**
+   * Write a push-notification outbox row inside the caller's money-state transaction (Task 12), or
+   * do nothing when no outbox row was supplied. Keeps the atomicity guarantee (a rollback of the
+   * payment fact also reverts the outbox row) while the shared writer stays domain-agnostic.
+   */
+  private async writeOutboxIfPresent(
+    manager: EntityManager,
+    outbox: OutboxRow | undefined,
+  ): Promise<void> {
+    if (outbox) {
+      await writeOutbox(manager, outbox);
+    }
+  }
 
   private async lockPayment(manager: EntityManager, paymentId: string): Promise<PaymentRow> {
     const rows = await manager.query<PaymentRow[]>(

@@ -27,6 +27,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { useNavigation } from '@react-navigation/native';
 
+import { makeStyles } from '../../../theme';
 import type { RadarOffer } from '../radar.types';
 import { URGENCY_THRESHOLD_MS } from '../radar.constants';
 import { useRadarStore } from '../useRadarStore';
@@ -49,19 +50,6 @@ function getServiceTypeI18nKey(serviceType: string): string {
 }
 
 // ─── Design Tokens ───────────────────────────────────────────────────────────
-
-const COLORS = {
-  background: '#1F2833',
-  overlay: 'rgba(0, 0, 0, 0.5)',
-  accent: '#00F5D4',
-  accentSubtle: 'rgba(0, 245, 212, 0.12)',
-  accentDisabled: 'rgba(0, 245, 212, 0.3)',
-  textPrimary: '#FFFFFF',
-  textSecondary: 'rgba(255, 255, 255, 0.6)',
-  textDisabled: 'rgba(255, 255, 255, 0.3)',
-  handle: 'rgba(255, 255, 255, 0.3)',
-  buttonOutline: 'rgba(255, 255, 255, 0.2)',
-} as const;
 
 const SPACING = {
   xs: 4,
@@ -143,6 +131,7 @@ function isOfferUrgent(scheduledAt: string): boolean {
 
 export function OfferPreviewSheet(): React.JSX.Element | null {
   const { t } = useTranslation('radar');
+  const styles = useStyles();
   const navigation = useNavigation<{ navigate: (route: string, params: { offerId: string }) => void }>();
 
   const selectedOfferId = useRadarStore((state) => state.selectedOfferId);
@@ -419,7 +408,7 @@ export function OfferPreviewSheet(): React.JSX.Element | null {
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   wrapper: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 1000,
@@ -427,13 +416,13 @@ const styles = StyleSheet.create({
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: COLORS.overlay,
+    backgroundColor: theme.overlay,
   },
   overlayTouchable: {
     flex: 1,
   },
   sheet: {
-    backgroundColor: COLORS.background,
+    backgroundColor: theme.surface,
     borderTopLeftRadius: SHEET_BORDER_RADIUS,
     borderTopRightRadius: SHEET_BORDER_RADIUS,
     paddingBottom: SPACING.lg,
@@ -446,7 +435,7 @@ const styles = StyleSheet.create({
     width: HANDLE_WIDTH,
     height: HANDLE_HEIGHT,
     borderRadius: HANDLE_HEIGHT / 2,
-    backgroundColor: COLORS.handle,
+    backgroundColor: theme.textMuted,
   },
   content: {
     paddingHorizontal: SPACING.lg,
@@ -464,7 +453,7 @@ const styles = StyleSheet.create({
     marginRight: SPACING.md,
   },
   photoPlaceholder: {
-    backgroundColor: COLORS.accentSubtle,
+    backgroundColor: theme.surfaceElevated,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -477,16 +466,16 @@ const styles = StyleSheet.create({
   propertyName: {
     fontSize: FONT_SIZE.title,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
   },
   propertyMeta: {
     fontSize: FONT_SIZE.caption,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
     marginTop: SPACING.xs,
   },
   serviceTypeBadge: {
     alignSelf: 'flex-start',
-    backgroundColor: COLORS.accentSubtle,
+    backgroundColor: theme.surfaceElevated,
     borderRadius: BADGE_BORDER_RADIUS,
     paddingHorizontal: SPACING.sm,
     paddingVertical: SPACING.xs,
@@ -494,14 +483,14 @@ const styles = StyleSheet.create({
   },
   serviceTypeLabel: {
     fontSize: FONT_SIZE.caption,
-    color: COLORS.accent,
+    color: theme.accent,
     fontWeight: '500',
   },
   urgencyDot: {
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: COLORS.accent,
+    backgroundColor: theme.accent,
     marginTop: SPACING.xs,
   },
   // Details
@@ -514,7 +503,7 @@ const styles = StyleSheet.create({
   },
   detailLabel: {
     fontSize: FONT_SIZE.caption,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
   },
   // Price
   priceRow: {
@@ -525,16 +514,16 @@ const styles = StyleSheet.create({
   payoutPrice: {
     fontSize: FONT_SIZE.title,
     fontWeight: '700',
-    color: COLORS.accent,
+    color: theme.accent,
   },
   separator: {
     fontSize: FONT_SIZE.body,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
     marginHorizontal: SPACING.sm,
   },
   distance: {
     fontSize: FONT_SIZE.body,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
   },
   // Actions
   actionsRow: {
@@ -544,7 +533,7 @@ const styles = StyleSheet.create({
     height: BUTTON_HEIGHT,
     borderRadius: BUTTON_BORDER_RADIUS,
     borderWidth: 1,
-    borderColor: COLORS.buttonOutline,
+    borderColor: theme.border,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: SPACING.sm,
@@ -552,26 +541,26 @@ const styles = StyleSheet.create({
   detailsButtonText: {
     fontSize: FONT_SIZE.button,
     fontWeight: '600',
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
   },
   acceptButton: {
     height: BUTTON_HEIGHT,
     borderRadius: BUTTON_BORDER_RADIUS,
-    backgroundColor: COLORS.accent,
+    backgroundColor: theme.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
   acceptButtonDisabled: {
-    backgroundColor: COLORS.accentDisabled,
+    backgroundColor: theme.surfaceElevated,
   },
   acceptButtonText: {
     fontSize: FONT_SIZE.button,
     fontWeight: '700',
-    color: '#0B0C10',
+    color: theme.onAccent,
   },
   acceptButtonTextDisabled: {
-    color: COLORS.textDisabled,
+    color: theme.textMuted,
   },
-});
+}));
 
 export default OfferPreviewSheet;

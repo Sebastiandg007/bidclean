@@ -12,6 +12,7 @@ import {
   ReleaseReason,
 } from '../payments.types';
 import { STRIPE_WEBHOOK_EVENTS } from '../stripe/stripe.constants';
+import { buildPaymentOutboxRow, PaymentOutboxEventType } from '../payment-outbox';
 
 /**
  * Escrow release service.
@@ -87,7 +88,17 @@ export class EscrowReleaseService {
       stripeIdempotency.release(paymentId),
     );
 
-    await this.repo.markReleased({ paymentId, stripeTransferId: transfer.id });
+    await this.repo.markReleased({
+      paymentId,
+      stripeTransferId: transfer.id,
+      // Push Task 12: notify the Cleaner (payee) that the payout was released, atomically with the
+      // RELEASED transition (only on a real release, never the idempotent no-op).
+      outbox: buildPaymentOutboxRow({
+        paymentId,
+        recipientUserId: payment.cleanerId,
+        type: PaymentOutboxEventType.RELEASED,
+      }),
+    });
 
     await this.repo.appendEvent({
       paymentId,

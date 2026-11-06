@@ -12,7 +12,7 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, {
   useSharedValue,
@@ -25,19 +25,9 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 
 import type { BiometricSetupScreenProps } from './auth.types';
 import { API_BASE_URL } from './oauth.config';
+import { makeStyles, useTheme } from '../../theme';
 
 // ─── Design Tokens ───────────────────────────────────────────────────────────
-
-const COLORS = {
-  background: '#0B0C10',
-  card: '#1F2833',
-  accent: '#00F5D4',
-  textPrimary: '#FFFFFF',
-  textSecondary: 'rgba(255, 255, 255, 0.6)',
-  border: 'rgba(255, 255, 255, 0.2)',
-  error: '#FF6B6B',
-  success: '#00F5D4',
-} as const;
 
 const SPACING = {
   xs: 4,
@@ -143,6 +133,8 @@ export default function BiometricSetupScreen({
   onSkip,
 }: BiometricSetupScreenProps) {
   const router = useRouter();
+  const styles = useStyles();
+  const { theme } = useTheme();
   const params = useLocalSearchParams<{ userId: string }>();
 
   // userId is available via props or route params for future API integration
@@ -269,7 +261,7 @@ export default function BiometricSetupScreen({
           <View style={styles.statusSection}>
             <ActivityIndicator
               size="small"
-              color={COLORS.accent}
+              color={theme.accent}
               accessibilityLabel="Loading"
             />
             <Text style={styles.statusText}>{statusMessage}</Text>
@@ -341,10 +333,10 @@ export default function BiometricSetupScreen({
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: theme.background,
     paddingHorizontal: SPACING.lg,
   },
   content: {
@@ -365,13 +357,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: FONT_SIZE.title,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
     letterSpacing: -0.5,
     textAlign: 'center',
   },
   subtitle: {
     fontSize: FONT_SIZE.subtitle,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
     marginTop: SPACING.sm,
     textAlign: 'center',
     lineHeight: 20,
@@ -385,20 +377,20 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: FONT_SIZE.body,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
   },
   successIcon: {
     fontSize: 24,
-    color: COLORS.success,
+    color: theme.accent,
     fontWeight: '700',
   },
   successText: {
     fontSize: FONT_SIZE.body,
-    color: COLORS.success,
+    color: theme.accent,
     fontWeight: '600',
   },
   errorSection: {
-    backgroundColor: 'rgba(255, 107, 107, 0.1)',
+    backgroundColor: theme.surfaceElevated,
     borderRadius: 12,
     paddingVertical: SPACING.md,
     paddingHorizontal: SPACING.md,
@@ -406,7 +398,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: FONT_SIZE.subtitle,
-    color: COLORS.error,
+    color: theme.danger,
     textAlign: 'center',
     lineHeight: 20,
   },
@@ -414,7 +406,7 @@ const styles = StyleSheet.create({
     gap: SPACING.md,
   },
   enableButton: {
-    backgroundColor: COLORS.accent,
+    backgroundColor: theme.accent,
     borderRadius: 12,
     paddingVertical: SPACING.md,
     alignItems: 'center',
@@ -425,14 +417,14 @@ const styles = StyleSheet.create({
   enableButtonText: {
     fontSize: FONT_SIZE.button,
     fontWeight: '600',
-    color: COLORS.background,
+    color: theme.onAccent,
   },
   enableButtonTextDisabled: {
-    color: COLORS.background,
+    color: theme.onAccent,
   },
   skipButton: {
     borderWidth: 1.5,
-    borderColor: COLORS.textPrimary,
+    borderColor: theme.textPrimary,
     borderRadius: 12,
     paddingVertical: SPACING.md,
     alignItems: 'center',
@@ -440,6 +432,6 @@ const styles = StyleSheet.create({
   skipButtonText: {
     fontSize: FONT_SIZE.button,
     fontWeight: '600',
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
   },
-});
+}));

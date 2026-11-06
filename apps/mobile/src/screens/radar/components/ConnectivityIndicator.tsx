@@ -2,9 +2,9 @@
  * ConnectivityIndicator — Subtle status dot showing WebSocket connection state.
  *
  * Displays a small colored dot indicating:
- * - Green (#00F5D4): connected (WebSocket live)
- * - Yellow (#FFAD33): reconnecting (attempting to restore)
- * - Red (#FF4D4D): disconnected
+ * - accent: connected (WebSocket live)
+ * - warning: reconnecting (attempting to restore)
+ * - danger: disconnected
  *
  * Positioned inline (typically in a header/toolbar area).
  * Minimal footprint — communicates status without being distracting.
@@ -13,16 +13,23 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, View } from 'react-native';
 
+import { useTheme } from '../../../theme';
+import type { SemanticTokens } from '../../../theme';
 import type { ConnectionStatus } from '../radar.types';
 import { useRadarStore } from '../useRadarStore';
 
 // ─── Design Tokens ───────────────────────────────────────────────────────────
 
-const DOT_COLORS: Record<ConnectionStatus, string> = {
-  connected: '#00F5D4',
-  reconnecting: '#FFAD33',
-  disconnected: '#FF4D4D',
-} as const;
+function dotColorForStatus(status: ConnectionStatus, theme: SemanticTokens): string {
+  switch (status) {
+    case 'connected':
+      return theme.accent;
+    case 'reconnecting':
+      return theme.warning;
+    case 'disconnected':
+      return theme.danger;
+  }
+}
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -34,8 +41,9 @@ const PULSE_MAX_OPACITY = 1.0;
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export function ConnectivityIndicator(): React.JSX.Element {
+  const { theme } = useTheme();
   const connectionStatus = useRadarStore((state) => state.connectionStatus);
-  const dotColor = DOT_COLORS[connectionStatus];
+  const dotColor = dotColorForStatus(connectionStatus, theme);
 
   // Pulse animation when reconnecting
   const pulseAnim = useRef(new Animated.Value(PULSE_MAX_OPACITY)).current;

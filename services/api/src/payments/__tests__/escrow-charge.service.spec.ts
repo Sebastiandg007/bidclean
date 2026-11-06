@@ -3,7 +3,12 @@ import { CommissionService } from '../../offers/commission/commission.service';
 
 describe('EscrowChargeService', () => {
   const OFFER = { offerId: 'offer-1', hostId: 'host-1', cleanerId: 'cleaner-1' };
-  const RATES = { currency: 'USD', hostServiceFeeRateBps: 1000, cleanerCommissionRateBps: 300 };
+  const RATES = {
+    currency: 'USD',
+    hostServiceFeeRateBps: 1000,
+    cleanerCommissionRateBps: 300,
+    propertyId: 'property-1',
+  };
 
   function buildDeps() {
     const commission = new CommissionService();
@@ -57,6 +62,23 @@ describe('EscrowChargeService', () => {
     );
     expect(publisher.emitCaptured).toHaveBeenCalledTimes(1);
     expect(publisher.emitFailed).not.toHaveBeenCalled();
+
+    // Service-tracking Spec 17 seam: the durable `service_activation_ready` fact is written into
+    // its own dedicated outbox table in the SAME transaction as the HELD transition.
+    const succeededArgs = repo.markChargeSucceeded.mock.calls[0][0];
+    expect(succeededArgs.extraOutbox).toEqual([
+      expect.objectContaining({
+        eventId: 'service_activation_ready:offer-1',
+        type: 'service_activation_ready',
+        tableName: 'service_activation_outbox',
+        payload: expect.objectContaining({
+          offerId: 'offer-1',
+          hostId: 'host-1',
+          cleanerId: 'cleaner-1',
+          propertyId: 'property-1',
+        }),
+      }),
+    ]);
   });
 
   it('short-circuits when the offer is already charged (P3)', async () => {

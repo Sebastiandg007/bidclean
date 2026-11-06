@@ -1,0 +1,37 @@
+{
+  "checklist": {
+    "cleaner": {
+      "title": "Lista de limpieza"
+    },
+    "host": {
+      "title": "Progreso de la limpieza"
+    },
+    "progress": "{{completed}}/{{total}} tareas hechas",
+    "empty": "Este trabajo no tiene tareas de checklist. Puedes finalizarlo cuando quieras.",
+    "loadError": "No pudimos cargar el checklist. Desliza para reintentar.",
+    "task": {
+      "markDone": "Marcar hecha",
+      "markUndone": "Marcar no hecha",
+      "addPhoto": "Agregar foto",
+      "viewEvidence": "Ver evidencia"
+    },
+    "capture": {
+      "before": "Antes",
+      "after": "Después",
+      "permissionDenied": "El acceso a la cámara está desactivado",
+      "permissionExplainer": "Permite el acceso a la cámara para adjuntar evidencia fotográfica. Aún puedes completar las tareas que no requieren foto.",
+      "tooLarge": "Esa foto es demasiado grande. Intenta con una más pequeña.",
+      "capReached": "Alcanzaste el límite de fotos para esta tarea."
+    },
+    "finalize": {
+      "action": "Finalizar checklist",
+      "blocked": "El checklist aún no se puede finalizar.",
+      "missingTasks": "Aún faltan tareas por completar.",
+      "missingPhotos": "Aún faltan fotos de evidencia en algunas tareas."
+    },
+    "state": {
+      "completed": "Checklist completado",
+      "abandoned": "Checklist cerrado"
+    }
+  }
+}

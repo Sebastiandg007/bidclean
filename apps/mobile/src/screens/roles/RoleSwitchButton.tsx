@@ -10,7 +10,7 @@
  */
 
 import { useCallback } from 'react';
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { Pressable, Text } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -18,6 +18,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
 
+import { makeStyles } from '../../theme';
 import {
   useAuthStore,
   selectActiveRole,
@@ -25,13 +26,7 @@ import {
 } from '../../stores/auth.store';
 import type { UserRole } from './roles.types';
 
-// ─── Design Tokens ───────────────────────────────────────────────────────────
-
-const COLORS = {
-  card: '#1F2833',
-  accent: '#00F5D4',
-  textPrimary: '#FFFFFF',
-} as const;
+// ─── Layout Tokens ─────────────────────────────────────────────────────────
 
 const SPACING = {
   sm: 8,
@@ -64,6 +59,7 @@ function getOppositeRole(currentRole: UserRole): UserRole {
  */
 export default function RoleSwitchButton() {
   const { t } = useTranslation();
+  const styles = useStyles();
   const activeRole = useAuthStore(selectActiveRole);
   const hasBothRoles = useAuthStore(selectHasBothRoles);
   const switchRole = useAuthStore((state) => state.switchRole);
@@ -122,11 +118,11 @@ export default function RoleSwitchButton() {
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   container: {
-    backgroundColor: COLORS.card,
+    backgroundColor: theme.surface,
     borderWidth: 1,
-    borderColor: COLORS.accent,
+    borderColor: theme.accent,
     borderRadius: SPACING.sm,
     paddingVertical: SPACING.md,
     paddingHorizontal: SPACING.lg,
@@ -136,6 +132,6 @@ const styles = StyleSheet.create({
   label: {
     fontSize: FONT_SIZE.button,
     fontWeight: '600',
-    color: COLORS.accent,
+    color: theme.accent,
   },
-});
+}));

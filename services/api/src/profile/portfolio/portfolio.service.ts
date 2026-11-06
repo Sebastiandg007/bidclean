@@ -280,9 +280,20 @@ export class PortfolioService implements OnModuleInit {
   /** Creates the bucket if it doesn't exist. */
   private async ensureBucketExists(): Promise<void> {
     const exists = await this.minioClient.bucketExists(this.bucketName);
-    if (!exists) {
-      this.logger.log(`Creating bucket: ${this.bucketName}`);
+    if (exists) {
+      return;
+    }
+    this.logger.log(`Creating bucket: ${this.bucketName}`);
+    try {
       await this.minioClient.makeBucket(this.bucketName);
+    } catch (error) {
+      // Idempotent: portfolio shares the profile-photos bucket with ProfilePhotoService; a
+      // concurrent create can win between bucketExists and makeBucket. MinIO returns
+      // BucketAlreadyOwnedByYou/Exists — treat as success; rethrow anything else.
+      const code = (error as { code?: string })?.code ?? '';
+      if (code !== 'BucketAlreadyOwnedByYou' && code !== 'BucketAlreadyExists') {
+        throw error;
+      }
     }
   }
 

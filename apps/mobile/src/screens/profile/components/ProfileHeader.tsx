@@ -7,25 +7,17 @@
  */
 
 import React from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useRouter } from 'expo-router';
 
+import { makeStyles } from '../../../theme';
 import { useSignedUrl } from '../useSignedUrl';
 import { CompletenessRing } from './CompletenessRing';
 import { PROFILE_ROUTES } from '../profile.constants';
 import type { CommonProfile, ProfileCompleteness } from '../profile.types';
 
 // ─── Design Tokens ───────────────────────────────────────────────────────────
-
-const COLORS = {
-  card: '#1F2833',
-  accent: '#00F5D4',
-  textPrimary: '#FFFFFF',
-  textSecondary: '#C5C6C7',
-  background: '#0B0C10',
-  placeholder: '#45A29E',
-} as const;
 
 const SPACING = {
   sm: 8,
@@ -69,6 +61,7 @@ export function ProfileHeader({
   completeness,
 }: ProfileHeaderProps): React.JSX.Element {
   const { t } = useTranslation();
+  const styles = useStyles();
   const router = useRouter();
   const signedPhotoUrl = useSignedUrl(common.photoUrl);
 
@@ -158,9 +151,9 @@ export function ProfileHeader({
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   container: {
-    backgroundColor: COLORS.card,
+    backgroundColor: theme.surface,
     borderRadius: SPACING.md,
     padding: SPACING.lg,
     marginBottom: SPACING.md,
@@ -177,7 +170,7 @@ const styles = StyleSheet.create({
     borderRadius: PHOTO_SIZE / 2,
     overflow: 'hidden',
     borderWidth: 2,
-    borderColor: COLORS.accent,
+    borderColor: theme.accent,
   },
   photo: {
     width: '100%',
@@ -186,14 +179,14 @@ const styles = StyleSheet.create({
   photoPlaceholder: {
     width: '100%',
     height: '100%',
-    backgroundColor: COLORS.placeholder,
+    backgroundColor: theme.surfaceElevated,
     alignItems: 'center',
     justifyContent: 'center',
   },
   photoInitial: {
     fontSize: FONT_SIZE.lg + 10,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
   },
   infoSection: {
     marginBottom: SPACING.md,
@@ -201,21 +194,21 @@ const styles = StyleSheet.create({
   displayName: {
     fontSize: FONT_SIZE.lg,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
     marginBottom: SPACING.sm / 2,
   },
   email: {
     fontSize: FONT_SIZE.sm,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
     marginBottom: SPACING.sm / 2,
   },
   memberSince: {
     fontSize: FONT_SIZE.xs,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
   },
   editButton: {
     borderWidth: 1,
-    borderColor: COLORS.accent,
+    borderColor: theme.accent,
     borderRadius: SPACING.sm,
     paddingVertical: SPACING.sm,
     alignItems: 'center',
@@ -223,8 +216,8 @@ const styles = StyleSheet.create({
   editButtonText: {
     fontSize: FONT_SIZE.md,
     fontWeight: '600',
-    color: COLORS.accent,
+    color: theme.accent,
   },
-});
+}));
 
 export default ProfileHeader;

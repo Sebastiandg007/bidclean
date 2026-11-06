@@ -43,6 +43,8 @@ select = ["E", "F", "I", "N", "W", "UP", "B", "A", "SIM"]
 # FastAPI uses function calls (Depends, File, Header, Query) in parameter defaults by design
 "src/kyc/router.py" = ["B008"]
 "src/kyc/auth.py" = ["B008"]
+"src/speech/router.py" = ["B008"]
+"src/video_verification/router.py" = ["B008"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

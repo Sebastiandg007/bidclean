@@ -12,7 +12,6 @@
 import React, { useMemo } from 'react';
 import {
   Image,
-  StyleSheet,
   Text,
   TouchableOpacity,
   View,
@@ -20,19 +19,11 @@ import {
 import { useTranslation } from 'react-i18next';
 import { useNavigation } from '@react-navigation/native';
 
+import { makeStyles } from '../../../../theme';
 import type { RadarOffer } from '../../radar.types';
 import { URGENCY_THRESHOLD_MS } from '../../radar.constants';
 
 // ─── Design Tokens ───────────────────────────────────────────────────────────
-
-const COLORS = {
-  background: '#0B0C10',
-  card: '#1F2833',
-  accent: '#00F5D4',
-  accentSubtle: 'rgba(0, 245, 212, 0.12)',
-  textPrimary: '#FFFFFF',
-  textSecondary: 'rgba(255, 255, 255, 0.6)',
-} as const;
 
 const SPACING = {
   xs: 4,
@@ -128,6 +119,7 @@ function isOfferUrgent(scheduledAt: string): boolean {
 
 export function OfferCard({ offer }: OfferCardProps): React.JSX.Element {
   const { t } = useTranslation('radar');
+  const styles = useStyles();
   const navigation = useNavigation<{ navigate: (route: string, params: { offerId: string }) => void }>();
 
   const isUrgent = useMemo(
@@ -227,10 +219,10 @@ export function OfferCard({ offer }: OfferCardProps): React.JSX.Element {
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   card: {
     flexDirection: 'row',
-    backgroundColor: COLORS.card,
+    backgroundColor: theme.surface,
     borderRadius: CARD_BORDER_RADIUS,
     padding: SPACING.md,
     marginBottom: SPACING.sm,
@@ -244,7 +236,7 @@ const styles = StyleSheet.create({
     borderRadius: PHOTO_BORDER_RADIUS,
   },
   photoPlaceholder: {
-    backgroundColor: COLORS.accentSubtle,
+    backgroundColor: theme.surfaceElevated,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -264,23 +256,23 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: FONT_SIZE.body,
     fontWeight: '600',
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
   },
   urgencyDot: {
     width: URGENCY_DOT_SIZE,
     height: URGENCY_DOT_SIZE,
     borderRadius: URGENCY_DOT_SIZE / 2,
-    backgroundColor: COLORS.accent,
+    backgroundColor: theme.accent,
     marginLeft: SPACING.sm,
   },
   propertyType: {
     fontSize: FONT_SIZE.caption,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
     marginTop: SPACING.xs,
   },
   serviceTypeBadge: {
     alignSelf: 'flex-start',
-    backgroundColor: COLORS.accentSubtle,
+    backgroundColor: theme.surfaceElevated,
     borderRadius: BADGE_BORDER_RADIUS,
     paddingHorizontal: SPACING.sm,
     paddingVertical: SPACING.xs,
@@ -288,7 +280,7 @@ const styles = StyleSheet.create({
   },
   serviceTypeLabel: {
     fontSize: FONT_SIZE.caption,
-    color: COLORS.accent,
+    color: theme.accent,
     fontWeight: '500',
   },
   bottomRow: {
@@ -299,21 +291,21 @@ const styles = StyleSheet.create({
   payoutPrice: {
     fontSize: FONT_SIZE.subtitle,
     fontWeight: '700',
-    color: COLORS.accent,
+    color: theme.accent,
   },
   separator: {
     fontSize: FONT_SIZE.caption,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
     marginHorizontal: SPACING.xs,
   },
   distance: {
     fontSize: FONT_SIZE.caption,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
   },
   scheduledDate: {
     fontSize: FONT_SIZE.caption,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
   },
-});
+}));
 
 export default OfferCard;

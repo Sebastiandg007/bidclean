@@ -18,7 +18,8 @@ AI/ML microservice for BidClean. Handles all machine learning, computer vision, 
 | `health/` | Health check endpoint | ✅ Active |
 | `kyc/` | KYC: document OCR (PaddleOCR) + face comparison (DeepFace) + liveness (Silent-Face) | ✅ Active |
 | `translation/` | Text translation (LibreTranslate) + language detection | 🔲 Planned |
-| `speech/` | Speech-to-text (Whisper.cpp) + Text-to-speech (Piper) | 🔲 Planned |
+| `speech/` | Speech-to-text for voice notes (Whisper.cpp, Spec 14) + Text-to-speech (Piper) | 🟡 Transcription active |
+| `video_verification/` | On-arrival face verification (DeepFace, Spec 18) | ✅ Active |
 | `pricing/` | AI price estimation based on property photos/data (Bedrock) | 🔲 Planned |
 
 ## API Endpoints
@@ -29,6 +30,50 @@ AI/ML microservice for BidClean. Handles all machine learning, computer vision, 
 | POST | `/ai/ocr` | Extract text and face from document image | Bearer token |
 | POST | `/ai/face-compare` | Compare two face images, return similarity | Bearer token |
 | POST | `/ai/liveness` | Detect liveness/spoofing in selfie | Bearer token |
+| POST | `/transcribe` | Transcribe a voice-note audio clip (bytes only) → `{ text, language }` | Bearer token |
+| POST | `/verify-face` | Compare an arrival-video frame vs a reference KYC selfie (bytes only) → `{ score, decision }` | Bearer token |
+
+### `/transcribe` (voice notes, Spec 14)
+
+Accepts audio **bytes** via multipart (`audio` field) and returns `{ text, language }`.
+**Option A**: the AI service receives only the bytes and is given **no MinIO/storage access** — the
+NestJS transcription worker fetches the object from storage and posts the bytes here. Whisper.cpp
+runs on CPU behind a swappable `TranscriptionEngine` (so CI/tests inject a stub without the native
+binary). Audio and transcript text are never logged. Errors: `422` for empty/oversized/unusable
+audio, `401` for a missing/invalid Bearer token.
+
+```
+src/speech/
+├── router.py                 # POST /transcribe (multipart bytes → { text, language })
+├── config.py                 # SpeechSettings (whisper model/lang, max audio bytes)
+├── models.py                 # TranscribeResponse
+├── exceptions.py             # SpeechError / UnusableAudioError / EmptyAudioError
+├── transcription_service.py  # TranscriptionService + TranscriptionEngine protocol
+└── engine.py                 # get_transcription_engine() (Whisper.cpp in prod; stub in tests)
+```
+
+### `/verify-face` (video verification, Spec 18)
+
+Accepts the candidate arrival-video **bytes** (`candidate` field) + the reference KYC selfie
+**bytes** (`reference` field) via multipart and returns `{ score, decision }` where `decision` is
+`MATCH | NO_MATCH | INCONCLUSIVE`. A representative frame is extracted from the candidate and both
+faces are compared via **DeepFace** (the same library `/ai/face-compare` uses); no detectable face
+on either side yields `INCONCLUSIVE` (a non-fatal advisory outcome, not an error). **Option A**: the
+service is given **no MinIO/storage access** — the NestJS worker reads both objects and posts the
+bytes here. Face embeddings exist only in memory and are never persisted. Video/reference bytes and
+the score are never logged. Errors: `413` for oversized media, `422` for undecodable media, `401`
+for a missing/invalid Bearer token. The advisory decision is re-derived authoritatively by the API
+worker against the per-verification snapshot threshold.
+
+```
+src/video_verification/
+├── __init__.py
+├── router.py               # POST /verify-face (multipart bytes → { score, decision })
+├── config.py               # VideoVerificationSettings (similarity threshold, max file size)
+├── models.py               # VerifyFaceResponse
+├── exceptions.py           # VideoVerificationServiceError / InvalidMediaError
+└── face_verify_service.py  # FaceVerifyService (injectable FrameExtractor + DeepFace engine)
+```
 
 ## KYC Module Structure
 
@@ -77,6 +122,11 @@ poetry run ruff check src/
 | `KYC_FACE_SIMILARITY_THRESHOLD` | Minimum face similarity (0.0–1.0) | No | 0.6 |
 | `KYC_LIVENESS_THRESHOLD` | Minimum liveness score (0.0–1.0) | No | 0.8 |
 | `KYC_MAX_FILE_SIZE_MB` | Maximum upload file size in MB | No | 10 |
+| `WHISPER_MODEL` | Whisper.cpp model name/size for `/transcribe` | No | base |
+| `WHISPER_LANGUAGE` | Forced language code (empty = auto-detect) | No | (auto) |
+| `SPEECH_MAX_AUDIO_BYTES` | Reject `/transcribe` audio larger than this | No | 26214400 |
+| `VIDEO_VERIFICATION_SIMILARITY_THRESHOLD` | Minimum similarity for a `/verify-face` MATCH hint (0.0–1.0) | No | 0.6 |
+| `VIDEO_VERIFICATION_MAX_FILE_SIZE_MB` | Reject `/verify-face` media larger than this | No | 20 |
 | `AWS_REGION` | AWS region for Bedrock | Yes | — |
 | `LIBRE_TRANSLATE_URL` | LibreTranslate service URL | Yes | — |
 

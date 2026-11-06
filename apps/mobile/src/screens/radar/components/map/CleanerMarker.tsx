@@ -27,13 +27,16 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import type { GeoPoint } from '../../radar.types';
-import { CLEANER_PULSE_CONFIG, LAYER_IDS } from '../../radar.constants';
+import { CLEANER_PULSE_CONFIG, LAYER_IDS, PIN_COLORS } from '../../radar.constants';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 const INNER_DOT_SIZE = 16;
 const OUTER_RING_SIZE = 40;
-const ACCENT_COLOR = '#00F5D4';
+// Marker sits on the always-dark custom map; its colors are fixed to the map context (not the
+// app theme). Mint accent ring/dot with a white outline for contrast against the dark basemap.
+const ACCENT_COLOR = PIN_COLORS.urgent;
+const OUTLINE_COLOR = PIN_COLORS.normal;
 
 // ─── Props ───────────────────────────────────────────────────────────────────
 
@@ -131,6 +134,6 @@ const styles = StyleSheet.create({
     borderRadius: INNER_DOT_SIZE / 2,
     backgroundColor: ACCENT_COLOR,
     borderWidth: 2,
-    borderColor: '#FFFFFF',
+    borderColor: OUTLINE_COLOR,
   },
 });

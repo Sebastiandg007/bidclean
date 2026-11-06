@@ -2,7 +2,7 @@
 
 > This file tracks the state of all feature specs. Read this first in any new session to know where the project stands and what to work on next.
 
-## Current Sprint: Sprint 3 — Payments
+## Current Sprint: Sprint 4 — Communication
 
 ## Specs Status
 
@@ -33,31 +33,41 @@
 ### Sprint 4 — Communication
 | # | Spec | Status | Dependencies |
 |---|------|--------|-------------|
-| 13 | `realtime-chat` | ⬜ Pending | Spec 1, 8 |
-| 14 | `voice-notes` | ⬜ Pending | Spec 13 |
-| 15 | `voip-calls` | ⬜ Pending | Spec 13 |
-| 16 | `push-notifications` | ⬜ Pending | Spec 1 |
+| 13 | `realtime-chat` | ✅ Completed | Spec 1, 8 |
+| 14 | `voice-notes` | ✅ Completed | Spec 13 |
+| 15 | `voip-calls` | ✅ Completed | Spec 13 |
+| 16 | `push-notifications` | ✅ Completed | Spec 1 |
 
 ### Sprint 5 — Service Execution
 | # | Spec | Status | Dependencies |
 |---|------|--------|-------------|
-| 17 | `service-tracking` | ⬜ Pending | Spec 8 |
-| 18 | `video-verification` | ⬜ Pending | Spec 3, 17 |
-| 19 | `checklist-photos` | ⬜ Pending | Spec 17 |
-| 20 | `service-completion` | ⬜ Pending | Spec 9, 19 |
+| 17 | `service-tracking` | ✅ Completed | Spec 8 |
+| 18 | `video-verification` | ✅ Completed | Spec 3, 17 |
+| 19 | `checklist-photos` | ✅ Completed | Spec 17 |
+| 20 | `service-completion` | ✅ Completed | Spec 9, 19 |
 
 ### Sprint 6 — Polish & Extras
 | # | Spec | Status | Dependencies |
 |---|------|--------|-------------|
-| 21 | `dispute-system` | ⬜ Pending | Spec 20 |
-| 22 | `favorites` | ⬜ Pending | Spec 8 |
+| 21 | `dispute-system` | ✅ Completed | Spec 20 |
+| 22 | `favorites` | ✅ Completed | Spec 8 |
 | 23 | `samsung-optimization` | ⬜ Pending | All mobile specs |
-| 24 | `dark-light-theme` | ⬜ Pending | Spec 7 |
+| 24 | `dark-light-theme` | ✅ Completed | Spec 7 |
 
 ### Sprint 7 — QA & Formal Testing
 | # | Spec | Status | Dependencies |
 |---|------|--------|-------------|
 | 25 | `quality-assurance-pbt` | ⬜ Pending | All specs (1-24) |
+
+### Sprint 8 — Deployment Readiness
+| # | Spec | Status | Dependencies |
+|---|------|--------|-------------|
+| 26 | `full-audit` | 🔄 In Progress (Fase 1 core + CLI + docs + 11 property tests done; Fase 2 = operator integration against the live stack local+VPS and store builds) | All specs (1-25), `secrets-inventory` |
+
+> **Sprint 8 scope (`full-audit`, deployment-readiness meta-spec):** the final gate before go-live. A tooling + documentation artifact under `tools/full-audit/` (not a NestJS module or mobile screen) that verifies the LIVE assembled system (API, AI, mobile, infra) is present, wired, reachable, healthy, and end-to-end functional — first in local Docker, then on the VPS behind Traefik — and that the mobile app is store-submission-ready.
+> - Authority chain: COMPONENT REGISTRY → PROBES (running system) → CHECKLIST → VERDICT; health 200 is a liveness signal only, never integration proof.
+> - **Fase 1 (done):** versioned component registry (50 real components) + reconciliation, tri-state checklist model + builder, three-mode payment policy, the seven probe families (interpretation logic), the pure readiness-evaluator + findings-reporter, the audit CLI, and the 11 correctness-property tests (fast-check, ≥100 iters) + unit tests. The CLI runs today and produces an honest NOT_READY whose FAILs are the edges/journeys that require the live stack.
+> - **Fase 2 (operator):** run the probes against the running stack (local then VPS), exercise the durable event chains + live journeys, verify VPS specifics + DevOps/security/monitoring on the live target, and build/validate the store artifacts. Live-money validation is a manual, operator-gated action OUTSIDE the automatic audit.
 
 > **Sprint 7 scope:** Exhaustive testing of the ENTIRE system after all features are implemented.
 > - Property-Based Testing (fast-check + Hypothesis) with 100+ iterations per property and shrinking

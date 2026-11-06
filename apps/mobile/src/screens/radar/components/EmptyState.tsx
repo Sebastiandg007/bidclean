@@ -9,20 +9,13 @@
  */
 
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Text, TouchableOpacity, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
+import { makeStyles } from '../../../theme';
 import { useRadarStore } from '../useRadarStore';
 
 // ─── Design Tokens ───────────────────────────────────────────────────────────
-
-const COLORS = {
-  background: '#0B0C10',
-  accent: '#00F5D4',
-  accentSubtle: 'rgba(0, 245, 212, 0.12)',
-  textPrimary: '#FFFFFF',
-  textSecondary: 'rgba(255, 255, 255, 0.6)',
-} as const;
 
 const SPACING = {
   sm: 8,
@@ -61,6 +54,7 @@ export interface EmptyStateProps {
 
 export function EmptyState({ variant, onAction }: EmptyStateProps): React.JSX.Element {
   const { t } = useTranslation('radar');
+  const styles = useStyles();
   const clearFilters = useRadarStore((state) => state.clearFilters);
 
   const isFiltered = variant === 'no-matching-filters';
@@ -113,19 +107,19 @@ export function EmptyState({ variant, onAction }: EmptyStateProps): React.JSX.El
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   container: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: SPACING.xl,
-    backgroundColor: COLORS.background,
+    backgroundColor: theme.background,
   },
   illustrationContainer: {
     width: ILLUSTRATION_SIZE,
     height: ILLUSTRATION_SIZE,
     borderRadius: ILLUSTRATION_BORDER_RADIUS,
-    backgroundColor: COLORS.accentSubtle,
+    backgroundColor: theme.surfaceElevated,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: SPACING.lg,
@@ -136,19 +130,19 @@ const styles = StyleSheet.create({
   title: {
     fontSize: FONT_SIZE.title,
     fontWeight: '600',
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
     textAlign: 'center',
     marginBottom: SPACING.sm,
   },
   subtitle: {
     fontSize: FONT_SIZE.body,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
     textAlign: 'center',
     marginBottom: SPACING.lg,
     lineHeight: 20,
   },
   ctaButton: {
-    backgroundColor: COLORS.accentSubtle,
+    backgroundColor: theme.surfaceElevated,
     borderRadius: BUTTON_BORDER_RADIUS,
     paddingVertical: BUTTON_PADDING_VERTICAL,
     paddingHorizontal: BUTTON_PADDING_HORIZONTAL,
@@ -157,8 +151,8 @@ const styles = StyleSheet.create({
   ctaButtonText: {
     fontSize: FONT_SIZE.button,
     fontWeight: '600',
-    color: COLORS.accent,
+    color: theme.accent,
   },
-});
+}));
 
 export default EmptyState;

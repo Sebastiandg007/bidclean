@@ -30,10 +30,17 @@ export const PAYMENT_ALLOWED_TRANSITIONS: Record<PaymentStatus, PaymentStatus[]>
   [PaymentStatus.REFUNDED]: [],
 };
 
-/** Allowed dispute transitions */
+/**
+ * Allowed dispute transitions.
+ *
+ * `OPEN -> NONE` is the platform-driven clear used by dispute-system (Spec 21): a BidClean dispute
+ * blocks the escrow via `OPEN` and clears it back to `NONE` only after Spec 9 has durably applied
+ * the resolution's financial action (clear-escrow-LAST). It is additive and orthogonal to the
+ * Stripe-driven `OPEN -> WON/LOST` path (which stays intact for `charge.dispute.closed`).
+ */
 export const DISPUTE_ALLOWED_TRANSITIONS: Record<DisputeStatus, DisputeStatus[]> = {
   [DisputeStatus.NONE]: [DisputeStatus.OPEN],
-  [DisputeStatus.OPEN]: [DisputeStatus.WON, DisputeStatus.LOST],
+  [DisputeStatus.OPEN]: [DisputeStatus.WON, DisputeStatus.LOST, DisputeStatus.NONE],
   [DisputeStatus.WON]: [],
   [DisputeStatus.LOST]: [],
 };

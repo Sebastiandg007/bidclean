@@ -5,7 +5,7 @@
  */
 
 import React, { useCallback, useEffect } from 'react';
-import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { FlatList, RefreshControl, Text, View } from 'react-native';
 import type { ListRenderItemInfo } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -13,20 +13,15 @@ import { useTranslation } from 'react-i18next';
 import { useNegotiationStore } from './useNegotiation';
 import type { HostInboxItem } from './negotiation.types';
 import { HostCounterofferCard } from './components/HostCounterofferCard';
-
-const COLORS = {
-  background: '#0B0C10',
-  accent: '#00F5D4',
-  textPrimary: '#FFFFFF',
-  textSecondary: 'rgba(255, 255, 255, 0.6)',
-  error: '#FF6B6B',
-} as const;
+import { makeStyles, useTheme } from '../../theme';
 
 const SPACING = { md: 16, lg: 24, xxl: 48 } as const;
 const FONT_SIZE = { title: 22, empty: 15, error: 13 } as const;
 
 export function HostCounterofferInboxScreen(): React.JSX.Element {
   const { t } = useTranslation('negotiation');
+  const styles = useStyles();
+  const { theme } = useTheme();
 
   const inbox = useNegotiationStore((s) => s.inbox);
   const isLoadingInbox = useNegotiationStore((s) => s.isLoadingInbox);
@@ -95,8 +90,8 @@ export function HostCounterofferInboxScreen(): React.JSX.Element {
           <RefreshControl
             refreshing={isLoadingInbox}
             onRefresh={fetchInbox}
-            tintColor={COLORS.accent}
-            colors={[COLORS.accent]}
+            tintColor={theme.accent}
+            colors={[theme.accent]}
           />
         }
         ListEmptyComponent={
@@ -113,10 +108,10 @@ export function HostCounterofferInboxScreen(): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: theme.background,
   },
   header: {
     paddingHorizontal: SPACING.md,
@@ -125,7 +120,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: FONT_SIZE.title,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
   },
   listContent: {
     paddingHorizontal: SPACING.md,
@@ -137,12 +132,12 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: FONT_SIZE.empty,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
   },
   error: {
     fontSize: FONT_SIZE.error,
-    color: COLORS.error,
+    color: theme.danger,
     paddingHorizontal: SPACING.md,
     paddingBottom: SPACING.md,
   },
-});
+}));

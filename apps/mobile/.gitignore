@@ -1,0 +1,13 @@
+# Expo / Metro build + preview artifacts
+dist-web/
+dist/
+.expo/
+web-build/
+
+# Local preview server logs
+serve-web.log
+expo-web.log
+
+# Native build output
+android/
+ios/

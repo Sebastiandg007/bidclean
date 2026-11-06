@@ -11,21 +11,15 @@
  */
 
 import React, { useEffect, useRef } from 'react';
-import { Animated, StyleSheet, Text, View } from 'react-native';
+import { Animated, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
+import { makeStyles, useTheme } from '../../../theme';
+import type { SemanticTokens } from '../../../theme';
 import type { ConnectionStatus } from '../radar.types';
 import { useRadarStore } from '../useRadarStore';
 
 // ─── Design Tokens ───────────────────────────────────────────────────────────
-
-const COLORS = {
-  bannerBg: 'rgba(31, 40, 51, 0.95)',
-  bannerBorder: 'rgba(255, 255, 255, 0.1)',
-  textWarning: '#FFAD33',
-  textReconnecting: '#00F5D4',
-  textPaused: 'rgba(255, 255, 255, 0.6)',
-} as const;
 
 const SPACING = {
   xs: 4,
@@ -56,6 +50,7 @@ export interface OfflineBannerProps {
 function getBannerConfig(
   status: ConnectionStatus,
   isPollingFallback: boolean,
+  theme: SemanticTokens,
 ): { text: string; color: string; dotColor: string } | null {
   if (status === 'connected' && !isPollingFallback) {
     return null;
@@ -64,23 +59,23 @@ function getBannerConfig(
   if (isPollingFallback) {
     return {
       text: 'connectivity.liveUpdatesPaused',
-      color: COLORS.textPaused,
-      dotColor: COLORS.textPaused,
+      color: theme.textSecondary,
+      dotColor: theme.textSecondary,
     };
   }
 
   if (status === 'reconnecting') {
     return {
       text: 'connectivity.reconnecting',
-      color: COLORS.textReconnecting,
-      dotColor: COLORS.textReconnecting,
+      color: theme.accent,
+      dotColor: theme.accent,
     };
   }
 
   return {
     text: 'connectivity.offline',
-    color: COLORS.textWarning,
-    dotColor: COLORS.textWarning,
+    color: theme.warning,
+    dotColor: theme.warning,
   };
 }
 
@@ -88,9 +83,11 @@ function getBannerConfig(
 
 export function OfflineBanner({ isPollingFallback = false }: OfflineBannerProps): React.JSX.Element | null {
   const { t } = useTranslation('radar');
+  const { theme } = useTheme();
+  const styles = useStyles();
   const connectionStatus = useRadarStore((state) => state.connectionStatus);
 
-  const config = getBannerConfig(connectionStatus, isPollingFallback);
+  const config = getBannerConfig(connectionStatus, isPollingFallback, theme);
   const isVisible = config !== null;
 
   // ─── Animation ───────────────────────────────────────────────────────────
@@ -150,16 +147,16 @@ export function OfflineBanner({ isPollingFallback = false }: OfflineBannerProps)
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   banner: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     height: BANNER_HEIGHT,
-    backgroundColor: COLORS.bannerBg,
+    backgroundColor: theme.surface,
     borderRadius: BORDER_RADIUS,
     borderWidth: 1,
-    borderColor: COLORS.bannerBorder,
+    borderColor: theme.border,
     marginHorizontal: SPACING.md,
     marginTop: SPACING.sm,
     paddingHorizontal: SPACING.md,
@@ -174,6 +171,6 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZE.body,
     fontWeight: '500',
   },
-});
+}));
 
 export default OfflineBanner;

@@ -25,18 +25,9 @@ import Animated, {
 import { useRouter } from 'expo-router';
 
 import type { RegisterScreenProps } from './auth.types';
+import { makeStyles, useTheme } from '../../theme';
 
 // ─── Design Tokens ───────────────────────────────────────────────────────────
-
-const COLORS = {
-  background: '#0B0C10',
-  card: '#1F2833',
-  accent: '#00F5D4',
-  textPrimary: '#FFFFFF',
-  textSecondary: 'rgba(255, 255, 255, 0.6)',
-  border: 'rgba(255, 255, 255, 0.2)',
-  error: '#FF6B6B',
-} as const;
 
 const SPACING = {
   xs: 4,
@@ -135,6 +126,8 @@ function PickerModal<T extends { code: string }>({
   onSelect,
   onClose,
 }: PickerModalProps<T>) {
+  const styles = useStyles();
+  const { theme } = useTheme();
   const [search, setSearch] = useState('');
 
   const filteredItems = useMemo(() => {
@@ -179,7 +172,7 @@ function PickerModal<T extends { code: string }>({
           <TextInput
             style={styles.searchInput}
             placeholder={searchPlaceholder}
-            placeholderTextColor={COLORS.textSecondary}
+            placeholderTextColor={theme.textMuted}
             value={search}
             onChangeText={setSearch}
             autoCorrect={false}
@@ -211,6 +204,8 @@ function PickerModal<T extends { code: string }>({
 
 export default function RegisterScreen({ onContinue }: RegisterScreenProps) {
   const router = useRouter();
+  const styles = useStyles();
+  const { theme } = useTheme();
 
   // Form state
   const [fullName, setFullName] = useState('');
@@ -308,7 +303,7 @@ export default function RegisterScreen({ onContinue }: RegisterScreenProps) {
           <TextInput
             style={styles.textInput}
             placeholder="Your full name"
-            placeholderTextColor={COLORS.textSecondary}
+            placeholderTextColor={theme.textMuted}
             value={fullName}
             onChangeText={setFullName}
             autoCapitalize="words"
@@ -418,10 +413,10 @@ export default function RegisterScreen({ onContinue }: RegisterScreenProps) {
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: theme.background,
     paddingHorizontal: SPACING.lg,
   },
   formContainer: {
@@ -434,12 +429,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: FONT_SIZE.title,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
     letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: FONT_SIZE.subtitle,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
     marginTop: SPACING.sm,
   },
   fieldGroup: {
@@ -448,53 +443,53 @@ const styles = StyleSheet.create({
   label: {
     fontSize: FONT_SIZE.label,
     fontWeight: '600',
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 0.8,
     marginBottom: SPACING.sm,
   },
   textInput: {
-    backgroundColor: COLORS.card,
+    backgroundColor: theme.surface,
     borderRadius: 12,
     paddingVertical: SPACING.md,
     paddingHorizontal: SPACING.md,
     fontSize: FONT_SIZE.input,
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: theme.border,
   },
   errorText: {
     fontSize: 12,
-    color: COLORS.error,
+    color: theme.danger,
     marginTop: SPACING.xs,
   },
   pickerButton: {
-    backgroundColor: COLORS.card,
+    backgroundColor: theme.surface,
     borderRadius: 12,
     paddingVertical: SPACING.md,
     paddingHorizontal: SPACING.md,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: theme.border,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
   pickerButtonText: {
     fontSize: FONT_SIZE.input,
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
   },
   pickerPlaceholderText: {
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
   },
   chevron: {
     fontSize: 20,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
   },
   ctaSection: {
     marginTop: SPACING.xl,
   },
   continueButton: {
-    backgroundColor: COLORS.accent,
+    backgroundColor: theme.accent,
     borderRadius: 12,
     paddingVertical: SPACING.md,
     alignItems: 'center',
@@ -505,19 +500,19 @@ const styles = StyleSheet.create({
   continueButtonText: {
     fontSize: FONT_SIZE.button,
     fontWeight: '600',
-    color: COLORS.background,
+    color: theme.onAccent,
   },
   continueButtonTextDisabled: {
-    color: COLORS.background,
+    color: theme.onAccent,
   },
   // Modal styles
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: theme.overlay,
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: COLORS.card,
+    backgroundColor: theme.surface,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     maxHeight: '70%',
@@ -530,20 +525,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: theme.border,
   },
   modalTitle: {
     fontSize: FONT_SIZE.input,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
   },
   modalCloseText: {
     fontSize: 20,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
     padding: SPACING.sm,
   },
   searchInput: {
-    backgroundColor: COLORS.background,
+    backgroundColor: theme.background,
     marginHorizontal: SPACING.lg,
     marginTop: SPACING.md,
     marginBottom: SPACING.sm,
@@ -551,18 +546,18 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.sm + 2,
     paddingHorizontal: SPACING.md,
     fontSize: FONT_SIZE.input,
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: theme.border,
   },
   pickerItem: {
     paddingVertical: SPACING.md,
     paddingHorizontal: SPACING.lg,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: theme.border,
   },
   pickerItemText: {
     fontSize: FONT_SIZE.pickerItem,
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
   },
-});
+}));

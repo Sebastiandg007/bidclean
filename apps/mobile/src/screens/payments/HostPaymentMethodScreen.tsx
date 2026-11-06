@@ -5,21 +5,12 @@
  */
 
 import React, { useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Text, TouchableOpacity, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { StripeProvider, useStripe } from '@stripe/stripe-react-native';
 
 import { STRIPE_PUBLISHABLE_KEY } from './payments.constants';
-
-const COLORS = {
-  bg: '#0B0C10',
-  title: '#FFFFFF',
-  body: 'rgba(255, 255, 255, 0.7)',
-  accent: '#00F5D4',
-  accentText: '#0B0C10',
-  error: '#FF5C5C',
-  success: '#00F5D4',
-} as const;
+import { makeStyles } from '../../theme';
 
 const SPACING = { sm: 8, md: 16 } as const;
 const FONT_SIZE = { title: 22, body: 14, button: 15 } as const;
@@ -40,6 +31,7 @@ function HostPaymentMethodInner({
   fetchPaymentSheetParams,
 }: HostPaymentMethodScreenProps): React.JSX.Element {
   const { t } = useTranslation('payments');
+  const styles = useStyles();
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -112,27 +104,27 @@ export function HostPaymentMethodScreen(props: HostPaymentMethodScreenProps): Re
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   screen: {
     flex: 1,
-    backgroundColor: COLORS.bg,
+    backgroundColor: theme.background,
     padding: SPACING.md,
     gap: SPACING.md,
   },
   title: {
     fontSize: FONT_SIZE.title,
     fontWeight: '700',
-    color: COLORS.title,
+    color: theme.textPrimary,
   },
   body: {
     fontSize: FONT_SIZE.body,
-    color: COLORS.body,
+    color: theme.textSecondary,
   },
   button: {
     marginTop: SPACING.sm,
     height: 52,
     borderRadius: 12,
-    backgroundColor: COLORS.accent,
+    backgroundColor: theme.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -142,15 +134,15 @@ const styles = StyleSheet.create({
   buttonText: {
     fontSize: FONT_SIZE.button,
     fontWeight: '700',
-    color: COLORS.accentText,
+    color: theme.onAccent,
   },
   success: {
     fontSize: FONT_SIZE.body,
     fontWeight: '700',
-    color: COLORS.success,
+    color: theme.accent,
   },
   error: {
     fontSize: FONT_SIZE.body,
-    color: COLORS.error,
+    color: theme.danger,
   },
-});
+}));

@@ -6,6 +6,7 @@
  * All env-configurable values use EXPO_PUBLIC_ prefix for Expo compatibility.
  */
 
+import { palette } from '../../theme/primitives';
 import type { ServiceType } from '../offers/offers.types';
 
 // ─── Polling & Timing ────────────────────────────────────────────────────────
@@ -147,9 +148,9 @@ export const SERVICE_TYPE_LABEL_KEYS: Record<ServiceType, string> = {
 
 export const PIN_COLORS = {
   /** Default pin color (active, not urgent) */
-  normal: '#FFFFFF',
+  normal: palette.white,
   /** Urgent offer pin color (scheduled within 2 hours) */
-  urgent: '#00F5D4',
+  urgent: palette.mint,
   /** Viewed offer pin — reduced opacity applied via Mapbox expressions */
   viewedOpacity: 0.6,
   /** Stale/cached offer pin — further reduced opacity */

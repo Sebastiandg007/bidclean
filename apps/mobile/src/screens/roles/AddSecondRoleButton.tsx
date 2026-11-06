@@ -11,7 +11,7 @@
  */
 
 import { useCallback, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text } from 'react-native';
+import { Alert, Pressable, Text } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -20,6 +20,7 @@ import Animated, {
 import { useTranslation } from 'react-i18next';
 import { useRouter } from 'expo-router';
 
+import { makeStyles } from '../../theme';
 import {
   useAuthStore,
   selectRoles,
@@ -27,14 +28,7 @@ import {
 } from '../../stores/auth.store';
 import type { UserRole } from './roles.types';
 
-// ─── Design Tokens ───────────────────────────────────────────────────────────
-
-const COLORS = {
-  card: '#1F2833',
-  accent: '#00F5D4',
-  textPrimary: '#FFFFFF',
-  error: '#FF6B6B',
-} as const;
+// ─── Layout Tokens ─────────────────────────────────────────────────────────
 
 const SPACING = {
   sm: 8,
@@ -79,6 +73,7 @@ function getMissingRole(currentRoles: UserRole[]): UserRole | null {
  */
 export default function AddSecondRoleButton() {
   const { t } = useTranslation();
+  const styles = useStyles();
   const router = useRouter();
   const roles = useAuthStore(selectRoles);
   const hasBothRoles = useAuthStore(selectHasBothRoles);
@@ -166,11 +161,11 @@ export default function AddSecondRoleButton() {
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   container: {
-    backgroundColor: COLORS.card,
+    backgroundColor: theme.surface,
     borderWidth: 1,
-    borderColor: COLORS.accent,
+    borderColor: theme.accent,
     borderRadius: SPACING.sm,
     paddingVertical: SPACING.md,
     paddingHorizontal: SPACING.lg,
@@ -183,6 +178,6 @@ const styles = StyleSheet.create({
   label: {
     fontSize: FONT_SIZE.button,
     fontWeight: '600',
-    color: COLORS.accent,
+    color: theme.accent,
   },
-});
+}));

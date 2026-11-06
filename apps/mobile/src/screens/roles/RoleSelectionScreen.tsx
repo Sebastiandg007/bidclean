@@ -9,7 +9,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   Pressable,
-  StyleSheet,
   Text,
   View,
 } from 'react-native';
@@ -24,18 +23,10 @@ import Animated, {
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 
+import { makeStyles, useTheme } from '../../theme';
 import type { RoleSelectionScreenProps, UserRole } from './roles.types';
 
-// ─── Design Tokens ───────────────────────────────────────────────────────────
-
-const COLORS = {
-  background: '#0B0C10',
-  card: '#1F2833',
-  accent: '#00F5D4',
-  textPrimary: '#FFFFFF',
-  textSecondary: 'rgba(255, 255, 255, 0.6)',
-  border: 'rgba(255, 255, 255, 0.2)',
-} as const;
+// ─── Layout Tokens ─────────────────────────────────────────────────────────
 
 const SPACING = {
   xs: 4,
@@ -117,6 +108,8 @@ function AnimatedRoleCard({
   entranceDelay,
 }: AnimatedRoleCardProps) {
   const { t } = useTranslation();
+  const { theme } = useTheme();
+  const styles = useStyles();
   const cardScale = useSharedValue(0.8);
   const cardOpacity = useSharedValue(0);
   const selectedProgress = useSharedValue(0);
@@ -145,7 +138,7 @@ function AnimatedRoleCard({
     borderColor: interpolateColor(
       selectedProgress.value,
       [0, 1],
-      [COLORS.border, COLORS.accent],
+      [theme.border, theme.accent],
     ),
   }));
 
@@ -194,6 +187,7 @@ export default function RoleSelectionScreen({
   onRoleToggled,
 }: RoleSelectionScreenProps) {
   const { t } = useTranslation();
+  const styles = useStyles();
   const router = useRouter();
   const [selectedRoles, setSelectedRoles] = useState<Set<UserRole>>(new Set());
 
@@ -307,10 +301,10 @@ export default function RoleSelectionScreen({
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: theme.background,
     paddingHorizontal: SPACING.lg,
   },
   headerSection: {
@@ -320,12 +314,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: FONT_SIZE.title,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
     letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: FONT_SIZE.subtitle,
-    color: COLORS.textSecondary,
+    color: theme.textMuted,
     marginTop: SPACING.sm,
     lineHeight: 20,
   },
@@ -335,10 +329,10 @@ const styles = StyleSheet.create({
     gap: SPACING.md,
   },
   roleCard: {
-    backgroundColor: COLORS.card,
+    backgroundColor: theme.surface,
     borderRadius: 16,
     borderWidth: 2,
-    borderColor: COLORS.border,
+    borderColor: theme.border,
     overflow: 'hidden',
   },
   roleCardPressable: {
@@ -358,11 +352,11 @@ const styles = StyleSheet.create({
   roleTitle: {
     fontSize: FONT_SIZE.cardTitle,
     fontWeight: '600',
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
   },
   roleDescription: {
     fontSize: FONT_SIZE.cardDescription,
-    color: COLORS.textSecondary,
+    color: theme.textMuted,
     marginTop: SPACING.xs,
     lineHeight: 20,
   },
@@ -371,26 +365,26 @@ const styles = StyleSheet.create({
     height: 28,
     borderRadius: 14,
     borderWidth: 2,
-    borderColor: COLORS.border,
+    borderColor: theme.border,
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: SPACING.sm,
   },
   checkIndicatorSelected: {
-    backgroundColor: COLORS.accent,
-    borderColor: COLORS.accent,
+    backgroundColor: theme.accent,
+    borderColor: theme.accent,
   },
   checkText: {
     fontSize: 14,
     fontWeight: '700',
-    color: COLORS.background,
+    color: theme.onAccent,
   },
   ctaSection: {
     paddingBottom: SPACING.xxl,
     paddingTop: SPACING.lg,
   },
   continueButton: {
-    backgroundColor: COLORS.accent,
+    backgroundColor: theme.accent,
     borderRadius: 12,
     paddingVertical: SPACING.md,
     alignItems: 'center',
@@ -401,9 +395,9 @@ const styles = StyleSheet.create({
   continueButtonText: {
     fontSize: FONT_SIZE.button,
     fontWeight: '600',
-    color: COLORS.background,
+    color: theme.onAccent,
   },
   continueButtonTextDisabled: {
-    color: COLORS.background,
+    color: theme.onAccent,
   },
-});
+}));
