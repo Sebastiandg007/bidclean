@@ -16,15 +16,25 @@ import React from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Stack } from 'expo-router';
 
-import '../src/i18n';
+import { RootErrorBoundary } from './error-boundary';
 import { ThemeProvider } from '../src/theme';
+
+// i18n initialization is isolated so a failure here cannot blank the whole app.
+try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  require('../src/i18n');
+} catch {
+  // i18n falls back to inline defaultValues; the boundary surfaces other errors.
+}
 
 export default function RootLayout(): React.JSX.Element {
   return (
-    <SafeAreaProvider>
-      <ThemeProvider>
-        <Stack screenOptions={{ headerShown: false }} />
-      </ThemeProvider>
-    </SafeAreaProvider>
+    <RootErrorBoundary>
+      <SafeAreaProvider>
+        <ThemeProvider>
+          <Stack screenOptions={{ headerShown: false }} />
+        </ThemeProvider>
+      </SafeAreaProvider>
+    </RootErrorBoundary>
   );
 }
