@@ -25,4 +25,36 @@ config.resolver.nodeModulesPaths = [
   path.resolve(workspaceRoot, 'node_modules'),
 ];
 
+/**
+ * Packages that register native views/modules and MUST exist once in the bundle.
+ * In this monorepo npm can install two copies (e.g. react-native-safe-area-context
+ * 4.12.0 under apps/mobile and 4.14.1 hoisted at the root for React Navigation),
+ * and loading both crashes at startup with "Tried to register two views with the
+ * same name RNCSafeAreaProvider". Every import of these packages is resolved as if
+ * it came from the app itself, so only the app's copy is bundled.
+ */
+const SINGLETON_PACKAGES = [
+  'react',
+  'react-native',
+  'react-native-safe-area-context',
+  'react-native-screens',
+  'react-native-reanimated',
+];
+
+const appOrigin = path.join(projectRoot, 'package.json');
+
+config.resolver.resolveRequest = (context, moduleName, platform) => {
+  const isSingleton = SINGLETON_PACKAGES.some(
+    (name) => moduleName === name || moduleName.startsWith(`${name}/`),
+  );
+  if (isSingleton) {
+    return context.resolveRequest(
+      { ...context, originModulePath: appOrigin },
+      moduleName,
+      platform,
+    );
+  }
+  return context.resolveRequest(context, moduleName, platform);
+};
+
 module.exports = config;
