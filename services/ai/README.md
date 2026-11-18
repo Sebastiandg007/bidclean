@@ -11,16 +11,25 @@ AI/ML microservice for BidClean. Handles all machine learning, computer vision, 
 - **Linter:** Ruff
 - **Testing:** pytest + Hypothesis
 
+## Files
+
+| File | Responsibility |
+|------|---------------|
+| `pyproject.toml` | Poetry project (Python ^3.11), FastAPI/pydantic dependencies, optional `ml` group (PaddleOCR, DeepFace), dev group (pytest, hypothesis, httpx, ruff), Ruff and pytest configuration. |
+| `poetry.lock` | Locked dependency versions. |
+| `src/` | Service source. See [`src/README.md`](src/README.md). |
+| `tests/` | pytest suite (health, KYC, speech, video verification). |
+
 ## Modules
 
 | Module | Responsibility | Status |
 |--------|---------------|--------|
 | `health/` | Health check endpoint | ✅ Active |
 | `kyc/` | KYC: document OCR (PaddleOCR) + face comparison (DeepFace) + liveness (Silent-Face) | ✅ Active |
-| `translation/` | Text translation (LibreTranslate) + language detection | 🔲 Planned |
+| `translation/` | Text translation (LibreTranslate) + language detection | 🔲 Placeholder (router not mounted) |
 | `speech/` | Speech-to-text for voice notes (Whisper.cpp, Spec 14) + Text-to-speech (Piper) | 🟡 Transcription active |
 | `video_verification/` | On-arrival face verification (DeepFace, Spec 18) | ✅ Active |
-| `pricing/` | AI price estimation based on property photos/data (Bedrock) | 🔲 Planned |
+| `pricing/` | AI price estimation based on property photos/data (Bedrock) | 🔲 Placeholder (router not mounted) |
 
 ## API Endpoints
 

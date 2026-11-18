@@ -13,10 +13,10 @@ The **canonical inventory model** (`ConfigVariable[]`) is the single derived sou
 | `inventory.model.ts` | Canonical types: `ConfigVariable`, `Surface`, `Kind`, `SourceType`, `RequiredScope`, `EnvApplicability`, `DiscoveryProvenance`, `OrphanJustification`, `Finding`, `FindingCode`, `InventoryReport`, `DeclaredVariable`, `SourceScanner`. Single derived source of truth for a variable's existence, classification, and requiredness. |
 | `orphan-justifications.ts` | Curated registry (`ORPHAN_JUSTIFICATIONS` + `JUSTIFIED_ORPHAN_NAMES`) of structured `OrphanJustification`s for `.env.example` entries deliberately kept with no code reader. Each is accountable (`owner`) and time-bounded (`expiresAt`); only names listed here may remain orphaned without an `ORPHANED_ENV_EXAMPLE` finding. Covers `BUILD_ONLY` / `EXTERNAL_TOOL` orphans (consumed outside scanned app code) and `LEGACY` orphans (documented but currently hardcoded). |
 | `sources/scanner-utils.ts` | Shared, dependency-free scanner helpers: safe file reads (`readSource`, failing loudly via `ScannerReadError`), recursive file discovery, repo-relative path + env-name extraction for provenance |
-| `sources/application-scanner.ts` | APPLICATION source: `*.constants.ts` + `validateXxxConfig()` keys, pydantic `BaseSettings`, `app.config.ts`, `EXPO_PUBLIC_*` usage |
+| `sources/application-scanner.ts` | APPLICATION source: `*.constants.ts` + `validateXxxConfig()` keys, pydantic `BaseSettings`, the Expo app config, `EXPO_PUBLIC_*` usage. Note: the scanner still looks for `apps/mobile/app.config.ts`, but the real file is `apps/mobile/app.config.js`, so values read only there (such as `MAPBOX_DOWNLOAD_TOKEN`) are not discovered from the app config yet. |
 | `sources/build-scanner.ts` | BUILD source: `eas.json` build profiles, Expo build-time config, build tokens |
 | `sources/infra-scanner.ts` | INFRA source: `docker-compose*.yml` under `infra/`, resolving `${VAR}` / `${VAR:-default}` interpolation (literal `environment:` values are container-internal defaults, not emitted) |
-| `sources/ci-scanner.ts` | CI source: `.github/workflows/*.yml` `env:` blocks (workflow/job/service/step level) + `codemagic.yaml` when present |
+| `sources/ci-scanner.ts` | CI source: `.github/workflows/*.yml` `env:` blocks (workflow/job/service/step level). `codemagic.yaml` is scanned only if present; it does not exist in this repo (mobile builds use EAS). |
 | `sources/env-example-parser.ts` | Parses `.env.example` into shape entries (presentation input only) |
 | `classify.ts` | Classifies each merged variable: assigns `kind` (SECRET\|CONFIG\|PUBLIC), `requiredScope`, `envApplicability`, and a safe placeholder, then runs the public/secret boundary check (`checkBoundary`). Classification is by rule + explicit override and is meant to be VERIFIED against where the value flows — the `EXPO_PUBLIC_` prefix alone never proves safety. |
 | `merge.ts` | Merges per-source `DeclaredVariable[]` into the canonical model, unioning provenance by variable name. |
@@ -45,7 +45,7 @@ The 12 property-based suites map one-to-one to Properties 1–12 in `design.md`,
 
 ## Dependencies
 
-- Reads (does not modify) configuration sources across the repo: `services/api/src/**/*.constants.ts` + `validateXxxConfig()`, the AI service pydantic settings, `apps/mobile/app.config.ts` / `eas.json`, `docker-compose*.yml`, `.github/workflows/*.yml`, `codemagic.yaml`, and the committed `.env.example`.
+- Reads (does not modify) configuration sources across the repo: `services/api/src/**/*.constants.ts` + `validateXxxConfig()`, the AI service pydantic settings, `apps/mobile/app.config.js` (the scanner currently targets a non-existent `app.config.ts`, see Files), `apps/mobile/eas.json`, `docker-compose*.yml`, `.github/workflows/*.yml`, and the committed `.env.example`. `codemagic.yaml` is optional and absent.
 - Uses `git` (`git check-ignore`, `git ls-files`) for the exposure/hygiene scan. `git` being unavailable is treated as an inconclusive/blocking result, never a false "clean".
 - Testing uses **fast-check** for the property-based suites (the repo's established PBT choice) — do not reimplement PBT from scratch.
 

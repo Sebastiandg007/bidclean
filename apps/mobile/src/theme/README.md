@@ -42,12 +42,12 @@ useThemedStyles ── makeStyles(theme => StyleSheet) — the migration primiti
 | `useThemeStore.ts` | Zustand persistence + mode transitions (fallback DARK, bootstrap timeout, last-write-wins) |
 | `resolveTheme.ts` | Pure `resolve(mode, osScheme) → resolvedTheme` |
 | `ThemeContext.ts` | Context + DARK-default value |
-| `ThemeProvider.tsx` | Resolution gate, splash hold, native chrome, memoized context |
+| `ThemeProvider.tsx` | Resolution gate, splash hold, native chrome, memoized context. Has a 2 s failsafe timer (`setTimeout` 2000): if resolution has not completed, the gate opens with the default theme so the app never stays blank. |
 | `useTheme.ts` | The app-wide hook |
 | `useThemedStyles.ts` | `makeStyles` — themed StyleSheet, memoized per `resolvedTheme` |
-| `useSystemChromeTheme.ts` | Status bar / Android nav bar / keyboard appearance from the resolved theme |
-| `NavigationThemeBridge.tsx` | `resolvedTheme` → React Navigation theme (`toNavigationTheme`) |
-| `splash.ts` | Defensive wrapper over `expo-splash-screen` (no-ops if unavailable) |
+| `useSystemChromeTheme.ts` | Status bar / Android nav bar / keyboard appearance from the resolved theme. Requires `expo-navigation-bar` (now installed; loaded with a guarded `require`). |
+| `NavigationThemeBridge.tsx` | `resolvedTheme` → React Navigation theme (`toNavigationTheme`). Now also passes `fonts` (regular, medium, bold, heavy): React Navigation 7 requires `theme.fonts`, and without it rendering crashes with "Cannot read property 'regular' of undefined". Uses the library `DefaultTheme.fonts` when available, otherwise system fonts. |
+| `splash.ts` | Defensive wrapper over `expo-splash-screen` (no-ops if unavailable; the package is now installed) |
 | `index.ts` | The barrel: `ThemeProvider`, `useTheme`, `makeStyles`, types, enums |
 
 ## Usage

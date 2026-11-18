@@ -40,6 +40,8 @@ COMPONENT REGISTRY  →  PROBES (against the RUNNING system)  →  READINESS CHE
 | `probes/store-readiness.probe.ts` | AAB/IPA + Galaxy + artifacts (icon, unfolded screenshots, listing, rating, privacy, reviewer path); missing → `INVALID_STORE_ARTIFACT`. |
 | `probes/devops-security.probe.ts` | Traefik SSL, monitoring wired, recent readable backup, green-HEAD CI, TLS, secrets server-side, carried `SECRET_EXPOSURE`; misconfig → `DEVOPS_MISCONFIGURED`. |
 | `probes/index.ts` | The probe registry (`probeType` → runnable `Probe`). |
+| `probes/live-fetch.ts` | Live-stack observation helpers used when `FULL_AUDIT_LIVE_STACK=1`. Never throw (a failure becomes `httpStatus:0`/"down") and never carry credentials: `observeHealth` (bounded HTTP GET), `observeTcp` (TCP connect for Postgres/Redis), `observeJwksEdge`, `observeHttpEdge`, `observeTcpEdge` and the dispatcher `observeEdge` (per-edge authenticated round-trips), `resolveLivenessUrl`, `resolveTcpEndpoint`, `hasLocalHttpLiveness`, `hasLocalTcpLiveness`, and `isPlaceholderCredential` / `hasRealCredential` (inspect only the shape of a configured credential, never emit the value). |
+| `types/js-yaml.d.ts` | Minimal ambient declaration of `js-yaml` (`load` returns `unknown`); no `@types/js-yaml` is installed. |
 | `evaluate/readiness-evaluator.ts` | PURE: both environments' states + store flag + carried findings → verdict + parity + N/A validation. |
 | `evaluate/findings-reporter.ts` | PURE: one finding per violating condition, non-empty owner, mutates nothing. |
 | `config/targets.ts` | Per-environment target resolution from env vars (no hardcoded endpoints in probe logic). |
@@ -97,8 +99,39 @@ The same audit runs **twice with the same invariants** but environment-appropria
 
 ## Fase 1 vs Fase 2
 
-This is **Fase 1**: the pure core (registry, reconciliation, builder, payment policy, probe contracts/interpretation, evaluator, reporter), the CLI, the 11 property tests + unit tests, and the docs. The probes' interpretation logic is complete and tested with simulated inputs. Because the live stack is not up in Fase 1 (`FULL_AUDIT_LIVE_STACK` unset), every edge/integration/journey/store/devops probe returns an honest **FAIL** ("target unreachable — Fase 2") rather than a silent `N/A`/`PASS`, so the CLI runs today and produces an honest `NOT_READY` report whose FAILs are exactly the ones **Fase 2** must turn green by bringing up the stack (local, then VPS) and packaging the mobile artifacts. The integration tests against the running stack and the store builds (tasks 11.2–11.5) are the operator's Fase-2 steps, documented in the runbook.
+**Fase 1** is the pure core: registry, reconciliation, builder, payment policy, probe contracts and interpretation, evaluator, reporter, the CLI, the 11 property tests and the docs. With `FULL_AUDIT_LIVE_STACK` unset, every probe that needs a running system returns an honest **FAIL** ("target unreachable — Fase 2") instead of a silent `N/A` or `PASS`, so the CLI always produces a truthful `NOT_READY` report.
 
+**Fases 2-4** are now implemented. With `FULL_AUDIT_LIVE_STACK=1` the probes query the running stack through `probes/live-fetch.ts`:
+
+- Fase 2 (health / presence): HTTP liveness and TCP connects for API, AI, Keycloak, MinIO, Centrifugo, LibreTranslate, Postgres and Redis.
+- Fase 3 (edges): real authenticated round-trips such as the Keycloak JWKS fetch; edges that are VPS-only or in-process fail honestly.
+- Fase 4 (external integrations and live journeys): `hasRealCredential` detects placeholder credentials and reports them as failures instead of a false GREEN. A journey runs only when its money prerequisite (a real Stripe sandbox credential) exists.
+
+See the "Full Audit — Fase 2" and "Fases 3-4" entries in `docs/CHANGELOG.md` for measured results. Still manual: the VPS run, the DevOps and monitoring checks on the live target, and the store artifact builds (operator steps in the runbook).
+
+## Environment Variables
+
+All variables are optional; defaults are non-secret. They are resolved in `config/targets.ts` and `probes/live-fetch.ts`.
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `FULL_AUDIT_LIVE_STACK` | `1` makes the probes query the running stack; anything else keeps the Fase 1 honest-FAIL behavior | unset (off) |
+| `FULL_AUDIT_LOCAL_API_URL` | Local API base URL | `http://localhost:3000` |
+| `FULL_AUDIT_LOCAL_WS_URL` | Local AI service base URL (the `ws` target) | `http://localhost:8000` |
+| `FULL_AUDIT_LOCAL_RTC_URL` | Local LiveKit URL | `http://localhost:7880` |
+| `FULL_AUDIT_LOCAL_STORAGE_URL` | Local MinIO URL | `http://localhost:9000` |
+| `FULL_AUDIT_LOCAL_AUTH_URL` | Local Keycloak URL | `http://localhost:8080` |
+| `FULL_AUDIT_LOCAL_CENTRIFUGO_URL` | Local Centrifugo URL | `http://localhost:8001` |
+| `FULL_AUDIT_LOCAL_LIBRETRANSLATE_URL` | Local LibreTranslate URL | `http://localhost:5000` |
+| `FULL_AUDIT_LOCAL_POSTGRES_PORT` | Host port for the Postgres TCP probe | `15432` |
+| `FULL_AUDIT_LOCAL_REDIS_PORT` | Host port for the Redis TCP probe | `16379` |
+| `FULL_AUDIT_VPS_API_URL` | VPS API URL | `https://api.bidclean.tech` |
+| `FULL_AUDIT_VPS_WS_URL` | VPS WebSocket / AI URL | `https://ws.bidclean.tech` |
+| `FULL_AUDIT_VPS_RTC_URL` | VPS LiveKit URL | `https://rtc.bidclean.tech` |
+| `FULL_AUDIT_VPS_STORAGE_URL` | VPS MinIO URL | `https://storage.bidclean.tech` |
+| `FULL_AUDIT_VPS_AUTH_URL` | VPS Keycloak URL | `https://auth.bidclean.tech` |
+| `FULL_AUDIT_VPS_CENTRIFUGO_URL` | VPS Centrifugo URL | `https://ws.bidclean.tech` |
+| `FULL_AUDIT_VPS_LIBRETRANSLATE_URL` | VPS LibreTranslate URL | `https://api.bidclean.tech` |
 ## How to Run
 
 From the repo root (PowerShell on Windows — use `;`, not `&&`):
@@ -110,10 +143,10 @@ npx tsc --noEmit -p tools/full-audit/tsconfig.json
 # Run the unit + property tests (11 properties, >=100 iterations each)
 npx jest --config tools/full-audit/jest.config.js
 
-# Run a local audit (Fase 1: honest NOT_READY; use -T to transpile-only)
+# Run a local audit (without FULL_AUDIT_LIVE_STACK: honest NOT_READY; use -T to transpile-only)
 npx ts-node -T --project tools/full-audit/tsconfig.json tools/full-audit/audit.cli.ts --env local
 
-# Fase 2 (operator, once the stack is up):
+# Against the running stack (operator, once the stack is up):
 #   $env:FULL_AUDIT_LIVE_STACK = "1"
 #   ... --env local   then   ... --env vps
 ```

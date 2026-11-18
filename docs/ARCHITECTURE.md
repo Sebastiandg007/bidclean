@@ -2,6 +2,8 @@
 
 > **This document MUST be updated on every structural change.** If you add, remove, or modify a service, module, or integration, update the corresponding diagram.
 
+> **Interactive viewer (Spanish, for presentations):** open [`docs/architecture/index.html`](architecture/index.html) in a browser. It has one tab per component/domain, hover tooltips on every node, the end-to-end service flow, the pending-work map and the exposed-credentials alert. This file stays the English source of truth; keep both in sync when the structure changes.
+
 ---
 
 ## 1. System Architecture (High Level)
@@ -96,108 +98,141 @@ graph TB
 
 ## 2. Frontend Architecture
 
+Routes live in `apps/mobile/app` (expo-router) and stay thin; screens, navigators, stores and services live in `apps/mobile/src`. Only the auth and role stores are global (`src/stores`); every other Zustand store is co-located with its feature under `src/screens/<feature>`.
+
 ```mermaid
 graph TB
-    subgraph App["📱 React Native + Expo"]
-        subgraph Navigation["Navigation (Expo Router)"]
-            RoleRouter["RoleBasedNavigator<br/>(role → navigator)"]
-            AuthStack["Auth Stack<br/>(Login, Register, KYC)"]
-            HostTabs["Host Tabs<br/>(Home, Properties, Activity, Profile)"]
-            CleanerTabs["Cleaner Tabs<br/>(Radar, Active, Profile)"]
-        end
-
-        subgraph Screens["Screens (by feature)"]
-            Radar["Radar Screen<br/>(Map + Offers)"]
-            OfferDetail["Offer Detail"]
-            Negotiation["Cleaner Negotiation<br/>(Accept / Counteroffer)"]
-            Service["Service In Progress"]
-            Chat["Chat Screen"]
-            PropertyEdit["Property Editor"]
-            PaymentStatus["Payment Status<br/>(Breakdown + Refund)"]
-            PayoutOnboarding["Cleaner Payout Onboarding<br/>(Stripe Express)"]
-            Paywall["Paywall Screen<br/>(Cleaner PRO / Host PRO)"]
-        end
-
-        subgraph Stores["Zustand Stores"]
-            AuthStore["useAuthStore"]
-            RoleStore["useRoleStore"]
-            OffersStore["useOffersStore"]
-            RadarStore["useRadarStore"]
-            NegotiationStore["useNegotiationStore"]
-            PaymentsStore["usePaymentsStore"]
-            ServiceStore["useServiceStore"]
-            ChatStore["useChatStore"]
-            SettingsStore["useSettingsStore"]
-        end
-
-        subgraph Services["Services Layer"]
-            APIService["API Client (Axios)"]
-            SocketService["WebSocket (Centrifugo)"]
-            MapService["Mapbox Integration"]
-            NotifService["OneSignal SDK"]
-            PurchaseService["RevenueCat SDK"]
-            BiometricService["Biometric Auth"]
-        end
-
-        subgraph Theme["Design System"]
-            Colors["Colors (Mint & Obsidian)"]
-            Typography["Typography (Custom Font)"]
-            Spacing["Spacing Tokens"]
-            Components["Shared Components"]
-        end
+    subgraph Routes["app/ (expo-router routes)"]
+        Layout["_layout.tsx"]
+        EB["RootErrorBoundary<br/>(error-boundary.tsx)"]
+        SAP["SafeAreaProvider"]
+        TP["ThemeProvider"]
+        StackNav["Stack"]
+        Index["index.tsx<br/>hydrate session"]
+        Login["login.tsx<br/>OAuth Keycloak"]
+        Register["register.tsx"]
+        RoleSel["roles/selection.tsx"]
+        HomeRoute["home.tsx"]
     end
 
-    Navigation --> Screens
-    RoleRouter --> HostTabs
-    RoleRouter --> CleanerTabs
-    Screens --> Stores
-    Screens --> Services
-    Screens --> Theme
-    Services --> |"HTTP"| API["NestJS API"]
-    Services --> |"WS"| WS["Centrifugo"]
+    subgraph Nav["src/navigation"]
+        RBN["RoleBasedNavigator"]
+        HostNav["HostNavigator"]
+        CleanerNav["CleanerNavigator"]
+    end
+
+    subgraph Screens["src/screens (by feature)"]
+        Features["auth, roles, kyc, profile, properties,<br/>offers, radar, negotiation, payments,<br/>subscriptions, ads, chat, tracking,<br/>verification, checklist, completion,<br/>dispute, favorites, notifications, appearance"]
+    end
+
+    subgraph Stores["Zustand stores"]
+        GlobalStores["Global: src/stores<br/>auth.store, role.store"]
+        FeatureStores["Co-located per feature:<br/>useRadarStore, chat.store, voip.store,<br/>tracking.store, verification.store,<br/>checklist.store, completion.store,<br/>dispute.store, notifications.store,<br/>useFavoritesStore"]
+        ThemeStore["theme: useThemeStore"]
+    end
+
+    subgraph Services["src/services"]
+        ApiSvc["api.service<br/>(axios)"]
+        RefreshSvc["tokenRefresh.service"]
+        SecureSvc["secureStorage.service"]
+    end
+
+    subgraph Native["Native SDKs"]
+        Mapbox["Mapbox"]
+        Stripe["Stripe"]
+        LiveKit["LiveKit"]
+        RevenueCat["RevenueCat"]
+        OneSignal["OneSignal"]
+        AdMob["AdMob"]
+    end
+
+    subgraph ThemeSys["src/theme"]
+        Tokens["tokens + primitives"]
+        TPImpl["ThemeProvider"]
+        NavBridge["NavigationThemeBridge<br/>(passes fonts)"]
+        Chrome["useSystemChromeTheme<br/>(expo-navigation-bar)"]
+    end
+
+    subgraph I18n["src/i18n"]
+        I18next["i18next<br/>en + es"]
+    end
+
+    Layout --> EB --> SAP --> TP --> StackNav
+    StackNav --> Index
+    StackNav --> Login
+    StackNav --> Register
+    StackNav --> RoleSel
+    StackNav --> HomeRoute
+    Index --> |"authenticated + role"| HomeRoute
+    Index --> |"authenticated, no role"| RoleSel
+    HomeRoute --> RBN
+    RBN --> HostNav
+    RBN --> CleanerNav
+    HostNav --> Features
+    CleanerNav --> Features
+    Features --> GlobalStores
+    Features --> FeatureStores
+    Features --> ApiSvc
+    Features --> Native
+    Login --> GlobalStores
+    GlobalStores --> SecureSvc
+    ApiSvc --> RefreshSvc
+    TP --> TPImpl
+    TPImpl --> NavBridge
+    TPImpl --> Chrome
+    TPImpl --> ThemeStore
+    Tokens --> TPImpl
+    Layout --> |"isolated init in try/catch"| I18next
+    ApiSvc --> |"HTTP"| API["NestJS API"]
+    FeatureStores --> |"WS"| WS["Centrifugo"]
 ```
 
 ---
 
 ## 3. Backend Architecture (NestJS)
 
+`AppModule` imports `ConfigModule` (global), `TypeOrmModule` (PostgreSQL, migrations only), `BullModule.forRootAsync` (shared Redis connection from `REDIS_URL`) and 19 feature modules. User records are owned by the Auth module (`auth/entities/user.entity.ts`) and role data by the Roles module; there is no separate Users module. DTOs are validated with class-validator through a global `ValidationPipe`.
+
 ```mermaid
 graph TB
     subgraph API["NestJS API"]
-        subgraph Modules["Feature Modules"]
-            Auth["Auth Module"]
+        subgraph Modules["Feature Modules (imported by AppModule)"]
+            Health["Health Module"]
+            Auth["Auth Module<br/>(owns users)"]
             Roles["Roles Module"]
-            Users["Users Module"]
-            Profile["Profile Module"]
             KYC["KYC Module"]
+            Profile["Profile Module"]
             Properties["Properties Module"]
             Offers["Offers Module"]
             Negotiation["Negotiation Module"]
             Payments["Payments Module"]
+            Subscriptions["Subscriptions Module"]
             Commission["Commission Module"]
             Chat["Chat Module"]
             Notifications["Notifications Module"]
-            Subscriptions["Subscriptions Module"]
+            Tracking["ServiceTracking Module"]
+            VideoVerif["VideoVerification Module"]
+            Checklist["ChecklistPhotos Module"]
+            Completion["ServiceCompletion Module"]
+            Dispute["DisputeSystem Module"]
             Favorites["Favorites Module"]
         end
 
-        subgraph Shared["Shared"]
-            Guards["Auth Guards"]
-            Interceptors["Logging / Transform"]
-            Filters["Exception Filters"]
-            Pipes["Validation Pipes (Zod)"]
+        subgraph Shared["Cross-cutting"]
+            Guards["Guards<br/>(JWT, rate limit, KYC, admin)"]
+            Pipes["ValidationPipe<br/>(class-validator)"]
         end
 
         subgraph Infra["Infrastructure"]
-            DB["TypeORM / Prisma<br/>(PostgreSQL)"]
-            Cache["Redis Service"]
+            DB["TypeORM<br/>(PostgreSQL + PostGIS)"]
+            Cache["Redis Client"]
             Queue["BullMQ Jobs"]
             Storage["MinIO Client"]
             Events["Event Emitter"]
         end
     end
 
-    Users --> DB
+    Auth --> DB
     Roles --> DB
     Profile --> DB
     Profile --> Storage
@@ -205,6 +240,7 @@ graph TB
     KYC --> DB
     KYC --> Storage
     KYC --> Queue
+    KYC --> |"HTTP"| AIService["AI Service"]
     Properties --> DB
     Properties --> Storage
     Offers --> DB
@@ -224,10 +260,25 @@ graph TB
     Payments --> |"Stripe SDK"| Stripe["Stripe Connect"]
     Chat --> DB
     Chat --> Cache
+    Chat --> Storage
     Chat --> |"Centrifugo API"| Centrifugo["Centrifugo"]
+    Chat --> |"LiveKit server SDK"| LiveKitSrv["LiveKit"]
     Auth --> |"isParticipant (subscription-token gate)"| Chat
     Notifications --> |"OneSignal API"| OneSignal["OneSignal"]
     Subscriptions --> |"RevenueCat API"| RevenueCat["RevenueCat"]
+    Tracking --> DB
+    Tracking --> Queue
+    VideoVerif --> DB
+    VideoVerif --> Storage
+    VideoVerif --> |"HTTP /verify-face"| AIService
+    Checklist --> DB
+    Checklist --> Storage
+    Completion --> DB
+    Completion --> Queue
+    Dispute --> DB
+    Dispute --> Storage
+    Dispute --> |"escrow client"| Payments
+    Favorites --> DB
     Events --> Notifications
     Events --> Chat
 ```
@@ -530,11 +581,11 @@ erDiagram
 ```mermaid
 graph TB
     subgraph Sources["Config sources — authoritative for existence / classification / requiredness"]
-        APP["APPLICATION<br/>*.constants.ts + validateXxxConfig()<br/>pydantic BaseSettings<br/>app.config.ts / EXPO_PUBLIC_*"]
+        APP["APPLICATION<br/>*.constants.ts + validateXxxConfig()<br/>pydantic BaseSettings<br/>app.config.js / EXPO_PUBLIC_*"]
         BLD["BUILD<br/>eas.json profiles / build tokens"]
         DEP["DEPLOY<br/>deploy scripts / VPS env / Traefik"]
         INF["INFRA<br/>docker-compose*.yml (${VAR})"]
-        CI["CI<br/>.github/workflows env / codemagic env"]
+        CI["CI<br/>.github/workflows env (no codemagic.yaml in this repo)"]
         RT["RUNTIME<br/>dynamic process.env / os.environ"]
     end
 
@@ -1146,3 +1197,57 @@ The audit is operator-run per environment (the live VPS is not available to CI);
 ---
 
 *Deployment-Readiness Audit section last updated: deployment-readiness Fase 1.*
+
+---
+
+## 18. Mobile Build & Distribution (EAS)
+
+The mobile app depends on custom native modules (Mapbox, Stripe, LiveKit/WebRTC, AdMob, camera, location, biometrics), so it cannot run in Expo Go. Installable builds come from EAS Build in the Expo cloud, driven by four configuration files in `apps/mobile`. The step-by-step guide is [`apps/mobile/BUILD.md`](../apps/mobile/BUILD.md).
+
+```mermaid
+graph TB
+    subgraph Config["apps/mobile configuration"]
+        AppCfg["app.config.js<br/>plugins, newArchEnabled false"]
+        EasJson["eas.json<br/>development, preview, production"]
+        MetroCfg["metro.config.js<br/>singleton packages"]
+        BabelCfg["babel.config.js<br/>expo-router env plugin"]
+    end
+
+    Secrets["EAS secrets / env<br/>MAPBOX_DOWNLOAD_TOKEN, EXPO_PUBLIC_*"]
+
+    subgraph EAS["EAS Build (Expo cloud)"]
+        Install["Install dependencies<br/>engine-strict=false (machina@7)"]
+        Prebuild["expo prebuild<br/>generate android/ native project"]
+        Bundle["Bundle JS<br/>Metro + babel plugin for expo-router"]
+        Gradle["Gradle build<br/>downloads Mapbox SDK with MAPBOX_DOWNLOAD_TOKEN"]
+        Install --> Prebuild --> Bundle --> Gradle
+    end
+
+    AppCfg --> Prebuild
+    EasJson --> Install
+    MetroCfg --> Bundle
+    BabelCfg --> Bundle
+    Secrets --> Gradle
+    Secrets --> Bundle
+
+    Gradle --> |"profile preview"| APK["APK (internal distribution)"]
+    Gradle --> |"profile production"| AAB["AAB (Play Store)"]
+    APK --> Device["Install on device<br/>or Android emulator"]
+    Device --> Logcat["Validate with adb logcat<br/>(Pixel Fold emulator)"]
+```
+
+### Lessons built into the configuration
+
+| Problem | Cause | Fix |
+|---------|-------|-----|
+| Blank screen before any JS runs | The React Native 0.76 New Architecture failed to initialize silently with LiveKit/WebRTC and Mapbox | `newArchEnabled: false` in `app.config.js` until every native dependency supports the New Architecture |
+| Crash "Tried to register two views with the same name RNCSafeAreaProvider" | npm installed two copies of `react-native-safe-area-context` (one hoisted for React Navigation) | `metro.config.js` `resolveRequest` resolves `react`, `react-native`, `react-native-safe-area-context`, `react-native-screens` and `react-native-reanimated` from the app, so one copy is bundled |
+| Blank screen, no routes registered | `babel-preset-expo` is hoisted to the root but `expo-router` is not, so the preset's `hasModule('expo-router')` check fails and `process.env.EXPO_ROUTER_APP_ROOT` is never replaced; an absolute path would also break `require.context` on device | Inline plugin in `babel.config.js` replaces it with a path relative to each `_ctx` file (`path.relative(dirname(state.filename), app/)`), plus `EXPO_ROUTER_IMPORT_MODE='sync'` and `EXPO_ROUTER_ABS_APP_ROOT` |
+| Native chrome and splash modules missing | `useSystemChromeTheme` and `splash.ts` require `expo-navigation-bar` and `expo-splash-screen` | Both packages are now installed |
+| Crash "Cannot read property 'regular' of undefined" | React Navigation 7 requires `theme.fonts` | `NavigationThemeBridge` passes `fonts` |
+| Blank screen on any runtime error | No visible error surface in a release APK | `RootErrorBoundary` renders the error and stack on screen; i18n initialization is isolated in a `try/catch`; `ThemeProvider` has a 2 s failsafe that opens the gate |
+| EAS install fails on an engines mismatch | A transitive dependency (`machina@7`) declares a stricter Node engine | Install runs with `engine-strict=false` |
+
+### Validation
+
+Builds are validated on an Android emulator (Pixel Fold) while watching `adb logcat`. The last crash seen in that setup was a graphics error from the emulator (`EGL_KHR_swap_buffers_with_damage`), not a defect in the app.

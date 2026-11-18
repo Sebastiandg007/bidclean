@@ -2,7 +2,7 @@
 
 > This file tracks the state of all feature specs. Read this first in any new session to know where the project stands and what to work on next.
 
-## Current Sprint: Sprint 4 — Communication
+## Current Sprint: Sprint 8 — Deployment Readiness
 
 ## Specs Status
 
@@ -62,7 +62,9 @@
 ### Sprint 8 — Deployment Readiness
 | # | Spec | Status | Dependencies |
 |---|------|--------|-------------|
-| 26 | `full-audit` | 🔄 In Progress (Fase 1 core + CLI + docs + 11 property tests done; Fase 2 = operator integration against the live stack local+VPS and store builds) | All specs (1-25), `secrets-inventory` |
+| 26 | `full-audit` | 🔄 In Progress (Fase 1 core + CLI + docs + 11 property tests done; Fases 2-4 live probes wired; VPS run and store builds pending) | All specs (1-25), `secrets-inventory` |
+| Meta | `secrets-inventory` | ✅ Completed (tooling in `tools/config-inventory/`, ADR-010; its `tasks.md` checkboxes were never ticked) | None |
+| Meta | `execution-orchestrator` | ⬜ Draft (requirements, design and tasks written; no task executed; governs the order of the 14 pending specs) | `secrets-inventory`, pending specs |
 
 > **Sprint 8 scope (`full-audit`, deployment-readiness meta-spec):** the final gate before go-live. A tooling + documentation artifact under `tools/full-audit/` (not a NestJS module or mobile screen) that verifies the LIVE assembled system (API, AI, mobile, infra) is present, wired, reachable, healthy, and end-to-end functional — first in local Docker, then on the VPS behind Traefik — and that the mobile app is store-submission-ready.
 > - Authority chain: COMPONENT REGISTRY → PROBES (running system) → CHECKLIST → VERDICT; health 200 is a liveness signal only, never integration proof.
