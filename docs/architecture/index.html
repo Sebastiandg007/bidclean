@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>BidClean — Arquitectura de la solución</title>
+  <link rel="stylesheet" href="assets/styles.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">Bid<span>Clean</span></div>
+      <div class="subtitle">Arquitectura de la solución · componentes, integraciones y estado</div>
+      <div class="spacer"></div>
+      <div class="count" id="tab-count"></div>
+    </header>
+    <nav class="sidebar" id="menu" aria-label="Vistas de arquitectura"></nav>
+    <main class="content" id="content"></main>
+  </div>
+  <div class="tooltip" id="tooltip" role="tooltip"></div>
+
+  <!-- Librería (copia local, funciona sin internet) -->
+  <script src="vendor/mermaid.min.js"></script>
+
+  <!-- Núcleo del visor -->
+  <script src="assets/registry.js"></script>
+  <script src="assets/status.js"></script>
+  <script src="assets/tooltip.js"></script>
+  <script src="assets/render.js"></script>
+
+  <!-- Pestañas (una por archivo; el orden del menú lo define `order`) -->
+  <script src="tabs/00-credenciales.js"></script>
+  <script src="tabs/01-sistema.js"></script>
+  <script src="tabs/02-flujo-servicio.js"></script>
+  <script src="tabs/03-eventos.js"></script>
+  <script src="tabs/10-app-movil.js"></script>
+  <script src="tabs/11-build-movil.js"></script>
+  <script src="tabs/20-auth.js"></script>
+  <script src="tabs/21-roles-perfil-kyc.js"></script>
+  <script src="tabs/22-propiedades.js"></script>
+  <script src="tabs/23-ofertas.js"></script>
+  <script src="tabs/24-pagos.js"></script>
+  <script src="tabs/25-suscripciones.js"></script>
+  <script src="tabs/26-chat-voz.js"></script>
+  <script src="tabs/27-voip.js"></script>
+  <script src="tabs/28-notificaciones.js"></script>
+  <script src="tabs/29-tracking.js"></script>
+  <script src="tabs/30-verificacion-video.js"></script>
+  <script src="tabs/31-checklist.js"></script>
+  <script src="tabs/32-cierre.js"></script>
+  <script src="tabs/33-disputas.js"></script>
+  <script src="tabs/34-favoritos.js"></script>
+  <script src="tabs/35-tema.js"></script>
+  <script src="tabs/40-ia.js"></script>
+  <script src="tabs/41-datos.js"></script>
+  <script src="tabs/42-selfhosted.js"></script>
+  <script src="tabs/43-externos.js"></script>
+  <script src="tabs/50-devops.js"></script>
+  <script src="tabs/51-full-audit.js"></script>
+  <script src="tabs/90-pendientes.js"></script>
+
+  <!-- Arranque -->
+  <script src="assets/app.js"></script>
+</body>
+</html>
