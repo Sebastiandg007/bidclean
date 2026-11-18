@@ -1,0 +1,32 @@
+{
+  "notifications": {
+    "settings": {
+      "title": "Notifications",
+      "categoriesTitle": "Categories",
+      "quietHoursTitle": "Quiet hours",
+      "quietHoursStart": "Start",
+      "quietHoursEnd": "End",
+      "save": "Save",
+      "saved": "Preferences saved",
+      "saveError": "Could not save your preferences. Please try again."
+    },
+    "permission": {
+      "deniedTitle": "Notifications are off",
+      "deniedBody": "Turn on notifications in your device settings to get offers, messages, and calls."
+    },
+    "category": {
+      "offers": "Offers",
+      "payments": "Payments",
+      "negotiation": "Negotiation",
+      "messages": "Messages",
+      "calls": "Calls"
+    },
+    "error": {
+      "register": "Could not register this device for notifications.",
+      "consent": "Could not update your notification consent.",
+      "unregister": "Could not turn off notifications for this device.",
+      "loadPreferences": "Could not load your notification settings.",
+      "savePreferences": "Could not save your notification settings."
+    }
+  }
+}

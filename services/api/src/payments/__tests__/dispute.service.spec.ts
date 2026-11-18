@@ -21,7 +21,16 @@ describe('DisputeService', () => {
     const { service, repo, publisher } = buildDeps();
     repo.findPaymentById.mockResolvedValue({ ...payment });
     await service.openDispute('pay-1');
-    expect(repo.setDisputeStatus).toHaveBeenCalledWith('pay-1', DisputeStatus.OPEN);
+    // Push Task 12: the dispute status change now carries an atomic payment_outbox row (to Host).
+    expect(repo.setDisputeStatus).toHaveBeenCalledWith(
+      'pay-1',
+      DisputeStatus.OPEN,
+      expect.objectContaining({
+        tableName: 'payment_outbox',
+        type: 'payment.disputed',
+        payload: expect.objectContaining({ recipientUserId: 'host-1', paymentId: 'pay-1' }),
+      }),
+    );
     expect(publisher.emitDisputed).toHaveBeenCalledTimes(1);
   });
 

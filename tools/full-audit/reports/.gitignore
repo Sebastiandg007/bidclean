@@ -1,0 +1,3 @@
+# Generated readiness reports — regenerate via the full-audit CLI.
+readiness-report.*.json
+findings.json

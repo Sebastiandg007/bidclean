@@ -10,7 +10,6 @@ import React, { useEffect } from 'react';
 import {
   ActivityIndicator,
   ScrollView,
-  StyleSheet,
   Text,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -21,6 +20,7 @@ import {
   selectActiveRole,
   selectHasBothRoles,
 } from '../../stores/auth.store';
+import { makeStyles, useTheme } from '../../theme';
 import { useProfileStore } from './useProfile';
 import { ProfileHeader } from './components/ProfileHeader';
 import { HostProfileCard } from './components/HostProfileCard';
@@ -29,14 +29,6 @@ import RoleSwitchButton from './components/RoleSwitchButton';
 import AddSecondRoleButton from './components/AddSecondRoleButton';
 
 // ─── Design Tokens ───────────────────────────────────────────────────────────
-
-const COLORS = {
-  background: '#0B0C10',
-  textPrimary: '#FFFFFF',
-  textSecondary: '#C5C6C7',
-  accent: '#00F5D4',
-  error: '#FF6B6B',
-} as const;
 
 const SPACING = {
   sm: 8,
@@ -59,6 +51,8 @@ const FONT_SIZE = {
  */
 export function ProfileScreen(): React.JSX.Element {
   const { t } = useTranslation();
+  const styles = useStyles();
+  const { theme } = useTheme();
   const activeRole = useAuthStore(selectActiveRole);
   const hasBothRoles = useAuthStore(selectHasBothRoles);
 
@@ -76,7 +70,7 @@ export function ProfileScreen(): React.JSX.Element {
   if (isLoading && !profile) {
     return (
       <SafeAreaView style={styles.centered} testID="profile-loading">
-        <ActivityIndicator size="large" color={COLORS.accent} />
+        <ActivityIndicator size="large" color={theme.accent} />
         <Text style={styles.loadingText}>
           {t('profile.loading', { defaultValue: 'Loading profile...' })}
         </Text>
@@ -150,10 +144,10 @@ export function ProfileScreen(): React.JSX.Element {
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   safeArea: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: theme.background,
   },
   scrollView: {
     flex: 1,
@@ -164,7 +158,7 @@ const styles = StyleSheet.create({
   },
   centered: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: theme.background,
     alignItems: 'center',
     justifyContent: 'center',
     padding: SPACING.lg,
@@ -172,24 +166,24 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: SPACING.md,
     fontSize: FONT_SIZE.sm,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
   },
   errorText: {
     fontSize: FONT_SIZE.md,
     fontWeight: '600',
-    color: COLORS.error,
+    color: theme.danger,
     textAlign: 'center',
   },
   errorDetail: {
     marginTop: SPACING.sm,
     fontSize: FONT_SIZE.sm,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
     textAlign: 'center',
   },
   emptyText: {
     fontSize: FONT_SIZE.sm,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
   },
-});
+}));
 
 export default ProfileScreen;

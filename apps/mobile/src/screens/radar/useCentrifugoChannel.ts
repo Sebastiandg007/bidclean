@@ -270,9 +270,9 @@ export function useCentrifugoChannel(
     reconnectTimerRef.current = setTimeout(() => {
       reconnectAttemptsRef.current = attempt + 1;
       setReconnectAttempts(attempt + 1);
-      connect(); // eslint-disable-line @typescript-eslint/no-use-before-define
+      connect();
     }, delay);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   const connect = useCallback(async () => {
     if (isDisconnectingRef.current) return;
@@ -404,7 +404,7 @@ export function useCentrifugoChannel(
     return () => {
       disconnect();
     };
-  }, [cleanerId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [cleanerId]);
 
   return {
     isConnected,

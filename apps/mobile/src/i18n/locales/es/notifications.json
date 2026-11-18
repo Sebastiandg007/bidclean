@@ -1,0 +1,32 @@
+{
+  "notifications": {
+    "settings": {
+      "title": "Notificaciones",
+      "categoriesTitle": "Categorías",
+      "quietHoursTitle": "Horario de silencio",
+      "quietHoursStart": "Inicio",
+      "quietHoursEnd": "Fin",
+      "save": "Guardar",
+      "saved": "Preferencias guardadas",
+      "saveError": "No se pudieron guardar tus preferencias. Inténtalo de nuevo."
+    },
+    "permission": {
+      "deniedTitle": "Notificaciones desactivadas",
+      "deniedBody": "Activa las notificaciones en los ajustes de tu dispositivo para recibir ofertas, mensajes y llamadas."
+    },
+    "category": {
+      "offers": "Ofertas",
+      "payments": "Pagos",
+      "negotiation": "Negociación",
+      "messages": "Mensajes",
+      "calls": "Llamadas"
+    },
+    "error": {
+      "register": "No se pudo registrar este dispositivo para notificaciones.",
+      "consent": "No se pudo actualizar tu consentimiento de notificaciones.",
+      "unregister": "No se pudieron desactivar las notificaciones en este dispositivo.",
+      "loadPreferences": "No se pudo cargar tu configuración de notificaciones.",
+      "savePreferences": "No se pudo guardar tu configuración de notificaciones."
+    }
+  }
+}

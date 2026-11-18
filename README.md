@@ -40,6 +40,7 @@ bidclean/
 ├── infra/
 │   ├── docker/        → Dockerfiles per service
 │   └── scripts/       → Deploy, backup scripts
+├── tools/             → config-inventory, full-audit
 ├── docs/
 │   ├── ARCHITECTURE.md → System diagrams (Mermaid)
 │   ├── ADR/           → Architecture Decision Records
@@ -53,31 +54,51 @@ bidclean/
 
 ## Getting Started
 
-> 🚧 Project scaffolding in progress. Full setup instructions will be added with each service initialization.
-
 ### Prerequisites
 
 - Node.js 20+
-- Python 3.11+
+- Python 3.11+ and Poetry
 - Docker & Docker Compose
 - Stripe CLI (installed globally)
 
 ### Quick Start
 
-```bash
-# Clone the repository
+```powershell
+# PowerShell, from the repo root
 git clone <repo-url> bidclean
 cd bidclean
+Copy-Item .env.example .env          # then fill in your values (never commit .env)
+npm install                          # installs all workspaces
 
-# Install dependencies (when services are initialized)
-# npm install          (root workspace)
-# cd services/api && npm install
-# cd services/ai && poetry install
+# 1. Infrastructure (Postgres/PostGIS, Redis, MinIO, Keycloak, Centrifugo, LibreTranslate)
+docker compose -f infra/docker-compose.yml up -d
+
+# 2. Database migrations. The TypeORM CLI does not read .env: export DATABASE_URL in the shell first
+#    (compose Postgres is on host port 15432)
+$env:DATABASE_URL = "postgresql://bidclean:bidclean_local@localhost:15432/bidclean"
+npm run migration:run --workspace=services/api
+
+# 3. API (http://localhost:3000/health)
+npm run dev --workspace=services/api
+
+# 4. AI service (http://localhost:8000/health/), in a second terminal
+cd services/ai
+poetry install
+poetry run uvicorn src.main:app --reload --port 8000
 ```
+
+The compose file publishes Postgres on host port `15432` and Redis on `16379` (to avoid Windows reserved port ranges), so set `DATABASE_URL` and `REDIS_URL` in `.env` accordingly.
+
+The mobile app uses native modules and does not run in Expo Go. Build it with EAS; see [apps/mobile/BUILD.md](apps/mobile/BUILD.md).
 
 ## Documentation
 
+- [Interactive architecture viewer (Spanish)](docs/architecture/index.html)
 - [Architecture & Diagrams](docs/ARCHITECTURE.md)
+- [Mobile build guide (EAS)](apps/mobile/BUILD.md)
+- [Deployment readiness](docs/deployment/) (checklist and runbook)
+- [Configuration inventory](docs/CONFIGURATION-INVENTORY.md)
+- [Tools](tools/README.md) (config inventory, full audit)
 - [Contributing Guide](docs/CONTRIBUTING.md)
 - [Changelog](docs/CHANGELOG.md)
 - [Architecture Decisions](docs/ADR/)

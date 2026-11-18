@@ -7,20 +7,13 @@
  */
 
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
+import { makeStyles } from '../../../theme';
 import type { HostProfile } from '../profile.types';
 
 // ─── Design Tokens ───────────────────────────────────────────────────────────
-
-const COLORS = {
-  card: '#1F2833',
-  accent: '#00F5D4',
-  textPrimary: '#FFFFFF',
-  textSecondary: '#C5C6C7',
-  divider: '#2B3A4A',
-} as const;
 
 const SPACING = {
   sm: 8,
@@ -59,6 +52,7 @@ interface StatRowProps {
 }
 
 function StatRow({ label, value, testID }: StatRowProps): React.JSX.Element {
+  const styles = useStyles();
   return (
     <View style={styles.statRow} testID={testID}>
       <Text style={styles.statLabel}>{label}</Text>
@@ -78,6 +72,7 @@ export function HostProfileCard({
   memberSince,
 }: HostProfileCardProps): React.JSX.Element {
   const { t } = useTranslation();
+  const styles = useStyles();
 
   return (
     <View style={styles.container} testID="host-profile-card">
@@ -133,9 +128,9 @@ export function HostProfileCard({
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   container: {
-    backgroundColor: COLORS.card,
+    backgroundColor: theme.surface,
     borderRadius: SPACING.md,
     padding: SPACING.lg,
     marginBottom: SPACING.md,
@@ -143,12 +138,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: FONT_SIZE.md,
     fontWeight: '700',
-    color: COLORS.accent,
+    color: theme.accent,
     marginBottom: SPACING.sm,
   },
   divider: {
     height: 1,
-    backgroundColor: COLORS.divider,
+    backgroundColor: theme.divider,
     marginVertical: SPACING.sm,
   },
   statRow: {
@@ -159,13 +154,13 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     fontSize: FONT_SIZE.sm,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
   },
   statValue: {
     fontSize: FONT_SIZE.sm,
     fontWeight: '600',
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
   },
-});
+}));
 
 export default HostProfileCard;

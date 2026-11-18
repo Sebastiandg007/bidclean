@@ -4,16 +4,10 @@
  */
 
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Text, TouchableOpacity, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
-const COLORS = {
-  card: '#1F2833',
-  accent: '#00F5D4',
-  accentText: '#0B0C10',
-  title: '#FFFFFF',
-  body: 'rgba(255, 255, 255, 0.7)',
-} as const;
+import { makeStyles } from '../../../theme';
 
 const SPACING = { xs: 4, sm: 8, md: 16 } as const;
 const FONT_SIZE = { title: 15, body: 13, button: 14 } as const;
@@ -31,6 +25,7 @@ export function PayoutOnboardingBanner({
   testID,
 }: PayoutOnboardingBannerProps): React.JSX.Element {
   const { t } = useTranslation('payments');
+  const styles = useStyles();
 
   return (
     <View style={styles.card} testID={testID ?? 'payout-onboarding-banner'}>
@@ -50,9 +45,9 @@ export function PayoutOnboardingBanner({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   card: {
-    backgroundColor: COLORS.card,
+    backgroundColor: theme.surface,
     borderRadius: RADIUS,
     padding: SPACING.md,
     gap: SPACING.sm,
@@ -60,11 +55,11 @@ const styles = StyleSheet.create({
   title: {
     fontSize: FONT_SIZE.title,
     fontWeight: '700',
-    color: COLORS.title,
+    color: theme.textPrimary,
   },
   body: {
     fontSize: FONT_SIZE.body,
-    color: COLORS.body,
+    color: theme.textSecondary,
   },
   button: {
     marginTop: SPACING.sm,
@@ -72,7 +67,7 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.sm,
     paddingHorizontal: SPACING.md,
     borderRadius: RADIUS,
-    backgroundColor: COLORS.accent,
+    backgroundColor: theme.accent,
   },
   buttonDisabled: {
     opacity: 0.4,
@@ -80,6 +75,6 @@ const styles = StyleSheet.create({
   buttonText: {
     fontSize: FONT_SIZE.button,
     fontWeight: '600',
-    color: COLORS.accentText,
+    color: theme.onAccent,
   },
-});
+}));

@@ -1,0 +1,36 @@
+{
+  "completion": {
+    "host": {
+      "title": "Finish the service",
+      "confirm": "Confirm — I'm satisfied",
+      "dispute": "Something's wrong — open a dispute",
+      "countdownLabel": "Payment releases automatically in",
+      "countdownExpired": "Releasing…",
+      "disputePaused": "A dispute is open. Auto-release is paused while it's reviewed."
+    },
+    "cleaner": {
+      "title": "Service summary"
+    },
+    "state": {
+      "awaiting": "Waiting for the host to confirm",
+      "confirmed": "Confirmed by the host",
+      "autoReleased": "Auto-released",
+      "disputed": "Disputed"
+    },
+    "release": {
+      "notTriggered": "Waiting for the host to confirm",
+      "pendingPayout": "Released — payout is on its way",
+      "released": "Paid",
+      "disputed": "Disputed — held while it's reviewed"
+    },
+    "rating": {
+      "title": "Rate this service",
+      "prompt": "How was it? Your rating builds trust on BidClean.",
+      "commentPlaceholder": "Add a comment (optional)",
+      "submit": "Submit rating",
+      "thanks": "Thanks for your rating."
+    },
+    "loadError": "Could not load the completion. Please try again.",
+    "actionError": "Something went wrong. Please try again."
+  }
+}

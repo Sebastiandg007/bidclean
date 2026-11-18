@@ -12,25 +12,15 @@ import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   LayoutChangeEvent,
   PanResponder,
-  StyleSheet,
   Text,
   View,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
+import { makeStyles } from '../../../../theme';
 import { useRadarStore } from '../../useRadarStore';
 
 // ─── Design Tokens ───────────────────────────────────────────────────────────
-
-const COLORS = {
-  accent: '#00F5D4',
-  accentSubtle: 'rgba(0, 245, 212, 0.12)',
-  textPrimary: '#FFFFFF',
-  textSecondary: 'rgba(255, 255, 255, 0.6)',
-  trackInactive: 'rgba(255, 255, 255, 0.15)',
-  trackActive: '#00F5D4',
-  thumb: '#FFFFFF',
-} as const;
 
 const SPACING = {
   sm: 8,
@@ -87,6 +77,7 @@ function formatCents(cents: number, currency: string): string {
 
 export function PriceRangeSlider(): React.JSX.Element {
   const { t } = useTranslation('radar');
+  const styles = useStyles();
   const minPriceCents = useRadarStore((state) => state.filters.minPriceCents);
   const maxPriceCents = useRadarStore((state) => state.filters.maxPriceCents);
   const setFilters = useRadarStore((state) => state.setFilters);
@@ -217,14 +208,14 @@ export function PriceRangeSlider(): React.JSX.Element {
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   container: {
     width: '100%',
   },
   label: {
     fontSize: FONT_SIZE.label,
     fontWeight: '600',
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
     marginBottom: SPACING.md,
   },
   valueRow: {
@@ -234,7 +225,7 @@ const styles = StyleSheet.create({
   },
   valueText: {
     fontSize: FONT_SIZE.value,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
   },
   trackContainer: {
     height: THUMB_SIZE,
@@ -246,26 +237,26 @@ const styles = StyleSheet.create({
     right: 0,
     height: TRACK_HEIGHT,
     borderRadius: TRACK_BORDER_RADIUS,
-    backgroundColor: COLORS.trackInactive,
+    backgroundColor: theme.border,
   },
   trackActive: {
     position: 'absolute',
     height: TRACK_HEIGHT,
     borderRadius: TRACK_BORDER_RADIUS,
-    backgroundColor: COLORS.trackActive,
+    backgroundColor: theme.accent,
   },
   thumb: {
     position: 'absolute',
     width: THUMB_SIZE,
     height: THUMB_SIZE,
     borderRadius: THUMB_BORDER_RADIUS,
-    backgroundColor: COLORS.thumb,
-    shadowColor: '#000',
+    backgroundColor: theme.textPrimary,
+    shadowColor: theme.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
     elevation: 4,
   },
-});
+}));
 
 export default PriceRangeSlider;

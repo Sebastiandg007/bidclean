@@ -13,7 +13,6 @@ import { TierDeliveryProcessor } from './delivery/tier-delivery.processor';
 import { FavoritesWindowProcessor } from './delivery/favorites-window.processor';
 import { RadiusExpansionProcessor } from './expansion/radius-expansion.processor';
 import { OfferNotificationService } from './notification/offer-notification.service';
-import { OneSignalClient } from './notification/onesignal.client';
 import { PushNotificationProcessor } from './notification/push-notification.processor';
 import { OfferEventEmitterService } from './events/offer-event-emitter.service';
 import { OfferStateMachineService } from './state-machine/offer-state-machine';
@@ -43,7 +42,7 @@ import { CommissionModule } from '../commission/commission.module';
  * Integrates with:
  * - BullMQ for radius expansion and tier delivery scheduling
  * - Centrifugo for real-time offer delivery to Cleaners
- * - OneSignal for push notification fallback
+ * - The durable `offer_outbox` for push notification fallback (drained by the notifications relay)
  * - PostGIS for geospatial Cleaner discovery
  * - Stripe Connect for escrow (downstream via domain events)
  */
@@ -72,7 +71,6 @@ import { CommissionModule } from '../commission/commission.module';
     FavoritesWindowProcessor,
     RadiusExpansionProcessor,
     OfferNotificationService,
-    OneSignalClient,
     PushNotificationProcessor,
     OfferEventEmitterService,
     OfferStateMachineService,

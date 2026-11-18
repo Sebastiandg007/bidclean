@@ -6,7 +6,7 @@
  */
 
 import React, { useCallback, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import * as WebBrowser from 'expo-web-browser';
@@ -16,15 +16,9 @@ import { SettingsItem } from './components/SettingsItem';
 import { DeleteAccountModal } from './components/DeleteAccountModal';
 import { useAuthStore } from '../../stores/auth.store';
 import { apiClient } from '../../services/api.service';
+import { makeStyles } from '../../theme';
 
 // ─── Design Tokens ───────────────────────────────────────────────────────────
-
-const COLORS = {
-  background: '#0B0C10',
-  card: '#1F2833',
-  textPrimary: '#FFFFFF',
-  accent: '#00F5D4',
-} as const;
 
 const SPACING = {
   sm: 8,
@@ -71,6 +65,7 @@ function extractErrorMessage(err: unknown, fallbackKey: string): string {
 // ─── Sub-Components ──────────────────────────────────────────────────────────
 
 function SectionHeader({ title }: { title: string }): React.JSX.Element {
+  const styles = useStyles();
   return <Text style={styles.sectionHeader}>{title}</Text>;
 }
 
@@ -78,6 +73,7 @@ function SectionHeader({ title }: { title: string }): React.JSX.Element {
 
 export function AccountScreen(): React.JSX.Element {
   const { t } = useTranslation();
+  const styles = useStyles();
   const router = useRouter();
   const resetAuth = useAuthStore((s) => s.reset);
 
@@ -206,10 +202,10 @@ export function AccountScreen(): React.JSX.Element {
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   safeArea: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: theme.background,
   },
   scrollView: {
     flex: 1,
@@ -224,20 +220,20 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: FONT_SIZE.xl,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
   },
   sectionHeader: {
     fontSize: FONT_SIZE.md,
     fontWeight: '600',
-    color: COLORS.accent,
+    color: theme.accent,
     marginTop: SPACING.lg,
     marginBottom: SPACING.sm,
   },
   card: {
-    backgroundColor: COLORS.card,
+    backgroundColor: theme.surface,
     borderRadius: BORDER_RADIUS_CARD,
     padding: SPACING.md,
   },
-});
+}));
 
 export default AccountScreen;

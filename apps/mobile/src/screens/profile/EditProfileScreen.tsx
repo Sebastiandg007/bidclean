@@ -11,7 +11,6 @@ import {
   Alert,
   Pressable,
   ScrollView,
-  StyleSheet,
   Switch,
   Text,
   TextInput,
@@ -25,6 +24,7 @@ import {
   useAuthStore,
   selectActiveRole,
 } from '../../stores/auth.store';
+import { makeStyles, useTheme } from '../../theme';
 import { useProfileStore } from './useProfile';
 import {
   VALIDATION,
@@ -36,17 +36,6 @@ import {
 import type { ActiveRole } from './profile.types';
 
 // ─── Design Tokens ───────────────────────────────────────────────────────────
-
-const COLORS = {
-  background: '#0B0C10',
-  card: '#1F2833',
-  textPrimary: '#FFFFFF',
-  textSecondary: '#C5C6C7',
-  accent: '#00F5D4',
-  error: '#FF6B6B',
-  inputBackground: '#2A3140',
-  border: '#3A4250',
-} as const;
 
 const SPACING = {
   xs: 4,
@@ -109,14 +98,17 @@ function validateBio(bio: string): string | undefined {
 // ─── Sub-Components ──────────────────────────────────────────────────────────
 
 function SectionHeader({ title }: { title: string }): React.JSX.Element {
+  const styles = useStyles();
   return <Text style={styles.sectionHeader}>{title}</Text>;
 }
 
 function FieldLabel({ label }: { label: string }): React.JSX.Element {
+  const styles = useStyles();
   return <Text style={styles.fieldLabel}>{label}</Text>;
 }
 
 function ErrorText({ message }: { message: string }): React.JSX.Element {
+  const styles = useStyles();
   return <Text style={styles.errorText}>{message}</Text>;
 }
 
@@ -131,6 +123,7 @@ function SpecialtyChip({
   onToggle: () => void;
   testId: string;
 }): React.JSX.Element {
+  const styles = useStyles();
   return (
     <Pressable
       style={[styles.chip, selected && styles.chipSelected]}
@@ -148,6 +141,8 @@ function SpecialtyChip({
 
 export function EditProfileScreen(): React.JSX.Element {
   const { t } = useTranslation();
+  const styles = useStyles();
+  const { theme } = useTheme();
   const router = useRouter();
   const activeRole = useAuthStore(selectActiveRole) as ActiveRole | null;
 
@@ -369,7 +364,7 @@ export function EditProfileScreen(): React.JSX.Element {
             value={displayName}
             onChangeText={setDisplayName}
             placeholder={t('profile.edit.display_name_placeholder')}
-            placeholderTextColor={COLORS.textSecondary}
+            placeholderTextColor={theme.textMuted}
             maxLength={VALIDATION.NAME_MAX_LENGTH}
             testID="input-display-name"
           />
@@ -383,7 +378,7 @@ export function EditProfileScreen(): React.JSX.Element {
             value={phoneNumber}
             onChangeText={setPhoneNumber}
             placeholder={t('profile.edit.phone_placeholder')}
-            placeholderTextColor={COLORS.textSecondary}
+            placeholderTextColor={theme.textMuted}
             keyboardType="phone-pad"
             testID="input-phone-number"
           />
@@ -403,7 +398,7 @@ export function EditProfileScreen(): React.JSX.Element {
                 value={businessName}
                 onChangeText={setBusinessName}
                 placeholder={t('profile.edit.business_name_placeholder')}
-                placeholderTextColor={COLORS.textSecondary}
+                placeholderTextColor={theme.textMuted}
                 testID="input-business-name"
               />
             </View>
@@ -438,7 +433,7 @@ export function EditProfileScreen(): React.JSX.Element {
                 value={workZoneLabel}
                 onChangeText={setWorkZoneLabel}
                 placeholder={t('profile.edit.work_zone_placeholder')}
-                placeholderTextColor={COLORS.textSecondary}
+                placeholderTextColor={theme.textMuted}
                 testID="input-work-zone-label"
               />
 
@@ -492,7 +487,7 @@ export function EditProfileScreen(): React.JSX.Element {
                 value={bio}
                 onChangeText={setBio}
                 placeholder={t('profile.edit.bio_placeholder')}
-                placeholderTextColor={COLORS.textSecondary}
+                placeholderTextColor={theme.textMuted}
                 multiline
                 maxLength={VALIDATION.BIO_MAX_LENGTH}
                 testID="input-bio"
@@ -511,7 +506,7 @@ export function EditProfileScreen(): React.JSX.Element {
           testID="button-save"
         >
           {isSaving ? (
-            <ActivityIndicator color={COLORS.background} size="small" />
+            <ActivityIndicator color={theme.onAccent} size="small" />
           ) : (
             <Text style={styles.saveButtonText}>
               {t('profile.edit.save')}
@@ -552,6 +547,8 @@ function AvailabilityDayRow({
   onChangeEnd: (v: string) => void;
   t: (key: string) => string;
 }): React.JSX.Element {
+  const styles = useStyles();
+  const { theme } = useTheme();
   return (
     <View style={styles.dayRow} testID={`availability-${day}`}>
       <View style={styles.dayHeader}>
@@ -561,8 +558,8 @@ function AvailabilityDayRow({
         <Switch
           value={schedule.enabled}
           onValueChange={onToggle}
-          trackColor={{ false: COLORS.border, true: COLORS.accent }}
-          thumbColor={COLORS.textPrimary}
+          trackColor={{ false: theme.border, true: theme.accent }}
+          thumbColor={theme.textPrimary}
           testID={`switch-${day}`}
         />
       </View>
@@ -573,7 +570,7 @@ function AvailabilityDayRow({
             value={schedule.start ?? ''}
             onChangeText={onChangeStart}
             placeholder={AVAILABILITY_DEFAULTS.START_TIME}
-            placeholderTextColor={COLORS.textSecondary}
+            placeholderTextColor={theme.textMuted}
             testID={`input-${day}-start`}
           />
           <Text style={styles.timeSeparator}>—</Text>
@@ -582,7 +579,7 @@ function AvailabilityDayRow({
             value={schedule.end ?? ''}
             onChangeText={onChangeEnd}
             placeholder={AVAILABILITY_DEFAULTS.END_TIME}
-            placeholderTextColor={COLORS.textSecondary}
+            placeholderTextColor={theme.textMuted}
             testID={`input-${day}-end`}
           />
         </View>
@@ -622,10 +619,10 @@ function buildInitialAvailability(
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   safeArea: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: theme.background,
   },
   scrollView: {
     flex: 1,
@@ -636,14 +633,14 @@ const styles = StyleSheet.create({
   },
   centered: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: theme.background,
     alignItems: 'center',
     justifyContent: 'center',
     padding: SPACING.lg,
   },
   emptyText: {
     fontSize: FONT_SIZE.sm,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
   },
   header: {
     marginBottom: SPACING.lg,
@@ -651,37 +648,37 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: FONT_SIZE.xl,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
   },
   sectionHeader: {
     fontSize: FONT_SIZE.md,
     fontWeight: '600',
-    color: COLORS.accent,
+    color: theme.accent,
     marginTop: SPACING.lg,
     marginBottom: SPACING.sm,
   },
   card: {
-    backgroundColor: COLORS.card,
+    backgroundColor: theme.surface,
     borderRadius: 12,
     padding: SPACING.md,
   },
   fieldLabel: {
     fontSize: FONT_SIZE.sm,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
     marginBottom: SPACING.xs,
     marginTop: SPACING.sm,
   },
   input: {
-    backgroundColor: COLORS.inputBackground,
+    backgroundColor: theme.surfaceElevated,
     borderRadius: 8,
     padding: SPACING.sm + 4,
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
     fontSize: FONT_SIZE.md,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: theme.border,
   },
   inputError: {
-    borderColor: COLORS.error,
+    borderColor: theme.danger,
   },
   bioInput: {
     minHeight: 100,
@@ -689,13 +686,13 @@ const styles = StyleSheet.create({
   },
   charCount: {
     fontSize: FONT_SIZE.xs,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
     textAlign: 'right',
     marginTop: SPACING.xs,
   },
   errorText: {
     fontSize: FONT_SIZE.xs,
-    color: COLORS.error,
+    color: theme.danger,
     marginTop: SPACING.xs,
   },
   chipContainer: {
@@ -707,20 +704,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.sm + 4,
     paddingVertical: SPACING.sm,
     borderRadius: 20,
-    backgroundColor: COLORS.inputBackground,
+    backgroundColor: theme.surfaceElevated,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: theme.border,
   },
   chipSelected: {
-    backgroundColor: '#00F5D422',
-    borderColor: COLORS.accent,
+    backgroundColor: theme.surfaceElevated,
+    borderColor: theme.accent,
   },
   chipText: {
     fontSize: FONT_SIZE.sm,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
   },
   chipTextSelected: {
-    color: COLORS.accent,
+    color: theme.accent,
     fontWeight: '600',
   },
   radiusRow: {
@@ -733,13 +730,13 @@ const styles = StyleSheet.create({
   },
   radiusUnit: {
     fontSize: FONT_SIZE.md,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
   },
   dayRow: {
     marginBottom: SPACING.sm,
     paddingBottom: SPACING.sm,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: theme.border,
   },
   dayHeader: {
     flexDirection: 'row',
@@ -748,7 +745,7 @@ const styles = StyleSheet.create({
   },
   dayLabel: {
     fontSize: FONT_SIZE.md,
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
   },
   timeRow: {
     flexDirection: 'row',
@@ -762,10 +759,10 @@ const styles = StyleSheet.create({
   },
   timeSeparator: {
     fontSize: FONT_SIZE.md,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
   },
   saveButton: {
-    backgroundColor: COLORS.accent,
+    backgroundColor: theme.accent,
     borderRadius: 12,
     paddingVertical: SPACING.md,
     alignItems: 'center',
@@ -777,7 +774,7 @@ const styles = StyleSheet.create({
   saveButtonText: {
     fontSize: FONT_SIZE.md,
     fontWeight: '700',
-    color: COLORS.background,
+    color: theme.onAccent,
   },
   cancelButton: {
     borderRadius: 12,
@@ -787,8 +784,8 @@ const styles = StyleSheet.create({
   },
   cancelButtonText: {
     fontSize: FONT_SIZE.md,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
   },
-});
+}));
 
 export default EditProfileScreen;

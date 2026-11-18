@@ -7,20 +7,14 @@
  */
 
 import React, { useCallback, useEffect, useRef } from 'react';
-import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, Text, TouchableOpacity, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
+import { makeStyles } from '../../../theme';
 import type { ViewMode } from '../radar.types';
 import { useRadarStore } from '../useRadarStore';
 
 // ─── Design Tokens ───────────────────────────────────────────────────────────
-
-const COLORS = {
-  containerBg: 'rgba(31, 40, 51, 0.9)',
-  activeBg: '#00F5D4',
-  activeText: '#0B0C10',
-  inactiveText: 'rgba(255, 255, 255, 0.6)',
-} as const;
 
 const FONT_SIZE = {
   button: 13,
@@ -50,6 +44,7 @@ const SEGMENTS: SegmentConfig[] = [
 
 export function ViewToggle(): React.JSX.Element {
   const { t } = useTranslation('radar');
+  const styles = useStyles();
   const viewMode = useRadarStore((state) => state.viewMode);
   const setViewMode = useRadarStore((state) => state.setViewMode);
 
@@ -119,11 +114,11 @@ export function ViewToggle(): React.JSX.Element {
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   container: {
     flexDirection: 'row',
     height: CONTAINER_HEIGHT,
-    backgroundColor: COLORS.containerBg,
+    backgroundColor: theme.surface,
     borderRadius: CONTAINER_BORDER_RADIUS,
     padding: CONTAINER_PADDING,
     position: 'relative',
@@ -133,7 +128,7 @@ const styles = StyleSheet.create({
     top: CONTAINER_PADDING,
     bottom: CONTAINER_PADDING,
     width: '50%',
-    backgroundColor: COLORS.activeBg,
+    backgroundColor: theme.accent,
     borderRadius: SEGMENT_BORDER_RADIUS,
   },
   segment: {
@@ -147,11 +142,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   labelActive: {
-    color: COLORS.activeText,
+    color: theme.onAccent,
   },
   labelInactive: {
-    color: COLORS.inactiveText,
+    color: theme.textSecondary,
   },
-});
+}));
 
 export default ViewToggle;

@@ -9,23 +9,14 @@
  */
 
 import React, { useCallback } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Text, TouchableOpacity, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
+import { makeStyles } from '../../../../theme';
 import type { ServiceType } from '../../../offers/offers.types';
 import { useRadarStore } from '../../useRadarStore';
 
 // ─── Design Tokens ───────────────────────────────────────────────────────────
-
-const COLORS = {
-  card: '#1F2833',
-  accent: '#00F5D4',
-  accentSubtle: 'rgba(0, 245, 212, 0.12)',
-  textPrimary: '#FFFFFF',
-  textSecondary: 'rgba(255, 255, 255, 0.6)',
-  chipBorder: 'rgba(255, 255, 255, 0.15)',
-  chipSelectedBorder: '#00F5D4',
-} as const;
 
 const SPACING = {
   xs: 4,
@@ -68,6 +59,7 @@ const SERVICE_TYPE_I18N_KEYS: Record<ServiceType, string> = {
 
 export function ServiceTypeChips(): React.JSX.Element {
   const { t } = useTranslation('radar');
+  const styles = useStyles();
   const selectedTypes = useRadarStore((state) => state.filters.serviceTypes);
   const setFilters = useRadarStore((state) => state.setFilters);
 
@@ -123,14 +115,14 @@ export function ServiceTypeChips(): React.JSX.Element {
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   container: {
     width: '100%',
   },
   label: {
     fontSize: FONT_SIZE.label,
     fontWeight: '600',
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
     marginBottom: SPACING.md,
   },
   chipContainer: {
@@ -143,21 +135,21 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.sm,
     borderRadius: CHIP_BORDER_RADIUS,
     borderWidth: CHIP_BORDER_WIDTH,
-    borderColor: COLORS.chipBorder,
+    borderColor: theme.border,
     backgroundColor: 'transparent',
   },
   chipSelected: {
-    borderColor: COLORS.chipSelectedBorder,
-    backgroundColor: COLORS.accentSubtle,
+    borderColor: theme.accent,
+    backgroundColor: theme.surfaceElevated,
   },
   chipText: {
     fontSize: FONT_SIZE.chip,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
     fontWeight: '500',
   },
   chipTextSelected: {
-    color: COLORS.accent,
+    color: theme.accent,
   },
-});
+}));
 
 export default ServiceTypeChips;

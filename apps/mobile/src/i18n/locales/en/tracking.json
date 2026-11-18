@@ -1,0 +1,33 @@
+{
+  "tracking": {
+    "enRoute": {
+      "title": "On the way",
+      "destination": "Destination",
+      "startHeading": "I'm heading out",
+      "startWork": "Start the service",
+      "eta": "ETA",
+      "permissionDenied": "Location access denied",
+      "permissionExplainer": "BidClean shares your live position with the host only while you're on the way, so they know when to expect you. Your location is never stored as a trail."
+    },
+    "host": {
+      "title": "Track your cleaner",
+      "cleanerArrived": "Your cleaner has arrived",
+      "locationUnavailable": "Location unavailable"
+    },
+    "state": {
+      "matched": "Matched",
+      "onTheWay": "On the way",
+      "arrived": "Arrived",
+      "started": "Service started",
+      "canceled": "Canceled",
+      "expired": "Expired"
+    },
+    "connection": {
+      "connected": "Connected",
+      "connecting": "Connecting…",
+      "reconnecting": "Reconnecting…",
+      "disconnected": "Disconnected"
+    },
+    "loadError": "Could not load the session. Please try again."
+  }
+}

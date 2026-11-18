@@ -13,25 +13,16 @@ import {
   LayoutChangeEvent,
   PanResponder,
   Platform,
-  StyleSheet,
   Text,
   View,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { NativeModules } from 'react-native';
 
+import { makeStyles } from '../../../../theme';
 import { useRadarStore } from '../../useRadarStore';
 
 // ─── Design Tokens ───────────────────────────────────────────────────────────
-
-const COLORS = {
-  accent: '#00F5D4',
-  textPrimary: '#FFFFFF',
-  textSecondary: 'rgba(255, 255, 255, 0.6)',
-  trackInactive: 'rgba(255, 255, 255, 0.15)',
-  trackActive: '#00F5D4',
-  thumb: '#FFFFFF',
-} as const;
 
 const SPACING = {
   sm: 8,
@@ -98,6 +89,7 @@ function useImperialUnits(): boolean {
 
 export function DistanceSlider(): React.JSX.Element {
   const { t } = useTranslation('radar');
+  const styles = useStyles();
   const maxDistanceMeters = useRadarStore((state) => state.filters.maxDistanceMeters);
   const setFilters = useRadarStore((state) => state.setFilters);
 
@@ -190,14 +182,14 @@ export function DistanceSlider(): React.JSX.Element {
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   container: {
     width: '100%',
   },
   label: {
     fontSize: FONT_SIZE.label,
     fontWeight: '600',
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
     marginBottom: SPACING.md,
   },
   valueRow: {
@@ -205,7 +197,7 @@ const styles = StyleSheet.create({
   },
   valueText: {
     fontSize: FONT_SIZE.value,
-    color: COLORS.accent,
+    color: theme.accent,
     fontWeight: '600',
   },
   trackContainer: {
@@ -218,27 +210,27 @@ const styles = StyleSheet.create({
     right: 0,
     height: TRACK_HEIGHT,
     borderRadius: TRACK_BORDER_RADIUS,
-    backgroundColor: COLORS.trackInactive,
+    backgroundColor: theme.border,
   },
   trackActive: {
     position: 'absolute',
     left: 0,
     height: TRACK_HEIGHT,
     borderRadius: TRACK_BORDER_RADIUS,
-    backgroundColor: COLORS.trackActive,
+    backgroundColor: theme.accent,
   },
   thumb: {
     position: 'absolute',
     width: THUMB_SIZE,
     height: THUMB_SIZE,
     borderRadius: THUMB_BORDER_RADIUS,
-    backgroundColor: COLORS.thumb,
-    shadowColor: '#000',
+    backgroundColor: theme.textPrimary,
+    shadowColor: theme.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
     elevation: 4,
   },
-});
+}));
 
 export default DistanceSlider;

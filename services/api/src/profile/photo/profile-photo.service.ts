@@ -216,12 +216,24 @@ export class ProfilePhotoService implements OnModuleInit {
    */
   private async ensureBucketExists(): Promise<void> {
     const exists = await this.minioClient.bucketExists(this.bucketName);
-    if (!exists) {
-      this.logger.log(`Creating bucket: ${this.bucketName}`);
+    if (exists) {
+      this.logger.log(`Bucket already exists: ${this.bucketName}`);
+      return;
+    }
+    this.logger.log(`Creating bucket: ${this.bucketName}`);
+    try {
       await this.minioClient.makeBucket(this.bucketName);
       this.logger.log(`Bucket created: ${this.bucketName}`);
-    } else {
-      this.logger.log(`Bucket already exists: ${this.bucketName}`);
+    } catch (error) {
+      // Idempotent: a concurrent service (profile-photo + portfolio share this bucket) may create
+      // it between our bucketExists check and makeBucket. MinIO then returns
+      // BucketAlreadyOwnedByYou / BucketAlreadyExists — treat that as success, rethrow anything else.
+      const code = (error as { code?: string })?.code ?? '';
+      if (code === 'BucketAlreadyOwnedByYou' || code === 'BucketAlreadyExists') {
+        this.logger.log(`Bucket already created concurrently: ${this.bucketName}`);
+        return;
+      }
+      throw error;
     }
   }
 

@@ -1,0 +1,37 @@
+{
+  "checklist": {
+    "cleaner": {
+      "title": "Cleaning checklist"
+    },
+    "host": {
+      "title": "Cleaning progress"
+    },
+    "progress": "{{completed}}/{{total}} tasks done",
+    "empty": "This job has no checklist items. You can finish it whenever you're ready.",
+    "loadError": "We couldn't load the checklist. Pull to retry.",
+    "task": {
+      "markDone": "Mark done",
+      "markUndone": "Mark not done",
+      "addPhoto": "Add photo",
+      "viewEvidence": "View evidence"
+    },
+    "capture": {
+      "before": "Before",
+      "after": "After",
+      "permissionDenied": "Camera access is off",
+      "permissionExplainer": "Allow camera access to attach photo evidence. You can still complete tasks that don't require a photo.",
+      "tooLarge": "That photo is too large. Try a smaller one.",
+      "capReached": "You've reached the photo limit for this task."
+    },
+    "finalize": {
+      "action": "Finish checklist",
+      "blocked": "The checklist can't be finished yet.",
+      "missingTasks": "Some tasks still need to be completed.",
+      "missingPhotos": "Some tasks still need photo evidence."
+    },
+    "state": {
+      "completed": "Checklist completed",
+      "abandoned": "Checklist closed"
+    }
+  }
+}

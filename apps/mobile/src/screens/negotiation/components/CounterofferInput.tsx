@@ -5,22 +5,13 @@
  */
 
 import React, { useCallback, useMemo, useState } from 'react';
-import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import { formatMoney } from '../negotiation.format';
 import { getDeviationRange, isWithinDeviationBounds } from '../negotiation.constants';
 import { PayoutPreview } from './PayoutPreview';
-
-const COLORS = {
-  card: '#1F2833',
-  accent: '#00F5D4',
-  accentDisabled: 'rgba(0, 245, 212, 0.3)',
-  textPrimary: '#FFFFFF',
-  textSecondary: 'rgba(255, 255, 255, 0.6)',
-  error: '#FF6B6B',
-  inputBg: 'rgba(255, 255, 255, 0.06)',
-} as const;
+import { makeStyles, useTheme } from '../../../theme';
 
 const SPACING = { xs: 4, sm: 8, md: 16 } as const;
 const FONT_SIZE = { label: 13, input: 20, helper: 12, button: 16 } as const;
@@ -51,6 +42,8 @@ export function CounterofferInput({
   onSubmit,
 }: CounterofferInputProps): React.JSX.Element {
   const { t } = useTranslation('negotiation');
+  const styles = useStyles();
+  const { theme } = useTheme();
   const [text, setText] = useState('');
 
   const range = useMemo(() => getDeviationRange(basePriceCents), [basePriceCents]);
@@ -96,7 +89,7 @@ export function CounterofferInput({
         onChangeText={setText}
         keyboardType="decimal-pad"
         placeholder={t('counterInput.placeholder')}
-        placeholderTextColor={COLORS.textSecondary}
+        placeholderTextColor={theme.textMuted}
         editable={!disabled}
         testID="counteroffer-price-input"
       />
@@ -141,48 +134,48 @@ export function CounterofferInput({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   container: {
     gap: SPACING.sm,
-    backgroundColor: COLORS.card,
+    backgroundColor: theme.surface,
     borderRadius: RADIUS,
     padding: SPACING.md,
   },
   label: {
     fontSize: FONT_SIZE.label,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
   },
   input: {
     fontSize: FONT_SIZE.input,
     fontWeight: '700',
-    color: COLORS.textPrimary,
-    backgroundColor: COLORS.inputBg,
+    color: theme.textPrimary,
+    backgroundColor: theme.surfaceElevated,
     borderRadius: RADIUS,
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
   },
   helper: {
     fontSize: FONT_SIZE.helper,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
   },
   error: {
     fontSize: FONT_SIZE.helper,
-    color: COLORS.error,
+    color: theme.danger,
   },
   button: {
     height: BUTTON_HEIGHT,
     borderRadius: RADIUS,
-    backgroundColor: COLORS.accent,
+    backgroundColor: theme.accent,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: SPACING.sm,
   },
   buttonDisabled: {
-    backgroundColor: COLORS.accentDisabled,
+    backgroundColor: theme.surfaceElevated,
   },
   buttonText: {
     fontSize: FONT_SIZE.button,
     fontWeight: '700',
-    color: '#0B0C10',
+    color: theme.onAccent,
   },
-});
+}));

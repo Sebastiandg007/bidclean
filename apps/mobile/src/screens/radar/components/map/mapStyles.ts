@@ -16,6 +16,7 @@ import {
   PIN_COLORS,
   SERVICE_TYPE_ICONS,
 } from '../../radar.constants';
+import { palette } from '../../../../theme/primitives';
 
 /**
  * Mapbox GL style expression. `@rnmapbox/maps` v10 does not export a public
@@ -141,13 +142,13 @@ export const clusterRadiusExpression: Expression = [
 export const clusterColorExpression: Expression = [
   'step',
   ['get', 'point_count'],
-  '#1F2833', // small clusters: card background
+  palette.surfaceDark, // small clusters: card background
   10,
-  '#1F3844', // medium clusters: slightly brighter
+  palette.mapClusterMid, // medium clusters: slightly brighter
   25,
-  '#1F4844', // larger clusters: trending toward accent
+  palette.mapClusterLarge, // larger clusters: trending toward accent
   50,
-  '#0A7B6A', // large clusters: close to accent
+  palette.mapClusterXL, // large clusters: close to accent
   100,
   PIN_COLORS.urgent, // very large: full accent color
 ];
@@ -170,7 +171,7 @@ export const CLUSTER_OPACITY = 0.85;
 /**
  * Cluster count text color — white for readability on dark circles.
  */
-export const CLUSTER_TEXT_COLOR = '#FFFFFF';
+export const CLUSTER_TEXT_COLOR = palette.white;
 
 /**
  * Cluster count text size.
@@ -180,10 +181,10 @@ export const CLUSTER_TEXT_SIZE = 14;
 // ─── Work Zone Circle Styling ────────────────────────────────────────────────
 
 /** Semi-transparent fill for the work zone area */
-export const WORK_ZONE_FILL_COLOR = 'rgba(0, 245, 212, 0.06)';
+export const WORK_ZONE_FILL_COLOR = palette.workZoneFill;
 
 /** Border color for the work zone circle */
-export const WORK_ZONE_BORDER_COLOR = 'rgba(0, 245, 212, 0.3)';
+export const WORK_ZONE_BORDER_COLOR = palette.workZoneBorder;
 
 /** Border width for the work zone circle (pixels) */
 export const WORK_ZONE_BORDER_WIDTH = 1.5;
@@ -213,7 +214,7 @@ export const offerPinStyle = {
   textAnchor: 'top' as const,
   textOffset: [0, 0.5] as [number, number],
   textAllowOverlap: false,
-  textHaloColor: '#0B0C10',
+  textHaloColor: palette.obsidian,
   textHaloWidth: 1,
 } as const;
 

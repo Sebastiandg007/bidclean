@@ -14,11 +14,11 @@ import React, { useCallback, useMemo } from 'react';
 import {
   FlatList,
   RefreshControl,
-  StyleSheet,
   View,
 } from 'react-native';
 import type { ListRenderItemInfo } from 'react-native';
 
+import { makeStyles, useTheme } from '../../../../theme';
 import type { RadarOffer } from '../../radar.types';
 import { AD_SLOT_FIRST_POSITION, AD_SLOT_INTERVAL } from '../../radar.constants';
 import { useRadarStore } from '../../useRadarStore';
@@ -27,13 +27,6 @@ import { OfferCard } from './OfferCard';
 import { AdSlot } from './AdSlot';
 
 // ─── Design Tokens ───────────────────────────────────────────────────────────
-
-const COLORS = {
-  background: '#0B0C10',
-  accent: '#00F5D4',
-  skeletonBase: '#1F2833',
-  skeletonHighlight: 'rgba(255, 255, 255, 0.06)',
-} as const;
 
 const SPACING = {
   sm: 8,
@@ -101,6 +94,7 @@ function getItemKey(item: ListItem): string {
 // ─── Skeleton Component ──────────────────────────────────────────────────────
 
 function OfferCardSkeleton(): React.JSX.Element {
+  const styles = useStyles();
   return (
     <View style={styles.skeletonCard} testID="offer-card-skeleton">
       <View style={styles.skeletonPhoto} />
@@ -114,6 +108,7 @@ function OfferCardSkeleton(): React.JSX.Element {
 }
 
 function SkeletonLoader(): React.JSX.Element {
+  const styles = useStyles();
   return (
     <View style={styles.container} testID="offer-list-skeleton">
       {Array.from({ length: SKELETON_COUNT }, (_, i) => (
@@ -126,6 +121,8 @@ function SkeletonLoader(): React.JSX.Element {
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export function OfferListView(): React.JSX.Element {
+  const styles = useStyles();
+  const { theme } = useTheme();
   const offers = useRadarStore((state) => state.getOffersList());
   const isLoading = useRadarStore((state) => state.isLoading);
   const isRefreshing = useRadarStore((state) => state.isRefreshing);
@@ -202,8 +199,8 @@ export function OfferListView(): React.JSX.Element {
         <RefreshControl
           refreshing={isRefreshing}
           onRefresh={handleRefresh}
-          tintColor={COLORS.accent}
-          colors={[COLORS.accent]}
+          tintColor={theme.accent}
+          colors={[theme.accent]}
         />
       }
       showsVerticalScrollIndicator={false}
@@ -214,10 +211,10 @@ export function OfferListView(): React.JSX.Element {
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: theme.background,
   },
   contentContainer: {
     paddingHorizontal: SPACING.md,
@@ -227,7 +224,7 @@ const styles = StyleSheet.create({
   // Skeleton styles
   skeletonCard: {
     flexDirection: 'row',
-    backgroundColor: COLORS.skeletonBase,
+    backgroundColor: theme.surface,
     borderRadius: SKELETON_BORDER_RADIUS,
     padding: SPACING.md,
     marginBottom: SPACING.sm,
@@ -237,7 +234,7 @@ const styles = StyleSheet.create({
     width: SKELETON_PHOTO_SIZE,
     height: SKELETON_PHOTO_SIZE,
     borderRadius: SKELETON_PHOTO_BORDER_RADIUS,
-    backgroundColor: COLORS.skeletonHighlight,
+    backgroundColor: theme.surfaceElevated,
     marginRight: SPACING.md,
   },
   skeletonContent: {
@@ -247,7 +244,7 @@ const styles = StyleSheet.create({
   skeletonLine: {
     height: SKELETON_LINE_HEIGHT,
     borderRadius: SKELETON_LINE_HEIGHT / 2,
-    backgroundColor: COLORS.skeletonHighlight,
+    backgroundColor: theme.surfaceElevated,
   },
   skeletonLineLong: {
     width: SKELETON_LINE_WIDTH_LONG,
@@ -255,6 +252,6 @@ const styles = StyleSheet.create({
   skeletonLineShort: {
     width: SKELETON_LINE_WIDTH_SHORT,
   },
-});
+}));
 
 export default OfferListView;

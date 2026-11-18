@@ -23,6 +23,7 @@ import { EscrowChargeService } from './escrow/escrow-charge.service';
 import { EscrowReleaseService } from './escrow/escrow-release.service';
 import { RefundService } from './refunds/refund.service';
 import { DisputeService } from './disputes/dispute.service';
+import { DisputeSettlementService } from './disputes/dispute-settlement.service';
 import { OfferMatchedListener } from './listeners/offer-matched.listener';
 import { AutoReleaseWorker } from './release/auto-release.worker';
 import { PaymentReconciliationService } from './reconciliation/payment-reconciliation.service';
@@ -62,12 +63,22 @@ import { PAYMENTS_DEFAULT_JOB_OPTIONS, PAYMENTS_QUEUE_NAMES, validatePaymentsCon
     EscrowReleaseService,
     RefundService,
     DisputeService,
+    DisputeSettlementService,
     OfferMatchedListener,
     AutoReleaseWorker,
     PaymentReconciliationService,
     StripeWebhookProcessor,
   ],
-  exports: [PaymentsService, EscrowReleaseService],
+  // dispute-system (Spec 21) reaches money authority ONLY through these Spec 9 seams (via its thin,
+  // mockable EscrowClient) — never Stripe directly. All are additive exports.
+  exports: [
+    PaymentsService,
+    EscrowReleaseService,
+    RefundService,
+    DisputeService,
+    DisputeSettlementService,
+    PaymentsRepository,
+  ],
 })
 export class PaymentsModule implements OnModuleInit {
   onModuleInit(): void {

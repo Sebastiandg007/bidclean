@@ -8,25 +8,22 @@
  * REQ-5: Profile tab contains the role switch option.
  */
 
-import { useCallback, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { Pressable, Text, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withSpring,
 } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
+import { makeStyles, useTheme } from '../theme';
 import RoleSwitchButton from '../screens/roles/RoleSwitchButton';
+import { ChatEntryScreen } from '../screens/chat/ChatEntryScreen';
+import { CHAT_ROUTE } from '../screens/chat/chat.constants';
+import { EnRouteScreen } from '../screens/tracking/EnRouteScreen';
+import { EN_ROUTE_SCREEN_ROUTE } from '../screens/tracking/tracking.constants';
 
-// ─── Design Tokens ───────────────────────────────────────────────────────────
-
-const COLORS = {
-  background: '#0B0C10',
-  card: '#1F2833',
-  accent: '#00F5D4',
-  textPrimary: '#FFFFFF',
-  textMuted: 'rgba(255, 255, 255, 0.5)',
-} as const;
+// ─── Layout Tokens ─────────────────────────────────────────────────────────
 
 const SPACING = {
   xs: 4,
@@ -97,15 +94,85 @@ const CLEANER_TABS: TabDefinition[] = [
 
 const DEFAULT_TAB_INDEX = 0;
 
+// ─── Active Stack Navigator ──────────────────────────────────────────────────
+
+const ACTIVE_ROUTES = { ActiveList: 'ActiveList' } as const;
+
+interface StackEntry {
+  screen: string;
+  params?: Record<string, unknown>;
+}
+
+interface StackNavigation {
+  navigate: (screen: string, params?: Record<string, unknown>) => void;
+  goBack: () => void;
+}
+
+/**
+ * Lightweight local stack for the Active tab. Starts on the active-jobs list placeholder and can
+ * push the chat entry screen for a matched thread (mirrors the Host Offers stack pattern).
+ */
+function ActiveStackNavigator() {
+  const { t } = useTranslation();
+  const styles = useStyles();
+  const [stack, setStack] = useState<StackEntry[]>([{ screen: ACTIVE_ROUTES.ActiveList }]);
+
+  const navigation: StackNavigation = useMemo(
+    () => ({
+      navigate: (screen: string, params?: Record<string, unknown>) =>
+        setStack((prev) => [...prev, { screen, params }]),
+      goBack: () => setStack((prev) => (prev.length > 1 ? prev.slice(0, -1) : prev)),
+    }),
+    [],
+  );
+
+  const currentEntry = stack[stack.length - 1] as StackEntry;
+
+  if (currentEntry.screen === CHAT_ROUTE) {
+    return (
+      <ChatEntryScreen
+        navigation={navigation}
+        route={{ params: currentEntry.params as { threadId: string } }}
+      />
+    );
+  }
+
+  if (currentEntry.screen === EN_ROUTE_SCREEN_ROUTE) {
+    // Cleaner reports position + starts the service (Spec 17), keyed by the session id.
+    return (
+      <EnRouteScreen
+        navigation={navigation}
+        route={{ params: currentEntry.params as { sessionId: string } }}
+      />
+    );
+  }
+
+  return (
+    <View style={styles.screenContainer} testID="cleaner-screen-active">
+      <Text style={styles.screenTitle}>
+        {t('navigation.cleaner.tabs.active', { defaultValue: 'Active' })}
+      </Text>
+      <Text style={styles.screenSubtitle}>
+        {t('navigation.cleaner.screen.placeholder', { defaultValue: 'Coming soon' })}
+      </Text>
+    </View>
+  );
+}
+
 // ─── Tab Screen Placeholders ─────────────────────────────────────────────────
 
 /**
- * Placeholder screen for each Cleaner tab.
- * Will be replaced with real screen implementations in future tasks.
+ * Renders the active screen for each Cleaner tab.
+ * Active tab uses the local stack navigator (list → chat).
  * Profile tab includes the RoleSwitchButton (REQ-5).
  */
 function TabScreen({ tabKey, label }: { tabKey: string; label: string }) {
   const { t } = useTranslation();
+  const styles = useStyles();
+
+  if (tabKey === 'active') {
+    return <ActiveStackNavigator />;
+  }
 
   return (
     <View style={styles.screenContainer} testID={`cleaner-screen-${tabKey}`}>
@@ -133,6 +200,8 @@ interface TabButtonProps {
  */
 function TabButton({ tab, isActive, onPress }: TabButtonProps) {
   const { t } = useTranslation();
+  const { theme } = useTheme();
+  const styles = useStyles();
   const scale = useSharedValue(1);
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -147,7 +216,7 @@ function TabButton({ tab, isActive, onPress }: TabButtonProps) {
     scale.value = withSpring(1, SPRING_CONFIG);
   }, [scale]);
 
-  const labelColor = isActive ? COLORS.accent : COLORS.textMuted;
+  const labelColor = isActive ? theme.accent : theme.textMuted;
 
   return (
     <Pressable
@@ -184,6 +253,7 @@ interface TabBarProps {
  * Custom bottom tab bar rendering all Cleaner tabs.
  */
 function CleanerTabBar({ activeIndex, onTabPress }: TabBarProps) {
+  const styles = useStyles();
   return (
     <View
       style={styles.tabBar}
@@ -213,6 +283,7 @@ function CleanerTabBar({ activeIndex, onTabPress }: TabBarProps) {
 export default function CleanerNavigator() {
   const [activeIndex, setActiveIndex] = useState(DEFAULT_TAB_INDEX);
   const { t } = useTranslation();
+  const styles = useStyles();
 
   const handleTabPress = useCallback((index: number) => {
     setActiveIndex(index);
@@ -235,17 +306,17 @@ export default function CleanerNavigator() {
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: theme.background,
   },
   screenArea: {
     flex: 1,
   },
   screenContainer: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: theme.background,
     justifyContent: 'center',
     alignItems: 'center',
     padding: SPACING.lg,
@@ -253,19 +324,19 @@ const styles = StyleSheet.create({
   screenTitle: {
     fontSize: FONT_SIZE.screenTitle,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
     marginBottom: SPACING.sm,
   },
   screenSubtitle: {
     fontSize: FONT_SIZE.screenSubtitle,
-    color: COLORS.textMuted,
+    color: theme.textMuted,
   },
   tabBar: {
     flexDirection: 'row',
     height: TAB_BAR_HEIGHT,
-    backgroundColor: COLORS.card,
+    backgroundColor: theme.surface,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.08)',
+    borderTopColor: theme.divider,
     paddingBottom: SPACING.xs,
   },
   tabButton: {
@@ -292,6 +363,6 @@ const styles = StyleSheet.create({
     width: SPACING.xl,
     height: 3,
     borderRadius: 2,
-    backgroundColor: COLORS.accent,
+    backgroundColor: theme.accent,
   },
-});
+}));

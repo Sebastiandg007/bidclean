@@ -8,6 +8,8 @@ import { sanitizeStripePayload } from '../payment-payload.sanitizer';
 import { PaymentEventSource } from '../payments.types';
 import { STRIPE_WEBHOOK_EVENTS } from '../stripe/stripe.constants';
 import { extractStripeFeeCents } from '../stripe/stripe-fee.util';
+import { buildPaymentOutboxRow, PaymentOutboxEventType } from '../payment-outbox';
+import { buildServiceActivationOutboxRow } from '../../service-tracking/service-activation-outbox';
 
 /** The matched-offer context needed to charge */
 export interface ChargeContext {
@@ -110,6 +112,24 @@ export class EscrowChargeService {
         stripePaymentIntentId: intent.id,
         stripeChargeId: this.resolveChargeId(intent),
         stripeFeeCents,
+        // Push Task 12: notify the Host (payer) that the escrow charge was captured, atomically
+        // with the HELD transition.
+        outbox: buildPaymentOutboxRow({
+          paymentId: payment.id,
+          recipientUserId: ctx.hostId,
+          type: PaymentOutboxEventType.CAPTURED,
+        }),
+        // Service-tracking Spec 17 seam: emit the durable `service_activation_ready` fact (offer
+        // MATCHED AND escrow CAPTURED) into its own outbox table in the SAME transaction. A
+        // service-tracking failure to react never rolls back or blocks this charge.
+        extraOutbox: [
+          buildServiceActivationOutboxRow({
+            offerId: ctx.offerId,
+            hostId: ctx.hostId,
+            cleanerId: ctx.cleanerId,
+            propertyId: rates.propertyId,
+          }),
+        ],
       });
 
       await this.repo.appendEvent({
@@ -142,6 +162,12 @@ export class EscrowChargeService {
         paymentId: payment.id,
         attemptId: attempt.id,
         failureReason: reason,
+        // Push Task 12: notify the Host (payer) that the charge failed, atomically with FAILED.
+        outbox: buildPaymentOutboxRow({
+          paymentId: payment.id,
+          recipientUserId: ctx.hostId,
+          type: PaymentOutboxEventType.FAILED,
+        }),
       });
 
       this.publisher.emitFailed({

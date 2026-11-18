@@ -5,17 +5,11 @@
  */
 
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Text, TouchableOpacity, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import { formatMoney } from '../negotiation.format';
-
-const COLORS = {
-  accent: '#00F5D4',
-  accentDisabled: 'rgba(0, 245, 212, 0.3)',
-  textPrimary: '#0B0C10',
-  textSecondary: 'rgba(255, 255, 255, 0.6)',
-} as const;
+import { makeStyles } from '../../../theme';
 
 const SPACING = { xs: 4, sm: 8, md: 16 } as const;
 const FONT_SIZE = { button: 16, hint: 12 } as const;
@@ -38,6 +32,7 @@ export function AcceptBar({
   onAccept,
 }: AcceptBarProps): React.JSX.Element {
   const { t } = useTranslation('negotiation');
+  const styles = useStyles();
   const price = formatMoney(priceCents, currency);
 
   return (
@@ -60,28 +55,28 @@ export function AcceptBar({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   container: {
     gap: SPACING.sm,
   },
   hint: {
     fontSize: FONT_SIZE.hint,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
     textAlign: 'center',
   },
   button: {
     height: BUTTON_HEIGHT,
     borderRadius: RADIUS,
-    backgroundColor: COLORS.accent,
+    backgroundColor: theme.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
   buttonDisabled: {
-    backgroundColor: COLORS.accentDisabled,
+    backgroundColor: theme.surfaceElevated,
   },
   buttonText: {
     fontSize: FONT_SIZE.button,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: theme.onAccent,
   },
-});
+}));

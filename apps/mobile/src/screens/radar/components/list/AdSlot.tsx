@@ -11,20 +11,15 @@
  */
 
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
+import { makeStyles } from '../../../../theme';
 import { RADAR_AD_SLOT_KEY } from '../../../ads/ads.constants';
 import { AdBanner } from '../../../ads/components/AdBanner';
 import { useAdSlot } from '../../../ads/useAdSlot';
 
 // ─── Design Tokens ───────────────────────────────────────────────────────────
-
-const COLORS = {
-  card: '#1F2833',
-  border: 'rgba(255, 255, 255, 0.1)',
-  textMuted: 'rgba(255, 255, 255, 0.4)',
-} as const;
 
 const SPACING = {
   sm: 8,
@@ -48,6 +43,7 @@ const BORDER_WIDTH = 1;
  */
 export function AdSlot(): React.JSX.Element | null {
   const { t } = useTranslation();
+  const styles = useStyles();
   const slot = useAdSlot(RADAR_AD_SLOT_KEY);
 
   if (!slot.shouldRender || slot.provider === null) {
@@ -75,23 +71,23 @@ export function AdSlot(): React.JSX.Element | null {
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   container: {
-    backgroundColor: COLORS.card,
+    backgroundColor: theme.surface,
     borderRadius: CARD_BORDER_RADIUS,
     borderWidth: BORDER_WIDTH,
-    borderColor: COLORS.border,
+    borderColor: theme.border,
     padding: SPACING.md,
     marginBottom: SPACING.sm,
   },
   sponsoredLabel: {
     fontSize: FONT_SIZE.caption,
-    color: COLORS.textMuted,
+    color: theme.textMuted,
     fontWeight: '500',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: SPACING.sm,
   },
-});
+}));
 
 export default AdSlot;

@@ -1,0 +1,33 @@
+{
+  "tracking": {
+    "enRoute": {
+      "title": "En camino",
+      "destination": "Destino",
+      "startHeading": "Voy en camino",
+      "startWork": "Iniciar el servicio",
+      "eta": "Llegada estimada",
+      "permissionDenied": "Acceso a la ubicación denegado",
+      "permissionExplainer": "BidClean comparte tu posición en vivo con el anfitrión solo mientras vas en camino, para que sepa cuándo esperarte. Tu ubicación nunca se guarda como un recorrido."
+    },
+    "host": {
+      "title": "Sigue a tu limpiador",
+      "cleanerArrived": "Tu limpiador ha llegado",
+      "locationUnavailable": "Ubicación no disponible"
+    },
+    "state": {
+      "matched": "Emparejado",
+      "onTheWay": "En camino",
+      "arrived": "Ha llegado",
+      "started": "Servicio iniciado",
+      "canceled": "Cancelado",
+      "expired": "Expirado"
+    },
+    "connection": {
+      "connected": "Conectado",
+      "connecting": "Conectando…",
+      "reconnecting": "Reconectando…",
+      "disconnected": "Desconectado"
+    },
+    "loadError": "No se pudo cargar la sesión. Inténtalo de nuevo."
+  }
+}

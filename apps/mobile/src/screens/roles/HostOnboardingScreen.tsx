@@ -13,7 +13,6 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
   Pressable,
-  StyleSheet,
   Switch,
   Text,
   TextInput,
@@ -34,19 +33,9 @@ import { useTranslation } from 'react-i18next';
 import type { HostOnboardingScreenProps } from './roles.types';
 import { useAuthStore } from '../../stores/auth.store';
 import { apiClient } from '../../services/api.service';
+import { makeStyles, useTheme } from '../../theme';
 
 // ─── Design Tokens ───────────────────────────────────────────────────────────
-
-const COLORS = {
-  background: '#0B0C10',
-  card: '#1F2833',
-  accent: '#00F5D4',
-  textPrimary: '#FFFFFF',
-  textSecondary: 'rgba(255, 255, 255, 0.6)',
-  border: 'rgba(255, 255, 255, 0.2)',
-  error: '#FF6B6B',
-  inputBackground: '#141920',
-} as const;
 
 const SPACING = {
   xs: 4,
@@ -95,6 +84,7 @@ interface StepIndicatorProps {
 
 function StepIndicator({ currentStep, totalSteps }: StepIndicatorProps) {
   const { t } = useTranslation();
+  const styles = useStyles();
   return (
     <View
       style={styles.stepIndicatorContainer}
@@ -146,6 +136,8 @@ function NameConfirmationStep({
   onContinue,
 }: NameStepProps) {
   const { t } = useTranslation();
+  const styles = useStyles();
+  const { theme } = useTheme();
   const isValid = displayName.trim().length > 0 &&
     (!isBusiness || businessName.trim().length > 0);
 
@@ -172,7 +164,7 @@ function NameConfirmationStep({
           value={displayName}
           onChangeText={onDisplayNameChange}
           placeholder={t('roles.hostOnboarding.nameStep.displayNamePlaceholder', { defaultValue: 'Your full name' })}
-          placeholderTextColor={COLORS.textSecondary}
+          placeholderTextColor={theme.textMuted}
           autoCapitalize="words"
           accessibilityLabel={t('roles.hostOnboarding.nameStep.displayNameA11y', { defaultValue: 'Display name input' })}
           accessibilityRole="text"
@@ -187,8 +179,8 @@ function NameConfirmationStep({
         <Switch
           value={isBusiness}
           onValueChange={onBusinessToggle}
-          trackColor={{ false: COLORS.border, true: COLORS.accent }}
-          thumbColor={COLORS.textPrimary}
+          trackColor={{ false: theme.border, true: theme.accent }}
+          thumbColor={theme.textPrimary}
           accessibilityLabel={t('roles.hostOnboarding.nameStep.businessToggleA11y', { defaultValue: 'Toggle business account' })}
           accessibilityRole="switch"
           accessibilityState={{ checked: isBusiness }}
@@ -210,7 +202,7 @@ function NameConfirmationStep({
             value={businessName}
             onChangeText={onBusinessNameChange}
             placeholder={t('roles.hostOnboarding.nameStep.businessNamePlaceholder', { defaultValue: 'Your business name' })}
-            placeholderTextColor={COLORS.textSecondary}
+            placeholderTextColor={theme.textMuted}
             autoCapitalize="words"
             accessibilityLabel={t('roles.hostOnboarding.nameStep.businessNameA11y', { defaultValue: 'Business name input' })}
             accessibilityRole="text"
@@ -259,6 +251,7 @@ function PaymentMethodStep({
   isSubmitting,
 }: PaymentStepProps) {
   const { t } = useTranslation();
+  const styles = useStyles();
   return (
     <Animated.View
       entering={FadeIn.duration(300)}
@@ -329,6 +322,7 @@ export default function HostOnboardingScreen({
   onSkip,
 }: HostOnboardingScreenProps) {
   const { t } = useTranslation();
+  const styles = useStyles();
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
 
@@ -458,10 +452,10 @@ export default function HostOnboardingScreen({
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: theme.background,
     paddingHorizontal: SPACING.lg,
   },
   headerSection: {
@@ -471,13 +465,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: FONT_SIZE.title,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
     letterSpacing: -0.5,
     marginTop: SPACING.md,
   },
   subtitle: {
     fontSize: FONT_SIZE.subtitle,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
     marginTop: SPACING.sm,
     lineHeight: 20,
   },
@@ -496,19 +490,19 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: COLORS.border,
+    backgroundColor: theme.border,
   },
   stepDotActive: {
-    backgroundColor: COLORS.accent,
+    backgroundColor: theme.accent,
     width: 24,
     borderRadius: 4,
   },
   stepDotCompleted: {
-    backgroundColor: COLORS.accent,
+    backgroundColor: theme.accent,
   },
   stepText: {
     fontSize: FONT_SIZE.stepIndicator,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
     marginLeft: SPACING.xs,
   },
 
@@ -521,12 +515,12 @@ const styles = StyleSheet.create({
   stepTitle: {
     fontSize: FONT_SIZE.cardTitle,
     fontWeight: '600',
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
     marginBottom: SPACING.sm,
   },
   stepDescription: {
     fontSize: FONT_SIZE.cardDescription,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
     lineHeight: 20,
     marginBottom: SPACING.lg,
   },
@@ -538,19 +532,19 @@ const styles = StyleSheet.create({
   },
   inputLabel: {
     fontSize: FONT_SIZE.label,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
     marginBottom: SPACING.sm,
     fontWeight: '500',
   },
   textInput: {
-    backgroundColor: COLORS.inputBackground,
+    backgroundColor: theme.surfaceElevated,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: theme.border,
     paddingHorizontal: SPACING.md,
     paddingVertical: 14,
     fontSize: FONT_SIZE.input,
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
   },
 
   // ─── Toggle Row ─────────────────────────────────────────────────────────
@@ -559,21 +553,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: COLORS.card,
+    backgroundColor: theme.surface,
     borderRadius: 12,
     padding: SPACING.md,
     marginBottom: SPACING.md,
   },
   toggleLabel: {
     fontSize: FONT_SIZE.label,
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
     fontWeight: '500',
   },
 
   // ─── Info Card ──────────────────────────────────────────────────────────
 
   infoCard: {
-    backgroundColor: COLORS.card,
+    backgroundColor: theme.surface,
     borderRadius: 16,
     padding: SPACING.lg,
     flexDirection: 'row',
@@ -590,12 +584,12 @@ const styles = StyleSheet.create({
   infoCardTitle: {
     fontSize: FONT_SIZE.label,
     fontWeight: '600',
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
     marginBottom: SPACING.xs,
   },
   infoCardDescription: {
     fontSize: FONT_SIZE.cardDescription,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
     lineHeight: 20,
   },
 
@@ -607,7 +601,7 @@ const styles = StyleSheet.create({
     gap: SPACING.md,
   },
   primaryButton: {
-    backgroundColor: COLORS.accent,
+    backgroundColor: theme.accent,
     borderRadius: 12,
     paddingVertical: SPACING.md,
     alignItems: 'center',
@@ -618,10 +612,10 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     fontSize: FONT_SIZE.button,
     fontWeight: '600',
-    color: COLORS.background,
+    color: theme.onAccent,
   },
   primaryButtonTextDisabled: {
-    color: COLORS.background,
+    color: theme.onAccent,
   },
   skipButton: {
     alignItems: 'center',
@@ -629,7 +623,7 @@ const styles = StyleSheet.create({
   },
   skipButtonText: {
     fontSize: FONT_SIZE.label,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
     fontWeight: '500',
   },
-});
+}));

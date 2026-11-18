@@ -6,10 +6,14 @@ Shared types, constants, and utilities used across the BidClean mobile app and b
 
 ## Files
 
-| Directory | Responsibility |
-|-----------|---------------|
+| File / Directory | Responsibility |
+|------------------|---------------|
+| `package.json` | Package `@bidclean/shared`; `main` and `types` point at `src/index.ts` (consumed as TypeScript source); scripts `typecheck`, `lint`, `lint:fix`. |
+| `tsconfig.json` | Extends `../../tsconfig.base.json`; `rootDir: ./src`. |
+| `src/` | Source with the single `index.ts` entry point. See [`src/README.md`](src/README.md). |
 | `src/types/` | TypeScript interfaces and type definitions shared across services |
 | `src/constants/` | Business rules and configuration constants |
+| `src/outbox/` | Transactional outbox writer |
 
 ## Usage
 

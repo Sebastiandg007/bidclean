@@ -1,75 +1,65 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { DataSource } from 'typeorm';
 
-import { OneSignalClient, OneSignalNotificationPayload } from './onesignal.client';
-import { NOTIFICATION_CONTENT } from './notification.constants';
+import { writeOutbox } from '../../common/outbox/outbox-writer';
+import { buildOfferOutboxRow, OfferOutboxEventType } from './offer-outbox';
 
 /**
  * Offer notification service.
  *
- * Sends push notifications to offline Cleaners via OneSignal
- * as a fallback when WebSocket delivery fails.
+ * Push Task 12 (behavior-preserving migration, REQ-NP13): the new-offer push to an offline Cleaner
+ * is no longer sent by calling OneSignal directly. Instead this service writes a durable
+ * `offer_outbox` `offer.matched` row; the notifications relay drains it and the delivery worker
+ * sends the push per consented device (Model B) using the `offer.*` mapper, which reproduces the
+ * same recipient/content/best-effort semantics as the legacy direct send.
  *
  * Behavior:
- * - Builds push payload with offer details for deep linking
- * - Delegates delivery to OneSignalClient
- * - Returns true/false based on OneSignal acceptance
- * - Never throws — errors are caught internally and logged
+ * - Writes ONE `offer_outbox` row per (offer, Cleaner), keyed by a deterministic `event_id` so a
+ *   retry never duplicates the intent (exactly-once at the ledger).
+ * - Returns true when the outbox row is durably persisted (the WebSocket-fallback caller treats
+ *   this as a successful PUSH hand-off), false otherwise.
+ * - Never throws — errors are caught internally and logged (no offerId/cleanerId PII beyond ids).
  */
 @Injectable()
 export class OfferNotificationService {
   private readonly logger = new Logger(OfferNotificationService.name);
 
-  constructor(private readonly oneSignalClient: OneSignalClient) {}
+  constructor(private readonly dataSource: DataSource) {}
 
   /**
-   * Send a push notification to a Cleaner about a new offer.
+   * Enqueue a push notification to a Cleaner about a new offer by writing an `offer_outbox` row.
    *
-   * @param cleanerId - UUID of the target Cleaner (used as OneSignal external user ID)
+   * @param cleanerId - UUID of the target Cleaner (the intent recipient)
    * @param offerId - UUID of the offer being delivered
-   * @returns true if push was accepted by OneSignal, false otherwise
+   * @returns true if the outbox row was durably persisted, false otherwise
    */
   async sendOfferNotification(
     cleanerId: string,
     offerId: string,
   ): Promise<boolean> {
     try {
-      const payload = this.buildNotificationPayload(offerId);
-      const success = await this.oneSignalClient.sendToUser(cleanerId, payload);
-
-      if (success) {
-        this.logger.debug(
-          `Push notification sent for offer=${offerId} to cleaner=${cleanerId}`,
+      // The outbox write runs in its own transaction so the durable row is committed atomically;
+      // a rollback would leave no row (the relay drains nothing = safe no-op).
+      await this.dataSource.transaction(async (manager) => {
+        await writeOutbox(
+          manager,
+          buildOfferOutboxRow({
+            offerId,
+            recipientUserId: cleanerId,
+            type: OfferOutboxEventType.MATCHED,
+          }),
         );
-      } else {
-        this.logger.debug(
-          `Push notification not delivered for offer=${offerId} to cleaner=${cleanerId}`,
-        );
-      }
+      });
 
-      return success;
+      this.logger.debug(
+        `Offer push queued via offer_outbox for offer=${offerId} to cleaner=${cleanerId}`,
+      );
+      return true;
     } catch (error) {
       this.logger.warn(
-        `Unexpected error sending push for offer=${offerId} to cleaner=${cleanerId}: ${String(error)}`,
+        `Failed to queue offer push for offer=${offerId} to cleaner=${cleanerId}: ${String(error)}`,
       );
       return false;
     }
-  }
-
-  /** Build the OneSignal notification payload for a new offer. */
-  private buildNotificationPayload(offerId: string): OneSignalNotificationPayload {
-    return {
-      headings: {
-        en: NOTIFICATION_CONTENT.NEW_OFFER_HEADING_EN,
-        es: NOTIFICATION_CONTENT.NEW_OFFER_HEADING_ES,
-      },
-      contents: {
-        en: NOTIFICATION_CONTENT.NEW_OFFER_BODY_EN,
-        es: NOTIFICATION_CONTENT.NEW_OFFER_BODY_ES,
-      },
-      data: {
-        type: NOTIFICATION_CONTENT.OFFER_DATA_TYPE,
-        offerId,
-      },
-    };
   }
 }

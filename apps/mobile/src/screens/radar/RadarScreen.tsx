@@ -15,9 +15,10 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { makeStyles, useTheme } from '../../theme';
 import { useAuthStore } from '../../stores/auth.store';
 import { useProfileStore } from '../profile/useProfile';
 import { useRadarStore } from './useRadarStore';
@@ -37,12 +38,7 @@ import { ViewToggle } from './components/ViewToggle';
 import { RadarHeader } from './components/RadarHeader';
 import { RadarSkeleton } from './components/RadarSkeleton';
 import { LocationDeniedFallback } from './components/LocationDeniedFallback';
-
-// ─── Design Tokens ───────────────────────────────────────────────────────────
-
-const COLORS = {
-  background: '#0B0C10',
-} as const;
+import { ResolvedTheme } from '../../theme';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -55,6 +51,10 @@ const KM_TO_METERS = 1_000;
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export function RadarScreen(): React.JSX.Element {
+  const styles = useStyles();
+  const { resolvedTheme } = useTheme();
+  const isDarkMode = resolvedTheme === ResolvedTheme.DARK;
+
   // ─── Auth (Cleaner ID) ─────────────────────────────────────────────────
 
   const cleanerId = useAuthStore((state) => state.user?.id ?? '');
@@ -214,7 +214,7 @@ export function RadarScreen(): React.JSX.Element {
             cleanerLocation={mapCenter}
             workZoneCenter={workZoneCenter}
             workZoneRadiusMeters={workZoneRadiusMeters}
-            isDarkMode
+            isDarkMode={isDarkMode}
           />
         ) : (
           <OfferListView />
@@ -235,10 +235,10 @@ export function RadarScreen(): React.JSX.Element {
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: theme.background,
   },
   toggleContainer: {
     flexDirection: 'row',
@@ -251,6 +251,6 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
   },
-});
+}));
 
 export default RadarScreen;
